@@ -6,22 +6,44 @@ use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\CompetitionResult;
+use App\Models\TrainingGroup;
 use App\Models\User;
+use App\Services\CompetitionResultGrouper;
 use App\Services\DsvImportService;
+use App\Services\RecordCheckService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class CompetitionController extends Controller
 {
-    public function __construct(private DsvImportService $service) {}
+    public function __construct(
+        private DsvImportService $service,
+        private RecordCheckService $recordCheck,
+    ) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $competitions = Competition::withCount('results')
-            ->orderByDesc('date')
-            ->paginate(15);
+        $query = Competition::withCount('results');
 
-        return view('admin.competitions.index', compact('competitions'));
+        if ($ort = $request->get('ort')) {
+            $query->where('location', 'like', '%' . $ort . '%');
+        }
+        if ($von = $request->get('von')) {
+            $query->whereDate('date', '>=', $von);
+        }
+        if ($bis = $request->get('bis')) {
+            $query->whereDate('date', '<=', $bis);
+        }
+        if ($typ = $request->get('typ')) {
+            $query->where('type', $typ);
+        }
+
+        $competitions = $query->orderByDesc('date')->paginate(20)->withQueryString();
+        $filters = $request->only(['ort', 'von', 'bis', 'typ']);
+
+        return view('admin.competitions.index', compact('competitions', 'filters'));
     }
 
     public function create()
@@ -75,28 +97,45 @@ class CompetitionController extends Controller
             'location'    => ['required', 'string', 'max:255'],
             'date'        => ['required', 'date'],
             'date_end'    => ['nullable', 'date', 'gte:date'],
-            'type'        => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung'],
+            'type'        => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung,nop,dms,shsv'],
             'organizer'   => ['nullable', 'string', 'max:255'],
             'course'      => ['nullable', 'in:LCM,SCM'],
             'description' => ['nullable', 'string'],
             'events_json' => ['nullable', 'json'],
         ]);
 
-        $competition = Competition::create([
-            'name'        => $data['name'],
-            'location'    => $data['location'],
-            'date'        => $data['date'],
-            'date_end'    => $data['date_end'] ?? null,
-            'type'        => $data['type'],
-            'organizer'   => $data['organizer'] ?? null,
-            'course'      => $data['course'] ?? null,
-            'description' => $data['description'] ?? null,
-        ]);
+        // Duplicate check: same name + start date
+        $existing = Competition::where('name', $data['name'])
+            ->whereDate('date', $data['date'])
+            ->first();
 
-        // Save events if provided (from Lenex import)
+        if ($existing) {
+            return back()->withInput()
+                ->withErrors(['name' => 'Ein Wettkampf mit diesem Namen und Datum existiert bereits.'])
+                ->with('duplicate_competition_id', $existing->id);
+        }
+
+        $events = [];
         if (!empty($data['events_json'])) {
-            $events = json_decode($data['events_json'], true);
+            $events = json_decode($data['events_json'], true) ?? [];
+        }
+
+        $competition = DB::transaction(function () use ($data, $events) {
+            $competition = Competition::create([
+                'name'        => $data['name'],
+                'location'    => $data['location'],
+                'date'        => $data['date'],
+                'date_end'    => $data['date_end'] ?? null,
+                'type'        => $data['type'],
+                'organizer'   => $data['organizer'] ?? null,
+                'course'      => $data['course'] ?? null,
+                'description' => $data['description'] ?? null,
+            ]);
+
             foreach ($events as $ev) {
+                $ageMin = (int)($ev['age_min'] ?? 0);
+                $ageMax = (int)($ev['age_max'] ?? 0);
+
                 CompetitionEvent::create([
                     'competition_id' => $competition->id,
                     'event_number'   => (int)($ev['event_number'] ?? 0),
@@ -106,16 +145,23 @@ class CompetitionController extends Controller
                     'discipline'     => $ev['discipline'],
                     'distance'       => (int)$ev['distance'],
                     'gender'         => $ev['gender'] ?? 'X',
-                    'age_min'        => ($ev['age_min'] ?? null) ?: null,
-                    'age_max'        => ($ev['age_max'] ?? null) ?: null,
-                    'age_group'      => $ev['age_group'] ?: null,
+                    // Normalize: 0 = "no minimum", 9999+ = "no maximum" → store as null
+                    'age_min'             => ($ageMin > 0) ? $ageMin : null,
+                    'age_max'             => ($ageMax > 0 && $ageMax < 9999) ? $ageMax : null,
+                    'age_group'           => mb_substr($ev['age_group'] ?? '', 0, 50) ?: null,
+                    'qualifying_time_ms'  => isset($ev['qualifying_time_ms']) && (int)$ev['qualifying_time_ms'] > 0
+                                                ? (int)$ev['qualifying_time_ms'] : null,
+                    'meldegeld'           => isset($ev['meldegeld']) && (float)$ev['meldegeld'] > 0
+                                                ? (float)$ev['meldegeld'] : null,
                 ]);
             }
-        }
+
+            return $competition;
+        });
 
         session()->forget('lenex_competition_data');
 
-        $eventCount = $competition->events()->count();
+        $eventCount = count($events);
         $msg = 'Wettkampf wurde angelegt.';
         if ($eventCount > 0) {
             $msg .= " {$eventCount} Startdisziplinen aus Lenex-Datei übernommen.";
@@ -127,19 +173,30 @@ class CompetitionController extends Controller
 
     public function show(Competition $competition)
     {
-        $competition->load('events');
+        $competition->load(['events' => fn($q) => $q
+            ->orderBy('session_number')
+            ->orderBy('event_number')
+            ->orderBy('age_group'),
+            'trainingGroups',
+        ]);
 
-        $results = $competition->results()
-            ->with('user')
-            ->orderBy('discipline')
-            ->orderBy('distance')
-            ->orderBy('time_ms')
-            ->get()
-            ->groupBy(fn($r) => $r->discipline . '_' . $r->distance);
+        $rawResults = $competition->results()->with('user')->orderBy('discipline')->orderBy('distance')->get();
+        $results    = CompetitionResultGrouper::forCompetition($rawResults);
 
-        $swimmers = User::where('role', 'schwimmer')->where('active', true)->orderBy('name')->get();
+        $swimmers         = User::where('role', 'schwimmer')->where('active', true)->orderBy('name')->get();
+        $allGroups        = TrainingGroup::orderBy('name')->get();
+        $hasPflichtzeiten = $competition->events->where('qualifying_time_ms', '>', 0)->isNotEmpty();
+        $hasMeldegelder   = $competition->events->where('meldegeld', '>', 0)->isNotEmpty();
 
-        return view('admin.competitions.show', compact('competition', 'results', 'swimmers'));
+        return view('admin.competitions.show',
+            compact('competition', 'results', 'swimmers', 'allGroups', 'hasPflichtzeiten', 'hasMeldegelder'));
+    }
+
+    public function syncGroups(Request $request, Competition $competition)
+    {
+        $request->validate(['groups' => ['nullable', 'array'], 'groups.*' => ['exists:training_groups,id']]);
+        $competition->trainingGroups()->sync($request->input('groups', []));
+        return back()->with('success', 'Startberechtigte Gruppen aktualisiert.');
     }
 
     public function edit(Competition $competition)
@@ -154,7 +211,7 @@ class CompetitionController extends Controller
             'location'    => ['required', 'string', 'max:255'],
             'date'        => ['required', 'date'],
             'date_end'    => ['nullable', 'date', 'gte:date'],
-            'type'        => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung'],
+            'type'        => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung,nop,dms,shsv'],
             'organizer'   => ['nullable', 'string', 'max:255'],
             'course'      => ['nullable', 'in:LCM,SCM'],
             'description' => ['nullable', 'string'],
@@ -181,6 +238,7 @@ class CompetitionController extends Controller
             'user_id'           => ['required', 'exists:users,id'],
             'discipline'        => ['required', 'in:freistil,brust,ruecken,schmetterling,lagen'],
             'distance'          => ['required', 'integer', 'min:25'],
+            'gender'            => ['nullable', 'in:M,F'],
             'time_minutes'      => ['nullable', 'integer', 'min:0'],
             'time_seconds'      => ['required', 'integer', 'min:0', 'max:59'],
             'time_centiseconds' => ['required', 'integer', 'min:0', 'max:99'],
@@ -195,11 +253,12 @@ class CompetitionController extends Controller
         $existingBest = CompetitionResult::where('user_id', $data['user_id'])
             ->where('discipline', $data['discipline'])
             ->where('distance', $data['distance'])
+            ->where('time_ms', '>', 0)
             ->min('time_ms');
 
         $isPb = !$existingBest || $timeMs < $existingBest;
 
-        CompetitionResult::create([
+        $result = CompetitionResult::create([
             'competition_id'  => $competition->id,
             'user_id'         => $data['user_id'],
             'discipline'      => $data['discipline'],
@@ -208,15 +267,86 @@ class CompetitionController extends Controller
             'placement'       => $data['placement'] ?? null,
             'is_personal_best'=> $isPb,
             'age_group'       => $data['age_group'] ?? null,
+            'gender'          => $data['gender'] ?? null,
             'notes'           => $data['notes'] ?? null,
         ]);
+
+        $this->recordCheck->checkResult($result->load(['user', 'competition']));
 
         return back()->with('success', 'Ergebnis wurde eingetragen.');
     }
 
     public function destroyResult(CompetitionResult $result)
     {
-        $result->delete();
+        // Cascade-delete all rows of the same physical swim (same time in same competition)
+        CompetitionResult::where('competition_id', $result->competition_id)
+            ->where('user_id', $result->user_id)
+            ->where('discipline', $result->discipline)
+            ->where('distance', $result->distance)
+            ->where('time_ms', $result->time_ms)
+            ->delete();
+
         return back()->with('success', 'Ergebnis wurde gelöscht.');
+    }
+
+    public function generateAnalysis(Request $request, Competition $competition)
+    {
+        $rawResults = $competition->results()->with('user')->where('time_ms', '>', 0)->get();
+        $grouped    = CompetitionResultGrouper::forCompetition($rawResults);
+
+        $lines = [];
+        foreach ($grouped as $swims) {
+            foreach ($swims as $swim) {
+                $name = $swim->user?->name ?? 'Unbekannt';
+                $placements = collect($swim->placements)
+                    ->map(fn($p) => ($p->age_group ? $p->age_group . ': ' : '') . 'Platz ' . $p->placement)
+                    ->implode(', ');
+                $badges = array_filter([
+                    $swim->is_final             ? 'Finale'         : null,
+                    $swim->is_personal_best     ? 'PB'             : null,
+                    $swim->breaks_vereinsrekord ? 'Vereinsrekord'  : null,
+                    $swim->breaks_landesrekord  ? 'Landesrekord'   : null,
+                ]);
+
+                $line = "- {$name}: {$swim->distance}m {$swim->discipline_label} in {$swim->formatted_time}";
+                if ($placements) $line .= ", {$placements}";
+                if ($badges)     $line .= ' [' . implode(', ', $badges) . ']';
+                $lines[] = $line;
+            }
+        }
+
+        if (empty($lines)) {
+            return response()->json(['error' => 'Keine gültigen Ergebnisse für die Auswertung vorhanden.'], 422);
+        }
+
+        $apiKey = env('ANTHROPIC_API_KEY');
+        if (!$apiKey) {
+            return response()->json(['error' => 'Kein API-Key konfiguriert (ANTHROPIC_API_KEY in .env).'], 500);
+        }
+
+        $prompt = "Schreibe eine kurze, motivierende Wettkampfauswertung für den Trainer-Newsletter der SG Wasserratten Norderstedt e.V.\n\n"
+            . "Wettkampf: {$competition->name}\nDatum: {$competition->date_range}\nOrt: {$competition->location}\n\n"
+            . "Ergebnisse unserer Schwimmer:\n" . implode("\n", $lines) . "\n\n"
+            . "Der Text soll 2–3 kurze Absätze umfassen, die besten Leistungen (besonders Podiumsplätze, PBs, Rekorde, Finalläufe) hervorheben, motivierend und positiv formuliert sein und kein HTML oder Markdown enthalten.";
+
+        try {
+            $response = Http::withHeaders([
+                'x-api-key'         => $apiKey,
+                'anthropic-version' => '2023-06-01',
+                'content-type'      => 'application/json',
+            ])->post('https://api.anthropic.com/v1/messages', [
+                'model'      => 'claude-haiku-4-5-20251001',
+                'max_tokens' => 800,
+                'messages'   => [['role' => 'user', 'content' => $prompt]],
+            ]);
+
+            if ($response->failed()) {
+                return response()->json(['error' => 'API-Fehler ' . $response->status()], 500);
+            }
+
+            return response()->json(['text' => $response->json('content.0.text', '')]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

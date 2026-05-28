@@ -7,15 +7,19 @@ use App\Models\Competition;
 use App\Models\CompetitionResult;
 use App\Models\User;
 use App\Services\DsvImportService;
+use App\Services\RecordCheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class CompetitionResultImportController extends Controller
 {
-    // Club name keywords used to filter relevant athletes from the DSV file
-    private const CLUB_KEYWORDS = ['wasserratten', 'norderstedt'];
+    // Keywords used to pre-select our own club in the preview
+    private const CLUB_KEYWORDS = ['wasserratten', 'norderstedt', 'sgwn', 'sgw'];
 
-    public function __construct(private DsvImportService $service) {}
+    public function __construct(
+        private DsvImportService $service,
+        private RecordCheckService $recordCheck,
+    ) {}
 
     // ── Schritt 1: Datei hochladen + parsen ─────────────────────────────────
 
@@ -48,22 +52,7 @@ class CompetitionResultImportController extends Controller
             return back()->withErrors(['dsv_file' => 'Keine gültigen Wettkampfdaten gefunden.']);
         }
 
-        // Try to filter to SG Wasserratten Norderstedt; fall back to all clubs if no match
-        $clubWarning = null;
-        foreach ($parsed['meets'] as &$meet) {
-            $filtered = array_values(array_filter(
-                $meet['clubs'],
-                fn($club) => $this->isOurClub($club['name'])
-            ));
-            if (!empty($filtered)) {
-                $meet['clubs'] = $filtered;
-            } else {
-                $clubWarning = 'Kein Verein mit "Wasserratten" oder "Norderstedt" gefunden – alle Vereine werden angezeigt.';
-            }
-        }
-        unset($meet);
-
-        // Auto-match athletes by firstname + lastname
+        // Auto-match athletes; keep ALL clubs (user selects in preview)
         $swimmers = User::where('role', 'schwimmer')->where('active', true)->get();
 
         foreach ($parsed['meets'] as &$meet) {
@@ -75,10 +64,44 @@ class CompetitionResultImportController extends Controller
         }
         unset($meet, $club, $athlete);
 
+        // Determine which club indices look like our club (for pre-selection in preview)
+        $suggestedClubs = [];
+        foreach ($parsed['meets'][0]['clubs'] as $ci => $club) {
+            if ($this->looksLikeOurClub($club['name'])) {
+                $suggestedClubs[] = $ci;
+            }
+        }
+
+        // If none matched, suggest all clubs (so the page is not empty)
+        if (empty($suggestedClubs)) {
+            $suggestedClubs = array_keys($parsed['meets'][0]['clubs']);
+        }
+
+        // Check if file date matches competition date (warn if more than 14 days apart)
+        $fileMeet    = $parsed['meets'][0];
+        $fileDateStr = $fileMeet['startdate'] ?? null;
+        $mismatch    = null;
+
+        if ($fileDateStr) {
+            $fileDate  = \Carbon\Carbon::parse($fileDateStr);
+            $compDate  = $competition->date;
+            $diffDays  = abs($fileDate->diffInDays($compDate));
+
+            if ($diffDays > 14) {
+                $mismatch = sprintf(
+                    'Das Datum in der Datei (%s) weicht um %d Tage vom Wettkampf-Datum (%s) ab. Wurde die richtige Datei hochgeladen?',
+                    $fileDate->format('d.m.Y'),
+                    $diffDays,
+                    $compDate->format('d.m.Y')
+                );
+            }
+        }
+
         session([
-            'comp_result_import_parsed'   => $parsed,
-            'comp_result_import_comp'     => $competition->id,
-            'comp_result_import_warning'  => $clubWarning,
+            'comp_result_import_parsed'    => $parsed,
+            'comp_result_import_comp'      => $competition->id,
+            'comp_result_import_suggested' => $suggestedClubs,
+            'comp_result_import_mismatch'  => $mismatch,
         ]);
 
         return redirect()->route('admin.competitions.results-import.preview', $competition);
@@ -94,13 +117,14 @@ class CompetitionResultImportController extends Controller
                 ->with('error', 'Sitzung abgelaufen – bitte Datei erneut hochladen.');
         }
 
-        $parsed      = session('comp_result_import_parsed');
-        $clubWarning = session('comp_result_import_warning');
-        $swimmers    = User::where('role', 'schwimmer')->where('active', true)
+        $parsed         = session('comp_result_import_parsed');
+        $suggestedClubs = session('comp_result_import_suggested', []);
+        $mismatch       = session('comp_result_import_mismatch');
+        $swimmers       = User::where('role', 'schwimmer')->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
 
         return view('admin.competitions.result-import-preview',
-            compact('competition', 'parsed', 'swimmers', 'clubWarning'));
+            compact('competition', 'parsed', 'swimmers', 'suggestedClubs', 'mismatch'));
     }
 
     // ── Schritt 3: Import ausführen ─────────────────────────────────────────
@@ -129,6 +153,12 @@ class CompetitionResultImportController extends Controller
 
         foreach ($meet['clubs'] as $ci => $club) {
             foreach ($club['athletes'] as $ai => $athlete) {
+                // Skip relay entries (no single user to map to)
+                if ($athlete['is_relay'] ?? false) {
+                    $skipped++;
+                    continue;
+                }
+
                 $userId = (int)($data['mappings'][$ci][$ai] ?? 0);
 
                 if (!$userId) {
@@ -137,28 +167,36 @@ class CompetitionResultImportController extends Controller
                 }
 
                 foreach ($athlete['results'] as $result) {
-                    $this->importResult($competition->id, $userId, $result);
+                    $saved = $this->importResult($competition->id, $userId, $result, $athlete['gender'] ?? 'X');
+                    if ($saved) {
+                        $this->recordCheck->checkResult($saved->load(['user', 'competition']));
+                    }
                     $imported++;
                 }
             }
         }
 
-        session()->forget(['comp_result_import_parsed', 'comp_result_import_comp', 'comp_result_import_warning']);
+        session()->forget([
+            'comp_result_import_parsed',
+            'comp_result_import_comp',
+            'comp_result_import_suggested',
+            'comp_result_import_mismatch',
+        ]);
 
         return redirect()->route('admin.competitions.show', $competition)
-            ->with('success', "{$imported} Ergebnis" . ($imported !== 1 ? 'se' : '') . " importiert" .
-                ($skipped ? ", {$skipped} Athlet" . ($skipped !== 1 ? 'en' : '') . " übersprungen" : '') . '.');
+            ->with('success',
+                "{$imported} Ergebnis" . ($imported !== 1 ? 'se' : '') . " importiert" .
+                ($skipped ? ", {$skipped} Athlet" . ($skipped !== 1 ? 'en' : '') . " übersprungen" : '') . '.'
+            );
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private function isOurClub(string $clubName): bool
+    private function looksLikeOurClub(string $clubName): bool
     {
         $lower = mb_strtolower($clubName);
         foreach (self::CLUB_KEYWORDS as $kw) {
-            if (str_contains($lower, $kw)) {
-                return true;
-            }
+            if (str_contains($lower, $kw)) return true;
         }
         return false;
     }
@@ -169,15 +207,13 @@ class CompetitionResultImportController extends Controller
         $aLast  = mb_strtolower(trim($athlete['lastname']  ?? ''));
 
         foreach ($swimmers as $swimmer) {
-            $sFirst = mb_strtolower(trim($swimmer->firstname));
-            $sLast  = mb_strtolower(trim($swimmer->lastname));
-
-            if ($sFirst === $aFirst && $sLast === $aLast) {
+            if (mb_strtolower(trim($swimmer->firstname)) === $aFirst
+                && mb_strtolower(trim($swimmer->lastname)) === $aLast) {
                 return $swimmer->id;
             }
         }
 
-        // Fallback: combined name match
+        // Fallback: combined name
         $combined = mb_strtolower(trim($athlete['name'] ?? ''));
         foreach ($swimmers as $swimmer) {
             if (mb_strtolower(trim($swimmer->name)) === $combined) {
@@ -188,19 +224,45 @@ class CompetitionResultImportController extends Controller
         return null;
     }
 
-    private function importResult(int $competitionId, int $userId, array $result): void
+    private function importResult(int $competitionId, int $userId, array $result, string $gender = 'X'): ?CompetitionResult
     {
+        $ageGroup  = $result['age_group'] ?? null;
+        $isDns     = !empty($result['status']);
+        $resGender = $result['gender'] ?? $gender;
+        if ($resGender === 'X') $resGender = $gender;
+
         $exists = CompetitionResult::where('competition_id', $competitionId)
             ->where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
+            ->where('age_group', $ageGroup)
             ->exists();
 
-        if ($exists) return;
+        if ($exists) return null;
+
+        $isFinal = ($result['round_type'] ?? '') === 'F';
+
+        // DNS / AB / DNF / DQ — store with time_ms=0, no PB
+        if ($isDns) {
+            return CompetitionResult::create([
+                'competition_id'   => $competitionId,
+                'user_id'          => $userId,
+                'discipline'       => $result['discipline'],
+                'distance'         => $result['distance'],
+                'time_ms'          => 0,
+                'placement'        => 0,
+                'is_personal_best' => false,
+                'age_group'        => $ageGroup,
+                'gender'           => $resGender !== 'X' ? $resGender : null,
+                'notes'            => $result['status'],
+                'is_final'         => $isFinal,
+            ]);
+        }
 
         $existingBest = CompetitionResult::where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
+            ->where('time_ms', '>', 0)
             ->min('time_ms');
 
         $isPb = !$existingBest || $result['time_ms'] < $existingBest;
@@ -213,7 +275,7 @@ class CompetitionResultImportController extends Controller
                 ->update(['is_personal_best' => false]);
         }
 
-        CompetitionResult::create([
+        return CompetitionResult::create([
             'competition_id'   => $competitionId,
             'user_id'          => $userId,
             'discipline'       => $result['discipline'],
@@ -221,6 +283,9 @@ class CompetitionResultImportController extends Controller
             'time_ms'          => $result['time_ms'],
             'placement'        => $result['place'] ?? null,
             'is_personal_best' => $isPb,
+            'age_group'        => $ageGroup,
+            'gender'           => $resGender !== 'X' ? $resGender : null,
+            'is_final'         => $isFinal,
         ]);
     }
 }

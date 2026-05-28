@@ -18,11 +18,12 @@ class PasswordController extends Controller
     {
         $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password'         => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
         $request->user()->update([
-            'password' => Hash::make($request->password),
+            'password'         => Hash::make($request->password),
+            'initial_password' => null, // user set their own password — clear initial status
         ]);
 
         return back()->with('success', 'Passwort erfolgreich geändert.');

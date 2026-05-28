@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\TrainingAttendance;
 use App\Models\SwimmingTime;
 use App\Models\CompetitionResult;
+use App\Services\CompetitionResultGrouper;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class DashboardController extends Controller
 {
@@ -27,11 +29,12 @@ class DashboardController extends Controller
                     ->orderByDesc('created_at')
                     ->limit(3)
                     ->get(),
-                'recent_results' => CompetitionResult::with('competition')
-                    ->where('user_id', $child->id)
-                    ->orderByDesc('created_at')
-                    ->limit(3)
-                    ->get(),
+                'recent_results' => CompetitionResultGrouper::forSwimmer(
+                    CompetitionResult::with('competition')
+                        ->where('user_id', $child->id)
+                        ->where('time_ms', '>', 0)
+                        ->get()
+                )->take(3),
             ];
         }
 
@@ -54,13 +57,26 @@ class DashboardController extends Controller
     public function childCompetitions(int $childId)
     {
         $parent = auth()->user();
-        $child = $parent->children()->findOrFail($childId);
+        $child  = $parent->children()->findOrFail($childId);
 
-        $results = CompetitionResult::with('competition')
-            ->where('user_id', $child->id)
-            ->orderByDesc('created_at')
-            ->paginate(20);
+        $raw      = CompetitionResult::with('competition')->where('user_id', $child->id)->get();
+        $allSwims = CompetitionResultGrouper::forSwimmer($raw);
+        $grouped  = $allSwims->groupBy('competition_id');
 
-        return view('parent.child-competitions', compact('child', 'results'));
+        $competitionIds = $grouped->keys()->toArray();
+        $perPage  = 10;
+        $page     = (int) request('page', 1);
+
+        $allComps  = \App\Models\Competition::whereIn('id', $competitionIds)->orderByDesc('date')->get();
+        $pageItems = $allComps->forPage($page, $perPage)->values();
+        foreach ($pageItems as $comp) {
+            $comp->processedResults = $grouped->get($comp->id, collect());
+        }
+
+        $competitions = new LengthAwarePaginator($pageItems, $allComps->count(), $perPage, $page, [
+            'path' => request()->url(),
+        ]);
+
+        return view('parent.child-competitions', compact('child', 'competitions'));
     }
 }

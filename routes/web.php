@@ -7,10 +7,20 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
 use App\Http\Controllers\Admin\CompetitionResultImportController;
+use App\Http\Controllers\Admin\RecordController;
+use App\Http\Controllers\Admin\CalendarEventController;
+use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\Admin\LogController;
+use App\Http\Controllers\Admin\TrainingGroupController;
+use App\Http\Controllers\Admin\WebClubImportController;
+use App\Http\Controllers\Admin\CompetitionWebclubImportController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
 use App\Http\Controllers\Trainer\TrainingSessionController;
 use App\Http\Controllers\Trainer\DsvImportController;
+use App\Http\Controllers\Trainer\TrainingPlanController;
 use App\Http\Controllers\Swimmer\DashboardController as SwimmerDashboard;
+use App\Http\Controllers\Swimmer\GoalController as SwimmerGoalController;
+use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
 use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
 
 // Startseite -> Login
@@ -30,7 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/passwort-aendern', [PasswordController::class, 'update'])->name('password.update');
 });
 
-// Admin-Bereich
+// Admin-only Bereich
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboard::class, 'index'])->name('dashboard');
 
@@ -42,20 +52,64 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/benutzer/{user}', [AdminUserController::class, 'update'])->name('users.update');
     Route::delete('/benutzer/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
     Route::patch('/benutzer/{user}/aktivierung', [AdminUserController::class, 'toggleActive'])->name('users.toggle-active');
+    Route::post('/benutzer/{user}/passwort-reset', [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
 
-    // Wettkämpfe (Admin verwaltet)
-    Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
+    // WebClub Wettkampf-Terminimport
+    Route::get('/wettkaempfe/webclub-import', [CompetitionWebclubImportController::class, 'showForm'])->name('competitions.webclub-import.form');
+    Route::post('/wettkaempfe/webclub-import/vorschau', [CompetitionWebclubImportController::class, 'preview'])->name('competitions.webclub-import.preview');
+    Route::post('/wettkaempfe/webclub-import/speichern', [CompetitionWebclubImportController::class, 'import'])->name('competitions.webclub-import.import');
+
+    // Wettkämpfe – nur Admin darf anlegen, bearbeiten, löschen, Ergebnisse manuell eintragen
     Route::get('/wettkaempfe/neu', [AdminCompetitionController::class, 'create'])->name('competitions.create');
     Route::post('/wettkaempfe/lenex', [AdminCompetitionController::class, 'parseLenex'])->name('competitions.lenex');
     Route::post('/wettkaempfe', [AdminCompetitionController::class, 'store'])->name('competitions.store');
-    Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
     Route::get('/wettkaempfe/{competition}/bearbeiten', [AdminCompetitionController::class, 'edit'])->name('competitions.edit');
     Route::put('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
     Route::delete('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'destroy'])->name('competitions.destroy');
+    Route::post('/wettkaempfe/{competition}/gruppen', [AdminCompetitionController::class, 'syncGroups'])->name('competitions.sync-groups');
     Route::post('/wettkaempfe/{competition}/ergebnis', [AdminCompetitionController::class, 'storeResult'])->name('competitions.result.store');
     Route::delete('/ergebnis/{result}', [AdminCompetitionController::class, 'destroyResult'])->name('competitions.result.destroy');
 
-    // DSV-Ergebnisimport für bestehenden Wettkampf
+    // Rekorde
+    Route::get('/rekorde', [RecordController::class, 'index'])->name('records.index');
+    Route::post('/rekorde', [RecordController::class, 'store'])->name('records.store');
+    Route::delete('/rekorde/{record}', [RecordController::class, 'destroy'])->name('records.destroy');
+    Route::post('/rekorde/import/upload', [RecordController::class, 'importUpload'])->name('records.import.upload');
+    Route::get('/rekorde/import/vorschau', [RecordController::class, 'importPreview'])->name('records.import.preview');
+    Route::post('/rekorde/import/speichern', [RecordController::class, 'importExecute'])->name('records.import.execute');
+    Route::post('/rekorde/recheck', [RecordController::class, 'recheckAll'])->name('records.recheck');
+
+    // Protokoll (Transaction Log + Traces + Settings)
+    Route::get('/protokoll', [LogController::class, 'index'])->name('logs.index');
+    Route::post('/protokoll/einstellungen', [LogController::class, 'updateSettings'])->name('logs.settings');
+    Route::delete('/protokoll/transaktionen', [LogController::class, 'clearTransactions'])->name('logs.transactions.clear');
+    Route::delete('/protokoll/traces', [LogController::class, 'clearTraces'])->name('logs.traces.clear');
+
+    // WebClub Mitglieder-Import
+    Route::get('/mitglieder-import', [WebClubImportController::class, 'index'])->name('webclub-import.index');
+    Route::post('/mitglieder-import/upload', [WebClubImportController::class, 'upload'])->name('webclub-import.upload');
+    Route::get('/mitglieder-import/vorschau', [WebClubImportController::class, 'preview'])->name('webclub-import.preview');
+    Route::post('/mitglieder-import/speichern', [WebClubImportController::class, 'execute'])->name('webclub-import.execute');
+
+    // Trainingsgruppen – Anlegen + Löschen: Admin only
+    Route::get('/trainingsgruppen/neu', [TrainingGroupController::class, 'create'])->name('training-groups.create');
+    Route::post('/trainingsgruppen', [TrainingGroupController::class, 'store'])->name('training-groups.store');
+    Route::delete('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'destroy'])->name('training-groups.destroy');
+});
+
+// Trainingsgruppen – Index, Show, Edit: Trainer + Admin
+Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/trainingsgruppen', [TrainingGroupController::class, 'index'])->name('training-groups.index');
+    Route::get('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'show'])->name('training-groups.show');
+    Route::get('/trainingsgruppen/{trainingGroup}/bearbeiten', [TrainingGroupController::class, 'edit'])->name('training-groups.edit');
+    Route::put('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'update'])->name('training-groups.update');
+});
+
+// Wettkämpfe – Ansicht & Import auch für Trainer zugänglich
+Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
+    Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
+    Route::post('/wettkaempfe/{competition}/auswertung', [AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import', [CompetitionResultImportController::class, 'upload'])->name('competitions.results-import.upload');
     Route::get('/wettkaempfe/{competition}/ergebnisse-import/vorschau', [CompetitionResultImportController::class, 'preview'])->name('competitions.results-import.preview');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import/speichern', [CompetitionResultImportController::class, 'execute'])->name('competitions.results-import.execute');
@@ -74,6 +128,9 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::put('/training/{session}', [TrainingSessionController::class, 'update'])->name('sessions.update');
     Route::delete('/training/{session}', [TrainingSessionController::class, 'destroy'])->name('sessions.destroy');
 
+    // Vertretung (Trainer-Wechsel für Einzeleinheit)
+    Route::patch('/training/{session}/vertretung', [TrainingSessionController::class, 'substituteTrainer'])->name('sessions.substitute');
+
     // Anwesenheit & Zeiten
     Route::post('/training/{session}/anwesenheit', [TrainingSessionController::class, 'saveAttendance'])->name('sessions.attendance');
     Route::post('/training/{session}/zeit', [TrainingSessionController::class, 'saveTime'])->name('sessions.time');
@@ -81,6 +138,9 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
 
     // Wiederholungsgruppe löschen
     Route::delete('/training/{session}/gruppe', [TrainingSessionController::class, 'destroyGroup'])->name('sessions.destroy-group');
+
+    // Druckansicht
+    Route::get('/training/{session}/drucken', [TrainingSessionController::class, 'printView'])->name('sessions.print');
 
     // Trainingspläne hochladen
     Route::post('/training/{session}/teamplan', [TrainingSessionController::class, 'uploadTeamPlan'])->name('sessions.plan.team');
@@ -91,6 +151,19 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::post('/dsv-import/upload', [DsvImportController::class, 'upload'])->name('dsv-import.upload');
     Route::get('/dsv-import/preview', [DsvImportController::class, 'preview'])->name('dsv-import.preview');
     Route::post('/dsv-import/execute', [DsvImportController::class, 'execute'])->name('dsv-import.execute');
+
+    // Trainingsplan-Builder
+    Route::get('/training/{session}/trainingsplan', [TrainingPlanController::class, 'edit'])->name('sessions.plan.builder');
+    Route::post('/training/{session}/trainingsplan', [TrainingPlanController::class, 'save'])->name('sessions.plan.save');
+    Route::delete('/training/{session}/trainingsplan/anhang', [TrainingPlanController::class, 'deleteAttachment'])->name('sessions.plan.attachment.delete');
+    Route::post('/training/{session}/block-zeiten', [TrainingPlanController::class, 'saveBlockTime'])->name('sessions.block-times.save');
+
+    // Ziele
+    Route::get('/ziele', [TrainerGoalController::class, 'index'])->name('goals.index');
+    Route::post('/ziele/{goal}/kommentar', [TrainerGoalController::class, 'storeComment'])->name('goals.comment');
+    Route::post('/gruppen-ziele', [TrainerGoalController::class, 'storeGroupGoal'])->name('group-goals.store');
+    Route::put('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'updateGroupGoal'])->name('group-goals.update');
+    Route::delete('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'destroyGroupGoal'])->name('group-goals.destroy');
 });
 
 // Trainingsplan-Download & Tagebuch (alle eingeloggten Rollen)
@@ -98,8 +171,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/training/{session}/plan/{type}', [TrainingSessionController::class, 'downloadPlan'])
         ->where('type', 'team|individual')
         ->name('sessions.plan.download');
+    Route::get('/training/{session}/trainingsplan/anhang/download', [TrainingPlanController::class, 'downloadAttachment'])
+        ->name('sessions.plan.attachment.download');
     Route::post('/training/{session}/tagebuch', [TrainingSessionController::class, 'saveDiary'])
         ->name('sessions.diary');
+});
+
+// Kalender (alle eingeloggten Rollen können lesen; Trainer+Admin dürfen Termine anlegen/bearbeiten)
+Route::middleware('auth')->group(function () {
+    Route::get('/kalender', [CalendarController::class, 'index'])->name('calendar.index');
+});
+Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
+    Route::get('/kalender/termin/neu', [CalendarEventController::class, 'create'])->name('calendar.events.create');
+    Route::post('/kalender/termin', [CalendarEventController::class, 'store'])->name('calendar.events.store');
+    Route::get('/kalender/termin/{calendarEvent}/bearbeiten', [CalendarEventController::class, 'edit'])->name('calendar.events.edit');
+    Route::put('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'update'])->name('calendar.events.update');
+    Route::delete('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar.events.destroy');
 });
 
 // Schwimmer-Bereich
@@ -107,7 +194,16 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::get('/dashboard', [SwimmerDashboard::class, 'index'])->name('dashboard');
     Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->name('times');
     Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->name('competitions');
+    Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->name('sessions');
     Route::get('/training/{session}', [SwimmerDashboard::class, 'sessionDetail'])->name('session.show');
+    Route::post('/training/{session}/absage', [SwimmerDashboard::class, 'cancelSession'])->name('session.cancel');
+
+    // Ziele
+    Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');
+    Route::post('/meine-ziele', [SwimmerGoalController::class, 'store'])->name('goals.store');
+    Route::delete('/meine-ziele/{goal}', [SwimmerGoalController::class, 'destroy'])->name('goals.destroy');
+    Route::post('/meine-ziele/{goal}/bewerten', [SwimmerGoalController::class, 'evaluate'])->name('goals.evaluate');
+    Route::patch('/meine-ziele/{goal}/fortschritt', [SwimmerGoalController::class, 'updateProgress'])->name('goals.progress');
 });
 
 // Elternteil-Bereich

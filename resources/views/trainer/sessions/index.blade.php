@@ -44,6 +44,14 @@
                             <td class="px-5 py-3">
                                 <a href="{{ route('trainer.sessions.show', $session) }}"
                                    class="font-medium text-primary hover:underline">{{ $session->title }}</a>
+                                <div class="flex flex-wrap gap-1 mt-0.5">
+                                    @foreach($session->trainingGroups as $tg)
+                                        @php $tgc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
+                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full {{ $tgc['badge'] }}">
+                                            <span class="w-1.5 h-1.5 rounded-full {{ $tgc['dot'] }}"></span>{{ $tg->name }}
+                                        </span>
+                                    @endforeach
+                                </div>
                                 <p class="text-xs text-gray-400">{{ $session->location }}</p>
                             </td>
                             <td class="px-5 py-3 hidden md:table-cell">

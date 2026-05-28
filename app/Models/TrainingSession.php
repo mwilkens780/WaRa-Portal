@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class TrainingSession extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
+
+    public function getAuditLabel(): string
+    {
+        return ($this->title ?? '–') . ' (' . ($this->date?->format('d.m.Y') ?? '') . ')';
+    }
 
     protected $fillable = [
         'trainer_id', 'title', 'date', 'start_time', 'end_time', 'location', 'type', 'notes',
@@ -26,6 +32,11 @@ class TrainingSession extends Model
     public function trainer()
     {
         return $this->belongsTo(User::class, 'trainer_id');
+    }
+
+    public function trainingGroups()
+    {
+        return $this->belongsToMany(TrainingGroup::class, 'training_session_group');
     }
 
     public function attendances()
@@ -47,6 +58,11 @@ class TrainingSession extends Model
     public function diaries()
     {
         return $this->hasMany(TrainingDiary::class);
+    }
+
+    public function trainingPlan()
+    {
+        return $this->hasOne(TrainingPlan::class);
     }
 
     public function diaryFor(int $userId): ?TrainingDiary

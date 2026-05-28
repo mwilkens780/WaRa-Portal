@@ -1,112 +1,96 @@
 @extends('layouts.app')
-@section('title', 'Meine Zeiten')
-@section('page-title', 'Meine Zeiten')
+@section('title', 'Meine Bestzeiten')
+@section('page-title', 'Meine Bestzeiten')
 
 @section('content')
 <div class="mt-2 space-y-6">
 
-    {{-- Filter-Tabs --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-1 flex gap-1 w-fit">
-        @foreach([
-            'all'    => 'Alle Zeiten',
-            'year'   => now()->year,
-            'season' => $seasonLabel,
-        ] as $val => $label)
-            <a href="{{ route('swimmer.times', ['filter' => $val]) }}"
-               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
-                      {{ $filter === $val ? 'bg-primary text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100' }}">
-                {{ $label }}
+    {{-- Filter --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-3 items-end">
+        <div class="flex gap-1 p-1 bg-gray-100 rounded-lg">
+            <a href="{{ route('swimmer.times', ['filter' => 'all']) }}"
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                Alle
             </a>
-        @endforeach
+            <a href="{{ route('swimmer.times', ['filter' => 'year', 'year' => $yearVal]) }}"
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'year' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                Kalenderjahr
+            </a>
+            <a href="{{ route('swimmer.times', ['filter' => 'season', 'season_id' => $seasonId]) }}"
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'season' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                Saison
+            </a>
+        </div>
+
+        @if($filter === 'year')
+            <form method="GET" action="{{ route('swimmer.times') }}" class="flex items-center gap-2">
+                <input type="hidden" name="filter" value="year">
+                <select name="year" onchange="this.form.submit()"
+                        class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    @foreach($availableYears as $y)
+                        <option value="{{ $y }}" @selected($y == $yearVal)>{{ $y }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @endif
+
+        @if($filter === 'season')
+            <form method="GET" action="{{ route('swimmer.times') }}" class="flex items-center gap-2">
+                <input type="hidden" name="filter" value="season">
+                <select name="season_id" onchange="this.form.submit()"
+                        class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    @foreach($seasons as $s)
+                        <option value="{{ $s->id }}" @selected($s->id == $seasonId)>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @endif
+
+        @if($filter !== 'all')
+            <span class="text-sm text-gray-500">{{ $filterLabel }}</span>
+        @endif
     </div>
 
-    {{-- Bestzeiten-Tabelle (abhängig vom Filter) --}}
-    @if($bests->isNotEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="p-5 border-b border-gray-100">
-                <h2 class="font-semibold text-gray-800">
-                    @if($filter === 'year') Bestzeiten {{ now()->year }}
-                    @elseif($filter === 'season') Bestzeiten {{ $seasonLabel }}
-                    @else Persönliche Bestzeiten
-                    @endif
-                </h2>
-            </div>
-            <div class="overflow-x-auto">
+    {{-- Bests per discipline --}}
+    @if($bests->isEmpty())
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-12 text-center text-gray-400">
+            Keine Zeiten im gewählten Zeitraum.
+        </div>
+    @else
+        @foreach($bestsByDisc as $disc => $discBests)
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-5 py-3 bg-gray-50 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-700 text-sm">{{ $discBests->first()->discipline_label }}</h2>
+                </div>
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Disziplin</th>
-                            @foreach([25, 50, 100, 200, 400, 800, 1500] as $dist)
-                                <th class="text-right px-3 py-2.5 text-xs font-semibold text-gray-600">{{ $dist }} m</th>
-                            @endforeach
-                        </tr>
-                    </thead>
                     <tbody class="divide-y divide-gray-50">
-                        @foreach(['freistil' => 'Freistil', 'brust' => 'Brust', 'ruecken' => 'Rücken', 'schmetterling' => 'Schmetterling', 'lagen' => 'Lagen'] as $disc => $label)
+                        @foreach($discBests as $best)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-5 py-3 font-medium text-gray-700">{{ $label }}</td>
-                                @foreach([25, 50, 100, 200, 400, 800, 1500] as $dist)
-                                    @php $key = $disc . '_' . $dist; $best = $bests->get($key); @endphp
-                                    <td class="px-3 py-3 text-right font-mono {{ $best ? 'font-semibold text-primary' : 'text-gray-300' }}">
-                                        {{ $best ? \App\Models\SwimmingTime::formatMs($best->best_ms) : '–' }}
-                                    </td>
-                                @endforeach
+                                <td class="px-5 py-3 text-gray-600 font-medium w-20">{{ $best->distance }} m</td>
+                                <td class="px-5 py-3 w-28">
+                                    <span class="font-mono font-bold text-primary">{{ $best->formatted }}</span>
+                                </td>
+                                <td class="px-5 py-3 text-gray-500 text-xs w-28">
+                                    {{ $best->date?->format('d.m.Y') ?? '–' }}
+                                </td>
+                                <td class="px-5 py-3 text-xs text-gray-600">
+                                    @if($best->source === 'competition')
+                                        <span class="inline-block text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium mr-1">Wettkampf</span>
+                                        {{ $best->label }}
+                                        @if($best->location)
+                                            <span class="text-gray-400">· {{ $best->location }}</span>
+                                        @endif
+                                    @else
+                                        <span class="inline-block text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium mr-1">Training</span>
+                                        {{ $best->label }}
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-        </div>
+        @endforeach
     @endif
-
-    {{-- Zeitenliste --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-5 border-b border-gray-100">
-            <h2 class="font-semibold text-gray-800">
-                @if($filter === 'year') Zeiten {{ now()->year }}
-                @elseif($filter === 'season') Zeiten {{ $seasonLabel }}
-                @else Alle erfassten Zeiten
-                @endif
-            </h2>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Datum</th>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Training</th>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Disziplin</th>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Distanz</th>
-                        <th class="text-right px-5 py-2.5 text-xs font-semibold text-gray-600">Zeit</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @forelse($times as $time)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-5 py-3 text-gray-500">
-                                {{ $time->trainingSession?->date->format('d.m.Y') ?? '–' }}
-                            </td>
-                            <td class="px-5 py-3 text-gray-600 max-w-[150px] truncate">
-                                {{ $time->trainingSession?->title ?? '–' }}
-                            </td>
-                            <td class="px-5 py-3 text-gray-700">{{ $time->discipline_label }}</td>
-                            <td class="px-5 py-3 text-gray-700">{{ $time->distance }} m</td>
-                            <td class="px-5 py-3 text-right">
-                                <span class="font-mono font-semibold text-primary">{{ $time->formatted_time }}</span>
-                                @if($time->is_personal_best)
-                                    <span class="ml-1.5 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-sans font-medium">PB</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">Keine Zeiten im gewählten Zeitraum.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        @if($times->hasPages())
-            <div class="px-5 py-4 border-t border-gray-100">{{ $times->links() }}</div>
-        @endif
-    </div>
 </div>
 @endsection

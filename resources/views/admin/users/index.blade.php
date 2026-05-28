@@ -18,10 +18,9 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Rolle</label>
                 <select name="role" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">Alle Rollen</option>
-                    <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Administrator</option>
-                    <option value="trainer" {{ request('role') === 'trainer' ? 'selected' : '' }}>Trainer</option>
-                    <option value="schwimmer" {{ request('role') === 'schwimmer' ? 'selected' : '' }}>Schwimmer</option>
-                    <option value="elternteil" {{ request('role') === 'elternteil' ? 'selected' : '' }}>Elternteil</option>
+                    @foreach(\App\Models\User::ROLE_LABELS as $value => $label)
+                        <option value="{{ $value }}" {{ request('role') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
                 </select>
             </div>
             <div>
@@ -47,11 +46,18 @@
 
     <div class="flex justify-between items-center">
         <p class="text-sm text-gray-500">{{ $users->total() }} Benutzer gefunden</p>
-        <a href="{{ route('admin.users.create') }}"
-           class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-            Neuer Benutzer
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('admin.webclub-import.index') }}"
+               class="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                WebClub Import
+            </a>
+            <a href="{{ route('admin.users.create') }}"
+               class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                Neuer Benutzer
+            </a>
+        </div>
     </div>
 
     {{-- Tabelle --}}
@@ -86,15 +92,24 @@
                             <td class="px-5 py-3">
                                 @php
                                     $roleColors = [
-                                        'admin' => 'bg-purple-100 text-purple-700',
-                                        'trainer' => 'bg-blue-100 text-blue-700',
-                                        'schwimmer' => 'bg-green-100 text-green-700',
-                                        'elternteil' => 'bg-amber-100 text-amber-700',
+                                        'admin'        => 'bg-purple-100 text-purple-700',
+                                        'trainer'      => 'bg-blue-100 text-blue-700',
+                                        'schwimmer'    => 'bg-green-100 text-green-700',
+                                        'elternteil'   => 'bg-amber-100 text-amber-700',
+                                        'kampfrichter' => 'bg-rose-100 text-rose-700',
+                                        'vorstand'     => 'bg-indigo-100 text-indigo-700',
                                     ];
                                 @endphp
-                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $roleColors[$user->role] ?? 'bg-gray-100 text-gray-600' }}">
-                                    {{ $user->role_label }}
-                                </span>
+                                <div class="flex flex-wrap gap-1">
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $roleColors[$user->role] ?? 'bg-gray-100 text-gray-600' }}">
+                                        {{ $user->role_label }}
+                                    </span>
+                                    @foreach($user->additional_roles ?? [] as $ar)
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                            {{ \App\Models\User::ROLE_LABELS[$ar] ?? $ar }}
+                                        </span>
+                                    @endforeach
+                                </div>
                             </td>
                             <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">
                                 {{ $user->birth_date ? $user->birth_date->format('d.m.Y') . ' (' . $user->age . ' J.)' : '–' }}

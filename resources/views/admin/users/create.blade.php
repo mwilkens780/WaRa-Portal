@@ -31,13 +31,14 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Rolle <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Primär-Rolle <span class="text-red-500">*</span></label>
                     <select name="role" x-model="role" required
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                        <option value="schwimmer">Schwimmer</option>
-                        <option value="trainer">Trainer</option>
-                        <option value="elternteil">Elternteil</option>
-                        <option value="admin">Administrator</option>
+                        @foreach(\App\Models\User::ROLE_LABELS as $value => $label)
+                            <option value="{{ $value }}" {{ old('role', 'schwimmer') === $value ? 'selected' : '' }}>
+                                {{ $label }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -65,6 +66,24 @@
                     <input type="tel" name="phone" value="{{ old('phone') }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                 </div>
+            </div>
+
+            {{-- Additional roles --}}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Zusätzliche Rollen</label>
+                <div class="flex flex-wrap gap-3">
+                    @foreach(\App\Models\User::ROLE_LABELS as $value => $label)
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox"
+                                   name="additional_roles[]"
+                                   value="{{ $value }}"
+                                   {{ in_array($value, old('additional_roles', [])) ? 'checked' : '' }}
+                                   class="rounded border-gray-300 text-primary">
+                            <span class="text-sm text-gray-700">{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                <p class="text-xs text-gray-400 mt-1.5">Optional – Rollen zusätzlich zur Primär-Rolle.</p>
             </div>
 
             {{-- Kinder-Zuweisung nur für Elternteile --}}

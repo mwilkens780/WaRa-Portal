@@ -38,6 +38,12 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
+                            <div class="flex flex-wrap gap-1 mt-0.5">
+                                @foreach($session->trainingGroups as $tg)
+                                    @php $tgc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
+                                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full {{ $tgc['badge'] }}">{{ $tg->name }}</span>
+                                @endforeach
+                            </div>
                             <p class="text-xs text-gray-500">{{ $session->type_label }} · {{ $session->present_count }} Schwimmer</p>
                         </div>
                         <span class="text-xs text-gray-400">{{ $session->start_time }}</span>
@@ -80,6 +86,84 @@
             @endif
         </div>
     </div>
+
+    {{-- Neue Rekorde dieser Saison --}}
+    @if($new_records->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-5 border-b border-gray-100">
+            <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+                <span class="text-lg">🏆</span> Neue Rekorde diese Saison
+            </h2>
+        </div>
+        <div class="divide-y divide-gray-50">
+            @foreach($new_records as $r)
+                <div class="flex items-center gap-3 px-5 py-3">
+                    <div class="flex gap-1 shrink-0">
+                        @if($r->breaks_vereinsrekord)
+                            <span class="text-xs font-bold bg-primary text-white px-1.5 py-0.5 rounded">VR</span>
+                        @endif
+                        @if($r->breaks_landesrekord)
+                            <span class="text-xs font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded">LR</span>
+                        @endif
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-800">{{ $r->user->name }}</p>
+                        <p class="text-xs text-gray-500">
+                            {{ $r->distance }} m {{ $r->discipline_label }}
+                            @if($r->age_group) · {{ $r->age_group }} @endif
+                            · {{ $r->competition->name }}
+                        </p>
+                    </div>
+                    <span class="font-mono text-sm font-bold text-primary shrink-0">{{ $r->formatted_time }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    {{-- Meine Gruppen --}}
+    @if($myGroups->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100">
+            <h2 class="font-semibold text-gray-800">Meine Gruppen</h2>
+            <a href="{{ route('admin.training-groups.index') }}" class="text-sm text-primary hover:underline">Alle</a>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+            @foreach($myGroups as $group)
+                @php $colors = $group->colorDots; @endphp
+                <div class="rounded-xl border {{ $colors['border'] }} border-l-4 bg-gray-50 p-4 hover:bg-white transition-colors">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-2.5 h-2.5 rounded-full {{ $colors['dot'] }} flex-shrink-0"></span>
+                        <h3 class="font-semibold text-gray-800 text-sm truncate">{{ $group->name }}</h3>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3">{{ $group->swimmers_count }} Schwimmer</p>
+                    @if($group->swimmers->isNotEmpty())
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            @foreach($group->swimmers->take(4) as $swimmer)
+                                <span class="text-xs bg-white border border-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                                    {{ $swimmer->firstname }}
+                                </span>
+                            @endforeach
+                            @if($group->swimmers->count() > 4)
+                                <span class="text-xs bg-white border border-gray-200 text-gray-400 px-1.5 py-0.5 rounded">+{{ $group->swimmers->count() - 4 }}</span>
+                            @endif
+                        </div>
+                    @endif
+                    <div class="flex gap-2 pt-2 border-t border-gray-100">
+                        <a href="{{ route('admin.training-groups.show', $group) }}"
+                           class="flex-1 text-center text-xs font-medium text-primary hover:underline py-1">
+                            Details
+                        </a>
+                        <a href="{{ route('admin.training-groups.edit', $group) }}"
+                           class="flex-1 text-center text-xs font-medium text-gray-500 hover:underline py-1">
+                            Bearbeiten
+                        </a>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     {{-- Diagramme --}}
     @if(count($chartLabels) > 0 || $swimmerStats->isNotEmpty())

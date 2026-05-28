@@ -2,16 +2,33 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, Auditable;
+
+    protected array $auditHidden = ['password', 'remember_token', 'initial_password'];
+
+    const ROLES = ['admin', 'trainer', 'schwimmer', 'elternteil', 'kampfrichter', 'vorstand'];
+
+    const ROLE_LABELS = [
+        'admin'        => 'Administrator',
+        'trainer'      => 'Trainer',
+        'schwimmer'    => 'Schwimmer',
+        'elternteil'   => 'Elternteil',
+        'kampfrichter' => 'Kampfrichter',
+        'vorstand'     => 'Vorstand',
+    ];
 
     protected $fillable = [
-        'name', 'firstname', 'lastname', 'email', 'password', 'role', 'birth_date', 'phone', 'active',
+        'name', 'firstname', 'lastname', 'email', 'password', 'role',
+        'birth_date', 'phone', 'active',
+        'gender', 'dsv_id', 'membership_number', 'member_since', 'training_group',
+        'additional_roles', 'initial_password',
     ];
 
     protected $hidden = [
@@ -22,9 +39,11 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'birth_date' => 'date',
-            'active' => 'boolean',
+            'password'          => 'hashed',
+            'birth_date'        => 'date',
+            'member_since'      => 'date',
+            'active'            => 'boolean',
+            'additional_roles'  => 'array',
         ];
     }
 
@@ -39,15 +58,29 @@ class User extends Authenticatable
         return $value ?? '';
     }
 
-    // Role checks
-    public function isAdmin(): bool { return $this->role === 'admin'; }
-    public function isTrainer(): bool { return $this->role === 'trainer'; }
-    public function isSchwimmer(): bool { return $this->role === 'schwimmer'; }
-    public function isElternteil(): bool { return $this->role === 'elternteil'; }
+    // Role checks — primary role
+    public function isAdmin(): bool        { return $this->role === 'admin'; }
+    public function isTrainer(): bool      { return $this->role === 'trainer'; }
+    public function isSchwimmer(): bool    { return $this->role === 'schwimmer'; }
+    public function isElternteil(): bool   { return $this->role === 'elternteil'; }
+    public function isKampfrichter(): bool { return $this->role === 'kampfrichter'; }
+    public function isVorstand(): bool     { return $this->role === 'vorstand'; }
 
+    public function hasInitialPassword(): bool
+    {
+        return !empty($this->attributes['initial_password']);
+    }
+
+    /** Check primary role only (used by auth middleware). */
     public function hasRole(string|array $roles): bool
     {
         return in_array($this->role, (array) $roles);
+    }
+
+    /** Check additional roles. */
+    public function hasAdditionalRole(string $role): bool
+    {
+        return in_array($role, $this->additional_roles ?? [], true);
     }
 
     // Relations
@@ -71,6 +104,11 @@ class User extends Authenticatable
         return $this->hasMany(CompetitionResult::class);
     }
 
+    public function trainingGroups()
+    {
+        return $this->belongsToMany(TrainingGroup::class, 'training_group_swimmer');
+    }
+
     public function children()
     {
         return $this->belongsToMany(User::class, 'parent_swimmer', 'parent_id', 'swimmer_id');
@@ -88,12 +126,6 @@ class User extends Authenticatable
 
     public function getRoleLabelAttribute(): string
     {
-        return match($this->role) {
-            'admin' => 'Administrator',
-            'trainer' => 'Trainer',
-            'schwimmer' => 'Schwimmer',
-            'elternteil' => 'Elternteil',
-            default => $this->role,
-        };
+        return self::ROLE_LABELS[$this->role] ?? $this->role;
     }
 }

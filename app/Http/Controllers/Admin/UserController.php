@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\WebClubImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -44,21 +45,24 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'firstname' => ['required', 'string', 'max:100'],
-            'lastname'  => ['required', 'string', 'max:100'],
-            'email'     => ['required', 'email', 'unique:users'],
-            'password'  => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-            'role'      => ['required', 'in:admin,trainer,schwimmer,elternteil'],
-            'birth_date'=> ['nullable', 'date'],
-            'phone'     => ['nullable', 'string', 'max:30'],
-            'active'    => ['boolean'],
-            'children'  => ['nullable', 'array'],
-            'children.*'=> ['exists:users,id'],
+            'firstname'          => ['required', 'string', 'max:100'],
+            'lastname'           => ['required', 'string', 'max:100'],
+            'email'              => ['required', 'email', 'unique:users'],
+            'password'           => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'role'               => ['required', 'in:' . implode(',', User::ROLES)],
+            'additional_roles'   => ['nullable', 'array'],
+            'additional_roles.*' => ['in:' . implode(',', User::ROLES)],
+            'birth_date'         => ['nullable', 'date'],
+            'phone'              => ['nullable', 'string', 'max:30'],
+            'active'             => ['boolean'],
+            'children'           => ['nullable', 'array'],
+            'children.*'         => ['exists:users,id'],
         ]);
 
-        $data['name']     = trim($data['firstname'] . ' ' . $data['lastname']);
-        $data['password'] = Hash::make($data['password']);
-        $data['active']   = $request->boolean('active', true);
+        $data['name']             = trim($data['firstname'] . ' ' . $data['lastname']);
+        $data['password']         = Hash::make($data['password']);
+        $data['active']           = $request->boolean('active', true);
+        $data['additional_roles'] = empty($data['additional_roles']) ? null : $data['additional_roles'];
 
         $user = User::create($data);
 
@@ -72,32 +76,39 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $swimmers = User::where('role', 'schwimmer')->orderBy('lastname')->orderBy('firstname')->get();
+        $swimmers         = User::where('role', 'schwimmer')->orderBy('lastname')->orderBy('firstname')->get();
         $assignedChildren = $user->children()->pluck('users.id')->toArray();
-        return view('admin.users.edit', compact('user', 'swimmers', 'assignedChildren'));
+        // $user->attributes in Blade goes through __get() and would resolve to an 'attributes' DB column (null).
+        // Pass the raw value explicitly so the view doesn't need to access the protected property.
+        $initialPassword  = $user->getRawOriginal('initial_password');
+        return view('admin.users.edit', compact('user', 'swimmers', 'assignedChildren', 'initialPassword'));
     }
 
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
-            'firstname' => ['required', 'string', 'max:100'],
-            'lastname'  => ['required', 'string', 'max:100'],
-            'email'     => ['required', 'email', 'unique:users,email,' . $user->id],
-            'role'      => ['required', 'in:admin,trainer,schwimmer,elternteil'],
-            'birth_date'=> ['nullable', 'date'],
-            'phone'     => ['nullable', 'string', 'max:30'],
-            'active'    => ['boolean'],
-            'children'  => ['nullable', 'array'],
-            'children.*'=> ['exists:users,id'],
+            'firstname'          => ['required', 'string', 'max:100'],
+            'lastname'           => ['required', 'string', 'max:100'],
+            'email'              => ['required', 'email', 'unique:users,email,' . $user->id],
+            'role'               => ['required', 'in:' . implode(',', User::ROLES)],
+            'additional_roles'   => ['nullable', 'array'],
+            'additional_roles.*' => ['in:' . implode(',', User::ROLES)],
+            'birth_date'         => ['nullable', 'date'],
+            'phone'              => ['nullable', 'string', 'max:30'],
+            'active'             => ['boolean'],
+            'children'           => ['nullable', 'array'],
+            'children.*'         => ['exists:users,id'],
         ]);
 
-        $data['name'] = trim($data['firstname'] . ' ' . $data['lastname']);
+        $data['name']             = trim($data['firstname'] . ' ' . $data['lastname']);
+        $data['additional_roles'] = empty($data['additional_roles']) ? null : $data['additional_roles'];
 
         if ($request->filled('password')) {
             $request->validate([
                 'password' => ['confirmed', Password::min(8)->letters()->numbers()],
             ]);
-            $data['password'] = Hash::make($request->password);
+            $data['password']          = Hash::make($request->password);
+            $data['initial_password']  = null; // manual password clears initial status
         }
 
         $data['active'] = $request->boolean('active');
@@ -109,6 +120,18 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', "Benutzer \"{$user->name}\" wurde aktualisiert.");
+    }
+
+    public function resetPassword(User $user)
+    {
+        $plain = WebClubImportService::generateInitialPassword();
+
+        $user->update([
+            'password'         => Hash::make($plain),
+            'initial_password' => $plain,
+        ]);
+
+        return back()->with('success', "Neues Initialpasswort für \"{$user->name}\" gesetzt: {$plain}");
     }
 
     public function destroy(User $user)

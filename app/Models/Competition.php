@@ -2,23 +2,35 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Competition extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
-        'name', 'location', 'date', 'date_end', 'type', 'description', 'organizer', 'course',
+        'name', 'location', 'date', 'date_end', 'meldeschluss', 'type', 'description', 'organizer', 'course', 'season_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'date' => 'date',
-            'date_end' => 'date',
+            'date'         => 'date',
+            'date_end'     => 'date',
+            'meldeschluss' => 'date',
         ];
+    }
+
+    public function season()
+    {
+        return $this->belongsTo(Season::class);
+    }
+
+    public function trainingGroups()
+    {
+        return $this->belongsToMany(TrainingGroup::class, 'competition_training_group');
     }
 
     public function results()
@@ -55,6 +67,9 @@ class Competition extends Model
         'international'  => 'International',
         'meisterschaften'=> 'Meisterschaften',
         'einladung'      => 'Einladung',
+        'nop'            => 'NOP',
+        'dms'            => 'DMS',
+        'shsv'           => 'SHSV',
     ];
 
     public function getTypeLabelAttribute(): string

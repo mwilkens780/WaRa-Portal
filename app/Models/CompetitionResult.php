@@ -8,16 +8,20 @@ class CompetitionResult extends Model
 {
     protected $fillable = [
         'competition_id', 'user_id', 'discipline', 'distance', 'time_ms',
-        'placement', 'is_personal_best', 'age_group', 'notes',
+        'placement', 'is_personal_best', 'age_group', 'gender', 'notes',
+        'breaks_vereinsrekord', 'breaks_landesrekord', 'is_final',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_personal_best' => 'boolean',
-            'distance' => 'integer',
-            'time_ms' => 'integer',
-            'placement' => 'integer',
+            'is_personal_best'     => 'boolean',
+            'breaks_vereinsrekord' => 'boolean',
+            'breaks_landesrekord'  => 'boolean',
+            'is_final'             => 'boolean',
+            'distance'             => 'integer',
+            'time_ms'              => 'integer',
+            'placement'            => 'integer',
         ];
     }
 

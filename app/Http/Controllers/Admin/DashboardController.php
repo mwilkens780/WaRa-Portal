@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompetitionResult;
 use App\Models\User;
 use App\Models\TrainingSession;
 use App\Models\Competition;
@@ -33,6 +34,27 @@ class DashboardController extends Controller
             ->limit(3)
             ->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_sessions', 'upcoming_competitions'));
+        [$seasonStart, $seasonEnd] = $this->currentSeasonRange();
+
+        $new_records = CompetitionResult::with(['user', 'competition'])
+            ->where(fn($q) => $q->where('breaks_vereinsrekord', true)->orWhere('breaks_landesrekord', true))
+            ->whereHas('competition', fn($q) => $q->whereBetween('date', [$seasonStart, $seasonEnd]))
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get();
+
+        return view('admin.dashboard', compact('stats', 'recent_sessions', 'upcoming_competitions', 'new_records'));
+    }
+
+    private function currentSeasonRange(): array
+    {
+        $month = now()->month;
+        $year  = now()->year;
+        if ($month >= 4 && $month <= 9) {
+            return ["$year-04-01", "$year-09-30"];
+        }
+        $start = $month >= 10 ? "$year-10-01" : ($year - 1) . "-10-01";
+        $end   = $month >= 10 ? ($year + 1) . "-03-31" : "$year-03-31";
+        return [$start, $end];
     }
 }

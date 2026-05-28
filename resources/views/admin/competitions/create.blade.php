@@ -72,6 +72,22 @@
     {{-- ── Tab: Manuell / Nach Lenex-Import ────────────────────────────────── --}}
     <div x-show="tab === 'manual'" class="space-y-5">
 
+        @if(session('duplicate_competition_id'))
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <p class="text-sm font-semibold text-amber-800">Wettkampf existiert bereits</p>
+                    <p class="text-sm text-amber-700 mt-0.5">
+                        Ein Wettkampf mit diesem Namen und Datum wurde bereits angelegt.
+                        <a href="{{ route('admin.competitions.show', session('duplicate_competition_id')) }}"
+                           class="underline font-medium">Zum vorhandenen Wettkampf →</a>
+                    </p>
+                </div>
+            </div>
+        @endif
+
         @if(session('lenex_loaded') && $lenexData)
             <div class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
                 <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

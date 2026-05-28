@@ -74,6 +74,58 @@
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
 
+                {{-- Trainingsgruppen --}}
+                @if($groups->isNotEmpty())
+                <div class="md:col-span-2" x-data="{
+                    selected: @json(old('groups', [])),
+                    groups: @json($groups->map(fn($g) => ['id' => $g->id, 'name' => $g->name, 'trainers' => $g->trainers->map(fn($t) => ['id' => $t->id, 'name' => $t->firstname . ' ' . $t->lastname])->values()])->values()),
+                    get trainerSuggestions() {
+                        const ids = new Set();
+                        const list = [];
+                        this.groups.forEach(g => {
+                            if (this.selected.includes(String(g.id)) || this.selected.includes(g.id)) {
+                                g.trainers.forEach(t => { if (!ids.has(t.id)) { ids.add(t.id); list.push(t); } });
+                            }
+                        });
+                        return list;
+                    }
+                }">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Trainingsgruppen</label>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-1">
+                        @foreach($groups as $group)
+                            @php $gColors = $group->colorDots; @endphp
+                            <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-gray-100">
+                                <input type="checkbox" name="groups[]" value="{{ $group->id }}"
+                                       {{ in_array($group->id, old('groups', [])) ? 'checked' : '' }}
+                                       x-model="selected"
+                                       :value="'{{ $group->id }}'"
+                                       class="w-4 h-4 text-primary rounded border-gray-300">
+                                <span class="w-2.5 h-2.5 rounded-full {{ $gColors['dot'] }} flex-shrink-0"></span>
+                                <span class="text-gray-700">{{ $group->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1" x-show="trainerSuggestions.length > 0">
+                        Trainer der gewählten Gruppen: <span x-text="trainerSuggestions.map(t => t.name).join(', ')"></span>
+                    </p>
+                </div>
+                @endif
+
+                {{-- Trainer --}}
+                @if(auth()->user()->isAdmin())
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Trainer</label>
+                    <select name="trainer_id" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="">– aktuell eingeloggter Trainer –</option>
+                        @foreach(\App\Models\User::whereIn('role', ['trainer','admin'])->where('active', true)->orderBy('lastname')->get() as $t)
+                            <option value="{{ $t->id }}" {{ old('trainer_id') == $t->id ? 'selected' : '' }}>
+                                {{ $t->lastname }}, {{ $t->firstname }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
                 {{-- Wiederholung --}}
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung <span class="text-red-500">*</span></label>

@@ -69,16 +69,24 @@
                             <p class="text-sm text-gray-400">Noch keine Wettkampfergebnisse.</p>
                         @else
                             <div class="space-y-2">
-                                @foreach($data['recent_results'] as $result)
+                                @foreach($data['recent_results'] as $swim)
                                     <div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                                         <div class="min-w-0 flex-1">
-                                            <p class="text-sm text-gray-700 truncate">{{ $result->competition->name }}</p>
-                                            <p class="text-xs text-gray-400">{{ $result->distance }}m {{ $result->discipline_label }}</p>
+                                            <p class="text-sm text-gray-700 truncate">{{ $swim->competition?->name }}</p>
+                                            <p class="text-xs text-gray-400">
+                                                {{ $swim->distance }}m {{ $swim->discipline_label }}
+                                                @if($swim->is_final)
+                                                    <span class="ml-1 bg-purple-100 text-purple-700 px-1 py-0.5 rounded text-xs font-medium">Finale</span>
+                                                @endif
+                                            </p>
                                         </div>
                                         <div class="text-right ml-3">
-                                            <p class="font-mono font-bold text-primary text-sm">{{ $result->formatted_time }}</p>
-                                            @if($result->placement)
-                                                <p class="text-xs text-gray-500">Platz {{ $result->placement }}</p>
+                                            <p class="font-mono font-bold text-primary text-sm">{{ $swim->formatted_time }}</p>
+                                            @if($swim->best_placement)
+                                                <p class="text-xs text-gray-500">Platz {{ $swim->best_placement }}</p>
+                                            @endif
+                                            @if($swim->is_personal_best)
+                                                <span class="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded font-medium">PB</span>
                                             @endif
                                         </div>
                                     </div>

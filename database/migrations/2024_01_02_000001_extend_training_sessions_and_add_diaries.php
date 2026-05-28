@@ -16,28 +16,36 @@ return new class extends Migration
         ) NOT NULL DEFAULT 'technik'");
 
         Schema::table('training_sessions', function (Blueprint $table) {
-            // Wiederholungen
-            $table->enum('recurrence_type', ['none','weekly','biweekly','monthly'])
-                  ->default('none')->after('notes');
-            $table->date('recurrence_until')->nullable()->after('recurrence_type');
-            $table->string('recurrence_group_id', 36)->nullable()->index()->after('recurrence_until');
-
-            // Anhänge
-            $table->string('team_plan_path')->nullable()->after('recurrence_group_id');
-            $table->string('individual_plan_path')->nullable()->after('team_plan_path');
+            if (!Schema::hasColumn('training_sessions', 'recurrence_type')) {
+                $table->enum('recurrence_type', ['none','weekly','biweekly','monthly'])
+                      ->default('none')->after('notes');
+            }
+            if (!Schema::hasColumn('training_sessions', 'recurrence_until')) {
+                $table->date('recurrence_until')->nullable()->after('recurrence_type');
+            }
+            if (!Schema::hasColumn('training_sessions', 'recurrence_group_id')) {
+                $table->string('recurrence_group_id', 36)->nullable()->index()->after('recurrence_until');
+            }
+            if (!Schema::hasColumn('training_sessions', 'team_plan_path')) {
+                $table->string('team_plan_path')->nullable()->after('recurrence_group_id');
+            }
+            if (!Schema::hasColumn('training_sessions', 'individual_plan_path')) {
+                $table->string('individual_plan_path')->nullable()->after('team_plan_path');
+            }
         });
 
-        // Trainingstagebuch
-        Schema::create('training_diaries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('training_session_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->text('body')->nullable();
-            $table->enum('mood', ['sehr_gut','gut','mittel','schlecht','sehr_schlecht'])->nullable();
-            $table->unsignedTinyInteger('perceived_intensity')->nullable(); // 1-10
-            $table->unique(['training_session_id', 'user_id']);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('training_diaries')) {
+            Schema::create('training_diaries', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('training_session_id')->constrained()->onDelete('cascade');
+                $table->foreignId('user_id')->constrained()->onDelete('cascade');
+                $table->text('body')->nullable();
+                $table->enum('mood', ['sehr_gut','gut','mittel','schlecht','sehr_schlecht'])->nullable();
+                $table->unsignedTinyInteger('perceived_intensity')->nullable();
+                $table->unique(['training_session_id', 'user_id']);
+                $table->timestamps();
+            });
+        }
     }
 
     public function down(): void

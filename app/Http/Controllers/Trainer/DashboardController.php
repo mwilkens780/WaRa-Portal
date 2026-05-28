@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Trainer;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompetitionResult;
+use App\Models\TrainingGroup;
 use App\Models\TrainingSession;
 use App\Models\TrainingAttendance;
 use App\Models\User;
@@ -21,6 +23,7 @@ class DashboardController extends Controller
         ];
 
         $recent_sessions = TrainingSession::where('trainer_id', $trainer->id)
+            ->with('trainingGroups:id,name,color')
             ->withCount(['attendances as present_count' => fn($q) => $q->where('attended', true)])
             ->orderByDesc('date')->limit(5)->get();
 
@@ -61,9 +64,33 @@ class DashboardController extends Controller
             ];
         });
 
+        $month = now()->month;
+        $year  = now()->year;
+        if ($month >= 4 && $month <= 9) {
+            [$seasonStart, $seasonEnd] = ["$year-04-01", "$year-09-30"];
+        } else {
+            $seasonStart = $month >= 10 ? "$year-10-01" : ($year - 1) . "-10-01";
+            $seasonEnd   = $month >= 10 ? ($year + 1) . "-03-31" : "$year-03-31";
+        }
+
+        $new_records = CompetitionResult::with(['user', 'competition'])
+            ->where(fn($q) => $q->where('breaks_vereinsrekord', true)->orWhere('breaks_landesrekord', true))
+            ->whereHas('competition', fn($q) => $q->whereBetween('date', [$seasonStart, $seasonEnd]))
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get();
+
+        $myGroups = TrainingGroup::with(['trainers:id,firstname,lastname', 'swimmers:id,firstname,lastname'])
+            ->withCount('swimmers')
+            ->whereHas('trainers', fn($q) => $q->where('users.id', $trainer->id))
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
         return view('trainer.dashboard', compact(
             'stats', 'recent_sessions', 'upcoming',
-            'chartLabels', 'chartData', 'swimmerStats'
+            'chartLabels', 'chartData', 'swimmerStats', 'new_records',
+            'myGroups'
         ));
     }
 }

@@ -9,16 +9,31 @@ class CompetitionEvent extends Model
     protected $fillable = [
         'competition_id', 'event_number', 'session_number', 'session_date',
         'session_name', 'discipline', 'distance', 'gender', 'age_min', 'age_max', 'age_group',
+        'qualifying_time_ms', 'meldegeld',
     ];
 
     protected function casts(): array
     {
         return [
-            'session_date' => 'date',
-            'distance'     => 'integer',
-            'age_min'      => 'integer',
-            'age_max'      => 'integer',
+            'session_date'       => 'date',
+            'distance'           => 'integer',
+            'age_min'            => 'integer',
+            'age_max'            => 'integer',
+            'qualifying_time_ms' => 'integer',
+            'meldegeld'          => 'decimal:2',
         ];
+    }
+
+    public function getFormattedQualifyingTimeAttribute(): ?string
+    {
+        if (!$this->qualifying_time_ms) return null;
+        $ms  = $this->qualifying_time_ms;
+        $min = intdiv($ms, 60_000);
+        $sec = intdiv($ms % 60_000, 1_000);
+        $cs  = intdiv($ms % 1_000, 10);
+        return $min > 0
+            ? sprintf('%d:%02d,%02d', $min, $sec, $cs)
+            : sprintf('%d,%02d', $sec, $cs);
     }
 
     public function competition()

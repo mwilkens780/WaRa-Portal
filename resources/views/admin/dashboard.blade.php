@@ -86,6 +86,41 @@
         </div>
     </div>
 
+    {{-- Neue Rekorde dieser Saison --}}
+    @if($new_records->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100">
+            <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+                <span class="text-lg">🏆</span> Neue Rekorde diese Saison
+            </h2>
+            <a href="{{ route('admin.records.index') }}" class="text-sm text-primary hover:underline">Alle Rekorde</a>
+        </div>
+        <div class="divide-y divide-gray-50">
+            @foreach($new_records as $r)
+                <div class="flex items-center gap-3 px-5 py-3">
+                    <div class="flex gap-1 shrink-0">
+                        @if($r->breaks_vereinsrekord)
+                            <span class="text-xs font-bold bg-primary text-white px-1.5 py-0.5 rounded">VR</span>
+                        @endif
+                        @if($r->breaks_landesrekord)
+                            <span class="text-xs font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded">LR</span>
+                        @endif
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-800">{{ $r->user->name }}</p>
+                        <p class="text-xs text-gray-500">
+                            {{ $r->distance }} m {{ $r->discipline_label }}
+                            @if($r->age_group) · {{ $r->age_group }} @endif
+                            · {{ $r->competition->name }}
+                        </p>
+                    </div>
+                    <span class="font-mono text-sm font-bold text-primary shrink-0">{{ $r->formatted_time }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Schnellzugriff --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h2 class="font-semibold text-gray-800 mb-4">Schnellzugriff</h2>

@@ -8,12 +8,14 @@ class TrainingAttendance extends Model
 {
     protected $fillable = [
         'training_session_id', 'user_id', 'attended', 'absence_reason', 'notes',
+        'pre_absent', 'pre_absent_note', 'trainer_comment',
     ];
 
     protected function casts(): array
     {
         return [
-            'attended' => 'boolean',
+            'attended'   => 'boolean',
+            'pre_absent' => 'boolean',
         ];
     }
 
