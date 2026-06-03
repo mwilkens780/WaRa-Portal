@@ -3,15 +3,59 @@
 @section('page-title', 'Neue Trainingseinheit')
 
 @section('content')
+@php
+    $groupsJson = $groups->map(fn($g) => [
+        'id'       => $g->id,
+        'name'     => $g->name,
+        'trainers' => $g->trainers->map(fn($t) => [
+            'id'   => $t->id,
+            'name' => $t->firstname . ' ' . $t->lastname,
+        ])->values()->toArray(),
+    ])->values()->toJson();
+@endphp
+
+<script>
+function trainingCreateForm() {
+    return {
+        recurrence: @json(old('recurrence_type', 'none')),
+        showRecurrence: false,
+        showUntil: true,
+        groups: {!! $groupsJson !!},
+        selected: @json(old('groups', [])),
+        get trainerSuggestions() {
+            const ids = new Set(), list = [];
+            this.groups.forEach(g => {
+                if (this.selected.includes(String(g.id)) || this.selected.includes(g.id)) {
+                    g.trainers.forEach(t => { if (!ids.has(t.id)) { ids.add(t.id); list.push(t); } });
+                }
+            });
+            return list;
+        },
+        handleRecurrenceChange() {
+            this.showRecurrence = this.recurrence !== 'none';
+            this.showUntil = this.recurrence !== 'weekly_season_end';
+        },
+        init() {
+            this.showRecurrence = this.recurrence !== 'none';
+            this.showUntil = this.recurrence !== 'weekly_season_end';
+        }
+    };
+}
+</script>
+
 <div class="max-w-2xl mt-2">
+
+    @if(session('warning'))
+        <div class="mb-4 flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-5 py-4 text-sm">
+            <svg class="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            <span>{{ session('warning') }}</span>
+        </div>
+    @endif
+
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <form method="POST" action="{{ route('trainer.sessions.store') }}"
               enctype="multipart/form-data" class="space-y-5"
-              x-data="{
-                  recurrence: '{{ old('recurrence_type', 'none') }}',
-                  showRecurrence: false,
-                  init() { this.showRecurrence = this.recurrence !== 'none'; }
-              }">
+              x-data="trainingCreateForm()">
             @csrf
 
             <div class="grid md:grid-cols-2 gap-5">
@@ -76,20 +120,7 @@
 
                 {{-- Trainingsgruppen --}}
                 @if($groups->isNotEmpty())
-                <div class="md:col-span-2" x-data="{
-                    selected: @json(old('groups', [])),
-                    groups: @json($groups->map(fn($g) => ['id' => $g->id, 'name' => $g->name, 'trainers' => $g->trainers->map(fn($t) => ['id' => $t->id, 'name' => $t->firstname . ' ' . $t->lastname])->values()])->values()),
-                    get trainerSuggestions() {
-                        const ids = new Set();
-                        const list = [];
-                        this.groups.forEach(g => {
-                            if (this.selected.includes(String(g.id)) || this.selected.includes(g.id)) {
-                                g.trainers.forEach(t => { if (!ids.has(t.id)) { ids.add(t.id); list.push(t); } });
-                            }
-                        });
-                        return list;
-                    }
-                }">
+                <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Trainingsgruppen</label>
                     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-1">
                         @foreach($groups as $group)
@@ -97,8 +128,7 @@
                             <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-gray-100">
                                 <input type="checkbox" name="groups[]" value="{{ $group->id }}"
                                        {{ in_array($group->id, old('groups', [])) ? 'checked' : '' }}
-                                       x-model="selected"
-                                       :value="'{{ $group->id }}'"
+                                       x-model="selected" :value="{{ $group->id }}"
                                        class="w-4 h-4 text-primary rounded border-gray-300">
                                 <span class="w-2.5 h-2.5 rounded-full {{ $gColors['dot'] }} flex-shrink-0"></span>
                                 <span class="text-gray-700">{{ $group->name }}</span>
@@ -111,7 +141,7 @@
                 </div>
                 @endif
 
-                {{-- Trainer --}}
+                {{-- Trainer (admin only) --}}
                 @if(auth()->user()->isAdmin())
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Trainer</label>
@@ -129,22 +159,46 @@
                 {{-- Wiederholung --}}
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung <span class="text-red-500">*</span></label>
-                    <select name="recurrence_type" x-model="recurrence"
-                            @change="showRecurrence = recurrence !== 'none'"
+                    <select name="recurrence_type" x-model="recurrence" @change="handleRecurrenceChange()"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="none">Einmalig</option>
                         <option value="weekly">Wöchentlich</option>
                         <option value="biweekly">Zweiwöchentlich</option>
                         <option value="monthly">Monatlich</option>
+                        @if($currentSeason)
+                        <option value="weekly_season_end">Wöchentlich bis Saisonende ({{ $currentSeason->end_date->format('d.m.Y') }})</option>
+                        @endif
                     </select>
+                    @error('recurrence_type')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
 
-                <div class="md:col-span-2" x-show="showRecurrence" x-transition>
+                {{-- Wiederholung bis (nur wenn kein Saisonende gewählt) --}}
+                <div class="md:col-span-2" x-show="showRecurrence && showUntil" x-transition>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung bis <span class="text-red-500">*</span></label>
                     <input type="date" name="recurrence_until" value="{{ old('recurrence_until') }}"
-                           :required="showRecurrence"
+                           :required="showRecurrence && showUntil"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('recurrence_until') ? 'border-red-400' : '' }}">
                     @error('recurrence_until')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                {{-- Info-Text für Saisonende --}}
+                <div class="md:col-span-2" x-show="showRecurrence && !showUntil" x-transition>
+                    <div class="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>
+                            Wöchentliche Wiederholung bis zum Saisonende am
+                            <strong>{{ $currentSeason?->end_date->format('d.m.Y') }}</strong>.
+                            Termine in eingetragenen Ferienzeiten werden automatisch ausgespart.
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Ferienhinweis (allgemein) --}}
+                <div class="md:col-span-2" x-show="showRecurrence && showUntil" x-transition>
+                    <p class="text-xs text-gray-400 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Termine in eingetragenen Ferienzeiten werden automatisch ausgespart.
+                    </p>
                 </div>
 
                 {{-- Notizen --}}

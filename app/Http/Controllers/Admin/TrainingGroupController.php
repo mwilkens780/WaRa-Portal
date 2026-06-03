@@ -35,6 +35,7 @@ class TrainingGroupController extends Controller
         $trainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
         $swimmers = User::where('role', 'schwimmer')->where('active', true)
+            ->whereDoesntHave('trainingGroups')
             ->orderBy('lastname')->orderBy('firstname')->get();
 
         return view('admin.training-groups.create', compact('trainers', 'swimmers'));
@@ -93,6 +94,10 @@ class TrainingGroupController extends Controller
         $trainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
         $swimmers = User::where('role', 'schwimmer')->where('active', true)
+            ->where(fn($q) => $q
+                ->whereDoesntHave('trainingGroups')
+                ->orWhereHas('trainingGroups', fn($q2) => $q2->where('training_groups.id', $trainingGroup->id))
+            )
             ->orderBy('lastname')->orderBy('firstname')->get();
 
         $assignedTrainers = $trainingGroup->trainers()->pluck('users.id')->toArray();

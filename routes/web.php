@@ -21,6 +21,7 @@ use App\Http\Controllers\Trainer\TrainingPlanController;
 use App\Http\Controllers\Swimmer\DashboardController as SwimmerDashboard;
 use App\Http\Controllers\Swimmer\GoalController as SwimmerGoalController;
 use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
+use App\Http\Controllers\Trainer\HallBookingController;
 use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
 
 // Startseite -> Login
@@ -164,6 +165,13 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::post('/gruppen-ziele', [TrainerGoalController::class, 'storeGroupGoal'])->name('group-goals.store');
     Route::put('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'updateGroupGoal'])->name('group-goals.update');
     Route::delete('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'destroyGroupGoal'])->name('group-goals.destroy');
+
+    // Hallenbelegung
+    Route::get('/hall', [HallBookingController::class, 'index'])->name('hall.index');
+    Route::post('/hall/bookings', [HallBookingController::class, 'store'])->name('hall.bookings.store');
+    Route::put('/hall/bookings/{booking}', [HallBookingController::class, 'update'])->name('hall.bookings.update');
+    Route::delete('/hall/bookings/{booking}', [HallBookingController::class, 'destroy'])->name('hall.bookings.destroy');
+    Route::get('/hall/conflicts', [HallBookingController::class, 'conflicts'])->name('hall.conflicts');
 });
 
 // Trainingsplan-Download & Tagebuch (alle eingeloggten Rollen)

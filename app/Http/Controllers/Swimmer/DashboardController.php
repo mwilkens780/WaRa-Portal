@@ -231,19 +231,65 @@ class DashboardController extends Controller
 
     public function myTrainings()
     {
-        $swimmer = auth()->user();
+        $swimmer         = auth()->user();
+        $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        $sessions = TrainingSession::where('date', '<=', today())
+        // Scope: sessions relevant to this swimmer's groups (or ungrouped)
+        $relevantSessions = fn($q) => $q->where(
+            fn($q2) => $q2->whereDoesntHave('trainingGroups')
+                ->orWhereHas('trainingGroups', fn($q3) => $q3->whereIn('training_groups.id', $swimmerGroupIds))
+        );
+
+        // ── Statistics ──────────────────────────────────────────────────────
+        $totalRelevant = TrainingSession::where('date', '<=', today())->tap($relevantSessions)->count();
+        $totalAttended = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)
+            ->whereHas('session', fn($q) => $q->where('date', '<=', today())->tap($relevantSessions))
+            ->count();
+        $pct = $totalRelevant > 0 ? round($totalAttended / $totalRelevant * 100) : 0;
+
+        $diaryPendingCount = TrainingSession::where('date', '<=', today())
+            ->tap($relevantSessions)
             ->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true))
-            ->with(['trainer', 'diaries' => fn($q) => $q->where('user_id', $swimmer->id)])
-            ->orderByDesc('date')
-            ->paginate(20);
+            ->whereDoesntHave('diaries', fn($q) => $q->where('user_id', $swimmer->id))
+            ->count();
 
-        $totalAttended = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)->count();
-        $totalSessions = TrainingSession::where('date', '<=', today())->count();
-        $pct = $totalSessions > 0 ? round($totalAttended / $totalSessions * 100) : 0;
+        // ── Upcoming sessions (strictly future) ─────────────────────────────
+        $upcoming = TrainingSession::where('date', '>', today())
+            ->tap($relevantSessions)
+            ->with(['trainer', 'trainingGroups'])
+            ->orderBy('date')->orderBy('start_time')
+            ->get();
 
-        return view('swimmer.my-trainings', compact('sessions', 'totalAttended', 'totalSessions', 'pct'));
+        $preAbsenceMap = TrainingAttendance::where('user_id', $swimmer->id)
+            ->where('pre_absent', true)
+            ->whereIn('training_session_id', $upcoming->pluck('id'))
+            ->get()
+            ->keyBy('training_session_id');
+
+        // ── Past sessions (incl. today) ──────────────────────────────────────
+        $filter    = request('filter', 'all');
+        $pastQuery = TrainingSession::where('date', '<=', today())
+            ->tap($relevantSessions)
+            ->with([
+                'trainer',
+                'attendances' => fn($q) => $q->where('user_id', $swimmer->id),
+                'diaries'     => fn($q) => $q->where('user_id', $swimmer->id),
+            ])
+            ->orderByDesc('date');
+
+        if ($filter === 'attended') {
+            $pastQuery->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true));
+        } elseif ($filter === 'missed') {
+            $pastQuery->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true));
+        }
+
+        $pastSessions = $pastQuery->paginate(20)->withQueryString();
+
+        return view('swimmer.my-trainings', compact(
+            'totalRelevant', 'totalAttended', 'pct', 'diaryPendingCount',
+            'upcoming', 'preAbsenceMap',
+            'pastSessions', 'filter'
+        ));
     }
 
     public function cancelSession(Request $request, TrainingSession $session)

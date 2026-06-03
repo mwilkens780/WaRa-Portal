@@ -7,6 +7,7 @@ use App\Models\TrainingSession;
 use App\Models\TrainingAttendance;
 use App\Models\TrainingDiary;
 use App\Models\TrainingGroup;
+use App\Models\Holiday;
 use App\Models\Season;
 use App\Models\SwimmerGoal;
 use App\Models\SwimmingTime;
@@ -19,18 +20,34 @@ class TrainingSessionController extends Controller
 {
     public function index()
     {
-        $sessions = TrainingSession::with(['trainer', 'trainingGroups:id,name,color'])
-            ->when(!auth()->user()->isAdmin(), fn($q) => $q->where('trainer_id', auth()->id()))
-            ->orderByDesc('date')
-            ->paginate(20);
+        $user = auth()->user();
 
-        return view('trainer.sessions.index', compact('sessions'));
+        $groupQuery = TrainingGroup::with(['sessions' => function ($q) use ($user) {
+            $q->with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
+              ->when(!$user->isAdmin(), fn($q2) => $q2->where('trainer_id', $user->id))
+              ->orderBy('date');
+        }])->orderBy('name');
+
+        if (!$user->isAdmin()) {
+            $groupQuery->whereHas('trainers', fn($q) => $q->where('users.id', $user->id));
+        }
+
+        $groups = $groupQuery->get()->filter(fn($g) => $g->sessions->isNotEmpty());
+
+        $ungroupedSessions = TrainingSession::with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
+            ->when(!$user->isAdmin(), fn($q) => $q->where('trainer_id', $user->id))
+            ->whereDoesntHave('trainingGroups')
+            ->orderBy('date')
+            ->get();
+
+        return view('trainer.sessions.index', compact('groups', 'ungroupedSessions'));
     }
 
     public function create()
     {
         $groups = $this->availableGroups();
-        return view('trainer.sessions.create', compact('groups'));
+        $currentSeason = Season::current();
+        return view('trainer.sessions.create', compact('groups', 'currentSeason'));
     }
 
     public function store(Request $request)
@@ -46,67 +63,103 @@ class TrainingSessionController extends Controller
             'trainer_id'        => ['nullable', 'exists:users,id'],
             'groups'            => ['nullable', 'array'],
             'groups.*'          => ['exists:training_groups,id'],
-            'recurrence_type'   => ['required', 'in:none,weekly,biweekly,monthly'],
-            'recurrence_until'  => ['nullable', 'date', 'after:date', 'required_unless:recurrence_type,none'],
+            'recurrence_type'   => ['required', 'in:none,weekly,biweekly,monthly,weekly_season_end'],
+            'recurrence_until'  => [
+                'nullable',
+                function ($attr, $value, $fail) use ($request) {
+                    $type = $request->input('recurrence_type');
+                    if ($type !== 'none' && $type !== 'weekly_season_end') {
+                        if (!$value || !strtotime($value)) {
+                            $fail('Bitte ein Enddatum für die Wiederholung angeben.');
+                        }
+                    }
+                },
+            ],
             'team_plan'         => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,png', 'max:5120'],
         ]);
 
         $data['trainer_id'] = $data['trainer_id'] ?? auth()->id();
         $groupIds = $request->input('groups', []);
-        $recurrenceGroupId = null;
 
-        // Datei-Upload Teamplan
         $teamPlanPath = null;
         if ($request->hasFile('team_plan')) {
-            $teamPlanPath = $request->file('team_plan')
-                ->store('training-plans', 'local');
+            $teamPlanPath = $request->file('team_plan')->store('training-plans', 'local');
         }
 
         if ($data['recurrence_type'] === 'none') {
-            $session = TrainingSession::create(array_merge($data, [
-                'team_plan_path' => $teamPlanPath,
-            ]));
+            $session = TrainingSession::create(array_merge($data, ['team_plan_path' => $teamPlanPath]));
             $session->trainingGroups()->sync($groupIds);
             return redirect()->route('trainer.sessions.show', $session)
                 ->with('success', 'Trainingseinheit angelegt.');
         }
 
-        // Wiederholende Einheiten erzeugen
-        $recurrenceGroupId = (string) Str::uuid();
-        $until   = Carbon::parse($data['recurrence_until']);
+        // "weekly_season_end" → weekly frequency until current season end
+        $isSeasonEnd = ($data['recurrence_type'] === 'weekly_season_end');
+        if ($isSeasonEnd) {
+            $season = Season::current();
+            if (!$season) {
+                return back()->withInput()
+                    ->withErrors(['recurrence_type' => 'Keine aktive Saison gefunden. Bitte manuell ein Enddatum angeben.']);
+            }
+            $data['recurrence_type'] = 'weekly';
+            $until = $season->end_date->copy();
+        } else {
+            $until = Carbon::parse($request->input('recurrence_until'));
+        }
+
         $current = Carbon::parse($data['date']);
+
+        // Load holidays overlapping the recurrence range
+        $holidays = Holiday::intersecting($current, $until);
+        $inHoliday = fn(Carbon $d) => $holidays->first(fn($h) => $h->containsDate($d));
+
+        // Warn (and block) if the very first session falls in holidays
+        if ($holiday = $inHoliday($current)) {
+            return back()->withInput()
+                ->with('warning', "Der erste Termin ({$current->format('d.m.Y')}) liegt in den Ferien ({$holiday->name}). Bitte ein anderes Startdatum wählen.");
+        }
+
+        $recurrenceGroupId = (string) Str::uuid();
         $created = 0;
         $firstSession = null;
 
         while ($current->lte($until)) {
-            $session = TrainingSession::create([
-                'trainer_id'          => $data['trainer_id'],
-                'title'               => $data['title'],
-                'date'                => $current->format('Y-m-d'),
-                'start_time'          => $data['start_time'],
-                'end_time'            => $data['end_time'] ?? null,
-                'location'            => $data['location'],
-                'type'                => $data['type'],
-                'notes'               => $data['notes'] ?? null,
-                'recurrence_type'     => $data['recurrence_type'],
-                'recurrence_until'    => $data['recurrence_until'],
-                'recurrence_group_id' => $recurrenceGroupId,
-                'team_plan_path'      => $teamPlanPath,
-            ]);
-            $session->trainingGroups()->sync($groupIds);
-
-            if (!$firstSession) $firstSession = $session;
-            $created++;
+            if (!$inHoliday($current)) {
+                $session = TrainingSession::create([
+                    'trainer_id'          => $data['trainer_id'],
+                    'title'               => $data['title'],
+                    'date'                => $current->format('Y-m-d'),
+                    'start_time'          => $data['start_time'],
+                    'end_time'            => $data['end_time'] ?? null,
+                    'location'            => $data['location'],
+                    'type'                => $data['type'],
+                    'notes'               => $data['notes'] ?? null,
+                    'recurrence_type'     => $data['recurrence_type'],
+                    'recurrence_until'    => $until->format('Y-m-d'),
+                    'recurrence_group_id' => $recurrenceGroupId,
+                    'team_plan_path'      => $teamPlanPath,
+                ]);
+                $session->trainingGroups()->sync($groupIds);
+                if (!$firstSession) $firstSession = $session;
+                $created++;
+            }
 
             $current = match($data['recurrence_type']) {
-                'weekly'    => $current->addWeek(),
-                'biweekly'  => $current->addWeeks(2),
-                'monthly'   => $current->addMonth(),
+                'weekly'   => $current->addWeek(),
+                'biweekly' => $current->addWeeks(2),
+                'monthly'  => $current->addMonth(),
+                default    => $current->addWeek(),
             };
         }
 
+        if (!$firstSession) {
+            return back()->withInput()
+                ->with('warning', 'Alle Termine im gewählten Zeitraum liegen in den Ferien. Bitte ein anderes Startdatum oder einen anderen Zeitraum wählen.');
+        }
+
+        $holidayNote = $holidays->isNotEmpty() ? " ({$holidays->count()} Ferienperiode(n) ausgespart)" : '';
         return redirect()->route('trainer.sessions.show', $firstSession)
-            ->with('success', "{$created} Trainingseinheiten (Wiederholung) angelegt.");
+            ->with('success', "{$created} Trainingseinheiten angelegt{$holidayNote}.");
     }
 
     public function show(TrainingSession $session)
