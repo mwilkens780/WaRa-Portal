@@ -25,10 +25,14 @@ class User extends Authenticatable
     ];
 
     protected $fillable = [
-        'name', 'firstname', 'lastname', 'email', 'password', 'role',
-        'birth_date', 'phone', 'active',
+        'name', 'firstname', 'lastname', 'email', 'email2', 'password', 'role',
+        'birth_date', 'phone', 'mobile', 'active',
         'gender', 'dsv_id', 'membership_number', 'member_since', 'training_group',
+        'street', 'postal_code', 'city', 'country',
         'additional_roles', 'initial_password',
+        'trainer_license_nr', 'trainer_license_valid_until',
+        'rescue_certificate_until', 'first_aid_until',
+        'police_clearance_date', 'notes',
     ];
 
     protected $hidden = [
@@ -43,7 +47,11 @@ class User extends Authenticatable
             'birth_date'        => 'date',
             'member_since'      => 'date',
             'active'            => 'boolean',
-            'additional_roles'  => 'array',
+            'additional_roles'           => 'array',
+            'trainer_license_valid_until' => 'date',
+            'rescue_certificate_until'    => 'date',
+            'first_aid_until'             => 'date',
+            'police_clearance_date'       => 'date',
         ];
     }
 

@@ -141,35 +141,64 @@ class WebClubImportService
 
     private function parseRow(array $row): array
     {
-        $lastname  = trim($row['Name'] ?? '');
-        $firstname = trim($row['Vorname'] ?? '');
-        $dsvId     = trim($row['DSV-ID'] ?? '');
-        $email     = trim($row['Mail1'] ?? '');
-        $phone     = trim($row['Telefon1'] ?? '') ?: trim($row['Mobil'] ?? '');
-        $memberNr  = trim($row['Mitgliedsnummer'] ?? '');
-        $group     = trim($row['GruppeSchwimmer'] ?? '');
-        $isSwimmer = $this->parseBool($row['AktiverSchwimmer'] ?? '');
-        $isTrainer = $this->parseBool($row['AktiverTrainer'] ?? '');
-        $gender    = $this->parseGender($row['Geschlecht'] ?? '');
-        $birthDate = $this->parseDate($row['Geburtstag'] ?? '');
-        $joinDate  = $this->parseDate($row['Eintritt'] ?? '');
-        $leaveDate = $this->parseDate($row['Austritt'] ?? '');
-
+        // ── Identity ─────────────────────────────────────────────────────────
+        $lastname    = trim($row['Name']       ?? '');
+        $firstname   = trim($row['Vorname']    ?? '');
+        $dsvId       = trim($row['DSV-ID']     ?? '');
+        $memberNr    = trim($row['Mitgliedsnummer'] ?? '');
         $displayName = trim("$firstname $lastname");
 
-        // Determine role from WebClub flags (null = not detected)
-        if ($isTrainer) {
-            $role = 'trainer';
-        } elseif ($isSwimmer) {
-            $role = 'schwimmer';
-        } else {
-            $role = null;
-        }
+        // ── Contact ───────────────────────────────────────────────────────────
+        $email   = trim($row['Mail1']     ?? '');
+        $email2  = trim($row['Mail2']     ?? '');
+        $phone   = trim($row['Telefon1']  ?? '');
+        $mobile  = trim($row['Mobil']     ?? '');
 
-        // Active: leave date empty or in the future
+        // ── Address ───────────────────────────────────────────────────────────
+        $street     = trim($row['Strasse'] ?? '');
+        $postalCode = trim($row['Plz']     ?? '');
+        $city       = trim($row['Ort']     ?? '');
+        $country    = trim($row['Land']    ?? '');
+
+        // ── Demographics ──────────────────────────────────────────────────────
+        $gender    = $this->parseGender($row['Geschlecht'] ?? '');
+        $birthDate = $this->parseDate($row['Geburtstag'] ?? '');
+        $joinDate  = $this->parseDate($row['Eintritt']   ?? '');
+        $leaveDate = $this->parseDate($row['Austritt']   ?? '');
+
+        // ── WebClub-Gruppe für Schwimmer ──────────────────────────────────────
+        $group = trim($row['GruppeSchwimmer'] ?? '');
+
+        // ── Roles (priority: trainer > vorstand > kampfrichter > schwimmer) ──
+        $isSwimmer     = $this->parseBool($row['AktiverSchwimmer']     ?? '');
+        $isTrainer     = $this->parseBool($row['AktiverTrainer']       ?? '');
+        $isReferee     = $this->parseBool($row['AktiverKampfrichter']  ?? '');
+        $isFunctionary = $this->parseBool($row['AktiverFunktionär']    ?? '');
+
+        $activeRoles = array_values(array_filter([
+            $isTrainer     ? 'trainer'      : null,
+            $isFunctionary ? 'vorstand'     : null,
+            $isReferee     ? 'kampfrichter' : null,
+            $isSwimmer     ? 'schwimmer'    : null,
+        ]));
+
+        $role            = $activeRoles[0] ?? null;
+        $additionalRoles = count($activeRoles) > 1 ? array_slice($activeRoles, 1) : null;
+
+        // ── Trainer-specific certifications ───────────────────────────────────
+        $trainerLicenseNr         = trim($row['TrainerLizenzNr']      ?? '');
+        $trainerLicenseValidUntil = $this->parseDate($row['TrainerLizenzGueltig']    ?? '');
+        $rescueCertificateUntil   = $this->parseDate($row['RettungsnachweisBis']     ?? '');
+        $firstAidUntil            = $this->parseDate($row['ErsteHilfeBis']           ?? '');
+        $policeClearanceDate      = $this->parseDate($row['FührungszeugnisVom']      ?? '');
+
+        // ── Miscellaneous ─────────────────────────────────────────────────────
+        $notes = trim($row['Bemerkung'] ?? '');
+
+        // ── Active status ─────────────────────────────────────────────────────
         $active = !$leaveDate || Carbon::parse($leaveDate)->isFuture();
 
-        // Find existing user: DSV-ID first, then name + birthdate
+        // ── Find existing user: DSV-ID → name+birthdate ───────────────────────
         $existing = null;
         if ($dsvId) {
             $existing = User::where('dsv_id', $dsvId)->first();
@@ -181,26 +210,39 @@ class WebClubImportService
                 ->first();
         }
 
-        // Build base data (role added below if detected)
+        // ── Build data array ──────────────────────────────────────────────────
         $data = array_filter([
-            'firstname'         => $firstname ?: null,
-            'lastname'          => $lastname ?: null,
-            'name'              => $displayName ?: null,
-            'gender'            => $gender,
-            'birth_date'        => $birthDate,
-            'dsv_id'            => $dsvId ?: null,
-            'membership_number' => $memberNr ?: null,
-            'member_since'      => $joinDate,
-            'training_group'    => $group ?: null,
-            'phone'             => $phone ?: null,
-            'active'            => $active,
+            'firstname'                   => $firstname   ?: null,
+            'lastname'                    => $lastname    ?: null,
+            'name'                        => $displayName ?: null,
+            'gender'                      => $gender,
+            'birth_date'                  => $birthDate,
+            'dsv_id'                      => $dsvId       ?: null,
+            'membership_number'           => $memberNr    ?: null,
+            'member_since'                => $joinDate,
+            'training_group'              => $group       ?: null,
+            'phone'                       => $phone       ?: null,
+            'mobile'                      => $mobile      ?: null,
+            'email2'                      => $email2      ?: null,
+            'street'                      => $street      ?: null,
+            'postal_code'                 => $postalCode  ?: null,
+            'city'                        => $city        ?: null,
+            'country'                     => $country     ?: null,
+            'trainer_license_nr'          => $trainerLicenseNr       ?: null,
+            'trainer_license_valid_until' => $trainerLicenseValidUntil,
+            'rescue_certificate_until'    => $rescueCertificateUntil,
+            'first_aid_until'             => $firstAidUntil,
+            'police_clearance_date'       => $policeClearanceDate,
+            'notes'                       => $notes       ?: null,
+            'active'                      => $active,
+            'additional_roles'            => $additionalRoles,
         ], fn($v) => $v !== null);
 
         if ($role) {
             $data['role'] = $role;
         }
 
-        // For new users (no existing match), pre-compute email
+        // ── Email: only set for new users ─────────────────────────────────────
         if (!$existing) {
             if (!$email) {
                 $slug  = Str::slug($firstname . ' ' . $lastname, '.');
@@ -209,10 +251,10 @@ class WebClubImportService
             $data['email'] = $email;
         }
 
-        // Determine action
+        // ── Determine action ──────────────────────────────────────────────────
         if ($role === null) {
             $action = 'skip';
-            $reason = 'Keine WebClub-Rolle erkannt – Rolle manuell zuweisen oder überspringen';
+            $reason = 'Keine WebClub-Rolle erkannt (AktiverSchwimmer / AktiverTrainer / AktiverKampfrichter / AktiverFunktionär alle 0) – Rolle manuell zuweisen oder überspringen';
         } else {
             $action = $existing ? 'update' : 'new';
             $reason = null;
