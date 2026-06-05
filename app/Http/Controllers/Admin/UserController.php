@@ -171,11 +171,11 @@ class UserController extends Controller
             'confirm_text.in' => 'Bitte gib "ALLE LÖSCHEN" ein, um zu bestätigen.',
         ]);
 
-        $count = User::where('id', '!=', auth()->id())->count();
-        User::where('id', '!=', auth()->id())->delete();
+        $count = User::where('role', '!=', 'admin')->count();
+        User::where('role', '!=', 'admin')->delete();
 
         return redirect()->route('admin.users.index')
-            ->with('success', "{$count} Benutzer wurden gelöscht. Dein eigenes Konto wurde beibehalten.");
+            ->with('success', "{$count} Nicht-Admin-Benutzer wurden gelöscht. Alle Administratoren bleiben erhalten.");
     }
 
     public function toggleActive(User $user)

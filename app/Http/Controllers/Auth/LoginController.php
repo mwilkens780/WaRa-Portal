@@ -29,7 +29,14 @@ class LoginController extends Controller
             if (!$user->active) {
                 Auth::logout();
                 throw ValidationException::withMessages([
-                    'email' => 'Dein Konto wurde deaktiviert.',
+                    'email' => 'Dein Konto ist nicht mehr aktiv (ehemaliges Mitglied).',
+                ]);
+            }
+
+            if (!$user->role) {
+                Auth::logout();
+                throw ValidationException::withMessages([
+                    'email' => 'Deinem Konto ist kein Portal-Zugang zugewiesen. Bitte wende dich an einen Administrator.',
                 ]);
             }
 
@@ -52,11 +59,13 @@ class LoginController extends Controller
     private function redirectTo(string $role): string
     {
         return match($role) {
-            'admin' => route('admin.dashboard'),
-            'trainer' => route('trainer.dashboard'),
-            'schwimmer' => route('swimmer.dashboard'),
-            'elternteil' => route('parent.dashboard'),
-            default => route('login'),
+            'admin'        => route('admin.dashboard'),
+            'trainer'      => route('trainer.dashboard'),
+            'vorstand'     => route('admin.dashboard'),
+            'schwimmer'    => route('swimmer.dashboard'),
+            'elternteil'   => route('parent.dashboard'),
+            'kampfrichter' => route('swimmer.dashboard'),
+            default        => route('login'),
         };
     }
 }
