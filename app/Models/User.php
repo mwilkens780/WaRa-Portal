@@ -29,7 +29,7 @@ class User extends Authenticatable
         'birth_date', 'phone', 'mobile', 'active',
         'gender', 'dsv_id', 'membership_number', 'member_since', 'training_group',
         'street', 'postal_code', 'city', 'country',
-        'additional_roles', 'initial_password',
+        'initial_password',
         'trainer_license_nr', 'trainer_license_valid_until',
         'rescue_certificate_until', 'first_aid_until',
         'police_clearance_date', 'notes',
@@ -42,12 +42,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'birth_date'        => 'date',
-            'member_since'      => 'date',
-            'active'            => 'boolean',
-            'additional_roles'           => 'array',
+            'email_verified_at'           => 'datetime',
+            'password'                    => 'hashed',
+            'birth_date'                  => 'date',
+            'member_since'                => 'date',
+            'active'                      => 'boolean',
             'trainer_license_valid_until' => 'date',
             'rescue_certificate_until'    => 'date',
             'first_aid_until'             => 'date',
@@ -79,16 +78,35 @@ class User extends Authenticatable
         return !empty($this->attributes['initial_password']);
     }
 
-    /** Check primary role only (used by auth middleware). */
+    /**
+     * Check portal access role (used by auth middleware).
+     * For checking any club role, use hasAnyRole().
+     */
     public function hasRole(string|array $roles): bool
     {
         return in_array($this->role, (array) $roles);
     }
 
-    /** Check additional roles. */
-    public function hasAdditionalRole(string $role): bool
+    /** True if user has this role in user_roles table OR as portal role. */
+    public function hasAnyRole(string $role): bool
     {
-        return in_array($role, $this->additional_roles ?? [], true);
+        if ($this->role === $role) return true;
+        return $this->userRoles->contains('role', $role);
+    }
+
+    /** All club roles (from user_roles table). */
+    public function userRoles(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserRole::class);
+    }
+
+    /** Sync club roles: replaces entire set. */
+    public function syncRoles(array $roles): void
+    {
+        $this->userRoles()->whereNotIn('role', $roles)->delete();
+        foreach ($roles as $role) {
+            $this->userRoles()->firstOrCreate(['role' => $role]);
+        }
     }
 
     // Relations

@@ -31,7 +31,7 @@ class UserController extends Controller
             $query->where('active', $request->active === '1');
         }
 
-        $users = $query->orderBy('lastname')->orderBy('firstname')->paginate(20)->withQueryString();
+        $users = $query->with('userRoles')->orderBy('lastname')->orderBy('firstname')->paginate(20)->withQueryString();
 
         return view('admin.users.index', compact('users'));
     }
@@ -45,29 +45,33 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'firstname'          => ['required', 'string', 'max:100'],
-            'lastname'           => ['required', 'string', 'max:100'],
-            'email'              => ['required', 'email', 'unique:users'],
-            'password'           => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-            'role'               => ['required', 'in:' . implode(',', User::ROLES)],
-            'additional_roles'   => ['nullable', 'array'],
-            'additional_roles.*' => ['in:' . implode(',', User::ROLES)],
-            'birth_date'         => ['nullable', 'date'],
-            'phone'              => ['nullable', 'string', 'max:30'],
-            'active'             => ['boolean'],
-            'children'           => ['nullable', 'array'],
-            'children.*'         => ['exists:users,id'],
+            'firstname'   => ['required', 'string', 'max:100'],
+            'lastname'    => ['required', 'string', 'max:100'],
+            'email'       => ['nullable', 'email', 'unique:users'],
+            'password'    => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'role'        => ['nullable', 'in:' . implode(',', User::ROLES)],
+            'user_roles'  => ['nullable', 'array'],
+            'user_roles.*'=> ['in:' . implode(',', User::ROLES)],
+            'birth_date'  => ['nullable', 'date'],
+            'phone'       => ['nullable', 'string', 'max:30'],
+            'active'      => ['boolean'],
+            'children'    => ['nullable', 'array'],
+            'children.*'  => ['exists:users,id'],
         ]);
 
-        $data['name']             = trim($data['firstname'] . ' ' . $data['lastname']);
-        $data['password']         = Hash::make($data['password']);
-        $data['active']           = $request->boolean('active', true);
-        $data['additional_roles'] = empty($data['additional_roles']) ? null : $data['additional_roles'];
+        $data['name']     = trim($data['firstname'] . ' ' . $data['lastname']);
+        $data['password'] = Hash::make($data['password']);
+        $data['active']   = $request->boolean('active', true);
+        $roles = $data['user_roles'] ?? [];
+        unset($data['user_roles'], $data['children']);
 
         $user = User::create($data);
+        if ($roles) {
+            $user->syncRoles($roles);
+        }
 
-        if ($data['role'] === 'elternteil' && !empty($data['children'])) {
-            $user->children()->sync($data['children']);
+        if (($data['role'] ?? '') === 'elternteil' && !empty($request->children)) {
+            $user->children()->sync($request->children);
         }
 
         return redirect()->route('admin.users.index')
@@ -76,10 +80,9 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $user->load('userRoles');
         $swimmers         = User::where('role', 'schwimmer')->orderBy('lastname')->orderBy('firstname')->get();
         $assignedChildren = $user->children()->pluck('users.id')->toArray();
-        // $user->attributes in Blade goes through __get() and would resolve to an 'attributes' DB column (null).
-        // Pass the raw value explicitly so the view doesn't need to access the protected property.
         $initialPassword  = $user->getRawOriginal('initial_password');
         return view('admin.users.edit', compact('user', 'swimmers', 'assignedChildren', 'initialPassword'));
     }
@@ -87,35 +90,48 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
-            'firstname'          => ['required', 'string', 'max:100'],
-            'lastname'           => ['required', 'string', 'max:100'],
-            'email'              => ['required', 'email', 'unique:users,email,' . $user->id],
-            'role'               => ['required', 'in:' . implode(',', User::ROLES)],
-            'additional_roles'   => ['nullable', 'array'],
-            'additional_roles.*' => ['in:' . implode(',', User::ROLES)],
-            'birth_date'         => ['nullable', 'date'],
-            'phone'              => ['nullable', 'string', 'max:30'],
-            'active'             => ['boolean'],
-            'children'           => ['nullable', 'array'],
-            'children.*'         => ['exists:users,id'],
+            'firstname'    => ['required', 'string', 'max:100'],
+            'lastname'     => ['required', 'string', 'max:100'],
+            'email'        => ['nullable', 'email', 'unique:users,email,' . $user->id],
+            'role'         => ['nullable', 'in:' . implode(',', User::ROLES)],
+            'user_roles'   => ['nullable', 'array'],
+            'user_roles.*' => ['in:' . implode(',', User::ROLES)],
+            'birth_date'   => ['nullable', 'date'],
+            'gender'       => ['nullable', 'in:M,F'],
+            'phone'        => ['nullable', 'string', 'max:30'],
+            'mobile'       => ['nullable', 'string', 'max:30'],
+            'email2'       => ['nullable', 'email'],
+            'dsv_id'       => ['nullable', 'string', 'max:20', 'unique:users,dsv_id,' . $user->id],
+            'membership_number' => ['nullable', 'string', 'max:30'],
+            'member_since' => ['nullable', 'date'],
+            'street'       => ['nullable', 'string', 'max:255'],
+            'postal_code'  => ['nullable', 'string', 'max:10'],
+            'city'         => ['nullable', 'string', 'max:100'],
+            'country'      => ['nullable', 'string', 'max:100'],
+            'notes'        => ['nullable', 'string'],
+            'active'       => ['boolean'],
+            'children'     => ['nullable', 'array'],
+            'children.*'   => ['exists:users,id'],
         ]);
 
-        $data['name']             = trim($data['firstname'] . ' ' . $data['lastname']);
-        $data['additional_roles'] = empty($data['additional_roles']) ? null : $data['additional_roles'];
+        $data['name']   = trim($data['firstname'] . ' ' . $data['lastname']);
+        $roles = $data['user_roles'] ?? [];
+        unset($data['user_roles'], $data['children']);
 
         if ($request->filled('password')) {
             $request->validate([
                 'password' => ['confirmed', Password::min(8)->letters()->numbers()],
             ]);
-            $data['password']          = Hash::make($request->password);
-            $data['initial_password']  = null; // manual password clears initial status
+            $data['password']         = Hash::make($request->password);
+            $data['initial_password'] = null;
         }
 
         $data['active'] = $request->boolean('active');
         $user->update($data);
+        $user->syncRoles($roles);
 
-        if ($data['role'] === 'elternteil') {
-            $user->children()->sync($data['children'] ?? []);
+        if (($data['role'] ?? '') === 'elternteil') {
+            $user->children()->sync($request->children ?? []);
         }
 
         return redirect()->route('admin.users.index')
@@ -145,6 +161,21 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', "Benutzer \"{$name}\" wurde gelöscht.");
+    }
+
+    public function destroyAll(Request $request)
+    {
+        $request->validate([
+            'confirm_text' => ['required', 'in:ALLE LÖSCHEN'],
+        ], [
+            'confirm_text.in' => 'Bitte gib "ALLE LÖSCHEN" ein, um zu bestätigen.',
+        ]);
+
+        $count = User::where('id', '!=', auth()->id())->count();
+        User::where('id', '!=', auth()->id())->delete();
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "{$count} Benutzer wurden gelöscht. Dein eigenes Konto wurde beibehalten.");
     }
 
     public function toggleActive(User $user)

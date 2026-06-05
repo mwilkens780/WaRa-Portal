@@ -54,6 +54,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/benutzer/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
     Route::patch('/benutzer/{user}/aktivierung', [AdminUserController::class, 'toggleActive'])->name('users.toggle-active');
     Route::post('/benutzer/{user}/passwort-reset', [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::delete('/benutzer-alle', [AdminUserController::class, 'destroyAll'])->name('users.destroy-all');
 
     // WebClub Wettkampf-Terminimport
     Route::get('/wettkaempfe/webclub-import', [CompetitionWebclubImportController::class, 'showForm'])->name('competitions.webclub-import.form');

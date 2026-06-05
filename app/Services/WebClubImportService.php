@@ -84,19 +84,28 @@ class WebClubImportService
         $skipped = 0;
         $errors  = [];
 
-        // Collect only the rows we actually need to touch
         $toProcess = array_filter($rows, fn($r) => $r['action'] !== 'skip');
 
-        DB::transaction(function () use ($toProcess, &$created, &$updated, &$skipped, &$errors) {
+        DB::transaction(function () use ($toProcess, &$created, &$updated, &$errors) {
             foreach ($toProcess as $row) {
                 try {
-                    $data = $row['data'];
+                    $data  = $row['data'];
+                    $roles = $row['roles'] ?? [];
 
                     if ($row['action'] === 'update') {
-                        // Use Eloquent model update to fire audit events
                         $user = User::find($row['user_id']);
-                        if ($user) {
-                            $user->fill($data)->save();
+                        if (!$user) continue;
+
+                        // Never overwrite existing values with empty/null from import.
+                        // Only apply fields that actually have a value in the CSV.
+                        $updateData = array_filter($data, fn($v) => $v !== null && $v !== '' && $v !== []);
+
+                        // Never change email for existing users via import
+                        unset($updateData['email']);
+
+                        $user->fill($updateData)->save();
+                        if ($roles) {
+                            $user->syncRoles($roles);
                         }
                         $updated++;
                     } else {
@@ -104,7 +113,10 @@ class WebClubImportService
                         $data['password']         = Hash::make($plain);
                         $data['initial_password'] = $plain;
                         $data['active']           = $data['active'] ?? true;
-                        User::create($data);
+                        $user = User::create($data);
+                        if ($roles) {
+                            $user->syncRoles($roles);
+                        }
                         $created++;
                     }
                 } catch (\Throwable $e) {
@@ -242,12 +254,9 @@ class WebClubImportService
             $data['role'] = $role;
         }
 
-        // ── Email: only set for new users ─────────────────────────────────────
-        if (!$existing) {
-            if (!$email) {
-                $slug  = Str::slug($firstname . ' ' . $lastname, '.');
-                $email = $slug . '@mitglied.wasserratten.intern';
-            }
+        // ── Email: only set for new users when CSV has an actual value ───────
+        // Never generate dummy emails — leave email null if not in CSV.
+        if (!$existing && $email) {
             $data['email'] = $email;
         }
 
@@ -264,8 +273,9 @@ class WebClubImportService
             'action'  => $action,
             'name'    => $displayName,
             'role'    => $role,
+            'roles'   => $activeRoles, // all club roles for user_roles table
             'dsv_id'  => $dsvId,
-            'email'   => $existing ? $existing->email : ($data['email'] ?? null),
+            'email'   => $existing ? $existing->email : ($email ?: null),
             'user_id' => $existing?->id,
             'reason'  => $reason,
             'data'    => $data,
