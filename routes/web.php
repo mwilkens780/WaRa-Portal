@@ -173,6 +173,11 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::put('/hall/bookings/{booking}', [HallBookingController::class, 'update'])->name('hall.bookings.update');
     Route::delete('/hall/bookings/{booking}', [HallBookingController::class, 'destroy'])->name('hall.bookings.destroy');
     Route::get('/hall/conflicts', [HallBookingController::class, 'conflicts'])->name('hall.conflicts');
+    Route::get('/hall/sessions/search', [HallBookingController::class, 'searchSessions'])->name('hall.sessions.search');
+
+    // Trainingseinheit → Bahnbelegung
+    Route::post('/training/{session}/bahnen', [TrainingSessionController::class, 'bookLanes'])->name('sessions.book-lanes');
+    Route::delete('/training/{session}/bahnen/{booking}', [TrainingSessionController::class, 'removeLane'])->name('sessions.remove-lane');
 });
 
 // Trainingsplan-Download & Tagebuch (alle eingeloggten Rollen)

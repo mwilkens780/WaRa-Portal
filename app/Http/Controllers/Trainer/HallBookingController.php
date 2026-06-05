@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HallBooking;
 use App\Models\HallResource;
 use App\Models\TrainingGroup;
+use App\Models\TrainingSession;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -156,6 +157,44 @@ class HallBookingController extends Controller
         );
 
         return response()->json(['conflicts' => $conflicts]);
+    }
+
+    /**
+     * Search for recurring training sessions matching a day/time window.
+     * Used by the hall booking modal to find sessions to link.
+     */
+    public function searchSessions(Request $request): JsonResponse
+    {
+        $request->validate([
+            'day_of_week' => ['required', 'integer', 'min:1', 'max:7'],
+            'start_time'  => ['required', 'date_format:H:i'],
+            'end_time'    => ['required', 'date_format:H:i'],
+        ]);
+
+        // WEEKDAY() returns 0=Mon … 6=Sun; our day_of_week is 1=Mon … 7=Sun
+        $weekday = (int)$request->day_of_week - 1;
+
+        $sessions = TrainingSession::with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
+            ->where('date', '>=', now())
+            ->whereRaw('WEEKDAY(date) = ?', [$weekday])
+            ->where('start_time', '<=', $request->end_time)
+            ->where(fn($q) => $q->whereNull('end_time')->orWhere('end_time', '>=', $request->start_time))
+            ->when(!auth()->user()->isAdmin(), fn($q) => $q->where('trainer_id', auth()->id()))
+            ->orderBy('date')
+            ->limit(15)
+            ->get();
+
+        return response()->json([
+            'sessions' => $sessions->map(fn($s) => [
+                'id'     => $s->id,
+                'title'  => $s->title,
+                'time'   => substr($s->start_time, 0, 5) . ($s->end_time ? ' – ' . substr($s->end_time, 0, 5) : ''),
+                'date'   => $s->date->format('d.m.Y'),
+                'trainer'=> $s->trainer?->name,
+                'groups' => $s->trainingGroups->pluck('name')->join(', '),
+                'recurring' => (bool)$s->recurrence_group_id,
+            ]),
+        ]);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────

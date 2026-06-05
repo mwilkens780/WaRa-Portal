@@ -165,7 +165,7 @@ class TrainingSessionController extends Controller
     public function show(TrainingSession $session)
     {
         $this->authorizeSession($session);
-        $session->load('trainer', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks');
+        $session->load('trainer', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks', 'coTrainers', 'hallBookings.resource');
 
         // Only show swimmers from the session's training groups; fall back to all if no groups assigned
         if ($session->trainingGroups->isNotEmpty()) {
@@ -211,11 +211,13 @@ class TrainingSessionController extends Controller
                 });
         }
 
+        $allResources = \App\Models\HallResource::where('active', true)->orderBy('sort_order')->get();
+
         return view('trainer.sessions.show', compact(
             'session', 'swimmers', 'attendedIds',
             'participationPct', 'presentCount', 'totalSwimmers',
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
-            'siblings', 'allTrainers', 'blockTimesMap'
+            'siblings', 'allTrainers', 'blockTimesMap', 'allResources'
         ));
     }
 
@@ -500,6 +502,81 @@ class TrainingSessionController extends Controller
         $session->update(['trainer_id' => $data['trainer_id']]);
 
         return back()->with('success', 'Trainer für diese Einheit geändert.');
+    }
+
+    /**
+     * Book one or more hall resources for this session's day/time.
+     * Creates hall_bookings linked to the session.
+     */
+    public function bookLanes(Request $request, TrainingSession $session): \Illuminate\Http\JsonResponse
+    {
+        $this->authorizeSession($session);
+
+        $data = $request->validate([
+            'hall_resource_ids'   => ['required', 'array', 'min:1'],
+            'hall_resource_ids.*' => ['exists:hall_resources,id'],
+            'force'               => ['boolean'],
+        ]);
+
+        if (!$session->end_time) {
+            return response()->json(['error' => 'Die Trainingseinheit hat keine Endzeit. Bitte zuerst eine Endzeit setzen.'], 422);
+        }
+
+        $dayOfWeek = $session->date->dayOfWeekIso; // 1=Mon … 7=Sun
+        $startTime = substr($session->start_time, 0, 5);
+        $endTime   = substr($session->end_time, 0, 5);
+
+        // Conflict check (exclude bookings already linked to this session)
+        $conflicts = \App\Models\HallBooking::with('resource')
+            ->whereIn('hall_resource_id', $data['hall_resource_ids'])
+            ->where('day_of_week', $dayOfWeek)
+            ->where(fn($q) => $q->where('start_time', '<', $endTime)->where('end_time', '>', $startTime))
+            ->where(fn($q) => $q->whereNull('training_session_id')->orWhere('training_session_id', '!=', $session->id))
+            ->get();
+
+        if ($conflicts->isNotEmpty() && !($data['force'] ?? false)) {
+            return response()->json([
+                'conflicts' => $conflicts->map(fn($b) => [
+                    'resource' => $b->resource->name,
+                    'label'    => $b->label,
+                    'time'     => $b->formatted_time,
+                ]),
+            ], 409);
+        }
+
+        $created = 0;
+        foreach ($data['hall_resource_ids'] as $resourceId) {
+            \App\Models\HallBooking::updateOrCreate(
+                [
+                    'hall_resource_id'   => $resourceId,
+                    'day_of_week'        => $dayOfWeek,
+                    'training_session_id'=> $session->id,
+                ],
+                [
+                    'start_time'        => $startTime,
+                    'end_time'          => $endTime,
+                    'label'             => $session->title,
+                    'type'              => 'training',
+                    'training_group_id' => $session->trainingGroups->first()?->id,
+                    'trainer_id'        => $session->trainer_id,
+                    'created_by_id'     => auth()->id(),
+                ]
+            );
+            $created++;
+        }
+
+        return response()->json(['success' => true, 'created' => $created]);
+    }
+
+    /**
+     * Remove a hall booking linked to this session.
+     */
+    public function removeLane(Request $request, TrainingSession $session, \App\Models\HallBooking $booking): \Illuminate\Http\JsonResponse
+    {
+        $this->authorizeSession($session);
+        if ($booking->training_session_id !== $session->id) abort(403);
+        $booking->delete();
+        return response()->json(['success' => true]);
     }
 
     // ── Helper ──────────────────────────────────────────────────────────────

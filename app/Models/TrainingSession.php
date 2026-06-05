@@ -119,4 +119,23 @@ class TrainingSession extends Model
     {
         return $this->recurrence_type !== 'none' && $this->recurrence_type !== null;
     }
+
+    public function coTrainers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'training_session_trainers');
+    }
+
+    public function hallBookings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(HallBooking::class, 'training_session_id');
+    }
+
+    public function getHasMissingTrainerAttribute(): bool
+    {
+        if (!$this->trainer_id) return true;
+        if ($this->relationLoaded('trainer')) {
+            return $this->trainer === null || !$this->trainer->active;
+        }
+        return false;
+    }
 }

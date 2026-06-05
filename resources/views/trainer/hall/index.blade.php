@@ -84,8 +84,13 @@ function hallApp() {
             start_time: '08:00', end_time: '10:00',
             label: '', type: 'training',
             training_group_id: null, trainer_id: null,
+            training_session_id: null,
             notes: '', color: '',
         },
+        // ── Session search ────────────────────────────────────────────
+        linkedSession:    null,
+        sessionResults:   [],
+        sessionSearching: false,
 
         // ── Filter ────────────────────────────────────────────────────
         bookingOpacity(b) {
@@ -108,7 +113,7 @@ function hallApp() {
 
         // ── Modal helpers ─────────────────────────────────────────────
         openCreate(resourceId, day, slot) {
-            this.editId = null; this.conflicts = [];
+            this.editId = null; this.conflicts = []; this.linkedSession = null; this.sessionResults = [];
             const s = slot ?? 8 * 4;
             this.form = {
                 hall_resource_ids: resourceId ? [resourceId] : [],
@@ -117,22 +122,41 @@ function hallApp() {
                 end_time:   this.slotToTime(Math.min(s + 8, 64)),
                 label: '', type: 'training',
                 training_group_id: null, trainer_id: null,
+                training_session_id: null,
                 notes: '', color: '',
             };
             this.showModal = true;
         },
         openEdit(b) {
-            this.editId = b.id; this.conflicts = [];
+            this.editId = b.id; this.conflicts = []; this.sessionResults = [];
+            this.linkedSession = b.training_session_id ? { id: b.training_session_id, title: b.session_title ?? ('Einheit #' + b.training_session_id) } : null;
             this.form = {
                 hall_resource_ids: [b.hall_resource_id],
                 day_of_week: b.day_of_week,
                 start_time: b.start_time, end_time: b.end_time,
                 label: b.label, type: b.type,
                 training_group_id: b.training_group_id,
-                trainer_id: null, notes: b.notes ?? '', color: '',
+                trainer_id: b.trainer_id ?? null, notes: b.notes ?? '', color: '',
+                training_session_id: b.training_session_id ?? null,
             };
             this.showModal = true;
         },
+        async searchSessions() {
+            if (!this.form.day_of_week || !this.form.start_time || !this.form.end_time) return;
+            this.sessionSearching = true;
+            try {
+                const p = new URLSearchParams({ day_of_week: this.form.day_of_week, start_time: this.form.start_time, end_time: this.form.end_time });
+                const r = await fetch(`/trainer/hall/sessions/search?${p}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                this.sessionResults = (await r.json()).sessions ?? [];
+            } finally { this.sessionSearching = false; }
+        },
+        linkSession(s) {
+            this.form.training_session_id = s.id;
+            this.linkedSession = s;
+            if (!this.form.label) this.form.label = s.title;
+            this.sessionResults = [];
+        },
+        unlinkSession() { this.form.training_session_id = null; this.linkedSession = null; },
         onGroupChange() {
             const g = this.groups.find(g => g.id == this.form.training_group_id);
             if (g) {
@@ -318,10 +342,11 @@ function hallApp() {
                          :class="bookingOpacity(b)"
                          class="cursor-pointer transition-opacity"
                          @click.stop="openEdit(b)">
-                        {{-- Label nur wenn genug Platz --}}
                         <div x-show="b.duration_slots >= 4"
                              style="font-size:8px; color:white; font-weight:700; padding:1px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
                              x-text="b.label"></div>
+                        <span x-show="b.has_missing_trainer"
+                              style="position:absolute; top:2px; right:2px; width:6px; height:6px; border-radius:50%; background:white; opacity:0.75"></span>
                     </div>
                 </template>
             </div>
@@ -404,9 +429,12 @@ function hallApp() {
                          :class="bookingOpacity(b)"
                          class="cursor-pointer shadow-sm transition-opacity text-white"
                          @click.stop="openEdit(b)">
-                        {{-- Label --}}
-                        <div style="font-size:11px; font-weight:600; padding:3px 7px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
-                             x-text="b.label"></div>
+                        {{-- Label row --}}
+                        <div style="display:flex; align-items:center; gap:3px; padding:3px 7px 0; overflow:hidden">
+                            <div style="font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1" x-text="b.label"></div>
+                            {{-- Missing trainer badge --}}
+                            <span x-show="b.has_missing_trainer" title="Kein Trainer" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,0.35); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
+                        </div>
                         {{-- Uhrzeit ab 30 min --}}
                         <div x-show="b.duration_slots >= 2"
                              style="font-size:10px; padding:1px 7px; opacity:0.85"
@@ -415,6 +443,10 @@ function hallApp() {
                         <div x-show="b.duration_slots >= 3 && b.group_name"
                              style="font-size:10px; padding:0 7px; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
                              x-text="b.group_name"></div>
+                        {{-- Linked session icon --}}
+                        <div x-show="b.duration_slots >= 4 && b.session_title"
+                             style="font-size:9px; padding:0 7px; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
+                             x-text="'▶ ' + b.session_title"></div>
                     </div>
                 </template>
             </div>
@@ -556,6 +588,41 @@ function hallApp() {
                             <option :value="t.id" x-text="t.name"></option>
                         </template>
                     </select>
+                </div>
+            </div>
+
+            {{-- Trainingseinheit verknüpfen --}}
+            <div class="border-t border-gray-100 pt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Trainingseinheit</label>
+
+                {{-- Linked session display --}}
+                <div x-show="linkedSession" class="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 mb-2 text-sm">
+                    <svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <span class="flex-1 text-primary font-medium truncate" x-text="linkedSession?.title"></span>
+                    <button @click="unlinkSession()" type="button" class="text-gray-400 hover:text-red-500 text-xs">Entfernen</button>
+                </div>
+
+                <div x-show="!linkedSession" class="space-y-2">
+                    <button @click="searchSessions()" type="button"
+                            :disabled="sessionSearching"
+                            class="text-xs text-primary hover:underline font-medium disabled:opacity-50">
+                        <span x-text="sessionSearching ? 'Suche…' : 'Passende Trainingseinheiten suchen'"></span>
+                    </button>
+                    <div x-show="sessionResults.length > 0" class="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
+                        <template x-for="s in sessionResults" :key="s.id">
+                            <div class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer" @click="linkSession(s)">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-gray-800 truncate" x-text="s.title"></p>
+                                    <p class="text-[10px] text-gray-400" x-text="s.time + ' · ' + (s.groups || s.trainer || '')"></p>
+                                </div>
+                                <span x-show="s.recurring" class="text-[10px] text-primary bg-primary/10 px-1.5 rounded">Wiederkehrend</span>
+                                <span class="text-xs text-primary font-medium">+ Verknüpfen</span>
+                            </div>
+                        </template>
+                    </div>
+                    <p x-show="sessionResults.length === 0 && !sessionSearching" class="text-xs text-gray-400">
+                        Keine passenden Einheiten gefunden – oder manuell verknüpfen nach dem Anlegen.
+                    </p>
                 </div>
             </div>
 

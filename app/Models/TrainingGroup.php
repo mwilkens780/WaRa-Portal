@@ -57,4 +57,12 @@ class TrainingGroup extends Model
     {
         return $this->name;
     }
+
+    public function getHasMissingTrainerAttribute(): bool
+    {
+        if ($this->relationLoaded('trainers')) {
+            return $this->trainers->isEmpty();
+        }
+        return ($this->trainers_count ?? 1) === 0;
+    }
 }

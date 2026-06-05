@@ -33,6 +33,9 @@
                             <div class="flex items-center gap-2 min-w-0">
                                 <span class="w-3 h-3 rounded-full {{ $colors['dot'] }} flex-shrink-0"></span>
                                 <h3 class="font-semibold text-gray-800 truncate">{{ $group->name }}</h3>
+                                @if($group->has_missing_trainer)
+                                    @include('partials.no-trainer-badge')
+                                @endif
                             </div>
                             @if(!$group->active)
                                 <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">Inaktiv</span>

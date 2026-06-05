@@ -54,8 +54,13 @@
                                         <div class="text-xs text-gray-400">{{ $session->date->isoFormat('dddd') }}</div>
                                     </td>
                                     <td class="px-5 py-3">
+                                        <div class="flex items-center gap-1.5">
                                         <a href="{{ route('trainer.sessions.show', $session) }}"
                                            class="font-medium text-primary hover:underline">{{ $session->title }}</a>
+                                        @if($session->has_missing_trainer)
+                                            @include('partials.no-trainer-badge')
+                                        @endif
+                                        </div>
                                         <div class="flex flex-wrap gap-1 mt-0.5">
                                             @foreach($session->trainingGroups as $tg)
                                                 @php $tc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
@@ -127,8 +132,13 @@
                                         <div class="text-xs text-gray-400">{{ $session->date->isoFormat('dddd') }}</div>
                                     </td>
                                     <td class="px-5 py-3">
+                                        <div class="flex items-center gap-1.5">
                                         <a href="{{ route('trainer.sessions.show', $session) }}"
                                            class="font-medium text-primary hover:underline">{{ $session->title }}</a>
+                                        @if($session->has_missing_trainer)
+                                            @include('partials.no-trainer-badge')
+                                        @endif
+                                        </div>
                                         <p class="text-xs text-gray-400">{{ $session->location }}</p>
                                     </td>
                                     <td class="px-5 py-3 hidden md:table-cell">

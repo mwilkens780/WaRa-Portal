@@ -97,6 +97,32 @@
             </div>
         </div>
 
+        {{-- Missing trainer warning --}}
+        @if($session->has_missing_trainer)
+        <div class="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm">
+            <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <div>
+                <p class="font-semibold text-amber-800">Kein Trainer zugewiesen</p>
+                <p class="text-amber-700 text-xs mt-0.5">
+                    Dieser Einheit ist kein aktiver Trainer zugeordnet.
+                    <a href="{{ route('trainer.sessions.edit', $session) }}" class="underline font-medium">Trainer zuweisen →</a>
+                </p>
+            </div>
+        </div>
+        @endif
+
+        {{-- Co-Trainer --}}
+        @if($session->coTrainers->isNotEmpty())
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <p class="text-xs text-gray-500 mb-1.5">Weitere Trainer</p>
+            <div class="flex flex-wrap gap-1.5">
+                @foreach($session->coTrainers as $ct)
+                    <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full">{{ $ct->firstname }} {{ $ct->lastname }}</span>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         @if($session->notes)
             <div class="mt-4 pt-4 border-t border-gray-100">
                 <p class="text-xs text-gray-500 mb-1">Notizen</p>
@@ -131,6 +157,108 @@
             </div>
         @endif
     </div>
+
+    {{-- Bahnbelegung ──────────────────────────────────────────────────────── --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+         x-data="laneBookingApp()">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold text-gray-700">Bahnbelegung</h2>
+            <button @click="showForm = !showForm" type="button"
+                    class="text-xs text-primary hover:underline font-medium" x-text="showForm ? 'Schließen' : 'Bahnen buchen'"></button>
+        </div>
+
+        {{-- Existing bookings linked to this session --}}
+        @if($session->hallBookings->isNotEmpty())
+        <div class="flex flex-wrap gap-2 mb-4">
+            @foreach($session->hallBookings as $hb)
+            <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $hb->resource->color }}"></span>
+                <span class="font-medium text-gray-700">{{ $hb->resource->name }}</span>
+                <span class="text-gray-400">{{ $hb->formatted_time }}</span>
+                <form method="POST" action="{{ route('trainer.sessions.remove-lane', [$session, $hb]) }}">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="text-red-400 hover:text-red-600 ml-1" title="Entfernen">×</button>
+                </form>
+            </div>
+            @endforeach
+        </div>
+        @else
+        <p class="text-xs text-gray-400 mb-4">Noch keine Bahnen gebucht.</p>
+        @endif
+
+        {{-- Booking form --}}
+        <div x-show="showForm" x-transition>
+            <p class="text-xs text-gray-500 mb-3">Verfügbarkeit prüfen und Bahnen für {{ $session->date->isoFormat('dddd') }}, {{ $session->start_time }}–{{ $session->end_time ?? '?' }} buchen:</p>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
+                @foreach($allResources as $res)
+                <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                       :class="isBooked({{ $res->id }}) ? 'border-primary bg-primary/5' : ''">
+                    <input type="checkbox" :value="{{ $res->id }}" x-model="selectedLanes"
+                           @change="conflicts = []"
+                           class="w-4 h-4 rounded text-primary border-gray-300">
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $res->color }}"></span>
+                    <span class="text-gray-700">{{ $res->name }}</span>
+                    <span x-show="isBooked({{ $res->id }})" class="ml-auto text-[10px] text-primary font-medium">gebucht</span>
+                </label>
+                @endforeach
+            </div>
+
+            {{-- Conflicts --}}
+            <div x-show="conflicts.length > 0" x-transition class="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
+                <p class="font-semibold text-red-700 mb-1">Belegungskonflikte:</p>
+                <ul class="space-y-0.5">
+                    <template x-for="c in conflicts" :key="c.resource">
+                        <li class="text-red-600 text-xs flex gap-2">
+                            <span class="font-mono bg-red-100 px-1.5 rounded" x-text="c.time"></span>
+                            <span x-text="c.resource + ': ' + c.label"></span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+
+            <div class="flex gap-2">
+                <button @click="checkAndBook(false)" :disabled="selectedLanes.length === 0 || saving"
+                        class="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+                    <span x-text="saving ? 'Wird gebucht…' : 'Bahnen buchen'"></span>
+                </button>
+                <button x-show="conflicts.length > 0" @click="checkAndBook(true)"
+                        class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                    Trotzdem buchen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function laneBookingApp() {
+        return {
+            showForm: false,
+            selectedLanes: [],
+            conflicts: [],
+            saving: false,
+            bookedIds: @json($session->hallBookings->pluck('hall_resource_id')->toArray()),
+
+            isBooked(id) { return this.bookedIds.includes(id); },
+
+            async checkAndBook(force = false) {
+                if (!this.selectedLanes.length) return;
+                this.saving = true;
+                try {
+                    const r = await fetch('{{ route('trainer.sessions.book-lanes', $session) }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+                        body: JSON.stringify({ hall_resource_ids: this.selectedLanes.map(Number), force }),
+                    });
+                    const d = await r.json();
+                    if (r.status === 409) { this.conflicts = d.conflicts ?? []; }
+                    else if (r.status === 422) { alert(d.error ?? 'Fehler'); }
+                    else if (r.ok) { window.location.reload(); }
+                } finally { this.saving = false; }
+            },
+        };
+    }
+    </script>
 
     {{-- Trainingsplan --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

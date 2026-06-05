@@ -116,25 +116,34 @@ class HallBooking extends Model
         return ((int)$eh * 60 + (int)$em - (int)$sh * 60 - (int)$sm) / 15;
     }
 
+    public function getHasMissingTrainerAttribute(): bool
+    {
+        return $this->training_group_id !== null && !$this->trainer_id;
+    }
+
     /** Serialized form for Alpine.js data island */
     public function toGridArray(): array
     {
         return [
-            'id'                => $this->id,
-            'hall_resource_id'  => $this->hall_resource_id,
-            'day_of_week'       => $this->day_of_week,
-            'start_time'        => substr($this->start_time, 0, 5),
-            'end_time'          => substr($this->end_time, 0, 5),
-            'label'             => $this->label,
-            'type'              => $this->type,
-            'type_label'        => $this->type_label,
-            'training_group_id' => $this->training_group_id,
-            'group_name'        => $this->trainingGroup?->name,
-            'trainer_name'      => $this->trainer?->name,
-            'notes'             => $this->notes,
-            'display_color'     => $this->display_color,
-            'start_slot'        => $this->start_slot,
-            'duration_slots'    => $this->duration_slots,
+            'id'                   => $this->id,
+            'hall_resource_id'     => $this->hall_resource_id,
+            'day_of_week'          => $this->day_of_week,
+            'start_time'           => substr($this->start_time, 0, 5),
+            'end_time'             => substr($this->end_time, 0, 5),
+            'label'                => $this->label,
+            'type'                 => $this->type,
+            'type_label'           => $this->type_label,
+            'training_group_id'    => $this->training_group_id,
+            'group_name'           => $this->trainingGroup?->name,
+            'trainer_id'           => $this->trainer_id,
+            'trainer_name'         => $this->trainer?->name,
+            'training_session_id'  => $this->training_session_id,
+            'session_title'        => $this->trainingSession?->title,
+            'notes'                => $this->notes,
+            'display_color'        => $this->display_color,
+            'start_slot'           => $this->start_slot,
+            'duration_slots'       => $this->duration_slots,
+            'has_missing_trainer'  => $this->has_missing_trainer,
         ];
     }
 }
