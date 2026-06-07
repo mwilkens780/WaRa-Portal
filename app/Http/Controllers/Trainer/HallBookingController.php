@@ -71,10 +71,6 @@ class HallBookingController extends Controller
             $data['end_time']
         );
 
-        if ($conflicts->isNotEmpty() && !($data['force'] ?? false)) {
-            return response()->json(['conflicts' => $conflicts], 409);
-        }
-
         $created = [];
         foreach ($data['hall_resource_ids'] as $resourceId) {
             $booking = HallBooking::create([
@@ -101,6 +97,8 @@ class HallBookingController extends Controller
     public function update(Request $request, HallBooking $booking): JsonResponse
     {
         $data = $request->validate([
+            'hall_resource_ids'   => ['nullable', 'array', 'max:1'],
+            'hall_resource_ids.*' => ['exists:hall_resources,id'],
             'day_of_week'         => ['required', 'integer', 'min:1', 'max:7'],
             'start_time'          => ['required', 'date_format:H:i'],
             'end_time'            => ['required', 'date_format:H:i', 'after:start_time'],
@@ -114,19 +112,21 @@ class HallBookingController extends Controller
             'force'               => ['boolean'],
         ]);
 
-        $conflicts = $this->findConflicts(
-            [$booking->hall_resource_id],
-            $data['day_of_week'],
-            $data['start_time'],
-            $data['end_time'],
-            $booking->id
-        );
-
-        if ($conflicts->isNotEmpty() && !($data['force'] ?? false)) {
-            return response()->json(['conflicts' => $conflicts], 409);
+        // Apply resource change if a new one was selected
+        if (!empty($data['hall_resource_ids'])) {
+            $data['hall_resource_id'] = (int) $data['hall_resource_ids'][0];
         }
+        unset($data['hall_resource_ids']);
 
         $booking->update($data);
+
+        // Sync time to linked training session
+        if ($booking->training_session_id) {
+            \App\Models\TrainingSession::where('id', $booking->training_session_id)->update([
+                'start_time' => $data['start_time'],
+                'end_time'   => $data['end_time'],
+            ]);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -174,12 +174,12 @@ class HallBookingController extends Controller
         // WEEKDAY() returns 0=Mon … 6=Sun; our day_of_week is 1=Mon … 7=Sun
         $weekday = (int)$request->day_of_week - 1;
 
-        $sessions = TrainingSession::with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
+        $sessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
             ->where('date', '>=', now())
             ->whereRaw('WEEKDAY(date) = ?', [$weekday])
             ->where('start_time', '<=', $request->end_time)
             ->where(fn($q) => $q->whereNull('end_time')->orWhere('end_time', '>=', $request->start_time))
-            ->when(!auth()->user()->isAdmin(), fn($q) => $q->where('trainer_id', auth()->id()))
+            ->when(!auth()->user()->isAdmin(), fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', auth()->id())))
             ->orderBy('date')
             ->limit(15)
             ->get();

@@ -95,25 +95,54 @@
                             {{-- Block-Body --}}
                             <div class="p-4 space-y-4">
 
-                                {{-- Zeile 1: Wiederholungen × Distanz --}}
-                                <div class="flex flex-wrap items-center gap-3">
-                                    <div class="flex items-center gap-2">
-                                        <label class="text-xs text-gray-500 font-medium">Wdh.</label>
-                                        <input type="number" x-model="block.repetitions" min="1" max="999"
-                                               placeholder="4"
-                                               class="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary outline-none font-semibold">
-                                    </div>
-                                    <span class="text-gray-400 font-bold text-lg">×</span>
-                                    <div class="flex items-center gap-2">
+                                {{-- Zeile 1: Verschachtelte Wiederholungen × Distanz --}}
+                                <div class="flex flex-wrap items-center gap-2">
+
+                                    {{-- Ebenen-Inputs: je eine Zahl pro Ebene --}}
+                                    <label class="text-xs text-gray-500 font-medium self-center">Wdh.</label>
+                                    <template x-for="(lvl, li) in block.repetition_levels" :key="li">
+                                        <div class="flex items-center gap-1">
+                                            <span x-show="li > 0" class="text-gray-400 font-bold text-base select-none">×</span>
+                                            <input type="number"
+                                                   :value="lvl"
+                                                   @input="block.repetition_levels[li] = $event.target.value"
+                                                   min="1" max="999"
+                                                   placeholder="—"
+                                                   class="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary outline-none font-semibold">
+                                            {{-- Ebene entfernen (nur wenn >1 Ebene vorhanden) --}}
+                                            <button type="button"
+                                                    x-show="block.repetition_levels.length > 1"
+                                                    @click="block.repetition_levels.splice(li, 1)"
+                                                    class="text-gray-300 hover:text-red-400 transition-colors p-0.5"
+                                                    title="Ebene entfernen">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </button>
+                                        </div>
+                                    </template>
+
+                                    {{-- Ebene hinzufügen --}}
+                                    <button type="button"
+                                            @click="block.repetition_levels.push('')"
+                                            class="text-xs text-primary hover:bg-primary/10 border border-primary/30 rounded px-2 py-1 transition-colors font-medium"
+                                            title="Weitere Verschachtelungsebene">
+                                        + Ebene
+                                    </button>
+
+                                    <span class="text-gray-400 font-bold text-lg select-none">×</span>
+
+                                    {{-- Distanz --}}
+                                    <div class="flex items-center gap-1.5">
                                         <input type="number" x-model="block.distance" min="1" max="9999"
                                                placeholder="100"
                                                class="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary outline-none font-semibold">
                                         <span class="text-sm text-gray-500 font-medium">m</span>
                                     </div>
-                                    {{-- Block-Meter mini summary --}}
-                                    <span x-show="block.repetitions && block.distance"
-                                          class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full"
-                                          x-text="'= ' + ((parseInt(block.repetitions)||0) * (parseInt(block.distance)||0)) + 'm'"></span>
+
+                                    {{-- Zusammenfassung z.B. "4×6×2×100m = 4800m" --}}
+                                    <span x-show="blockTotalReps(block) > 0 && block.distance"
+                                          class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full font-mono"
+                                          x-text="blockRepDisplay(block) + '×' + block.distance + 'm = ' + blockTotalReps(block) * (parseInt(block.distance)||0) + 'm'">
+                                    </span>
                                 </div>
 
                                 {{-- Zeile 2: Stilarten --}}
@@ -223,8 +252,8 @@
                                             <p class="text-lg font-bold text-blue-700"
                                                x-text="formatTime(blockSeconds(block))"></p>
                                             <p class="text-xs text-blue-500"
-                                               x-show="block.repetitions && blockIntervalSeconds(block) > 0"
-                                               x-text="(parseInt(block.repetitions)||0) + ' × ' + formatTime(blockIntervalSeconds(block))
+                                               x-show="blockTotalReps(block) > 0 && blockIntervalSeconds(block) > 0"
+                                               x-text="blockRepDisplay(block) + ' × ' + formatTime(blockIntervalSeconds(block))
                                                     + (blockRecoverySeconds(block) > 0 ? ' + ' + formatTime(blockRecoverySeconds(block)) + ' Pause' : '')">
                                             </p>
                                         </div>
@@ -398,12 +427,13 @@ function planBuilder(initialBlocks, targetSeconds) {
         ],
 
         materialOptions: ['Pullbuoy', 'Brett', 'Pullkick', 'Widerstandshose', 'Fingerpaddles', 'Kurzflossen', 'Gummiband', 'Frontschnorchel'],
-        additionOptions: ['Beine', 'Arme', 'gesamt', 'Steigerung', 'DL', 'TP', 'SP'],
+        additionOptions: ['Beine', 'Arme', 'gesamt', 'Steigerung', 'DL', 'TP', 'SP', 'TÜ'],
 
         init() {
             if (initialBlocks && initialBlocks.length > 0) {
                 this.blocks = initialBlocks.map(b => ({
                     ...b,
+                    repetition_levels: b.repetition_levels?.length ? b.repetition_levels : [''],
                     disciplines: b.disciplines || [],
                     additions:   b.additions   || [],
                     materials:   b.materials   || [],
@@ -418,7 +448,7 @@ function planBuilder(initialBlocks, targetSeconds) {
             this.blocks.push({
                 _key:                this._nextKey++,
                 label:               '',
-                repetitions:         '',
+                repetition_levels:   [''],
                 distance:            '',
                 disciplines:         [],
                 additions:           [],
@@ -429,6 +459,17 @@ function planBuilder(initialBlocks, targetSeconds) {
                 recovery_min:        0,
                 recovery_sec:        0,
             });
+        },
+
+        // Returns product of all filled repetition levels
+        blockTotalReps(block) {
+            const vals = (block.repetition_levels || []).map(r => parseInt(r)).filter(r => r > 0);
+            return vals.length ? vals.reduce((p, r) => p * r, 1) : 0;
+        },
+
+        // Returns display string "4×6×2"
+        blockRepDisplay(block) {
+            return (block.repetition_levels || []).filter(r => r !== '' && parseInt(r) > 0).join('×');
         },
 
         removeBlock(index) {
@@ -469,7 +510,7 @@ function planBuilder(initialBlocks, targetSeconds) {
         },
 
         blockSeconds(block) {
-            const reps     = parseInt(block.repetitions) || 0;
+            const reps     = this.blockTotalReps(block);
             const interval = this.blockIntervalSeconds(block);
             const recovery = this.blockRecoverySeconds(block);
             return reps * interval + recovery;
@@ -491,8 +532,8 @@ function planBuilder(initialBlocks, targetSeconds) {
         get materials() {
             const mat = {};
             for (const block of this.blocks) {
-                const reps = parseInt(block.repetitions) || 0;
-                const dist = parseInt(block.distance)    || 0;
+                const reps = this.blockTotalReps(block);
+                const dist = parseInt(block.distance) || 0;
                 if (!reps || !dist) continue;
                 const discs = block.disciplines || [];
                 if (discs.length === 0) continue;
@@ -507,7 +548,7 @@ function planBuilder(initialBlocks, targetSeconds) {
 
         get totalDistance() {
             return this.blocks.reduce((sum, b) => {
-                return sum + (parseInt(b.repetitions) || 0) * (parseInt(b.distance) || 0);
+                return sum + this.blockTotalReps(b) * (parseInt(b.distance) || 0);
             }, 0);
         },
 
@@ -523,13 +564,14 @@ function planBuilder(initialBlocks, targetSeconds) {
 
         submitForm() {
             const payload = this.blocks.map(b => ({
-                label:               b.label               || null,
-                repetitions:         b.repetitions         !== '' ? b.repetitions         : null,
-                distance:            b.distance            !== '' ? b.distance            : null,
+                label:               b.label    || null,
+                // Send the levels array (controller will compute product)
+                repetitions:         b.repetition_levels.map(r => parseInt(r)).filter(r => r > 0),
+                distance:            b.distance !== '' ? b.distance : null,
                 disciplines:         b.disciplines,
                 additions:           b.additions,
                 materials:           b.materials,
-                comment:             b.comment             || null,
+                comment:             b.comment  || null,
                 start_interval_min:  b.start_interval_min  || 0,
                 start_interval_sec:  b.start_interval_sec  || 0,
                 recovery_min:        b.recovery_min        || 0,

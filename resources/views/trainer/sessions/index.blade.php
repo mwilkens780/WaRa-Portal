@@ -76,7 +76,7 @@
                                             {{ $session->type_label }}
                                         </span>
                                     </td>
-                                    <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">{{ $session->trainer->name }}</td>
+                                    <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">{{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') ?: '–' }}</td>
                                     <td class="px-5 py-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
                                         {{ $session->start_time }}
                                         @if($session->end_time) – {{ $session->end_time }} @endif
@@ -146,7 +146,7 @@
                                             {{ $session->type_label }}
                                         </span>
                                     </td>
-                                    <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">{{ $session->trainer->name }}</td>
+                                    <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">{{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') ?: '–' }}</td>
                                     <td class="px-5 py-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
                                         {{ $session->start_time }}
                                         @if($session->end_time) – {{ $session->end_time }} @endif

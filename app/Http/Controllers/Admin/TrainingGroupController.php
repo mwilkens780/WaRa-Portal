@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TrainingGroup;
 use App\Models\TrainingSession;
 use App\Models\User;
+use App\Services\GroupImportService;
 use Illuminate\Http\Request;
 
 class TrainingGroupController extends Controller
@@ -70,19 +71,101 @@ class TrainingGroupController extends Controller
     {
         $this->authorizeGroup($trainingGroup);
 
-        $trainingGroup->load([
-            'trainers:id,firstname,lastname,role',
-            'swimmers:id,firstname,lastname,birth_date',
+        $trainingGroup->load(['trainers:id,firstname,lastname,role']);
+
+        // Only active swimmers
+        $activeSwimmers = $trainingGroup->swimmers()
+            ->where('active', true)
+            ->orderBy('lastname')->orderBy('firstname')
+            ->get(['users.id', 'firstname', 'lastname', 'birth_date']);
+
+        $recentSessions   = $trainingGroup->sessions()->orderByDesc('date')->limit(10)->get();
+        $upcomingSessions = $trainingGroup->sessions()->where('date', '>=', now())->orderBy('date')->limit(5)->get();
+
+        return view('admin.training-groups.show', compact(
+            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions'
+        ));
+    }
+
+    // ── Remove single swimmer ──────────────────────────────────────────────
+
+    public function removeSwimmer(TrainingGroup $trainingGroup, User $user)
+    {
+        $this->authorizeGroup($trainingGroup);
+        $trainingGroup->swimmers()->detach($user->id);
+
+        return back()->with('success', "{$user->firstname} {$user->lastname} aus der Gruppe entfernt.");
+    }
+
+    // ── CSV-Import ────────────────────────────────────────────────────────
+
+    public function importCsvUpload(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        $request->validate(['csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:4096']]);
+
+        $path     = $request->file('csv_file')->store('group-imports', 'local');
+        $fullPath = storage_path('app/' . $path);
+
+        try {
+            $service = new GroupImportService();
+            $parsed  = $service->parse($fullPath, $trainingGroup);
+        } finally {
+            \Storage::disk('local')->delete($path);
+        }
+
+        if (empty($parsed['rows']) && empty($parsed['to_remove'])) {
+            return back()->withErrors(['csv_file' => 'Keine verwertbaren Zeilen in der Datei gefunden.']);
+        }
+
+        session(['group_import' => array_merge($parsed, ['group_id' => $trainingGroup->id])]);
+
+        return redirect()->route('admin.training-groups.csv-preview', $trainingGroup);
+    }
+
+    public function importCsvPreview(TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        $data = session('group_import');
+
+        if (!$data || ($data['group_id'] ?? null) !== $trainingGroup->id) {
+            return redirect()->route('admin.training-groups.show', $trainingGroup)
+                ->with('error', 'Keine Import-Daten. Bitte CSV erneut hochladen.');
+        }
+
+        return view('admin.training-groups.import-csv', [
+            'trainingGroup' => $trainingGroup,
+            'rows'          => $data['rows'],
+            'toRemove'      => $data['to_remove'],
         ]);
+    }
 
-        $recentSessions = $trainingGroup->sessions()
-            ->with('trainer:id,firstname,lastname')
-            ->orderByDesc('date')->limit(10)->get();
+    public function importCsvExecute(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        $data = session('group_import');
 
-        $upcomingSessions = $trainingGroup->sessions()
-            ->where('date', '>=', now())->orderBy('date')->limit(5)->get();
+        if (!$data || ($data['group_id'] ?? null) !== $trainingGroup->id) {
+            return redirect()->route('admin.training-groups.show', $trainingGroup)
+                ->with('error', 'Sitzung abgelaufen. Bitte CSV erneut hochladen.');
+        }
 
-        return view('admin.training-groups.show', compact('trainingGroup', 'recentSessions', 'upcomingSessions'));
+        $service = new GroupImportService();
+        $result  = $service->execute(
+            $trainingGroup,
+            $data['rows'],
+            $data['to_remove'],
+            $request->input('rows', []),
+            $request->input('remove', [])
+        );
+
+        session()->forget('group_import');
+
+        $msg = "{$result['added']} hinzugefügt · {$result['removed']} entfernt · "
+             . "{$result['updated']} aktualisiert · {$result['created']} neu angelegt";
+
+        return redirect()->route('admin.training-groups.show', $trainingGroup)
+            ->with('success', "CSV-Import abgeschlossen: {$msg}.");
     }
 
     // ── Edit / Update ─────────────────────────────────────────────────────
@@ -93,11 +176,9 @@ class TrainingGroupController extends Controller
 
         $trainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
+        // Only completely unassigned swimmers (no group at all)
         $swimmers = User::where('role', 'schwimmer')->where('active', true)
-            ->where(fn($q) => $q
-                ->whereDoesntHave('trainingGroups')
-                ->orWhereHas('trainingGroups', fn($q2) => $q2->where('training_groups.id', $trainingGroup->id))
-            )
+            ->whereDoesntHave('trainingGroups')
             ->orderBy('lastname')->orderBy('firstname')->get();
 
         $assignedTrainers = $trainingGroup->trainers()->pluck('users.id')->toArray();
@@ -108,7 +189,7 @@ class TrainingGroupController extends Controller
 
         $availableSessions = TrainingSession::when(
             !auth()->user()->isAdmin(),
-            fn($q) => $q->where('trainer_id', auth()->id())
+            fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', auth()->id()))
         )->whereNotIn('id', $linkedIds)
             ->orderByDesc('date')->limit(30)->get();
 

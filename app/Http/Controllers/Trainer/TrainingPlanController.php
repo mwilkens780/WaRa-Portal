@@ -21,10 +21,14 @@ class TrainingPlanController extends Controller
             ? $plan->blocks->map(fn($b) => [
                 'id'                   => $b->id,
                 'label'                => $b->label ?? '',
-                'repetitions'          => $b->repetitions ?? '',
+                // Use nested structure if available, otherwise wrap int into single-element array
+                'repetition_levels'    => !empty($b->repetitions_nested)
+                    ? array_map('strval', $b->repetitions_nested)
+                    : ($b->repetitions ? [strval($b->repetitions)] : ['']),
                 'distance'             => $b->distance ?? '',
                 'disciplines'          => $b->disciplines ?? [],
                 'additions'            => $b->additions ?? [],
+                'materials'            => $b->materials ?? [],
                 'comment'              => $b->comment ?? '',
                 'start_interval_min'   => $b->start_interval_seconds ? intdiv($b->start_interval_seconds, 60) : 0,
                 'start_interval_sec'   => $b->start_interval_seconds ? $b->start_interval_seconds % 60 : 0,
@@ -75,11 +79,16 @@ class TrainingPlanController extends Controller
             $startSec   = ((int)($b['start_interval_min'] ?? 0)) * 60 + (int)($b['start_interval_sec'] ?? 0);
             $recoverySec = ((int)($b['recovery_min'] ?? 0)) * 60 + (int)($b['recovery_sec'] ?? 0);
 
+            // Parse multi-level repetitions: [4, 6, 2] → nested=[4,6,2], product=48
+            $levels  = $this->parseRepetitionLevels($b['repetitions'] ?? null);
+            $product = !empty($levels) ? array_reduce($levels, fn($c, $r) => $c * $r, 1) : null;
+
             TrainingPlanBlock::create([
                 'training_plan_id'       => $plan->id,
                 'sort_order'             => $i,
                 'label'                  => ($b['label'] ?? '') ?: null,
-                'repetitions'            => ($b['repetitions'] !== '' && $b['repetitions'] !== null) ? (int)$b['repetitions'] : null,
+                'repetitions'            => $product,
+                'repetitions_nested'     => $levels ?: null,
                 'distance'               => ($b['distance'] !== '' && $b['distance'] !== null) ? (int)$b['distance'] : null,
                 'disciplines'            => $b['disciplines'] ?? [],
                 'additions'              => $b['additions'] ?? [],
@@ -146,9 +155,17 @@ class TrainingPlanController extends Controller
         return \Storage::disk('local')->download($plan->attachment_path);
     }
 
+    // Parse incoming repetitions (int or array) into a clean int[] with no zero/empty values
+    private function parseRepetitionLevels(mixed $value): array
+    {
+        if ($value === null || $value === '' || $value === []) return [];
+        $arr = is_array($value) ? $value : [$value];
+        return array_values(array_filter(array_map('intval', $arr), fn($v) => $v > 0));
+    }
+
     private function authorizeSession(TrainingSession $session): void
     {
-        if (!auth()->user()->isAdmin() && $session->trainer_id !== auth()->id()) {
+        if (!auth()->user()->isAdmin() && !$session->coTrainers()->where('users.id', auth()->id())->exists()) {
             abort(403);
         }
     }

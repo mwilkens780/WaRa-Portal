@@ -188,8 +188,22 @@ class CompetitionController extends Controller
         $hasPflichtzeiten = $competition->events->where('qualifying_time_ms', '>', 0)->isNotEmpty();
         $hasMeldegelder   = $competition->events->where('meldegeld', '>', 0)->isNotEmpty();
 
+        $signupRequest = $competition->signupRequest()->with(['responses.user', 'createdBy'])->first();
+
         return view('admin.competitions.show',
-            compact('competition', 'results', 'swimmers', 'allGroups', 'hasPflichtzeiten', 'hasMeldegelder'));
+            compact('competition', 'results', 'swimmers', 'allGroups',
+                    'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest'));
+    }
+
+    public function saveOrganisation(Request $request, Competition $competition)
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $competition->update(['organisation_notes' => ['text' => $data['notes'] ?? '']]);
+
+        return back()->with('success', 'Organisationsnotizen gespeichert.');
     }
 
     public function syncGroups(Request $request, Competition $competition)

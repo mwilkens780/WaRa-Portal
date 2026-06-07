@@ -23,8 +23,8 @@ class TrainingSessionController extends Controller
         $user = auth()->user();
 
         $groupQuery = TrainingGroup::with(['sessions' => function ($q) use ($user) {
-            $q->with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
-              ->when(!$user->isAdmin(), fn($q2) => $q2->where('trainer_id', $user->id))
+            $q->with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
+              ->when(!$user->isAdmin(), fn($q2) => $q2->whereHas('coTrainers', fn($q3) => $q3->where('user_id', $user->id)))
               ->orderBy('date');
         }])->orderBy('name');
 
@@ -34,8 +34,8 @@ class TrainingSessionController extends Controller
 
         $groups = $groupQuery->get()->filter(fn($g) => $g->sessions->isNotEmpty());
 
-        $ungroupedSessions = TrainingSession::with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
-            ->when(!$user->isAdmin(), fn($q) => $q->where('trainer_id', $user->id))
+        $ungroupedSessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
+            ->when(!$user->isAdmin(), fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', $user->id)))
             ->whereDoesntHave('trainingGroups')
             ->orderBy('date')
             ->get();
@@ -46,8 +46,10 @@ class TrainingSessionController extends Controller
     public function create()
     {
         $groups = $this->availableGroups();
+        $allTrainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
+            ->orderBy('lastname')->orderBy('firstname')->get();
         $currentSeason = Season::current();
-        return view('trainer.sessions.create', compact('groups', 'currentSeason'));
+        return view('trainer.sessions.create', compact('groups', 'currentSeason', 'allTrainers'));
     }
 
     public function store(Request $request)
@@ -60,7 +62,6 @@ class TrainingSessionController extends Controller
             'location'          => ['required', 'string', 'max:255'],
             'type'              => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
             'notes'             => ['nullable', 'string'],
-            'trainer_id'        => ['nullable', 'exists:users,id'],
             'groups'            => ['nullable', 'array'],
             'groups.*'          => ['exists:training_groups,id'],
             'recurrence_type'   => ['required', 'in:none,weekly,biweekly,monthly,weekly_season_end'],
@@ -76,10 +77,17 @@ class TrainingSessionController extends Controller
                 },
             ],
             'team_plan'         => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,png', 'max:5120'],
+            'co_trainer_ids'    => ['nullable', 'array'],
+            'co_trainer_ids.*'  => ['exists:users,id'],
         ]);
 
-        $data['trainer_id'] = $data['trainer_id'] ?? auth()->id();
-        $groupIds = $request->input('groups', []);
+        $groupIds     = $request->input('groups', []);
+        $coTrainerIds = $request->input('co_trainer_ids', []);
+
+        // Auto-add the creating user as trainer so they can access the session
+        if (!auth()->user()->isAdmin() && !in_array(auth()->id(), $coTrainerIds)) {
+            $coTrainerIds[] = auth()->id();
+        }
 
         $teamPlanPath = null;
         if ($request->hasFile('team_plan')) {
@@ -89,6 +97,7 @@ class TrainingSessionController extends Controller
         if ($data['recurrence_type'] === 'none') {
             $session = TrainingSession::create(array_merge($data, ['team_plan_path' => $teamPlanPath]));
             $session->trainingGroups()->sync($groupIds);
+            $session->coTrainers()->sync($coTrainerIds);
             return redirect()->route('trainer.sessions.show', $session)
                 ->with('success', 'Trainingseinheit angelegt.');
         }
@@ -126,7 +135,6 @@ class TrainingSessionController extends Controller
         while ($current->lte($until)) {
             if (!$inHoliday($current)) {
                 $session = TrainingSession::create([
-                    'trainer_id'          => $data['trainer_id'],
                     'title'               => $data['title'],
                     'date'                => $current->format('Y-m-d'),
                     'start_time'          => $data['start_time'],
@@ -140,6 +148,7 @@ class TrainingSessionController extends Controller
                     'team_plan_path'      => $teamPlanPath,
                 ]);
                 $session->trainingGroups()->sync($groupIds);
+                $session->coTrainers()->sync($coTrainerIds);
                 if (!$firstSession) $firstSession = $session;
                 $created++;
             }
@@ -165,7 +174,7 @@ class TrainingSessionController extends Controller
     public function show(TrainingSession $session)
     {
         $this->authorizeSession($session);
-        $session->load('trainer', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks', 'coTrainers', 'hallBookings.resource');
+        $session->load('coTrainers', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks', 'hallBookings.resource');
 
         // Only show swimmers from the session's training groups; fall back to all if no groups assigned
         if ($session->trainingGroups->isNotEmpty()) {
@@ -198,9 +207,6 @@ class TrainingSessionController extends Controller
                 ->orderBy('date')->get()
             : collect();
 
-        $allTrainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
-            ->orderBy('lastname')->orderBy('firstname')->get();
-
         $blockTimesMap = [];
         if ($session->trainingPlan) {
             $blockIds = $session->trainingPlan->blocks->pluck('id');
@@ -213,18 +219,33 @@ class TrainingSessionController extends Controller
 
         $allResources = \App\Models\HallResource::where('active', true)->orderBy('sort_order')->get();
 
+        // Freie Bahnkapazitäten zum Zeitpunkt dieser Einheit
+        $freeResources = collect();
+        if ($session->end_time) {
+            $dayOfWeek  = $session->date->dayOfWeekIso; // 1=Mon…7=Sun
+            $startTime  = substr($session->start_time, 0, 5);
+            $endTime    = substr($session->end_time,   0, 5);
+            $bookedIds  = \App\Models\HallBooking::where('day_of_week', $dayOfWeek)
+                ->where('start_time', '<', $endTime)
+                ->where('end_time',   '>', $startTime)
+                ->where(fn($q) => $q->whereNull('training_session_id')
+                                    ->orWhere('training_session_id', '!=', $session->id))
+                ->pluck('hall_resource_id');
+            $freeResources = $allResources->reject(fn($r) => $bookedIds->contains($r->id))->values();
+        }
+
         return view('trainer.sessions.show', compact(
             'session', 'swimmers', 'attendedIds',
             'participationPct', 'presentCount', 'totalSwimmers',
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
-            'siblings', 'allTrainers', 'blockTimesMap', 'allResources'
+            'siblings', 'blockTimesMap', 'allResources', 'freeResources'
         ));
     }
 
     public function printView(TrainingSession $session)
     {
         $this->authorizeSession($session);
-        $session->load(['trainer', 'trainingPlan.blocks', 'attendances.user', 'trainingGroups.swimmers']);
+        $session->load(['coTrainers:id,firstname,lastname', 'trainingPlan.blocks', 'attendances.user', 'trainingGroups.swimmers']);
 
         if ($session->trainingGroups->isNotEmpty()) {
             $swimmerIds = $session->trainingGroups
@@ -259,7 +280,11 @@ class TrainingSessionController extends Controller
         $groups = $this->availableGroups();
         $allTrainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
-        return view('trainer.sessions.edit', compact('session', 'groups', 'allTrainers'));
+        $coTrainerIds = $session->coTrainers()->pluck('users.id')->toArray();
+        $seriesCount  = $session->recurrence_group_id
+            ? TrainingSession::where('recurrence_group_id', $session->recurrence_group_id)->count()
+            : 0;
+        return view('trainer.sessions.edit', compact('session', 'groups', 'allTrainers', 'coTrainerIds', 'seriesCount'));
     }
 
     public function update(Request $request, TrainingSession $session)
@@ -267,23 +292,97 @@ class TrainingSessionController extends Controller
         $this->authorizeSession($session);
 
         $data = $request->validate([
-            'title'       => ['required', 'string', 'max:255'],
-            'date'        => ['required', 'date'],
-            'start_time'  => ['required', 'date_format:H:i'],
-            'end_time'    => ['nullable', 'date_format:H:i', 'after:start_time'],
-            'location'    => ['required', 'string', 'max:255'],
-            'type'        => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
-            'notes'       => ['nullable', 'string'],
-            'trainer_id'  => ['nullable', 'exists:users,id'],
-            'groups'      => ['nullable', 'array'],
-            'groups.*'    => ['exists:training_groups,id'],
+            'title'            => ['required', 'string', 'max:255'],
+            'date'             => ['required', 'date'],
+            'start_time'       => ['required', 'date_format:H:i'],
+            'end_time'         => ['nullable', 'date_format:H:i', 'after:start_time'],
+            'location'         => ['required', 'string', 'max:255'],
+            'type'             => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
+            'notes'            => ['nullable', 'string'],
+            'groups'           => ['nullable', 'array'],
+            'groups.*'         => ['exists:training_groups,id'],
+            'co_trainer_ids'   => ['nullable', 'array'],
+            'co_trainer_ids.*' => ['exists:users,id'],
+            'edit_scope'       => ['nullable', 'in:single,series'],
         ]);
 
-        $data['trainer_id'] = $data['trainer_id'] ?? $session->trainer_id;
-        $groupIds = $request->input('groups', []);
+        $groupIds     = $request->input('groups', []);
+        $coTrainerIds = $request->input('co_trainer_ids', []);
+        $editScope    = $data['edit_scope'] ?? 'single';
 
+        // ── Serie komplett aktualisieren ──────────────────────────────
+        if ($editScope === 'series' && $session->recurrence_group_id) {
+            $allSessions = TrainingSession::where('recurrence_group_id', $session->recurrence_group_id)
+                ->orderBy('date')->get();
+
+            $seriesData = array_intersect_key($data, array_flip([
+                'title', 'start_time', 'end_time', 'location', 'type', 'notes',
+            ]));
+
+            $newDate   = Carbon::parse($data['date']);
+            $firstDate = $allSessions->first()->date; // Carbon via cast
+
+            if ($newDate->dayOfWeekIso !== $firstDate->dayOfWeekIso) {
+                // ── Wochentag geändert: Termine neu berechnen ──────────
+                $first           = $allSessions->first();
+                $recurrenceType  = $first->recurrence_type ?? 'weekly';
+                $recurrenceUntil = $first->recurrence_until ?? $allSessions->last()->date;
+
+                $newDates = $this->generateSeriesDates($newDate, $recurrenceType, $recurrenceUntil);
+
+                foreach ($allSessions as $idx => $s) {
+                    if (!isset($newDates[$idx])) {
+                        $s->hallBookings()->delete();
+                        $s->delete();
+                        continue;
+                    }
+                    $s->update(array_merge($seriesData, [
+                        'date'             => $newDates[$idx]->format('Y-m-d'),
+                        'recurrence_until' => $recurrenceUntil->format('Y-m-d'),
+                    ]));
+                    $s->trainingGroups()->sync($groupIds);
+                    $s->coTrainers()->sync($coTrainerIds);
+                    $s->hallBookings()->update([
+                        'day_of_week' => $newDates[$idx]->dayOfWeekIso,
+                        'start_time'  => $seriesData['start_time'],
+                        'end_time'    => $seriesData['end_time'] ?? null,
+                    ]);
+                }
+            } else {
+                // ── Wochentag unverändert: nur Metadaten aktualisieren ─
+                $allSessions->each(function ($s) use ($seriesData, $groupIds, $coTrainerIds) {
+                    $s->update($seriesData);
+                    $s->trainingGroups()->sync($groupIds);
+                    $s->coTrainers()->sync($coTrainerIds);
+                    $s->hallBookings()->update([
+                        'start_time' => $seriesData['start_time'],
+                        'end_time'   => $seriesData['end_time'] ?? null,
+                    ]);
+                });
+            }
+
+            return redirect()->route('trainer.sessions.show', $session)
+                ->with('success', 'Alle Einheiten der Serie wurden aktualisiert.');
+        }
+
+        // ── Einzelne Instanz aktualisieren ────────────────────────────
+        $timeChanged = substr($session->start_time ?? '', 0, 5) !== $data['start_time']
+            || substr($session->end_time   ?? '', 0, 5) !== ($data['end_time'] ?? '');
+
+        unset($data['edit_scope'], $data['co_trainer_ids']);
         $session->update($data);
         $session->trainingGroups()->sync($groupIds);
+        $session->coTrainers()->sync($coTrainerIds);
+
+        if ($timeChanged) {
+            // Bahnbuchungen löschen – sie gelten nur für den alten Zeitpunkt
+            $session->hallBookings()->delete();
+        } else {
+            $session->hallBookings()->update([
+                'start_time' => $data['start_time'],
+                'end_time'   => $data['end_time'] ?? null,
+            ]);
+        }
 
         return redirect()->route('trainer.sessions.show', $session)
             ->with('success', 'Trainingseinheit aktualisiert.');
@@ -292,6 +391,7 @@ class TrainingSessionController extends Controller
     public function destroy(TrainingSession $session)
     {
         $this->authorizeSession($session);
+        $session->hallBookings()->delete();
         $session->delete();
         return redirect()->route('trainer.sessions.index')
             ->with('success', 'Trainingseinheit gelöscht.');
@@ -303,12 +403,15 @@ class TrainingSessionController extends Controller
         $groupId = $session->recurrence_group_id;
 
         if ($groupId) {
-            $count = TrainingSession::where('recurrence_group_id', $groupId)->count();
-            TrainingSession::where('recurrence_group_id', $groupId)->delete();
+            $sessionIds = TrainingSession::where('recurrence_group_id', $groupId)->pluck('id');
+            $count      = $sessionIds->count();
+            \App\Models\HallBooking::whereIn('training_session_id', $sessionIds)->delete();
+            TrainingSession::whereIn('id', $sessionIds)->delete();
             return redirect()->route('trainer.sessions.index')
                 ->with('success', "{$count} Einheiten der Wiederholungsgruppe gelöscht.");
         }
 
+        $session->hallBookings()->delete();
         $session->delete();
         return redirect()->route('trainer.sessions.index')
             ->with('success', 'Trainingseinheit gelöscht.');
@@ -489,20 +592,6 @@ class TrainingSessionController extends Controller
         );
     }
 
-    // ── Vertretung ──────────────────────────────────────────────────────────
-
-    public function substituteTrainer(Request $request, TrainingSession $session)
-    {
-        $this->authorizeSession($session);
-
-        $data = $request->validate([
-            'trainer_id' => ['required', 'exists:users,id'],
-        ]);
-
-        $session->update(['trainer_id' => $data['trainer_id']]);
-
-        return back()->with('success', 'Trainer für diese Einheit geändert.');
-    }
 
     /**
      * Book one or more hall resources for this session's day/time.
@@ -558,7 +647,7 @@ class TrainingSessionController extends Controller
                     'label'             => $session->title,
                     'type'              => 'training',
                     'training_group_id' => $session->trainingGroups->first()?->id,
-                    'trainer_id'        => $session->trainer_id,
+                    'trainer_id'        => $session->coTrainers()->value('user_id'),
                     'created_by_id'     => auth()->id(),
                 ]
             );
@@ -581,9 +670,38 @@ class TrainingSessionController extends Controller
 
     // ── Helper ──────────────────────────────────────────────────────────────
 
+    /**
+     * Generates a list of Carbon dates for a recurring series,
+     * starting from $start with the given frequency until $until,
+     * automatically skipping school/holiday periods.
+     */
+    private function generateSeriesDates(Carbon $start, string $recurrenceType, Carbon $until): array
+    {
+        $holidays  = Holiday::intersecting($start, $until);
+        $inHoliday = fn(Carbon $d) => $holidays->first(fn($h) => $h->containsDate($d));
+
+        $dates   = [];
+        $current = $start->copy();
+
+        while ($current->lte($until)) {
+            if (!$inHoliday($current)) {
+                $dates[] = $current->copy();
+            }
+            $current = match($recurrenceType) {
+                'weekly'   => $current->addWeek(),
+                'biweekly' => $current->addWeeks(2),
+                'monthly'  => $current->addMonth(),
+                default    => $current->addWeek(),
+            };
+        }
+
+        return $dates;
+    }
+
     private function authorizeSession(TrainingSession $session): void
     {
-        if (!auth()->user()->isAdmin() && $session->trainer_id !== auth()->id()) {
+        if (auth()->user()->isAdmin()) return;
+        if (!$session->coTrainers()->where('user_id', auth()->id())->exists()) {
             abort(403);
         }
     }

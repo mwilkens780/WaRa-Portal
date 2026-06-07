@@ -11,15 +11,17 @@ class Competition extends Model
     use HasFactory, Auditable;
 
     protected $fillable = [
-        'name', 'location', 'date', 'date_end', 'meldeschluss', 'type', 'description', 'organizer', 'course', 'season_id',
+        'name', 'location', 'date', 'date_end', 'meldeschluss', 'type', 'description',
+        'organizer', 'course', 'season_id', 'organisation_notes',
     ];
 
     protected function casts(): array
     {
         return [
-            'date'         => 'date',
-            'date_end'     => 'date',
-            'meldeschluss' => 'date',
+            'date'               => 'date',
+            'date_end'           => 'date',
+            'meldeschluss'       => 'date',
+            'organisation_notes' => 'array',
         ];
     }
 
@@ -43,6 +45,11 @@ class Competition extends Model
         return $this->hasMany(CompetitionEvent::class)
             ->orderBy('session_number')
             ->orderBy('event_number');
+    }
+
+    public function signupRequest()
+    {
+        return $this->hasOne(CompetitionSignupRequest::class);
     }
 
     public function getCourseLabelAttribute(): string

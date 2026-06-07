@@ -102,11 +102,13 @@ class HallBooking extends Model
         return substr($this->start_time, 0, 5) . ' – ' . substr($this->end_time, 0, 5);
     }
 
-    /** Zero-based slot index from 06:00 (1 slot = 15 min) */
+    const SCHEDULE_START_MIN = 330; // 05:30
+
+    /** Zero-based slot index from 05:30 (1 slot = 15 min) */
     public function getStartSlotAttribute(): int
     {
         [$h, $m] = explode(':', $this->start_time);
-        return (((int)$h - 6) * 60 + (int)$m) / 15;
+        return ((int)$h * 60 + (int)$m - self::SCHEDULE_START_MIN) / 15;
     }
 
     public function getDurationSlotsAttribute(): int

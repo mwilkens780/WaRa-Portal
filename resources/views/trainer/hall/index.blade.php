@@ -4,22 +4,34 @@
 
 @section('content')
 @php
-    // Grid constants
-    $scheduleStart = 6;
-    $scheduleEnd   = 22;
-    $slotMin       = 15;
-    $totalSlots    = ($scheduleEnd - $scheduleStart) * 60 / $slotMin; // 64
+    // Grid constants — schedule runs 05:30–22:00
+    $scheduleStartMin = 330;          // 05:30 in minutes from midnight
+    $scheduleEndMin   = 22 * 60;      // 22:00 = 1320 min
+    $slotMin          = 15;
+    $totalSlots       = ($scheduleEndMin - $scheduleStartMin) / $slotMin; // 66
 
     // Day view: large scale
     $daySlotPx  = 24;                          // px per 15-min slot
     $dayHourPx  = $daySlotPx * 4;             // 96 px per hour
-    $dayTotalPx = $totalSlots * $daySlotPx;   // 1536 px
+    $dayTotalPx = $totalSlots * $daySlotPx;   // 1584 px
 
     // Week view: compact scale
     $weekSlotPx  = 8;                          // px per 15-min slot
     $weekHourPx  = $weekSlotPx * 4;           // 32 px per hour
-    $weekTotalPx = $totalSlots * $weekSlotPx; // 512 px
+    $weekTotalPx = $totalSlots * $weekSlotPx; // 528 px
     $weekColPx   = 46;                         // px per resource column in week view
+
+    // Compact mode: hide 08:00–13:00 (slots 10–29 = 20 slots)
+    $cHideStart  = 10;                                        // 08:00
+    $cHideEnd    = 30;                                        // 13:00
+    $cHideN      = 20;
+    $weekCmptPx  = ($totalSlots - $cHideN) * $weekSlotPx;   // 368 px
+    $dayCmptPx   = ($totalSlots - $cHideN) * $daySlotPx;    // 1104 px
+    // PHP compact-slot helper: maps a raw slot to its display position
+    $cSlotFn     = fn(float $s): float => $s >= $cHideEnd ? $s - $cHideN : min($s, (float)$cHideStart);
+
+    $scheduleStart = intdiv($scheduleStartMin, 60); // 5  (05:xx)
+    $scheduleEnd   = intdiv($scheduleEndMin, 60);   // 22
 
     $days = \App\Models\HallBooking::DAY_NAMES;
 
@@ -54,19 +66,24 @@
 
 {{-- Alpine.js component defined in a script block to avoid JSON-in-attribute encoding issues --}}
 <script>
-const _hallResources = {!! $resourcesJson !!};
-const _hallGroups    = {!! $groupsForJs !!};
-const _hallTrainers  = {!! $trainersJson !!};
-const _hallBookings  = {!! $bookingsJson->toJson() !!};
-const _daySlotPx     = {{ $daySlotPx }};
-const _weekSlotPx    = {{ $weekSlotPx }};
+const _hallResources     = {!! $resourcesJson !!};
+const _hallGroups        = {!! $groupsForJs !!};
+const _hallTrainers      = {!! $trainersJson !!};
+const _hallBookings      = {!! $bookingsJson->toJson() !!};
+const _daySlotPx         = {{ $daySlotPx }};
+const _weekSlotPx        = {{ $weekSlotPx }};
+const _scheduleStartMin  = {{ $scheduleStartMin }}; // 05:30
 
 function hallApp() {
     return {
-        view:        'week',
-        currentDay:  1,
-        filterGroup: null,
-        filterFree:  false,
+        view:            'week',
+        currentDay:      1,
+        filterGroup:     null,
+        filterTrainer:   null,
+        filterFree:      false,
+        filterConflicts: false,
+        drag:            null,
+        _recentDrag:     false,
         resources:   _hallResources,
         groups:      _hallGroups,
         trainers:    _hallTrainers,
@@ -92,11 +109,151 @@ function hallApp() {
         sessionResults:   [],
         sessionSearching: false,
 
+        // ── Conflict detection (client-side) ──────────────────────────
+        hasConflict(b) {
+            return this.bookings.some(o =>
+                o.id !== b.id &&
+                o.hall_resource_id === b.hall_resource_id &&
+                o.day_of_week      === b.day_of_week &&
+                o.start_slot < b.start_slot + b.duration_slots &&
+                o.start_slot + o.duration_slots > b.start_slot
+            );
+        },
+
         // ── Filter ────────────────────────────────────────────────────
         bookingOpacity(b) {
-            if (this.filterFree) return 'opacity-20 pointer-events-none';
-            if (this.filterGroup && b.training_group_id != this.filterGroup) return 'opacity-20';
+            if (this.filterFree)     return 'opacity-20 pointer-events-none';
+            if (this.filterConflicts && !this.hasConflict(b))                    return 'opacity-20';
+            if (this.filterGroup     && b.training_group_id != this.filterGroup)  return 'opacity-20';
+            if (this.filterTrainer   && b.trainer_id        != this.filterTrainer) return 'opacity-20';
             return '';
+        },
+        get activeFilter() {
+            return this.filterGroup || this.filterTrainer || this.filterConflicts;
+        },
+        clearFilters() {
+            this.filterGroup = null; this.filterTrainer = null;
+            this.filterFree  = false; this.filterConflicts = false;
+        },
+
+        // ── Overlap layout: returns {i: columnIndex, n: totalColumns} ─────
+        // Bookings that overlap in the same resource+day slot are shown side by side.
+        overlapLayout(bid, rid, day) {
+            const col  = this.bookings.filter(b => b.hall_resource_id === rid && b.day_of_week === day);
+            const bk   = col.find(b => b.id === bid);
+            if (!bk) return { i: 0, n: 1 };
+            const grp  = col
+                .filter(o => o.start_slot < bk.start_slot + bk.duration_slots &&
+                             o.start_slot + o.duration_slots > bk.start_slot)
+                .sort((a, b) => a.id - b.id);
+            return { i: grp.findIndex(o => o.id === bid), n: grp.length };
+        },
+
+        // ── Compact mode: map raw slot to display slot (skips 08:00–13:00) ─
+        _cSlot(slot) {
+            if (!this.compactMode) return slot;
+            const HS = {{ $cHideStart }}, HE = {{ $cHideEnd }}, HN = {{ $cHideN }};
+            if (slot < HS) return slot;
+            if (slot < HE) return HS;   // booking starts in hidden zone → clamp to boundary
+            return slot - HN;
+        },
+        _cDur(startSlot, dur) {
+            if (!this.compactMode) return dur;
+            const HS = {{ $cHideStart }}, HE = {{ $cHideEnd }};
+            let vis = 0;
+            for (let s = startSlot; s < startSlot + dur; s++) {
+                if (s < HS || s >= HE) vis++;
+            }
+            return Math.max(vis, 0);
+        },
+
+        // ── Booking block styles (handles drag repositioning + overlap) ───
+        weekBookingStyle(b) {
+            const rawSlot    = (this.drag?.bookingId === b.id) ? this.drag.currentSlot : b.start_slot;
+            const slot       = this._cSlot(rawSlot);
+            const durSlots   = this._cDur(rawSlot, b.duration_slots);
+            const h          = Math.max(durSlots * this.weekSlotPx - 1, 4);
+            const zi         = (this.drag?.bookingId === b.id) ? 10 : 1;
+            const { i, n }   = this.overlapLayout(b.id, b.hall_resource_id, b.day_of_week);
+            const pct        = 100 / n;
+            return `position:absolute; top:${slot*this.weekSlotPx}px; height:${h}px; `
+                 + `left:calc(${i*pct}% + 1px); width:calc(${pct}% - 2px); `
+                 + `border-radius:3px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+        },
+        dayBookingStyle(b) {
+            const rawSlot    = (this.drag?.bookingId === b.id) ? this.drag.currentSlot : b.start_slot;
+            const slot       = this._cSlot(rawSlot);
+            const durSlots   = this._cDur(rawSlot, b.duration_slots);
+            const h          = Math.max(durSlots * this.daySlotPx - 2, 4);
+            const zi         = (this.drag?.bookingId === b.id) ? 10 : 2;
+            const { i, n }   = this.overlapLayout(b.id, b.hall_resource_id, b.day_of_week);
+            const pct        = 100 / n;
+            return `position:absolute; top:${slot*this.daySlotPx+1}px; height:${h}px; `
+                 + `left:calc(${i*pct}% + 2px); width:calc(${pct}% - 4px); `
+                 + `border-radius:6px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+        },
+
+        // ── Drag & Drop ───────────────────────────────────────────────
+        startDrag(b, event) {
+            event.stopPropagation();
+            this.drag = {
+                bookingId:     b.id,
+                durationSlots: b.duration_slots,
+                initialSlot:   b.start_slot,
+                currentSlot:   b.start_slot,
+                startY:        event.clientY,
+                moved:         false,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+        },
+        moveDrag(event) {
+            if (!this.drag) return;
+            const slotPx   = this.view === 'week' ? this.weekSlotPx : this.daySlotPx;
+            const delta    = Math.round((event.clientY - this.drag.startY) / slotPx);
+            const raw      = this.drag.initialSlot + delta;
+            const maxSlot  = 66 - this.drag.durationSlots; // 66 total 15-min slots (05:30–22:00)
+            const newSlot  = Math.max(0, Math.min(raw, maxSlot));
+            if (newSlot !== this.drag.currentSlot) {
+                this.drag.currentSlot = newSlot;
+                this.drag.moved = true;
+            }
+        },
+        async endDrag(event) {
+            if (!this.drag) return;
+            const ds      = this.drag;
+            const booking = this.bookings.find(b => b.id === ds.bookingId);
+            this.drag = null;
+            if (!booking || !ds.moved) return; // no movement → let @click.stop="openEdit(b)" fire
+            if (ds.currentSlot === ds.initialSlot) return;
+
+            // Block openEdit synchronously before any await so the browser's lingering
+            // click event (after pointerup) does not re-open the modal with stale data
+            this._recentDrag = true;
+            setTimeout(() => { this._recentDrag = false; }, 300);
+
+            const startMin = _scheduleStartMin + ds.currentSlot * 15;
+            const endMin   = startMin + ds.durationSlots * 15;
+            const pad      = n => String(n).padStart(2, '0');
+            const st       = `${pad(Math.floor(startMin/60))}:${pad(startMin%60)}`;
+            const et       = `${pad(Math.floor(endMin/60))}:${pad(endMin%60)}`;
+
+            // Optimistic update BEFORE await — if the click fires during the request,
+            // the modal will already show the correct new times
+            booking.start_time = st; booking.end_time = et; booking.start_slot = ds.currentSlot;
+
+            const r = await fetch(`/trainer/hall/bookings/${ds.bookingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept':'application/json' },
+                body: JSON.stringify({
+                    day_of_week: booking.day_of_week, start_time: st, end_time: et,
+                    label: booking.label, type: booking.type,
+                    training_group_id: booking.training_group_id, trainer_id: booking.trainer_id,
+                    training_session_id: booking.training_session_id,
+                    notes: booking.notes ?? '', force: true,
+                }),
+            });
+
+            if (!r.ok) { window.location.reload(); }
         },
 
         // ── Bookings for a given resource + day ───────────────────────
@@ -106,8 +263,9 @@ function hallApp() {
 
         // ── Slot / time helpers ───────────────────────────────────────
         slotToTime(slot) {
-            const h = 6 + Math.floor(slot / 4);
-            const m = (slot % 4) * 15;
+            const totalMin = _scheduleStartMin + slot * 15;
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
             return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
         },
 
@@ -128,6 +286,7 @@ function hallApp() {
             this.showModal = true;
         },
         openEdit(b) {
+            if (this._recentDrag) return;  // suppress click fired after a drag
             this.editId = b.id; this.conflicts = []; this.sessionResults = [];
             this.linkedSession = b.training_session_id ? { id: b.training_session_id, title: b.session_title ?? ('Einheit #' + b.training_session_id) } : null;
             this.form = {
@@ -174,7 +333,7 @@ function hallApp() {
                 this.conflicts = (await r.json()).conflicts ?? [];
             } catch {}
         },
-        async save(force = false) {
+        async save() {
             this.saving = true;
             try {
                 const url    = this.editId ? `/trainer/hall/bookings/${this.editId}` : '/trainer/hall/bookings';
@@ -182,10 +341,9 @@ function hallApp() {
                 const r = await fetch(url, {
                     method,
                     headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept':'application/json' },
-                    body: JSON.stringify({ ...this.form, force }),
+                    body: JSON.stringify({ ...this.form, force: true }),
                 });
-                if (r.status === 409) { this.conflicts = (await r.json()).conflicts ?? []; }
-                else if (r.ok) { window.location.reload(); }
+                if (r.ok) { window.location.reload(); }
             } finally { this.saving = false; }
         },
         async deleteBooking(id) {
@@ -198,6 +356,8 @@ function hallApp() {
         },
 
         get dayName() { return ['','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'][this.currentDay]; },
+
+        compactMode: false,
     };
 }
 </script>
@@ -235,20 +395,55 @@ function hallApp() {
     </div>
 
     {{-- Group filter --}}
-    <select x-model="filterGroup" @change="filterFree = false"
-            class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 outline-none">
+    <select x-model="filterGroup" @change="filterTrainer = null; filterFree = false"
+            :class="filterGroup ? 'border-primary ring-1 ring-primary/30 bg-primary/5 text-primary font-medium' : 'border-gray-200 bg-white text-gray-700'"
+            class="text-sm rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-400 outline-none transition-colors border">
         <option value="">Alle Gruppen</option>
         @foreach($groups as $g)
         <option value="{{ $g->id }}">{{ $g->name }}</option>
         @endforeach
     </select>
 
+    {{-- Trainer filter --}}
+    <select x-model="filterTrainer" @change="filterGroup = null; filterFree = false"
+            :class="filterTrainer ? 'border-indigo-400 ring-1 ring-indigo-300 bg-indigo-50 text-indigo-700 font-medium' : 'border-gray-200 bg-white text-gray-700'"
+            class="text-sm rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-indigo-400 outline-none transition-colors border">
+        <option value="">Alle Trainer</option>
+        @foreach($trainers as $t)
+        <option value="{{ $t->id }}">{{ $t->lastname }}, {{ $t->firstname }}</option>
+        @endforeach
+    </select>
+
+    {{-- Active filter reset badge --}}
+    <button x-show="activeFilter" x-transition
+            @click="clearFilters()"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 bg-white text-xs text-gray-600 hover:bg-gray-50 shadow-sm transition-colors font-medium">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        Filter zurücksetzen
+    </button>
+
+    {{-- Conflict filter --}}
+    <button @click="filterConflicts = !filterConflicts; if(filterConflicts) { filterGroup = null; filterTrainer = null; filterFree = false; }"
+            :class="filterConflicts ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium shadow-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        Konflikte
+    </button>
+
     {{-- Free capacity --}}
-    <button @click="filterFree = !filterFree; if(filterFree) filterGroup = null"
+    <button @click="filterFree = !filterFree; if(filterFree) { filterGroup = null; filterTrainer = null; filterConflicts = false; }"
             :class="filterFree ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
             class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium shadow-sm transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Freie Kapazitäten
+    </button>
+
+    {{-- Kompaktansicht: blendet 05:30–13:00 und Sonntag aus --}}
+    <button @click="compactMode = !compactMode"
+            :class="compactMode ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium shadow-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 11h16M4 16h10"/></svg>
+        <span x-text="compactMode ? 'Vollansicht' : 'Kompaktansicht'"></span>
     </button>
 
     <button @click="openCreate(null, view==='day' ? currentDay : 1, null)"
@@ -273,19 +468,33 @@ function hallApp() {
         {{-- Doppel-Header (Tagesname + Ressourcen) --}}
         <div class="border-b border-gray-100" style="height:52px"></div>
         {{-- Stundenbeschriftungen --}}
-        <div class="relative" style="height:{{ $weekTotalPx }}px">
-            @for($h = $scheduleStart; $h <= $scheduleEnd; $h++)
-            <div class="absolute right-1.5 text-[10px] text-gray-400 select-none leading-none"
-                 style="top:{{ ($h - $scheduleStart) * $weekHourPx - 6 }}px">
-                {{ sprintf('%d', $h) }}
-            </div>
+        <div class="relative" :style="compactMode ? 'height:{{ $weekCmptPx }}px' : 'height:{{ $weekTotalPx }}px'">
+            @for($h = $scheduleStart + 1; $h <= $scheduleEnd; $h++)
+            @php
+                $rawSlot = (($h * 60) - $scheduleStartMin) / $slotMin;
+                $pyFull  = intval($rawSlot * $weekSlotPx - 6);
+                $inHide  = ($h >= 8 && $h < 13);
+                $cSlot   = $cSlotFn($rawSlot);
+                $pyCmpt  = intval($cSlot * $weekSlotPx - 6);
+            @endphp
+            {{-- Vollansicht --}}
+            <div x-show="!compactMode" class="absolute right-1.5 text-[10px] text-gray-400 select-none leading-none"
+                 style="top:{{ $pyFull }}px">{{ sprintf('%02d:00', $h) }}</div>
+            {{-- Kompaktansicht: Stunden 08–12 ausblenden --}}
+            @if(!$inHide)
+            <div x-show="compactMode" class="absolute right-1.5 text-[10px] text-gray-400 select-none leading-none"
+                 style="top:{{ $pyCmpt }}px">{{ sprintf('%02d:00', $h) }}</div>
+            @endif
             @endfor
+            {{-- Trennlinie 08:00–13:00 im Kompaktmodus --}}
+            <div x-show="compactMode" class="absolute right-0 left-0 pointer-events-none"
+                 style="top:{{ $cHideStart * $weekSlotPx }}px; border-top:2px dashed #d1d5db;"></div>
         </div>
     </div>
 
     {{-- 7 Tagesspalten --}}
     @foreach($days as $dayNum => $dayName)
-    <div class="flex-shrink-0 border-l border-gray-200">
+    <div class="flex-shrink-0 border-l border-gray-200"{{ $dayNum == 7 ? ' x-show="!compactMode"' : '' }}>
 
         {{-- Tageskopf --}}
         <div class="bg-gray-50 border-b border-gray-100" style="height:52px">
@@ -310,18 +519,29 @@ function hallApp() {
         </div>
 
         {{-- Ressourcenspalten --}}
-        <div class="flex" style="height:{{ $weekTotalPx }}px">
+        <div class="flex" :style="compactMode ? 'height:{{ $weekCmptPx }}px' : 'height:{{ $weekTotalPx }}px'">
             @foreach($resources as $resource)
-            <div class="relative border-l border-gray-100 first:border-0"
-                 style="width:{{ $weekColPx }}px; cursor:crosshair;
-                        background-image:
-                            repeating-linear-gradient(to bottom,
-                                transparent 0px,
-                                transparent {{ $weekHourPx - 1 }}px,
-                                #e5e7eb {{ $weekHourPx - 1 }}px,
-                                #e5e7eb {{ $weekHourPx }}px);
-                        background-size: 100% {{ $weekHourPx }}px;"
+            <div class="relative border-l border-gray-100 first:border-0 overflow-hidden"
+                 :style="compactMode ? 'width:{{ $weekColPx }}px; cursor:crosshair; height:{{ $weekCmptPx }}px' : 'width:{{ $weekColPx }}px; cursor:crosshair;'"
                  @click.self="openCreate({{ $resource->id }}, {{ $dayNum }}, Math.floor($event.offsetY / {{ $weekSlotPx }}))">
+                {{-- Rasterlinien: Vollansicht --}}
+                @for($h = $scheduleStart + 1; $h <= $scheduleEnd; $h++)
+                @php $lpy = intval((($h * 60) - $scheduleStartMin) / $slotMin * $weekSlotPx); @endphp
+                <div x-show="!compactMode" class="absolute pointer-events-none" style="left:0;right:0;top:{{ $lpy }}px;border-top:1px solid #e5e7eb;"></div>
+                @endfor
+                {{-- Rasterlinien: Kompaktansicht (08–12 Uhr weggelassen, 13+ verschoben) --}}
+                @for($h = $scheduleStart + 1; $h <= $scheduleEnd; $h++)
+                @php
+                    $rs   = (($h * 60) - $scheduleStartMin) / $slotMin;
+                    $inH  = ($h >= 8 && $h < 13);
+                    $clpy = intval($cSlotFn($rs) * $weekSlotPx);
+                @endphp
+                @if(!$inH)
+                <div x-show="compactMode" class="absolute pointer-events-none" style="left:0;right:0;top:{{ $clpy }}px;border-top:1px solid #e5e7eb;"></div>
+                @endif
+                @endfor
+                {{-- Trennlinie im Kompaktmodus --}}
+                <div x-show="compactMode" class="absolute pointer-events-none" style="left:0;right:0;top:{{ $cHideStart * $weekSlotPx }}px;border-top:2px dashed #d1d5db;z-index:3;"></div>
 
                 {{-- Freie-Kapazitäten-Overlay --}}
                 <div x-show="filterFree" class="absolute inset-0 pointer-events-none"
@@ -329,24 +549,22 @@ function hallApp() {
 
                 {{-- Belegungsblöcke (Alpine.js) --}}
                 <template x-for="b in dayResourceBookings({{ $resource->id }}, {{ $dayNum }})" :key="b.id">
-                    <div :style="`
-                            position:absolute;
-                            top:${b.start_slot * {{ $weekSlotPx }}}px;
-                            height:${Math.max(b.duration_slots * {{ $weekSlotPx }} - 1, 4)}px;
-                            left:1px; right:1px;
-                            border-radius:3px;
-                            background-color:${b.display_color};
-                            z-index:1;
-                            overflow:hidden;
-                        `"
-                         :class="bookingOpacity(b)"
-                         class="cursor-pointer transition-opacity"
-                         @click.stop="openEdit(b)">
+                    <div :style="weekBookingStyle(b)"
+                         :class="[bookingOpacity(b), hasConflict(b) ? 'ring-1 ring-inset ring-red-500' : '']"
+                         class="transition-opacity select-none"
+                         style="touch-action:none; cursor:grab"
+                         @click.stop="openEdit(b)"
+                         @pointerdown.stop="startDrag(b, $event)"
+                         @pointermove.stop="moveDrag($event)"
+                         @pointerup.stop="endDrag($event)"
+                         @pointercancel="drag = null">
                         <div x-show="b.duration_slots >= 4"
                              style="font-size:8px; color:white; font-weight:700; padding:1px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
                              x-text="b.label"></div>
                         <span x-show="b.has_missing_trainer"
-                              style="position:absolute; top:2px; right:2px; width:6px; height:6px; border-radius:50%; background:white; opacity:0.75"></span>
+                              style="position:absolute; top:2px; right:2px; width:5px; height:5px; border-radius:50%; background:white; opacity:0.75"></span>
+                        <span x-show="hasConflict(b)"
+                              style="position:absolute; top:2px; left:2px; width:5px; height:5px; border-radius:50%; background:#ef4444; opacity:0.9"></span>
                     </div>
                 </template>
             </div>
@@ -359,7 +577,7 @@ function hallApp() {
 </div>
 </div>
 <p class="text-xs text-gray-400 mt-2 text-center">
-    Klick auf einen Tagnamen → Tagesdetailansicht &nbsp;·&nbsp; Klick in eine Spalte → neue Belegung
+    Klick auf einen Tagnamen → Tagesdetailansicht &nbsp;·&nbsp; Klick in eine Spalte → neue Belegung &nbsp;·&nbsp; Blöcke verschieben per Drag &amp; Drop
 </p>
 </div>
 
@@ -384,25 +602,58 @@ function hallApp() {
     </div>
 
     {{-- Grid --}}
-    <div class="overflow-y-auto" style="max-height:72vh">
-        <div class="flex relative" style="height:{{ $dayTotalPx }}px">
+    <div class="overflow-y-auto" style="max-height:72vh" x-ref="dayGrid">
+        <div class="flex relative overflow-hidden"
+             :style="compactMode ? 'height:{{ $dayCmptPx }}px' : 'height:{{ $dayTotalPx }}px'">
 
             {{-- Zeit-Achse --}}
             <div class="flex-shrink-0 bg-gray-50 border-r border-gray-100 relative" style="width:52px">
-                @for($h = $scheduleStart; $h < $scheduleEnd; $h++)
-                <div class="absolute right-2 text-[10px] text-gray-400 select-none leading-none"
-                     style="top:{{ ($h - $scheduleStart) * $dayHourPx - 6 }}px">
-                    {{ sprintf('%02d:00', $h) }}
-                </div>
+                @for($h = $scheduleStart + 1; $h <= $scheduleEnd; $h++)
+                @php
+                    $drs   = (($h * 60) - $scheduleStartMin) / $slotMin;
+                    $dFull = intval($drs * $daySlotPx - 6);
+                    $dInH  = ($h >= 8 && $h < 13);
+                    $dCmpt = intval($cSlotFn($drs) * $daySlotPx - 6);
+                @endphp
+                <div x-show="!compactMode" class="absolute right-2 text-[10px] text-gray-400 select-none leading-none"
+                     style="top:{{ $dFull }}px">{{ sprintf('%02d:00', $h) }}</div>
+                @if(!$dInH)
+                <div x-show="compactMode" class="absolute right-2 text-[10px] text-gray-400 select-none leading-none"
+                     style="top:{{ $dCmpt }}px">{{ sprintf('%02d:00', $h) }}</div>
+                @endif
                 @endfor
+                {{-- Trennlinie im Kompaktmodus --}}
+                <div x-show="compactMode" class="absolute pointer-events-none right-0 left-0"
+                     style="top:{{ $cHideStart * $daySlotPx }}px; border-top:2px dashed #d1d5db;"></div>
             </div>
 
-            {{-- Horizontale Rasterlinien (hinter den Spalten) --}}
+            {{-- Horizontale Rasterlinien: Vollansicht --}}
             @for($s = 0; $s < $totalSlots; $s++)
-            <div class="absolute pointer-events-none"
+            @php $isFullHour = ($scheduleStartMin + $s * $slotMin) % 60 === 0; @endphp
+            <div x-show="!compactMode" class="absolute pointer-events-none"
                  style="left:52px; right:0; top:{{ $s * $daySlotPx }}px;
-                        border-top:1px solid {{ $s % 4 === 0 ? '#e5e7eb' : '#f9fafb' }}"></div>
+                        border-top:1px solid {{ $isFullHour ? '#e5e7eb' : '#f9fafb' }}"></div>
             @endfor
+
+            {{-- Horizontale Rasterlinien: Kompaktansicht (08–12 Uhr weggelassen, 13+ verschoben) --}}
+            @for($s = 0; $s < $totalSlots; $s++)
+            @php
+                $sMin    = $scheduleStartMin + $s * $slotMin;
+                $sHour   = intdiv($sMin, 60);
+                $dInH2   = ($sHour >= 8 && $sHour < 13);
+                $dIsHour = $sMin % 60 === 0;
+                $dCSlot  = $cSlotFn((float)$s);
+                $dCTop   = intval($dCSlot * $daySlotPx);
+            @endphp
+            @if(!$dInH2)
+            <div x-show="compactMode" class="absolute pointer-events-none"
+                 style="left:52px; right:0; top:{{ $dCTop }}px;
+                        border-top:1px solid {{ $dIsHour ? '#e5e7eb' : '#f9fafb' }}"></div>
+            @endif
+            @endfor
+            {{-- Trennlinie (Tagesansicht) --}}
+            <div x-show="compactMode" class="absolute pointer-events-none"
+                 style="left:52px; right:0; top:{{ $cHideStart * $daySlotPx }}px; border-top:2px dashed #d1d5db; z-index:5;"></div>
 
             {{-- Ressourcenspalten --}}
             @foreach($resources as $resource)
@@ -416,24 +667,21 @@ function hallApp() {
 
                 {{-- Belegungsblöcke (Alpine.js, wechseln mit currentDay) --}}
                 <template x-for="b in dayResourceBookings({{ $resource->id }}, currentDay)" :key="b.id">
-                    <div :style="`
-                            position:absolute;
-                            top:${b.start_slot * {{ $daySlotPx }} + 1}px;
-                            height:${b.duration_slots * {{ $daySlotPx }} - 2}px;
-                            left:2px; right:2px;
-                            border-radius:6px;
-                            background-color:${b.display_color};
-                            z-index:2;
-                            overflow:hidden;
-                        `"
-                         :class="bookingOpacity(b)"
-                         class="cursor-pointer shadow-sm transition-opacity text-white"
-                         @click.stop="openEdit(b)">
+                    <div :style="dayBookingStyle(b)"
+                         :class="[bookingOpacity(b), hasConflict(b) ? 'ring-2 ring-inset ring-red-500' : '']"
+                         class="shadow-sm transition-opacity text-white select-none"
+                         style="touch-action:none; cursor:grab"
+                         @click.stop="openEdit(b)"
+                         @pointerdown.stop="startDrag(b, $event)"
+                         @pointermove.stop="moveDrag($event)"
+                         @pointerup.stop="endDrag($event)"
+                         @pointercancel="drag = null">
                         {{-- Label row --}}
                         <div style="display:flex; align-items:center; gap:3px; padding:3px 7px 0; overflow:hidden">
                             <div style="font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1" x-text="b.label"></div>
+                            <span x-show="hasConflict(b)" title="Überschneidung" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(239,68,68,0.8); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
                             {{-- Missing trainer badge --}}
-                            <span x-show="b.has_missing_trainer" title="Kein Trainer" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,0.35); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
+                            <span x-show="b.has_missing_trainer && !hasConflict(b)" title="Kein Trainer" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,0.35); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
                         </div>
                         {{-- Uhrzeit ab 30 min --}}
                         <div x-show="b.duration_slots >= 2"
@@ -481,16 +729,28 @@ function hallApp() {
 
             {{-- Ressourcen --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
                     Ressource(n) <span class="text-red-500">*</span>
-                    <span x-show="editId" class="text-xs text-gray-400 font-normal ml-1">(beim Bearbeiten nicht änderbar)</span>
                 </label>
+                <p class="text-xs text-gray-400 mb-2">
+                    <span x-show="!editId">Mehrere Auswahlen legen je eine eigene Buchung an.</span>
+                    <span x-show="editId">Andere Bahn auswählen, um die Buchung umzubuchen.</span>
+                </p>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach($resources as $resource)
-                    <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                           :class="editId ? 'opacity-50 pointer-events-none' : ''">
-                        <input type="checkbox" :value="{{ $resource->id }}" x-model="form.hall_resource_ids"
-                               :disabled="editId" class="w-4 h-4 rounded text-primary border-gray-300">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border transition-colors"
+                           :class="form.hall_resource_ids.includes({{ $resource->id }})
+                               ? 'border-primary bg-primary/5'
+                               : 'border-gray-200 hover:bg-gray-50'">
+                        <input type="checkbox"
+                               :value="{{ $resource->id }}"
+                               :checked="form.hall_resource_ids.includes({{ $resource->id }})"
+                               @change="editId
+                                   ? form.hall_resource_ids = $event.target.checked ? [{{ $resource->id }}] : []
+                                   : ($event.target.checked
+                                       ? form.hall_resource_ids.push({{ $resource->id }})
+                                       : form.hall_resource_ids = form.hall_resource_ids.filter(id => id != {{ $resource->id }}))"
+                               class="w-4 h-4 rounded text-primary border-gray-300">
                         <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $resource->color }}"></span>
                         <span class="text-gray-700 truncate">{{ $resource->name }}</span>
                     </label>
@@ -524,15 +784,25 @@ function hallApp() {
             {{-- Konflikte --}}
             <div x-show="conflicts.length > 0" x-transition
                  class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
-                <p class="font-semibold text-red-700 mb-1.5 flex items-center gap-1.5">
+                <p class="font-semibold text-red-700 mb-2 flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
                     Überschneidung mit bestehenden Belegungen:
                 </p>
-                <ul class="space-y-1">
+                <ul class="space-y-2">
                     <template x-for="c in conflicts" :key="c.id">
-                        <li class="text-red-600 flex items-center gap-2">
-                            <span class="font-mono text-[11px] bg-red-100 px-1.5 py-0.5 rounded" x-text="c.time"></span>
-                            <span x-text="c.resource + ': ' + c.label"></span>
+                        <li class="flex items-center gap-2 bg-red-100/60 rounded-lg px-2 py-1.5">
+                            <span class="font-mono text-[11px] bg-white border border-red-200 px-1.5 py-0.5 rounded text-red-700 flex-shrink-0" x-text="c.time"></span>
+                            <span class="flex-1 text-red-800 text-xs truncate" x-text="c.resource + ': ' + c.label"></span>
+                            <button type="button"
+                                    @click="showModal=false; $nextTick(() => { const bk = bookings.find(b => b.id === c.id); if(bk) openEdit(bk); })"
+                                    class="flex-shrink-0 text-xs px-2 py-1 bg-white border border-red-300 text-red-600 hover:bg-red-600 hover:text-white rounded font-medium transition-colors">
+                                Bearbeiten
+                            </button>
+                            <button type="button"
+                                    @click="deleteBooking(c.id)"
+                                    class="flex-shrink-0 text-xs px-2 py-1 bg-red-600 text-white hover:bg-red-700 rounded font-medium transition-colors">
+                                Löschen
+                            </button>
                         </li>
                     </template>
                 </ul>
@@ -646,11 +916,11 @@ function hallApp() {
                         class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     Abbrechen
                 </button>
-                <button x-show="conflicts.length > 0" @click="save(true)" :disabled="saving"
+                <button x-show="conflicts.length > 0" @click="save()" :disabled="saving"
                         class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
                     Trotzdem speichern
                 </button>
-                <button x-show="conflicts.length === 0" @click="save(false)" :disabled="saving"
+                <button x-show="conflicts.length === 0" @click="save()" :disabled="saving"
                         class="px-4 py-2 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
                     <span x-text="saving ? 'Speichern…' : 'Speichern'"></span>
                 </button>

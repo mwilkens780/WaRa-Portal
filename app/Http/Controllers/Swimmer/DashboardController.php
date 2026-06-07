@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Swimmer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
+use App\Models\CompetitionSignupRequest;
 use App\Models\Record;
 use App\Models\Season;
 use App\Models\SwimmerGoal;
@@ -62,6 +63,17 @@ class DashboardController extends Controller
         $attendedWeek = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)
             ->whereHas('session', fn($q) => $q->whereBetween('date', [$weekStart, today()]))->count();
 
+        // km diese Woche: Summe der Trainingsplan-Distanzen aller Einheiten, bei denen der Schwimmer anwesend war
+        $kmThisWeek = TrainingSession::whereBetween('date', [$weekStart, today()])
+            ->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true))
+            ->with('trainingPlan.blocks')
+            ->get()
+            ->sum(function ($s) {
+                return $s->trainingPlan
+                    ? $s->trainingPlan->blocks->sum(fn($b) => $b->total_repetitions * ($b->distance ?? 0))
+                    : 0;
+            });
+
         // Bestzeiten: Trainingszeiten + Wettkampfergebnisse zusammengeführt
         [$allBests, $yearBests, $seasonBests] = $this->buildCombinedBests($swimmer->id);
 
@@ -77,13 +89,14 @@ class DashboardController extends Controller
             'sessions_season'       => $sessionsSeason,
             'attended_week'         => $attendedWeek,
             'sessions_week'         => $sessionsWeek,
+            'km_this_week'          => round($kmThisWeek / 1000, 2),
             'season_label'          => $currentSeason?->name ?? SwimmingTime::currentSeasonLabel(),
         ];
 
         // Letzte absolvierte Trainings (mit Tagebucheintrag-Info)
         $recent_sessions = TrainingSession::where('date', '<=', today())
             ->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true))
-            ->with(['trainer', 'diaries' => fn($q) => $q->where('user_id', $swimmer->id)])
+            ->with(['coTrainers:id,firstname,lastname', 'diaries' => fn($q) => $q->where('user_id', $swimmer->id)])
             ->orderByDesc('date')
             ->limit(5)
             ->get();
@@ -121,11 +134,18 @@ class DashboardController extends Controller
             ->whereIn('training_session_id', $upcoming_sessions->pluck('id'))
             ->pluck('pre_absent_note', 'training_session_id');
 
+        // Offene Anmeldeabfragen für diesen Schwimmer
+        $pendingSignups = CompetitionSignupRequest::where('status', 'active')
+            ->whereHas('responses', fn($q) => $q->where('user_id', $swimmer->id)->where('status', 'pending'))
+            ->with('competition')
+            ->get();
+
         return view('swimmer.dashboard', compact(
             'stats', 'allBests', 'yearBests', 'seasonBests',
             'recent_sessions', 'recent_results',
             'next_competition', 'upcoming_sessions', 'my_pre_absences',
-            'goalsTotal', 'goalsAchieved', 'goalsUnnotified'
+            'goalsTotal', 'goalsAchieved', 'goalsUnnotified',
+            'pendingSignups'
         ));
     }
 
@@ -256,7 +276,7 @@ class DashboardController extends Controller
         // ── Upcoming sessions (strictly future) ─────────────────────────────
         $upcoming = TrainingSession::where('date', '>', today())
             ->tap($relevantSessions)
-            ->with(['trainer', 'trainingGroups'])
+            ->with(['coTrainers:id,firstname,lastname', 'trainingGroups'])
             ->orderBy('date')->orderBy('start_time')
             ->get();
 
@@ -271,7 +291,7 @@ class DashboardController extends Controller
         $pastQuery = TrainingSession::where('date', '<=', today())
             ->tap($relevantSessions)
             ->with([
-                'trainer',
+                'coTrainers:id,firstname,lastname',
                 'attendances' => fn($q) => $q->where('user_id', $swimmer->id),
                 'diaries'     => fn($q) => $q->where('user_id', $swimmer->id),
             ])
@@ -521,7 +541,7 @@ class DashboardController extends Controller
 
     public function sessionDetail(\App\Models\TrainingSession $session)
     {
-        $session->load('trainer', 'diaries.user', 'trainingPlan.blocks');
+        $session->load('coTrainers:id,firstname,lastname', 'diaries.user', 'trainingPlan.blocks');
         $diary = $session->diaryFor(auth()->id());
 
         $myAttendance = TrainingAttendance::where('training_session_id', $session->id)

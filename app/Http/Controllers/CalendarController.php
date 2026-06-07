@@ -204,9 +204,9 @@ class CalendarController extends Controller
         $isTrainer = in_array(auth()->user()->role, ['trainer', 'admin']);
 
         if ($isTrainer) {
-            $sessions = TrainingSession::with(['trainer:id,firstname,lastname', 'trainingGroups:id,name,color'])
+            $sessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
                 ->whereBetween('date', [$from, $to])
-                ->when(!$isAdmin, fn($q) => $q->where('trainer_id', auth()->id()))
+                ->when(!$isAdmin, fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('users.id', auth()->id())))
                 ->orderBy('date')->orderBy('start_time')
                 ->get();
 

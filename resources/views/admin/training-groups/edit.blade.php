@@ -80,23 +80,30 @@
         </div>
         @endif
 
-        {{-- Schwimmer --}}
+        {{-- Schwimmer hinzufügen (nur keiner anderen Gruppe zugeordnete) --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" x-data="{ search: '' }">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">Schwimmer</h2>
-                <input type="text" x-model="search" placeholder="Suchen..." class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-40">
+            <div class="flex items-center justify-between mb-1">
+                <div>
+                    <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">Schwimmer hinzufügen</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Nur Schwimmer ohne Gruppenzuordnung · CSV-Import für vollständige Synchronisation</p>
+                </div>
+                <input type="text" x-model="search" placeholder="Suchen..."
+                       class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-40">
             </div>
             @if($swimmers->isEmpty())
-                <p class="text-sm text-gray-400">Keine aktiven Schwimmer vorhanden.</p>
+                <p class="text-sm text-gray-400 mt-3">Keine nicht zugeordneten Schwimmer verfügbar.</p>
             @else
-                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto mt-3">
                     @foreach($swimmers as $swimmer)
                         <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg hover:bg-gray-50"
                                x-show="search === '' || '{{ strtolower($swimmer->lastname . ' ' . $swimmer->firstname) }}'.includes(search.toLowerCase())">
                             <input type="checkbox" name="swimmers[]" value="{{ $swimmer->id }}"
-                                   {{ in_array($swimmer->id, old('swimmers', $assignedSwimmers)) ? 'checked' : '' }}
+                                   {{ in_array($swimmer->id, old('swimmers', [])) ? 'checked' : '' }}
                                    class="w-4 h-4 text-primary rounded border-gray-300">
                             <span class="text-gray-700">{{ $swimmer->lastname }}, {{ $swimmer->firstname }}</span>
+                            @if($swimmer->birth_date)
+                                <span class="text-xs text-gray-400 ml-auto">{{ $swimmer->birth_date->format('Y') }}</span>
+                            @endif
                         </label>
                     @endforeach
                 </div>
@@ -155,9 +162,6 @@
                                 <span class="font-medium text-gray-800">{{ $session->title }}</span>
                                 <span class="text-gray-400 ml-2">{{ $session->date->format('d.m.Y') }}</span>
                             </div>
-                            @if($session->trainer)
-                                <span class="text-xs text-gray-400">{{ $session->trainer->firstname }} {{ $session->trainer->lastname }}</span>
-                            @endif
                         </label>
                     @endforeach
                 </div>

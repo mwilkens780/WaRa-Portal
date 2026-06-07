@@ -24,7 +24,7 @@ class DashboardController extends Controller
             'upcoming_competitions' => Competition::where('date', '>=', now())->count(),
         ];
 
-        $recent_sessions = TrainingSession::with('trainer')
+        $recent_sessions = TrainingSession::with('coTrainers:id,firstname,lastname')
             ->orderByDesc('date')
             ->limit(5)
             ->get();

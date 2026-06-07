@@ -41,6 +41,11 @@
             {{ session('success') }}
         </div>
     @endif
+    @if(session('error'))
+        <div class="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
 
     @if($trainingGroup->trainers->isEmpty())
         <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm">
@@ -80,33 +85,81 @@
             </div>
         </div>
 
-        {{-- Schwimmer --}}
+        {{-- Aktive Schwimmer --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                <h2 class="font-semibold text-gray-800">Schwimmer</h2>
-                <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ $trainingGroup->swimmers->count() }}</span>
+                <div>
+                    <h2 class="font-semibold text-gray-800">Schwimmer</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Nur aktive Mitglieder</p>
+                </div>
+                <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ $activeSwimmers->count() }}</span>
             </div>
-            <div class="divide-y divide-gray-50 max-h-80 overflow-y-auto">
-                @forelse($trainingGroup->swimmers as $swimmer)
-                    <div class="flex items-center gap-3 px-5 py-3">
+            <div class="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+                @forelse($activeSwimmers as $swimmer)
+                    <div class="flex items-center gap-3 px-5 py-2.5">
                         <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm flex-shrink-0">
                             {{ strtoupper(substr($swimmer->firstname, 0, 1)) }}
                         </div>
-                        <div>
+                        <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-800">{{ $swimmer->firstname }} {{ $swimmer->lastname }}</p>
                             @if($swimmer->birth_date)
                                 <p class="text-xs text-gray-500">Jg. {{ $swimmer->birth_date->format('Y') }}</p>
                             @endif
                         </div>
+                        <form method="POST" action="{{ route('admin.training-groups.remove-swimmer', [$trainingGroup, $swimmer]) }}"
+                              onsubmit="return confirm('{{ $swimmer->firstname }} {{ $swimmer->lastname }} aus der Gruppe entfernen?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-400 hover:text-red-600 transition-colors p-1" title="Aus Gruppe entfernen">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </form>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-400 px-5 py-4 text-center">Keine Schwimmer zugewiesen.</p>
+                    <p class="text-sm text-gray-400 px-5 py-4 text-center">Keine aktiven Schwimmer zugewiesen.</p>
                 @endforelse
             </div>
         </div>
     </div>
 
-    {{-- Nächste Einheiten --}}
+    {{-- CSV-Import ──────────────────────────────────────────────────────── --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" x-data="{ open: false }">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="font-semibold text-gray-800 text-sm">Schwimmer per CSV importieren</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Format: <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Name;Jg.;DSV-Id;Aktiv;</span></p>
+            </div>
+            <button @click="open = !open" type="button"
+                    class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                CSV hochladen
+            </button>
+        </div>
+
+        <div x-show="open" x-transition class="mt-4 border-t border-gray-100 pt-4">
+            <p class="text-xs text-gray-500 mb-3">
+                Ein erneutes Einlesen aktualisiert bestehende Einträge, fügt neue hinzu und entfernt Schwimmer,
+                die nicht mehr in der CSV enthalten sind. Ein Schwimmer kann nur einer Gruppe zugeordnet sein.
+            </p>
+            <form method="POST" action="{{ route('admin.training-groups.csv-upload', $trainingGroup) }}"
+                  enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+                @csrf
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">CSV-Datei</label>
+                    <input type="file" name="csv_file" accept=".csv,.txt" required
+                           class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
+                </div>
+                <button type="submit"
+                        class="px-4 py-2 bg-primary text-white font-semibold rounded-lg text-sm hover:bg-primary-dark transition-colors">
+                    Einlesen → Vorschau
+                </button>
+            </form>
+            @error('csv_file')
+                <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
+            @enderror
+        </div>
+    </div>
+
+    {{-- Bevorstehende Einheiten --}}
     @if($upcomingSessions->isNotEmpty())
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="p-5 border-b border-gray-100">
@@ -122,18 +175,15 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
-                        <p class="text-xs text-gray-500">{{ $session->type_label }} · {{ $session->start_time }} Uhr</p>
+                        <p class="text-xs text-gray-500">{{ $session->type_label }} · {{ substr($session->start_time, 0, 5) }} Uhr</p>
                     </div>
-                    @if($session->trainer)
-                        <span class="text-xs text-gray-400">{{ $session->trainer->firstname }} {{ $session->trainer->lastname }}</span>
-                    @endif
                 </a>
             @endforeach
         </div>
     </div>
     @endif
 
-    {{-- Letzte Einheiten --}}
+    {{-- Zugeordnete Einheiten --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="flex items-center justify-between p-5 border-b border-gray-100">
             <h2 class="font-semibold text-gray-800">Zugeordnete Einheiten</h2>
@@ -151,9 +201,6 @@
                         <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
                         <p class="text-xs text-gray-500">{{ $session->type_label }}</p>
                     </div>
-                    @if($session->trainer)
-                        <span class="text-xs text-gray-400">{{ $session->trainer->firstname }} {{ $session->trainer->lastname }}</span>
-                    @endif
                 </a>
             @empty
                 <p class="text-sm text-gray-400 px-5 py-6 text-center">Noch keine Trainingseinheiten zugeordnet.</p>

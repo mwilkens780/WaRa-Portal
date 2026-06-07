@@ -38,13 +38,19 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
-                            <div class="flex flex-wrap gap-1 mt-0.5">
+                            <div class="flex flex-wrap items-center gap-1 mt-0.5">
                                 @foreach($session->trainingGroups as $tg)
                                     @php $tgc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
                                     <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full {{ $tgc['badge'] }}">{{ $tg->name }}</span>
                                 @endforeach
+                                @if($session->diary_count > 0)
+                                    <span class="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium" title="Tagebucheintrag vorhanden">📓 Tagebuch</span>
+                                @endif
+                                @if($session->times_count > 0)
+                                    <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium" title="{{ $session->times_count }} Zeiten erfasst">⏱ {{ $session->times_count }} Zeiten</span>
+                                @endif
                             </div>
-                            <p class="text-xs text-gray-500">{{ $session->type_label }} · {{ $session->present_count }} Schwimmer</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ $session->type_label }} · {{ $session->present_count }} Schwimmer</p>
                         </div>
                         <span class="text-xs text-gray-400">{{ $session->start_time }}</span>
                     </a>
@@ -54,38 +60,60 @@
             </div>
         </div>
 
-        {{-- Schnellzugriff + Geplante --}}
-        <div class="space-y-4">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h2 class="font-semibold text-gray-800 mb-4">Schnellzugriff</h2>
-                <a href="{{ route('trainer.sessions.create') }}"
-                   class="flex items-center gap-3 bg-primary text-white px-4 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors w-full">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    Neue Trainingseinheit anlegen
-                </a>
-            </div>
-
-            @if($upcoming->isNotEmpty())
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-                    <div class="p-5 border-b border-gray-100">
-                        <h2 class="font-semibold text-gray-800">Geplante Einheiten</h2>
-                    </div>
-                    <div class="divide-y divide-gray-50">
-                        @foreach($upcoming as $session)
-                            <a href="{{ route('trainer.sessions.show', $session) }}"
-                               class="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-                                <div class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-800">{{ $session->title }}</p>
-                                    <p class="text-xs text-gray-500">{{ $session->date->format('d.m.Y') }} · {{ $session->start_time }} Uhr</p>
-                                </div>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
+        {{-- Schnellzugriff --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h2 class="font-semibold text-gray-800 mb-4">Schnellzugriff</h2>
+            <a href="{{ route('trainer.sessions.create') }}"
+               class="flex items-center gap-3 bg-primary text-white px-4 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors w-full">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                Neue Trainingseinheit anlegen
+            </a>
         </div>
     </div>
+
+    {{-- Bevorstehende Trainingseinheiten --}}
+    @if($upcoming->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100">
+            <h2 class="font-semibold text-gray-800">Bevorstehende Trainingseinheiten</h2>
+            <a href="{{ route('trainer.sessions.index') }}" class="text-sm text-primary hover:underline">Alle</a>
+        </div>
+        <div class="divide-y divide-gray-50">
+            @foreach($upcoming as $session)
+                <a href="{{ route('trainer.sessions.show', $session) }}"
+                   class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
+                    {{-- Datum --}}
+                    <div class="text-center bg-green-50 rounded-lg p-2 min-w-[50px] flex-shrink-0">
+                        <p class="text-xs font-semibold text-green-700">{{ $session->date->format('d.M') }}</p>
+                        <p class="text-xs text-green-600/70">{{ $session->date->isoFormat('ddd') }}</p>
+                    </div>
+                    {{-- Info --}}
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
+                        <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                            @foreach($session->trainingGroups as $tg)
+                                @php $tgc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
+                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full {{ $tgc['badge'] }}">{{ $tg->name }}</span>
+                            @endforeach
+                            {{-- Trainingsplan vorhanden? --}}
+                            @if($session->has_plan)
+                                <span class="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">Plan ✓</span>
+                            @else
+                                <span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Kein Plan</span>
+                            @endif
+                            {{-- Absagen --}}
+                            @if($session->cancellation_count > 0)
+                                <span class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">{{ $session->cancellation_count }} Absage{{ $session->cancellation_count > 1 ? 'n' : '' }}</span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $session->start_time }} Uhr · {{ $session->location }}</p>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     {{-- Neue Rekorde dieser Saison --}}
     @if($new_records->isNotEmpty())

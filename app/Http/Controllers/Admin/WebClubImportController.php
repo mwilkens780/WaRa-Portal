@@ -76,8 +76,9 @@ class WebClubImportController extends Controller
         }
 
         // roles[index] = selected role value, or '' / absent = skip
-        $roleOverrides = $request->input('roles', []);
-        $rows = $parsed['rows'];
+        $roleOverrides  = $request->input('roles', []);
+        $rows           = $parsed['rows'];
+        $inactiveErrors = [];
 
         foreach ($rows as $index => &$row) {
             $selectedRole = trim($roleOverrides[$index] ?? '');
@@ -92,14 +93,28 @@ class WebClubImportController extends Controller
             $row['data']['role'] = $selectedRole;
             $row['role']         = $selectedRole;
 
-            // If the row was originally a skip, determine new action from user_id
+            // If the row was originally a skip (no WebClub role detected),
+            // determine action from whether the user already exists.
             if ($row['action'] === 'skip') {
+                // Person left the club → report error, do not import
+                if (($row['data']['active'] ?? true) === false) {
+                    $inactiveErrors[] = [
+                        'name'    => $row['name'],
+                        'message' => 'Person ist ausgetreten (Aktiv = Nein) und kann nicht importiert werden.',
+                    ];
+                    continue; // keep action='skip'
+                }
+
+                $row['roles']  = [$selectedRole];
                 $row['action'] = $row['user_id'] ? 'update' : 'new';
             }
         }
         unset($row);
 
         $result = $this->service->execute($rows);
+
+        // Prepend inactive-person errors to any DB-level errors from the service
+        $result['errors'] = array_merge($inactiveErrors, $result['errors']);
 
         session()->forget('webclub_import');
 

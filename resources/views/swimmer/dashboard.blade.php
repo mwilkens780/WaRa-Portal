@@ -5,8 +5,73 @@
 @section('content')
 <div class="space-y-6 mt-2">
 
+    {{-- Offene Wettkampf-Anmeldeabfragen --}}
+    @if($pendingSignups->isNotEmpty())
+        @foreach($pendingSignups as $signup)
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5"
+                 x-data="{ open: true }" x-show="open">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-start gap-3">
+                        <div class="shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800 text-sm">Wettkampf-Anmeldung: {{ $signup->competition->name }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                {{ $signup->competition->date_range }} · {{ $signup->competition->location }}
+                                @if($signup->deadline) · <strong>Anmeldefrist: {{ $signup->deadline->format('d.m.Y') }}</strong>@endif
+                            </p>
+                            @if($signup->message)
+                                <p class="text-sm text-gray-700 mt-2 whitespace-pre-line">{{ $signup->message }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    <button @click="open = false" class="shrink-0 text-gray-300 hover:text-gray-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex gap-3 mt-4 flex-wrap">
+                    <form method="POST" action="{{ route('swimmer.signup.respond', $signup) }}">
+                        @csrf
+                        <input type="hidden" name="status" value="attending">
+                        <button type="submit"
+                                class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
+                            Ich nehme teil
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('swimmer.signup.respond', $signup) }}"
+                          x-data="{ showNote: false }">
+                        @csrf
+                        <input type="hidden" name="status" value="not_attending">
+                        <div x-show="showNote" class="mb-2">
+                            <input type="text" name="note" placeholder="Grund (optional)"
+                                   class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-full focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" @click="showNote = !showNote"
+                                    class="px-5 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg text-sm transition-colors">
+                                Ich kann nicht teilnehmen
+                            </button>
+                            <button x-show="showNote" type="submit"
+                                    class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm transition-colors">
+                                Absagen
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                @if(session('success'))
+                    <p class="mt-3 text-sm text-green-700 font-medium">{{ session('success') }}</p>
+                @endif
+            </div>
+        @endforeach
+    @endif
+
     {{-- Statistik --}}
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <a href="{{ route('swimmer.sessions') }}"
            class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
             <p class="text-sm text-gray-500">Trainings gesamt</p>
@@ -49,6 +114,19 @@
                 <p class="text-xs text-gray-400 mt-2">Noch keine Ziele</p>
             @endif
         </a>
+
+        {{-- km diese Woche --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 col-span-2 lg:col-span-1">
+            <p class="text-sm text-gray-500">km diese Woche</p>
+            <p class="text-3xl font-bold text-teal-600 mt-1">
+                @if($stats['km_this_week'] > 0)
+                    {{ number_format($stats['km_this_week'], $stats['km_this_week'] < 10 ? 2 : 1, ',', '') }}
+                @else
+                    –
+                @endif
+            </p>
+            <p class="text-xs text-gray-400 mt-1">aus Trainingsplänen · {{ $stats['attended_week'] }} Einh.</p>
+        </div>
     </div>
 
     {{-- Trainingsbeteiligung --}}

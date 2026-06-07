@@ -51,7 +51,9 @@
                 <span><strong>{{ $session->date->format('d.m.Y') }}</strong> ({{ $session->date->isoFormat('dddd') }})</span>
                 <span>{{ $session->start_time }}@if($session->end_time) – {{ $session->end_time }}@endif Uhr</span>
                 <span>{{ $session->location }}</span>
-                <span>Trainer: {{ $session->trainer->name }}</span>
+                @if($session->coTrainers->isNotEmpty())
+                <span>Trainer: {{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') }}</span>
+                @endif
                 <span class="badge badge-gray">{{ $session->type_label }}</span>
             </div>
         </div>
@@ -70,7 +72,7 @@
         <h2>Trainingsplan</h2>
 
         @php
-            $planTotalMeters = $session->trainingPlan->blocks->sum(fn($b) => ($b->repetitions ?? 0) * ($b->distance ?? 0));
+            $planTotalMeters = $session->trainingPlan->blocks->sum(fn($b) => $b->total_repetitions * ($b->distance ?? 0));
             $allMaterials = $session->trainingPlan->blocks->flatMap(fn($b) => $b->materials ?? [])->unique()->values();
         @endphp
 
@@ -108,9 +110,9 @@
                         <span>{{ $block->label }}</span>
                         <span style="color:#ccc;">·</span>
                     @endif
-                    @if($block->repetitions && $block->distance)
-                        <span style="font-family:monospace; font-weight:bold;">{{ $block->repetitions }} × {{ $block->distance }} m</span>
-                        <span class="badge badge-gray">= {{ number_format($block->repetitions * $block->distance) }} m</span>
+                    @if($block->total_repetitions && $block->distance)
+                        <span style="font-family:monospace; font-weight:bold;">{{ $block->repetitions_display }} × {{ $block->distance }} m</span>
+                        <span class="badge badge-gray">= {{ number_format($block->total_repetitions * $block->distance) }} m</span>
                     @endif
                     @if($block->start_interval_seconds)
                         <span class="badge badge-blue">Intervall: {{ $iMin }}:{{ str_pad($iSec, 2, '0', STR_PAD_LEFT) }}</span>
@@ -143,27 +145,28 @@
     @endif
 
     {{-- ======================== ZEITEN-TABELLEN ======================== --}}
-    @if($session->trainingPlan && $session->trainingPlan->blocks->where('repetitions', '>', 0)->isNotEmpty() && $swimmers->isNotEmpty())
+    @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->total_repetitions > 0)->isNotEmpty() && $swimmers->isNotEmpty())
         <div class="page-break"></div>
         <h2>Zeiten</h2>
         @php $blockNum = 0; @endphp
         @foreach($session->trainingPlan->blocks as $block)
-            @if(($block->repetitions ?? 0) > 0)
+            @if($block->total_repetitions > 0)
                 @php
                     $blockNum++;
                     $blockTimeRow = $blockTimesMap[$block->id] ?? [];
+                    $totalReps    = $block->total_repetitions;
                 @endphp
                 <h3>
                     Block {{ $blockNum }}
                     @if($block->label) – {{ $block->label }}@endif
-                    @if($block->repetitions && $block->distance) ({{ $block->repetitions }} × {{ $block->distance }} m)@endif
+                    @if($block->distance) ({{ $block->repetitions_display }} × {{ $block->distance }} m)@endif
                 </h3>
                 <div style="overflow-x:auto; margin-bottom:14px;">
                     <table>
                         <thead>
                             <tr>
                                 <th style="text-align:left; min-width:100px;">Schwimmer</th>
-                                @for($i = 1; $i <= min($block->repetitions, 50); $i++)
+                                @for($i = 1; $i <= min($totalReps, 50); $i++)
                                     <th>{{ $i }}.</th>
                                 @endfor
                             </tr>
@@ -172,7 +175,7 @@
                             @foreach($swimmers as $sw)
                                 <tr>
                                     <td class="name-cell">{{ $sw->firstname }} {{ substr($sw->lastname ?? '', 0, 1) }}.</td>
-                                    @for($i = 1; $i <= min($block->repetitions, 50); $i++)
+                                    @for($i = 1; $i <= min($totalReps, 50); $i++)
                                         @php $cs = $blockTimeRow[$sw->id][$i] ?? null; @endphp
                                         <td class="value-cell">{{ $cs ? \App\Models\TrainingBlockTime::format($cs) : '' }}</td>
                                     @endfor

@@ -7,12 +7,14 @@
     @php
         $grouped = $records->groupBy(fn($r) => $r->discipline . '_' . $r->gender);
     @endphp
+    <div id="{{ $tabId ?? 'records' }}-records">
     @foreach($grouped as $key => $group)
         @php
-            $first    = $group->first();
-            $byDist   = $group->groupBy('distance')->sortKeys();
+            $first  = $group->first();
+            $byDist = $group->groupBy('distance')->sortKeys();
         @endphp
-        <div class="border-b border-gray-100 last:border-0">
+        <div class="record-section border-b border-gray-100 last:border-0"
+             data-gender="{{ $first->gender }}">
             <div class="bg-gray-50 px-5 py-2 flex items-center gap-2">
                 <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     {{ $first->discipline_label }}
@@ -35,7 +37,10 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @foreach($group->sortBy([['distance', 'asc'], ['age_group', 'asc']]) as $record)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="record-row hover:bg-gray-50"
+                            data-gender="{{ $record->gender }}"
+                            data-course="{{ $record->course }}"
+                            data-agegroup="{{ $record->age_group ?? '' }}">
                             <td class="px-5 py-2.5 font-medium text-gray-800">{{ $record->distance }} m</td>
                             <td class="px-5 py-2.5">
                                 <span class="text-xs px-2 py-0.5 rounded-full {{ $record->age_group ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
@@ -76,4 +81,5 @@
             </table>
         </div>
     @endforeach
+    </div>
 @endif

@@ -154,14 +154,6 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
-                <select name="import_course" required
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="LCM">Langbahn (50m)</option>
-                    <option value="SCM">Kurzbahn (25m)</option>
-                </select>
-            </div>
-            <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Datei</label>
                 <input type="file" name="record_file" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.txt" required
                        class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
@@ -171,6 +163,9 @@
                 Einlesen → Vorschau
             </button>
         </form>
+        <p class="text-xs text-gray-400 mt-2">
+            Bahnlänge und Geschlecht werden automatisch aus der CSV-Blockstruktur erkannt.
+        </p>
         @error('record_file')
             <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
         @enderror
@@ -199,14 +194,74 @@
 
         {{-- VR Table --}}
         <div x-show="activeTab === 'vr'" x-cloak>
-            @include('admin.records._table', ['records' => $vereinsrekorde, 'type' => 'vereinsrekord'])
+            @if($vrKlassen->count() > 1)
+            <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50/60">
+                <span class="text-xs text-gray-500 font-medium flex-shrink-0">Klasse:</span>
+                <select id="vr-klasse-filter" onchange="filterRecords('vr', this.value)"
+                        class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <option value="">Alle Klassen ({{ $vereinsrekorde->count() }})</option>
+                    @foreach($vrKlassen as $k)
+                    <option value="{{ $k['key'] }}">{{ $k['label'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
+            @include('admin.records._table', ['records' => $vereinsrekorde, 'type' => 'vereinsrekord', 'tabId' => 'vr'])
         </div>
 
         {{-- LR Table --}}
         <div x-show="activeTab === 'lr'" x-cloak>
-            @include('admin.records._table', ['records' => $landesrekorde, 'type' => 'landesrekord'])
+            @if($lrKlassen->count() > 1)
+            <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50/60">
+                <span class="text-xs text-gray-500 font-medium flex-shrink-0">Klasse:</span>
+                <select id="lr-klasse-filter" onchange="filterRecords('lr', this.value)"
+                        class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <option value="">Alle Klassen ({{ $landesrekorde->count() }})</option>
+                    @foreach($lrKlassen as $k)
+                    <option value="{{ $k['key'] }}">{{ $k['label'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
+            @include('admin.records._table', ['records' => $landesrekorde, 'type' => 'landesrekord', 'tabId' => 'lr'])
         </div>
     </div>
 
 </div>
+
+@push('scripts')
+<script>
+function filterRecords(tab, key) {
+    const container = document.getElementById(tab + '-records');
+    if (!container) return;
+
+    if (!key) {
+        // Show everything
+        container.querySelectorAll('.record-section').forEach(s => {
+            s.style.display = '';
+            s.querySelectorAll('.record-row').forEach(r => r.style.display = '');
+        });
+        return;
+    }
+
+    const parts = key.split('|');
+    const fg = parts[0] ?? '';
+    const fc = parts[1] ?? '';
+    const fa = parts[2] ?? '';
+
+    container.querySelectorAll('.record-section').forEach(section => {
+        let visible = 0;
+        section.querySelectorAll('.record-row').forEach(row => {
+            const match =
+                (!fg || row.dataset.gender   === fg) &&
+                (!fc || row.dataset.course   === fc) &&
+                row.dataset.agegroup === fa;
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        section.style.display = visible > 0 ? '' : 'none';
+    });
+}
+</script>
+@endpush
 @endsection

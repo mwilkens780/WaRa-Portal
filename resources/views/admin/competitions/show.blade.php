@@ -122,6 +122,39 @@
                     <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $competition->trainingGroups->count() }}</span>
                 @endif
             </button>
+            <button @click="activeTab = 'anmeldungen'"
+                    :class="activeTab === 'anmeldungen'
+                        ? 'border-primary text-primary bg-blue-50/40'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                    class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
+                Anmeldungen
+                @if($signupRequest?->isActive())
+                    @php $pending = $signupRequest->responses->where('status','pending')->count(); @endphp
+                    @if($pending > 0)
+                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-normal">{{ $pending }} offen</span>
+                    @endif
+                @endif
+            </button>
+            <button @click="activeTab = 'organisation'"
+                    :class="activeTab === 'organisation'
+                        ? 'border-primary text-primary bg-blue-50/40'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                    class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">
+                Organisation
+            </button>
+            <button @click="activeTab = 'meldungen'"
+                    :class="activeTab === 'meldungen'
+                        ? 'border-primary text-primary bg-blue-50/40'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                    class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
+                Meldungen
+                @if($signupRequest?->isClosed())
+                    @php $attending = $signupRequest->responses->where('status','attending')->count(); @endphp
+                    @if($attending > 0)
+                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-normal">{{ $attending }}</span>
+                    @endif
+                @endif
+            </button>
         </div>
 
         {{-- Tab: Import --}}
@@ -612,6 +645,305 @@
                     Speichern
                 </button>
             </form>
+        </div>
+
+        {{-- Tab: Anmeldungen --}}
+        <div x-show="activeTab === 'anmeldungen'" x-cloak class="p-5">
+
+            @if(session('success'))
+                <div class="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">{{ session('success') }}</div>
+            @endif
+            @if(session('error'))
+                <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{{ session('error') }}</div>
+            @endif
+
+            @if(!$signupRequest)
+                {{-- Noch keine Abfrage --}}
+                <div class="max-w-2xl">
+                    <p class="text-sm text-gray-500 mb-5">Noch keine Anmeldeabfrage erstellt. Definiere Gruppen oder Schwimmer, schreibe eine Nachricht und starte dann die Abfrage.</p>
+                    <form method="POST" action="{{ route('admin.competitions.signup.store', $competition) }}" enctype="multipart/form-data" class="space-y-5">
+                        @csrf
+                        @include('admin.competitions._signup_form', ['signupRequest' => null, 'allGroups' => $allGroups, 'swimmers' => $swimmers])
+                        <div class="flex gap-3">
+                            <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+                                Als Entwurf speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            @elseif($signupRequest->isDraft())
+                {{-- Draft-Phase --}}
+                <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+                            <span class="w-2 h-2 rounded-full bg-gray-400"></span> Entwurf
+                        </span>
+                        <p class="text-sm text-gray-500 mt-1">Entwurf gespeichert. Bearbeite die Abfrage und starte sie, wenn du bereit bist.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <form method="POST" action="{{ route('admin.competitions.signup.activate', [$competition, $signupRequest]) }}">
+                            @csrf
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors">
+                                Abfrage starten
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.competitions.signup.destroy', [$competition, $signupRequest]) }}"
+                              onsubmit="return confirm('Entwurf wirklich löschen?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm transition-colors">
+                                Löschen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('admin.competitions.signup.update', [$competition, $signupRequest]) }}" enctype="multipart/form-data" class="space-y-5 max-w-2xl">
+                    @csrf @method('PUT')
+                    @include('admin.competitions._signup_form', ['signupRequest' => $signupRequest, 'allGroups' => $allGroups, 'swimmers' => $swimmers])
+                    <div>
+                        <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+                            Entwurf aktualisieren
+                        </button>
+                    </div>
+                </form>
+
+            @elseif($signupRequest->isActive())
+                {{-- Aktive Phase --}}
+                <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Aktiv
+                        </span>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Gestartet {{ $signupRequest->activated_at->format('d.m.Y H:i') }} Uhr
+                            @if($signupRequest->deadline) · Deadline: {{ $signupRequest->deadline->format('d.m.Y') }}@endif
+                        </p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        @php $pendingCount = $signupRequest->responses->where('status','pending')->count(); @endphp
+                        @if($pendingCount > 0)
+                            <form method="POST" action="{{ route('admin.competitions.signup.remind', [$competition, $signupRequest]) }}">
+                                @csrf
+                                <button type="submit" class="px-4 py-2 border border-amber-300 text-amber-700 hover:bg-amber-50 rounded-lg text-sm transition-colors">
+                                    Erinnerung ({{ $pendingCount }})
+                                </button>
+                            </form>
+                        @endif
+                        <form method="POST" action="{{ route('admin.competitions.signup.close', [$competition, $signupRequest]) }}"
+                              onsubmit="return confirm('Anmeldeabfrage schließen? Danach können Schwimmer nicht mehr antworten.')">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm transition-colors">
+                                Abfrage schließen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                @if($signupRequest->message)
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-5 text-sm text-gray-700 whitespace-pre-line">
+                        {{ $signupRequest->message }}
+                    </div>
+                @endif
+
+                @if($signupRequest->attachment_path)
+                    <div class="mb-5">
+                        <a href="{{ route('admin.competitions.signup.attachment', [$competition, $signupRequest]) }}"
+                           class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                            </svg>
+                            Anhang herunterladen
+                        </a>
+                    </div>
+                @endif
+
+                {{-- Antwortstatus-Tabelle --}}
+                @php
+                    $responses = $signupRequest->responses->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
+                    $countAttending    = $responses->where('status', 'attending')->count();
+                    $countNotAttending = $responses->where('status', 'not_attending')->count();
+                    $countPending      = $responses->where('status', 'pending')->count();
+                @endphp
+                <div class="flex gap-4 mb-4 flex-wrap">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-green-600">{{ $countAttending }}</p>
+                        <p class="text-xs text-gray-500">Zusagen</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-red-500">{{ $countNotAttending }}</p>
+                        <p class="text-xs text-gray-500">Absagen</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-amber-500">{{ $countPending }}</p>
+                        <p class="text-xs text-gray-500">Ausstehend</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Antwort am</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Erinnert</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach($responses as $response)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2.5 font-medium text-gray-800">{{ $response->user?->name }}</td>
+                                    <td class="px-4 py-2.5">
+                                        @if($response->isAttending())
+                                            <span class="inline-flex items-center gap-1 text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">Zusage</span>
+                                        @elseif($response->isNotAttending())
+                                            <span class="inline-flex items-center gap-1 text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">Absage</span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">Ausstehend</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->responded_at?->format('d.m.Y H:i') ?? '–' }}</td>
+                                    <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
+                                    <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $response->reminder_sent_at?->format('d.m. H:i') ?? '–' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+            @else
+                {{-- Geschlossen --}}
+                <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-200 text-gray-600 px-3 py-1 rounded-full">
+                            Geschlossen
+                        </span>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Abfrage geschlossen am {{ $signupRequest->closed_at->format('d.m.Y H:i') }} Uhr.
+                        </p>
+                    </div>
+                </div>
+                @php
+                    $responses = $signupRequest->responses->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
+                @endphp
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach($responses as $response)
+                                <tr class="hover:bg-gray-50 {{ $response->isNotAttending() ? 'opacity-60' : '' }}">
+                                    <td class="px-4 py-2.5 font-medium text-gray-800">{{ $response->user?->name }}</td>
+                                    <td class="px-4 py-2.5">
+                                        @if($response->isAttending())
+                                            <span class="text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">Zusage</span>
+                                        @elseif($response->isNotAttending())
+                                            <span class="text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">Absage</span>
+                                        @else
+                                            <span class="text-xs font-semibold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Keine Antwort</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+
+        {{-- Tab: Organisation --}}
+        <div x-show="activeTab === 'organisation'" x-cloak class="p-5">
+            <p class="text-sm text-gray-500 mb-4">Interne Notizen zur Organisation: Anreise, Unterkunft, Zeitplan, Kontakte etc.</p>
+            <form method="POST" action="{{ route('admin.competitions.organisation.save', $competition) }}" class="space-y-4">
+                @csrf
+                <textarea name="notes" rows="10"
+                          placeholder="z.B. Anreise: Abfahrt 7:00 Uhr ab Vereinsheim&#10;Unterkunft: Hotel Musterstadt, Zimmer für 8 Personen&#10;Kontakt Ausrichter: Max Mustermann, 0123-456789"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none resize-y font-sans leading-relaxed">{{ $competition->organisation_notes['text'] ?? '' }}</textarea>
+                <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+                    Speichern
+                </button>
+            </form>
+        </div>
+
+        {{-- Tab: Meldungen --}}
+        <div x-show="activeTab === 'meldungen'" x-cloak class="p-5">
+            @if(!$signupRequest || !$signupRequest->isClosed())
+                <div class="text-center py-8">
+                    <svg class="mx-auto w-10 h-10 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <p class="text-sm text-gray-400">Die Meldeliste steht zur Verfügung, sobald die Anmeldeabfrage geschlossen wurde.</p>
+                    @if($signupRequest?->isActive())
+                        <p class="text-xs text-gray-400 mt-1">Gehe zu „Anmeldungen" und schließe die Abfrage.</p>
+                    @elseif(!$signupRequest)
+                        <p class="text-xs text-gray-400 mt-1">Starte zunächst eine Anmeldeabfrage im Tab „Anmeldungen".</p>
+                    @endif
+                </div>
+            @else
+                @php
+                    $attending = $signupRequest->responses->where('status', 'attending')
+                        ->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
+                @endphp
+
+                <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                        <h3 class="font-semibold text-gray-800">Meldeliste – {{ $attending->count() }} Schwimmer</h3>
+                        @if($competition->meldeschluss)
+                            <p class="text-sm text-gray-500 mt-0.5">Meldeschluss: <strong>{{ $competition->meldeschluss->format('d.m.Y') }}</strong></p>
+                        @endif
+                    </div>
+                </div>
+
+                @if($attending->isEmpty())
+                    <p class="text-sm text-gray-400 text-center py-6">Keine Zusagen vorhanden.</p>
+                @else
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 mb-5">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">DSV-ID</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Jahrgang</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach($attending as $i => $response)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $i + 1 }}</td>
+                                        <td class="px-4 py-2.5 font-medium text-gray-800">{{ $response->user?->name }}</td>
+                                        <td class="px-4 py-2.5 text-gray-500 font-mono text-xs">{{ $response->user?->dsv_id ?? '–' }}</td>
+                                        <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->user?->birth_year ?? '–' }}</td>
+                                        <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->note ?? '–' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{-- Nicht-Zusagen als Info --}}
+                    @php $notAttending = $signupRequest->responses->where('status', 'not_attending'); @endphp
+                    @if($notAttending->isNotEmpty())
+                        <details class="text-sm text-gray-400">
+                            <summary class="cursor-pointer hover:text-gray-600 select-none">
+                                {{ $notAttending->count() }} Absage(n) anzeigen
+                            </summary>
+                            <ul class="mt-2 space-y-0.5 pl-4">
+                                @foreach($notAttending->sortBy(fn($r) => $r->user?->lastname) as $r)
+                                    <li>{{ $r->user?->name }}@if($r->note) <span class="text-gray-400">– {{ $r->note }}</span>@endif</li>
+                                @endforeach
+                            </ul>
+                        </details>
+                    @endif
+                @endif
+            @endif
         </div>
 
     </div>{{-- end tab container --}}

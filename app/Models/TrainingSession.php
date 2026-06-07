@@ -16,7 +16,7 @@ class TrainingSession extends Model
     }
 
     protected $fillable = [
-        'trainer_id', 'title', 'date', 'start_time', 'end_time', 'location', 'type', 'notes',
+        'title', 'date', 'start_time', 'end_time', 'location', 'type', 'notes',
         'recurrence_type', 'recurrence_until', 'recurrence_group_id',
         'team_plan_path', 'individual_plan_path',
     ];
@@ -27,11 +27,6 @@ class TrainingSession extends Model
             'date' => 'date',
             'recurrence_until' => 'date',
         ];
-    }
-
-    public function trainer()
-    {
-        return $this->belongsTo(User::class, 'trainer_id');
     }
 
     public function trainingGroups()
@@ -125,6 +120,15 @@ class TrainingSession extends Model
         return $this->belongsToMany(User::class, 'training_session_trainers');
     }
 
+    // Backward-compat accessor: returns first assigned trainer (or null)
+    public function getTrainerAttribute(): ?\App\Models\User
+    {
+        if ($this->relationLoaded('coTrainers')) {
+            return $this->coTrainers->first();
+        }
+        return $this->coTrainers()->first();
+    }
+
     public function hallBookings(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(HallBooking::class, 'training_session_id');
@@ -132,10 +136,9 @@ class TrainingSession extends Model
 
     public function getHasMissingTrainerAttribute(): bool
     {
-        if (!$this->trainer_id) return true;
-        if ($this->relationLoaded('trainer')) {
-            return $this->trainer === null || !$this->trainer->active;
+        if ($this->relationLoaded('coTrainers')) {
+            return $this->coTrainers->isEmpty();
         }
-        return false;
+        return !$this->coTrainers()->exists();
     }
 }

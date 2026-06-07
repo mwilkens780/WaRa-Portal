@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\TrainingGroupController;
 use App\Http\Controllers\Admin\WebClubImportController;
 use App\Http\Controllers\Admin\CompetitionWebclubImportController;
+use App\Http\Controllers\Admin\CompetitionSignupController;
+use App\Http\Controllers\Swimmer\SignupController as SwimmerSignupController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
 use App\Http\Controllers\Trainer\TrainingSessionController;
 use App\Http\Controllers\Trainer\DsvImportController;
@@ -55,6 +57,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/benutzer/{user}/aktivierung', [AdminUserController::class, 'toggleActive'])->name('users.toggle-active');
     Route::post('/benutzer/{user}/passwort-reset', [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
     Route::delete('/benutzer-alle', [AdminUserController::class, 'destroyAll'])->name('users.destroy-all');
+    Route::post('/benutzer/dsv-bereinigen', [AdminUserController::class, 'cleanupDsvIds'])->name('users.cleanup-dsv');
 
     // WebClub Wettkampf-Terminimport
     Route::get('/wettkaempfe/webclub-import', [CompetitionWebclubImportController::class, 'showForm'])->name('competitions.webclub-import.form');
@@ -105,6 +108,12 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::get('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'show'])->name('training-groups.show');
     Route::get('/trainingsgruppen/{trainingGroup}/bearbeiten', [TrainingGroupController::class, 'edit'])->name('training-groups.edit');
     Route::put('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'update'])->name('training-groups.update');
+    // Schwimmer entfernen
+    Route::delete('/trainingsgruppen/{trainingGroup}/schwimmer/{user}', [TrainingGroupController::class, 'removeSwimmer'])->name('training-groups.remove-swimmer');
+    // CSV-Import
+    Route::post('/trainingsgruppen/{trainingGroup}/csv-upload', [TrainingGroupController::class, 'importCsvUpload'])->name('training-groups.csv-upload');
+    Route::get('/trainingsgruppen/{trainingGroup}/csv-vorschau', [TrainingGroupController::class, 'importCsvPreview'])->name('training-groups.csv-preview');
+    Route::post('/trainingsgruppen/{trainingGroup}/csv-speichern', [TrainingGroupController::class, 'importCsvExecute'])->name('training-groups.csv-execute');
 });
 
 // Wettkämpfe – Ansicht & Import auch für Trainer zugänglich
@@ -115,6 +124,18 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::post('/wettkaempfe/{competition}/ergebnisse-import', [CompetitionResultImportController::class, 'upload'])->name('competitions.results-import.upload');
     Route::get('/wettkaempfe/{competition}/ergebnisse-import/vorschau', [CompetitionResultImportController::class, 'preview'])->name('competitions.results-import.preview');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import/speichern', [CompetitionResultImportController::class, 'execute'])->name('competitions.results-import.execute');
+
+    // Organisation-Notizen speichern
+    Route::post('/wettkaempfe/{competition}/organisation', [AdminCompetitionController::class, 'saveOrganisation'])->name('competitions.organisation.save');
+
+    // Anmeldeabfrage (Signup-Workflow)
+    Route::post('/wettkaempfe/{competition}/anmeldung', [CompetitionSignupController::class, 'store'])->name('competitions.signup.store');
+    Route::put('/wettkaempfe/{competition}/anmeldung/{signupRequest}', [CompetitionSignupController::class, 'update'])->name('competitions.signup.update');
+    Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/aktivieren', [CompetitionSignupController::class, 'activate'])->name('competitions.signup.activate');
+    Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/schliessen', [CompetitionSignupController::class, 'close'])->name('competitions.signup.close');
+    Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/erinnern', [CompetitionSignupController::class, 'remind'])->name('competitions.signup.remind');
+    Route::delete('/wettkaempfe/{competition}/anmeldung/{signupRequest}', [CompetitionSignupController::class, 'destroy'])->name('competitions.signup.destroy');
+    Route::get('/wettkaempfe/{competition}/anmeldung/{signupRequest}/anhang', [CompetitionSignupController::class, 'downloadAttachment'])->name('competitions.signup.attachment');
 });
 
 // Trainer-Bereich (Trainer + Admin)
@@ -129,9 +150,6 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::get('/training/{session}/bearbeiten', [TrainingSessionController::class, 'edit'])->name('sessions.edit');
     Route::put('/training/{session}', [TrainingSessionController::class, 'update'])->name('sessions.update');
     Route::delete('/training/{session}', [TrainingSessionController::class, 'destroy'])->name('sessions.destroy');
-
-    // Vertretung (Trainer-Wechsel für Einzeleinheit)
-    Route::patch('/training/{session}/vertretung', [TrainingSessionController::class, 'substituteTrainer'])->name('sessions.substitute');
 
     // Anwesenheit & Zeiten
     Route::post('/training/{session}/anwesenheit', [TrainingSessionController::class, 'saveAttendance'])->name('sessions.attendance');
@@ -206,6 +224,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
 // Schwimmer-Bereich
 Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimmer.')->group(function () {
     Route::get('/dashboard', [SwimmerDashboard::class, 'index'])->name('dashboard');
+    Route::post('/anmeldung/{signupRequest}/antworten', [SwimmerSignupController::class, 'respond'])->name('signup.respond');
     Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->name('times');
     Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->name('competitions');
     Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->name('sessions');

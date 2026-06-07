@@ -28,12 +28,18 @@ class RecordImportService
 
     public function parse(string $path, string $defaultCourse = 'LCM'): array
     {
-        $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['csv', 'txt'])) {
+            $structured = $this->parseCsvBlocks($path);
+            if (!empty($structured)) return $structured;
+            // Fallback: generic heuristic parser
+            return $this->detectRecords($this->parseCsv($path), $defaultCourse);
+        }
 
         $rows = match($ext) {
             'xlsx'       => $this->parseXlsx($path),
             'docx'       => $this->parseDocx($path),
-            'csv', 'txt' => $this->parseCsv($path),
             'pdf'        => $this->parsePdf($path),
             'xls', 'doc' => $this->parseLegacyOffice($path, $ext),
             default      => throw new \RuntimeException(
@@ -178,6 +184,161 @@ class RecordImportService
             fclose($handle);
         }
         return $lines;
+    }
+
+    /**
+     * Parses the structured block CSV format used by club record lists.
+     *
+     * Format:
+     *   Line 1:  Listentyp (e.g. "Rekordliste, gesamt;")
+     *   Block header: ";Weiblich, Kurzbahn, Offen;" (empty first field)
+     *   Column header: "Strecke;Name;Jg;Gruppe;Zeit;Datum;Ort;Veranstaltung;World Aquatics;"
+     *   Data rows:     "100 F;Max Mustermann;2000;Gruppe A;01:05,23;01.01.2024;Hamburg;Meisterschaft;650;"
+     *   Multiple blocks per file are supported.
+     *
+     * Returns [] if the file does not match this format (fallback to heuristic parser).
+     */
+    private function parseCsvBlocks(string $path): array
+    {
+        $raw = file_get_contents($path);
+        if (!mb_check_encoding($raw, 'UTF-8')) {
+            $raw = mb_convert_encoding($raw, 'UTF-8', 'Windows-1252') ?: $raw;
+        }
+
+        $allRows = [];
+        $handle  = fopen('data://text/plain;base64,' . base64_encode($raw), 'r');
+        if ($handle) {
+            while (($fields = fgetcsv($handle, 0, ';')) !== false) {
+                $allRows[] = array_map('trim', $fields);
+            }
+            fclose($handle);
+        }
+
+        if (count($allRows) < 3) return [];
+
+        // Structured format check:
+        //   Row 0: non-empty first field (Listentyp)
+        //   Row 1: empty first field + non-empty second field (first block header)
+        if (($allRows[0][0] ?? '') === ''
+            || ($allRows[1][0] ?? '') !== ''
+            || ($allRows[1][1] ?? '') === '') {
+            return [];
+        }
+
+        $records     = [];
+        $gender      = null;
+        $course      = 'LCM';
+        $ageGroup    = null;
+        $inDataBlock = false;
+
+        foreach ($allRows as $idx => $fields) {
+            if ($idx === 0) continue; // skip Listentyp
+
+            $first  = $fields[0] ?? '';
+            $second = $fields[1] ?? '';
+
+            // Block header: empty first field, content in second
+            if ($first === '' && $second !== '') {
+                [$gender, $course, $ageGroup] = $this->parseBlockHeader($second);
+                $inDataBlock = false;
+                continue;
+            }
+
+            // Column header row
+            if ($first === 'Strecke') {
+                $inDataBlock = true;
+                continue;
+            }
+
+            // Skip empty rows
+            if (trim(implode('', $fields)) === '') continue;
+
+            // Data row
+            if (!$inDataBlock || !$gender) continue;
+
+            [$distance, $discipline] = $this->parseStrecke($fields[0] ?? '');
+            $timeMs = $this->parseTimeStr($fields[4] ?? '');
+
+            $date     = null;
+            $datumRaw = $fields[5] ?? '';
+            if ($datumRaw && preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $datumRaw, $dm)) {
+                $date = "{$dm[3]}-{$dm[2]}-{$dm[1]}";
+            }
+
+            $records[] = [
+                'discipline'   => $discipline,
+                'distance'     => $distance,
+                'gender'       => $gender,
+                'age_group'    => $ageGroup,
+                'course'       => $course,
+                'swimmer_name' => $fields[1] ?? '',
+                'time_ms'      => $timeMs,
+                'time_str'     => $fields[4] ?? '',
+                'set_date'     => $date,
+                'location'     => ($fields[6] ?? '') ?: null,
+                'raw_line'     => implode(';', $fields),
+            ];
+        }
+
+        return $records;
+    }
+
+    /** Parses ";Weiblich, Kurzbahn, Offen;" block descriptor into [gender, course, age_group]. */
+    private function parseBlockHeader(string $header): array
+    {
+        $gender   = null;
+        $course   = 'LCM';
+        $ageGroup = null;
+
+        if (preg_match('/weiblich/iu', $header))              $gender = 'F';
+        elseif (preg_match('/männlich|maennlich/iu', $header)) $gender = 'M';
+
+        if (preg_match('/kurzbahn/iu', $header))    $course = 'SCM';
+        elseif (preg_match('/langbahn/iu', $header)) $course = 'LCM';
+
+        if (preg_match('/AK\s*(\d+)/i', $header, $m)) $ageGroup = 'AK' . $m[1];
+        // "Offen" → $ageGroup stays null
+
+        return [$gender, $course, $ageGroup];
+    }
+
+    /**
+     * Parses the Strecke field (e.g. "100 F", "200 R", "25 DB") into [distance, discipline].
+     * Returns [null, null] for unrecognised or non-standard codes.
+     */
+    private function parseStrecke(string $strecke): array
+    {
+        if (!preg_match('/^(\d+)\s+([A-ZÄÖÜ]+)$/iu', trim($strecke), $m)) {
+            return [null, null];
+        }
+
+        $distance = (int)$m[1];
+        $code     = strtoupper(trim($m[2]));
+
+        // Standard discipline codes (German swimming federation notation)
+        // Leg-only youth disciplines are mapped to the parent stroke
+        $map = [
+            'F'   => 'freistil',
+            'FR'  => 'freistil',
+            'KB'  => 'freistil',        // Kraul-Bein
+            'B'   => 'brust',
+            'BR'  => 'brust',
+            'BB'  => 'brust',           // Brust-Bein
+            'R'   => 'ruecken',
+            'RU'  => 'ruecken',
+            'RB'  => 'ruecken',         // Rücken-Bein
+            'S'   => 'schmetterling',
+            'SCH' => 'schmetterling',
+            'DB'  => 'schmetterling',   // Delfin-Bein
+            'L'   => 'lagen',
+        ];
+
+        $discipline = $map[$code] ?? null;
+        if (!$discipline || !in_array($distance, [25, 50, 100, 200, 400, 800, 1500])) {
+            return [null, null];
+        }
+
+        return [$distance, $discipline];
     }
 
     private function parsePdf(string $path): array

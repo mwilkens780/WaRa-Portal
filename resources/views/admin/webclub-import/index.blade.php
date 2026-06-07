@@ -19,7 +19,7 @@
                 <li>{{ $r['skipped'] }} Zeile{{ $r['skipped'] !== 1 ? 'n' : '' }} übersprungen</li>
             </ul>
             @if($hasErrors)
-                <details class="mt-2">
+                <details class="mt-2" open>
                     <summary class="text-sm font-medium text-amber-800 cursor-pointer">
                         {{ count($r['errors']) }} Fehler beim Import
                     </summary>

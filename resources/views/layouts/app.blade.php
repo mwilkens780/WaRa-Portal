@@ -42,7 +42,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-<div x-data="{ sidebarOpen: false }" class="flex h-screen overflow-hidden">
+<div x-data="{ sidebarOpen: false, pwModal: {{ $errors->has('current_password') || $errors->has('password') ? 'true' : 'false' }}, pwLoading: false }" class="flex h-screen overflow-hidden">
 
     {{-- Sidebar --}}
     <aside
@@ -190,11 +190,11 @@
 
         {{-- User footer --}}
         <div class="border-t border-white/15 p-2 space-y-0.5">
-            <a href="{{ route('password.change') }}"
-               class="{{ request()->routeIs('password.change') ? 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold bg-white text-[#1B5EAB] shadow-sm' : 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:bg-white/10 transition-colors' }}">
+            <button type="button" @click="pwModal = true; sidebarOpen = false"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                 <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
                 <span>Passwort ändern</span>
-            </a>
+            </button>
 
             <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/5">
                 <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0">
@@ -268,6 +268,81 @@
         <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-100">
             WaRa-Portal &copy; {{ date('Y') }} – SG Wasserratten Norderstedt e.V.
         </footer>
+    </div>
+</div>
+
+{{-- Passwort-ändern-Modal (global, für alle Rollen) --}}
+<div x-show="pwModal" x-cloak
+     class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+     @keydown.escape.window="pwModal = false">
+
+    {{-- Backdrop --}}
+    <div class="absolute inset-0 bg-black/50" @click="pwModal = false"></div>
+
+    {{-- Dialog --}}
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md"
+         @click.stop
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95">
+
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-800">Passwort ändern</h2>
+            <button type="button" @click="pwModal = false"
+                    class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <form method="POST" action="{{ route('password.update') }}"
+              @submit="pwLoading = true"
+              class="px-6 py-5 space-y-4">
+            @csrf
+            @method('PUT')
+
+            @if($errors->has('current_password') || $errors->has('password'))
+                <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+                    @foreach(array_filter([$errors->first('current_password'), $errors->first('password')]) as $err)
+                        <p>{{ $err }}</p>
+                    @endforeach
+                </div>
+            @endif
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Aktuelles Passwort</label>
+                <input type="password" name="current_password" required autocomplete="current-password"
+                       class="w-full px-4 py-2.5 border {{ $errors->has('current_password') ? 'border-red-400' : 'border-gray-300' }} rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Neues Passwort</label>
+                <input type="password" name="password" required autocomplete="new-password"
+                       class="w-full px-4 py-2.5 border {{ $errors->has('password') ? 'border-red-400' : 'border-gray-300' }} rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <p class="text-xs text-gray-400 mt-1">Mindestens 8 Zeichen, Buchstaben und Zahlen</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Neues Passwort bestätigen</label>
+                <input type="password" name="password_confirmation" required autocomplete="new-password"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit"
+                        :disabled="pwLoading"
+                        class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 rounded-lg text-sm transition-colors disabled:opacity-60">
+                    <span x-show="!pwLoading">Passwort speichern</span>
+                    <span x-show="pwLoading" x-cloak>Wird gespeichert…</span>
+                </button>
+                <button type="button" @click="pwModal = false"
+                        class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    Abbrechen
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

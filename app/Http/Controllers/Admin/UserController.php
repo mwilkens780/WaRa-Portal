@@ -45,24 +45,30 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'firstname'   => ['required', 'string', 'max:100'],
-            'lastname'    => ['required', 'string', 'max:100'],
-            'email'       => ['nullable', 'email', 'unique:users'],
-            'password'    => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-            'role'        => ['nullable', 'in:' . implode(',', User::ROLES)],
-            'user_roles'  => ['nullable', 'array'],
-            'user_roles.*'=> ['in:' . implode(',', User::ROLES)],
-            'birth_date'  => ['nullable', 'date'],
-            'phone'       => ['nullable', 'string', 'max:30'],
-            'active'      => ['boolean'],
-            'children'    => ['nullable', 'array'],
-            'children.*'  => ['exists:users,id'],
+            'firstname'    => ['required', 'string', 'max:100'],
+            'lastname'     => ['required', 'string', 'max:100'],
+            'email'        => ['nullable', 'email', 'unique:users'],
+            'user_roles'   => ['nullable', 'array'],
+            'user_roles.*' => ['in:' . implode(',', User::ROLES)],
+            'birth_date'   => ['nullable', 'date'],
+            'phone'        => ['nullable', 'string', 'max:30'],
+            'active'       => ['boolean'],
+            'children'     => ['nullable', 'array'],
+            'children.*'   => ['exists:users,id'],
         ]);
 
-        $data['name']     = trim($data['firstname'] . ' ' . $data['lastname']);
-        $data['password'] = Hash::make($data['password']);
-        $data['active']   = $request->boolean('active', true);
         $roles = $data['user_roles'] ?? [];
+
+        // Primary role = highest-priority role in selection (order from User::ROLES)
+        $primaryRole = collect(User::ROLES)->first(fn($r) => in_array($r, $roles)) ?? 'schwimmer';
+
+        $plain = WebClubImportService::generateInitialPassword();
+
+        $data['name']             = trim($data['firstname'] . ' ' . $data['lastname']);
+        $data['role']             = $primaryRole;
+        $data['password']         = Hash::make($plain);
+        $data['initial_password'] = $plain;
+        $data['active']           = $request->boolean('active', true);
         unset($data['user_roles'], $data['children']);
 
         $user = User::create($data);
@@ -70,12 +76,13 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
-        if (($data['role'] ?? '') === 'elternteil' && !empty($request->children)) {
+        if (in_array('elternteil', $roles) && !empty($request->children)) {
             $user->children()->sync($request->children);
         }
 
-        return redirect()->route('admin.users.index')
-            ->with('success', "Benutzer \"{$user->name}\" wurde erfolgreich angelegt.");
+        // Redirect to edit so admin can see and copy the initial password
+        return redirect()->route('admin.users.edit', $user)
+            ->with('success', "Benutzer \"{$user->name}\" angelegt – Initialpasswort ist unten sichtbar.");
     }
 
     public function edit(User $user)
@@ -176,6 +183,15 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', "{$count} Nicht-Admin-Benutzer wurden gelöscht. Alle Administratoren bleiben erhalten.");
+    }
+
+    public function cleanupDsvIds()
+    {
+        $count = User::whereRaw("dsv_id REGEXP '^0+$'")->count();
+        User::whereRaw("dsv_id REGEXP '^0+$'")->update(['dsv_id' => null]);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "DSV-ID bereinigt: {$count} Einträge mit Nullwert (000000 etc.) auf leer gesetzt.");
     }
 
     public function toggleActive(User $user)

@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class CompetitionSignupResponse extends Model
+{
+    protected $fillable = [
+        'competition_signup_request_id', 'user_id', 'status', 'note', 'responded_at', 'reminder_sent_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'responded_at'     => 'datetime',
+            'reminder_sent_at' => 'datetime',
+        ];
+    }
+
+    public function signupRequest() { return $this->belongsTo(CompetitionSignupRequest::class, 'competition_signup_request_id'); }
+    public function user()          { return $this->belongsTo(User::class); }
+
+    public function isAttending(): bool    { return $this->status === 'attending'; }
+    public function isNotAttending(): bool { return $this->status === 'not_attending'; }
+    public function isPending(): bool      { return $this->status === 'pending'; }
+}

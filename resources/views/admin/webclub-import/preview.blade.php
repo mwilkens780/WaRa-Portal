@@ -51,10 +51,13 @@
                     <tbody class="divide-y divide-gray-100">
                         @foreach($rows as $index => $row)
                             @php
-                                $isUnassigned = ($row['action'] === 'skip' && isset($row['reason']));
-                                $trClass = $isUnassigned
-                                    ? 'bg-amber-50 hover:bg-amber-100 transition-colors'
-                                    : 'hover:bg-gray-50 transition-colors';
+                                $isUnassigned  = ($row['action'] === 'skip' && isset($row['reason']));
+                                $hasUserMatch  = $isUnassigned && ($row['user_id'] ?? null);
+                                $trClass = $hasUserMatch
+                                    ? 'bg-orange-50 hover:bg-orange-100 transition-colors'
+                                    : ($isUnassigned
+                                        ? 'bg-amber-50 hover:bg-amber-100 transition-colors'
+                                        : 'hover:bg-gray-50 transition-colors');
                             @endphp
                             <tr class="{{ $trClass }}">
 
@@ -106,11 +109,31 @@
                                 </td>
 
                                 {{-- Hinweis --}}
-                                <td class="px-4 py-2.5 text-xs text-gray-400 hidden xl:table-cell">
+                                <td class="px-4 py-2.5 text-xs hidden xl:table-cell">
                                     @if($row['action'] === 'update')
-                                        Bestehender User ID {{ $row['user_id'] }}
+                                        <span class="text-blue-600">Update User #{{ $row['user_id'] }}</span>
+                                        @if($row['existing_name'] ?? null)
+                                            <span class="text-gray-500">({{ $row['existing_name'] }})</span>
+                                        @endif
+                                        @if(($row['matched_by'] ?? null) === 'dsv_id')
+                                            <span class="text-gray-400">· via DSV-ID</span>
+                                        @elseif(($row['matched_by'] ?? null) === 'name_birthdate')
+                                            <span class="text-gray-400">· via Name+Geb.</span>
+                                        @endif
+                                    @elseif($isUnassigned && ($row['user_id'] ?? null))
+                                        {{-- Skip-Zeile, aber Zuordnung zu bestehendem User gefunden --}}
+                                        <span class="font-semibold text-orange-600">
+                                            ⚠ Zuordnung zu User #{{ $row['user_id'] }}
+                                            @if($row['existing_name'] ?? null)({{ $row['existing_name'] }})@endif
+                                        </span>
+                                        @if(($row['matched_by'] ?? null) === 'dsv_id')
+                                            <span class="text-orange-500">via DSV-ID</span>
+                                        @elseif(($row['matched_by'] ?? null) === 'name_birthdate')
+                                            <span class="text-orange-500">via Name+Geb.</span>
+                                        @endif
+                                        <br><span class="text-gray-400">→ Rollenzuweisung aktualisiert bestehenden User, legt keinen neuen an</span>
                                     @elseif($isUnassigned)
-                                        {{ $row['reason'] ?? '' }}
+                                        <span class="text-gray-400">{{ $row['reason'] ?? '' }}</span>
                                     @endif
                                 </td>
                             </tr>

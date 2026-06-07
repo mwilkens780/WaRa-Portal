@@ -21,22 +21,26 @@ class RecordController extends Controller
     public function index()
     {
         $vereinsrekorde = Record::where('type', 'vereinsrekord')
-            ->orderBy('discipline')
-            ->orderBy('distance')
-            ->orderBy('gender')
-            ->orderBy('age_group')
-            ->orderBy('course')
+            ->orderBy('discipline')->orderBy('distance')
+            ->orderBy('gender')->orderBy('age_group')->orderBy('course')
             ->get();
 
         $landesrekorde = Record::where('type', 'landesrekord')
-            ->orderBy('discipline')
-            ->orderBy('distance')
-            ->orderBy('gender')
-            ->orderBy('age_group')
-            ->orderBy('course')
+            ->orderBy('discipline')->orderBy('distance')
+            ->orderBy('gender')->orderBy('age_group')->orderBy('course')
             ->get();
 
-        return view('admin.records.index', compact('vereinsrekorde', 'landesrekorde'));
+        $buildKlassen = fn($records) => $records->map(fn($r) => [
+            'key'   => $r->gender . '|' . $r->course . '|' . ($r->age_group ?? ''),
+            'label' => ($r->gender === 'F' ? 'Weiblich' : 'Männlich') . ', ' .
+                       ($r->course === 'SCM' ? 'Kurzbahn' : 'Langbahn') . ', ' .
+                       ($r->age_group ?: 'Offen'),
+        ])->unique('key')->sortBy('label')->values();
+
+        $vrKlassen = $buildKlassen($vereinsrekorde);
+        $lrKlassen = $buildKlassen($landesrekorde);
+
+        return view('admin.records.index', compact('vereinsrekorde', 'landesrekorde', 'vrKlassen', 'lrKlassen'));
     }
 
     // ── Manual create/store ──────────────────────────────────────────────────
@@ -120,7 +124,6 @@ class RecordController extends Controller
         $request->validate([
             'record_file' => ['required', 'file', 'max:20480'],
             'import_type' => ['required', 'in:vereinsrekord,landesrekord'],
-            'import_course' => ['required', 'in:LCM,SCM'],
         ]);
 
         $file = $request->file('record_file');
@@ -134,7 +137,8 @@ class RecordController extends Controller
         $fullPath = storage_path('app/' . $path);
 
         try {
-            $parsed = $this->importService->parse($fullPath, $request->input('import_course'));
+            // Course is derived per-block from the CSV; LCM is only the fallback for non-structured formats
+            $parsed = $this->importService->parse($fullPath);
         } catch (\Exception $e) {
             Storage::disk('local')->delete($path);
             return back()->withErrors(['record_file' => 'Fehler beim Einlesen: ' . $e->getMessage()]);
@@ -147,9 +151,8 @@ class RecordController extends Controller
         }
 
         session([
-            'record_import_rows'   => $parsed,
-            'record_import_type'   => $request->input('import_type'),
-            'record_import_course' => $request->input('import_course'),
+            'record_import_rows' => $parsed,
+            'record_import_type' => $request->input('import_type'),
         ]);
 
         return redirect()->route('admin.records.import.preview');
@@ -159,24 +162,22 @@ class RecordController extends Controller
 
     public function importPreview()
     {
-        $rows   = session('record_import_rows');
-        $type   = session('record_import_type');
-        $course = session('record_import_course');
+        $rows = session('record_import_rows');
+        $type = session('record_import_type');
 
         if (!$rows) {
             return redirect()->route('admin.records.index')
                 ->with('error', 'Keine Importdaten gefunden. Bitte Datei erneut hochladen.');
         }
 
-        return view('admin.records.import-preview', compact('rows', 'type', 'course'));
+        return view('admin.records.import-preview', compact('rows', 'type'));
     }
 
     // ── Import: execute ───────────────────────────────────────────────────────
 
     public function importExecute(Request $request)
     {
-        $type   = session('record_import_type');
-        $course = session('record_import_course');
+        $type = session('record_import_type');
 
         if (!$type || !session()->has('record_import_rows')) {
             return redirect()->route('admin.records.index')
@@ -194,7 +195,7 @@ class RecordController extends Controller
             $gender      = $row['gender']        ?? null;
             $swimmerName = trim($row['swimmer_name'] ?? '');
             $ageGroup    = trim($row['age_group'] ?? '') ?: null;
-            $rowCourse   = $row['course'] ?? $course;
+            $rowCourse   = $row['course'] ?? 'LCM';
             $timeMs      = (int)($row['time_ms'] ?? 0);
             $setDate     = $row['set_date'] ?: null;
             $location    = trim($row['location'] ?? '') ?: null;
@@ -235,7 +236,7 @@ class RecordController extends Controller
             }
         }
 
-        session()->forget(['record_import_rows', 'record_import_type', 'record_import_course']);
+        session()->forget(['record_import_rows', 'record_import_type']);
 
         if ($saved > 0) {
             $this->checkService->recheckAll();

@@ -60,7 +60,14 @@
         : \Carbon\Carbon::create($navCalYear, $navMonth, 1)->format('Y-m-d');
 @endphp
 
-<div class="mt-2 space-y-4">
+<div class="mt-2 space-y-4"
+     x-data="{
+         categories: { blue: true, red: true, emerald: true, amber: true, orange: true, purple: true, gray: true, holiday: true, vacSH: true, vacHH: true }
+     }"
+     x-init="
+         try { let s = localStorage.getItem('cal_filters'); if (s) Object.assign(categories, JSON.parse(s)); } catch(e) {}
+         $watch('categories', v => localStorage.setItem('cal_filters', JSON.stringify(v)));
+     ">
 
     {{-- Header / Controls --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -186,14 +193,18 @@
                                 </div>
                                 <div class="text-[10px] text-gray-400 mt-0.5">{{ $day['date']->format('d.m.') }}</div>
                                 @if($day['holiday'])
-                                    <div class="text-[9px] text-green-700 font-semibold mt-0.5 leading-tight px-1 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
+                                    <div x-show="categories.holiday"
+                                         class="text-[9px] text-green-700 font-semibold mt-0.5 leading-tight px-1 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
                                 @elseif($day['vacSH'] || $day['vacHH'])
                                     <div class="text-[9px] mt-0.5 leading-tight px-1 truncate
                                         {{ $day['vacSH'] ? 'text-sky-600' : 'text-violet-600' }}"
                                         title="{{ $day['vacSH'] ? 'SH: '.$day['vacSH'] : '' }}{{ ($day['vacSH'] && $day['vacHH']) ? ' / ' : '' }}{{ $day['vacHH'] ? 'HH: '.$day['vacHH'] : '' }}">
-                                        @if($day['vacSH'] && $day['vacHH'])Ferien SH+HH
-                                        @elseif($day['vacSH'])Ferien SH
-                                        @else Ferien HH
+                                        @if($day['vacSH'] && $day['vacHH'])
+                                            <span x-show="categories.vacSH || categories.vacHH">Ferien SH+HH</span>
+                                        @elseif($day['vacSH'])
+                                            <span x-show="categories.vacSH">Ferien SH</span>
+                                        @else
+                                            <span x-show="categories.vacHH">Ferien HH</span>
                                         @endif
                                     </div>
                                 @endif
@@ -211,6 +222,7 @@
                                     @if(!empty($evt['url']))
                                         <a href="{{ $evt['url'] }}"
                                            title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
+                                           x-show="categories['{{ $evt['color'] }}'] !== false"
                                            class="block text-[11px] rounded px-1.5 py-1 {{ $chip['chip'] }} hover:opacity-80 transition-opacity">
                                             @if($evt['time'])<div class="font-bold opacity-60 text-[10px]">{{ $evt['time'] }}</div>@endif
                                             <div class="font-medium leading-snug truncate">{{ $evt['title'] }}</div>
@@ -218,6 +230,7 @@
                                         </a>
                                     @else
                                         <div title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
+                                             x-show="categories['{{ $evt['color'] }}'] !== false"
                                              class="text-[11px] rounded px-1.5 py-1 {{ $chip['chip'] }} group/evt relative">
                                             @if($evt['time'])<div class="font-bold opacity-60 text-[10px]">{{ $evt['time'] }}</div>@endif
                                             <div class="font-medium leading-snug truncate">{{ $evt['title'] }}</div>
@@ -291,13 +304,17 @@
                                 @endif
                             </div>
                             @if($day['holiday'])
-                                <div class="text-[10px] font-semibold text-green-700 leading-tight mb-0.5 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
+                                <div x-show="categories.holiday"
+                                     class="text-[10px] font-semibold text-green-700 leading-tight mb-0.5 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
                             @elseif($day['vacSH'] && !$day['vacHH'])
-                                <div class="text-[9px] text-sky-600 leading-tight mb-0.5 truncate" title="SH: {{ $day['vacSH'] }}">Ferien SH</div>
+                                <div x-show="categories.vacSH"
+                                     class="text-[9px] text-sky-600 leading-tight mb-0.5 truncate" title="SH: {{ $day['vacSH'] }}">Ferien SH</div>
                             @elseif($day['vacHH'] && !$day['vacSH'])
-                                <div class="text-[9px] text-violet-600 leading-tight mb-0.5 truncate" title="HH: {{ $day['vacHH'] }}">Ferien HH</div>
+                                <div x-show="categories.vacHH"
+                                     class="text-[9px] text-violet-600 leading-tight mb-0.5 truncate" title="HH: {{ $day['vacHH'] }}">Ferien HH</div>
                             @elseif($day['vacSH'] && $day['vacHH'])
-                                <div class="text-[9px] text-sky-600 leading-tight mb-0.5 truncate" title="SH: {{ $day['vacSH'] }} / HH: {{ $day['vacHH'] }}">Ferien SH+HH</div>
+                                <div x-show="categories.vacSH || categories.vacHH"
+                                     class="text-[9px] text-sky-600 leading-tight mb-0.5 truncate" title="SH: {{ $day['vacSH'] }} / HH: {{ $day['vacHH'] }}">Ferien SH+HH</div>
                             @endif
                             <div class="space-y-0.5">
                                 @foreach(array_slice($day['events'], 0, 3) as $evt)
@@ -305,11 +322,13 @@
                                     @if(!empty($evt['url']))
                                         <a href="{{ $evt['url'] }}"
                                            title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
+                                           x-show="categories['{{ $evt['color'] }}'] !== false"
                                            class="block text-[11px] leading-tight px-1.5 py-0.5 rounded {{ $chip['chip'] }} truncate hover:opacity-80 transition-opacity">
                                             @if($evt['time'])<span class="font-semibold">{{ $evt['time'] }}</span> @endif{{ $evt['title'] }}@if($evt['sub'])<span class="opacity-70"> · {{ $evt['sub'] }}</span>@endif
                                         </a>
                                     @else
                                         <div title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
+                                             x-show="categories['{{ $evt['color'] }}'] !== false"
                                              class="flex items-center gap-1 text-[11px] leading-tight px-1.5 py-0.5 rounded {{ $chip['chip'] }} group/evt relative">
                                             @if($evt['time'])<span class="font-semibold">{{ $evt['time'] }}</span> @endif<span class="truncate">{{ $evt['title'] }}</span>
                                             @if($isTrainer && !empty($evt['id']))

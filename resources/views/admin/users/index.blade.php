@@ -177,6 +177,30 @@
         @endif
     </div>
 
+    {{-- DSV-ID Bereinigung --}}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-bold text-amber-800">DSV-IDs bereinigen</h3>
+                <p class="text-xs text-amber-700 mt-0.5">
+                    Setzt alle ungültigen Nullwerte (<code class="bg-amber-100 px-1 rounded">000000</code>, <code class="bg-amber-100 px-1 rounded">0</code> etc.) in der DSV-ID auf leer.
+                    Notwendig nach Importen, die vor dem Fix stattgefunden haben.
+                </p>
+            </div>
+            <form method="POST" action="{{ route('admin.users.cleanup-dsv') }}"
+                  onsubmit="return confirm('Alle DSV-IDs mit Nullwert (000000, 0 etc.) auf leer setzen?')">
+                @csrf
+                <button type="submit"
+                        class="flex-shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                    DSV-IDs bereinigen
+                </button>
+            </form>
+        </div>
+        @if(session('success') && str_contains(session('success'), 'DSV-ID'))
+            <p class="text-sm text-amber-800 mt-3 font-medium">{{ session('success') }}</p>
+        @endif
+    </div>
+
     {{-- Gefahrenzone: Alle Benutzer löschen --}}
     <div class="bg-red-50 border border-red-200 rounded-xl p-5" x-data="{ open: false }">
         <div class="flex items-center justify-between gap-4">

@@ -104,20 +104,20 @@ class WebClubImportService
                         unset($updateData['email']);
 
                         $user->fill($updateData)->save();
+                        $updated++; // count immediately — syncRoles is secondary
                         if ($roles) {
                             $user->syncRoles($roles);
                         }
-                        $updated++;
                     } else {
                         $plain                    = self::generateInitialPassword();
                         $data['password']         = Hash::make($plain);
                         $data['initial_password'] = $plain;
                         $data['active']           = $data['active'] ?? true;
                         $user = User::create($data);
+                        $created++; // count immediately — syncRoles is secondary
                         if ($roles) {
                             $user->syncRoles($roles);
                         }
-                        $created++;
                     }
                 } catch (\Throwable $e) {
                     $humanMsg = $this->humaniseError($e->getMessage());
@@ -157,6 +157,7 @@ class WebClubImportService
         $lastname    = trim($row['Name']       ?? '');
         $firstname   = trim($row['Vorname']    ?? '');
         $dsvId       = trim($row['DSV-ID']     ?? '');
+        if ($dsvId !== '' && preg_match('/^0+$/', $dsvId)) $dsvId = ''; // 0 / 000000 = kein gültiger Wert
         $memberNr    = trim($row['Mitgliedsnummer'] ?? '');
         $displayName = trim("$firstname $lastname");
 
@@ -210,16 +211,17 @@ class WebClubImportService
         // ── Active status ─────────────────────────────────────────────────────
         $active = !$leaveDate || Carbon::parse($leaveDate)->isFuture();
 
-        // ── Find existing user: DSV-ID → name+birthdate ───────────────────────
-        $existing = null;
-        if ($dsvId) {
-            $existing = User::where('dsv_id', $dsvId)->first();
-        }
-        if (!$existing && $birthDate && $lastname) {
+        // ── Find existing user: name + birthdate only ────────────────────────
+        // DSV-ID is NOT used for matching — it is not a reliable unique key
+        // (many users share 000000 or have no valid ID at all).
+        $existing  = null;
+        $matchedBy = null;
+        if ($birthDate && $lastname) {
             $existing = User::where('lastname', $lastname)
                 ->where('firstname', $firstname)
                 ->where('birth_date', $birthDate)
                 ->first();
+            if ($existing) $matchedBy = 'name_birthdate';
         }
 
         // ── Build data array ──────────────────────────────────────────────────
@@ -270,15 +272,17 @@ class WebClubImportService
         }
 
         return [
-            'action'  => $action,
-            'name'    => $displayName,
-            'role'    => $role,
-            'roles'   => $activeRoles, // all club roles for user_roles table
-            'dsv_id'  => $dsvId,
-            'email'   => $existing ? $existing->email : ($email ?: null),
-            'user_id' => $existing?->id,
-            'reason'  => $reason,
-            'data'    => $data,
+            'action'         => $action,
+            'name'           => $displayName,
+            'role'           => $role,
+            'roles'          => $activeRoles,
+            'dsv_id'         => $dsvId,
+            'email'          => $existing ? $existing->email : ($email ?: null),
+            'user_id'        => $existing?->id,
+            'existing_name'  => $existing ? trim($existing->firstname . ' ' . $existing->lastname) : null,
+            'matched_by'     => $matchedBy,
+            'reason'         => $reason,
+            'data'           => $data,
         ];
     }
 

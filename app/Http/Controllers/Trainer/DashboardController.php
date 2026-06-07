@@ -15,23 +15,37 @@ class DashboardController extends Controller
     {
         $trainer = auth()->user();
 
+        $mySessionsQuery = fn() => TrainingSession::whereHas(
+            'coTrainers', fn($q) => $q->where('users.id', $trainer->id)
+        );
+
         $stats = [
-            'sessions_total'      => TrainingSession::where('trainer_id', $trainer->id)->count(),
-            'sessions_this_month' => TrainingSession::where('trainer_id', $trainer->id)
+            'sessions_total'      => $mySessionsQuery()->count(),
+            'sessions_this_month' => $mySessionsQuery()
                 ->whereMonth('date', now()->month)->whereYear('date', now()->year)->count(),
             'active_swimmers'     => User::where('role', 'schwimmer')->where('active', true)->count(),
         ];
 
-        $recent_sessions = TrainingSession::where('trainer_id', $trainer->id)
+        $recent_sessions = $mySessionsQuery()
             ->with('trainingGroups:id,name,color')
-            ->withCount(['attendances as present_count' => fn($q) => $q->where('attended', true)])
+            ->withCount([
+                'attendances as present_count' => fn($q) => $q->where('attended', true),
+                'diaries    as diary_count',
+                'swimmingTimes as times_count',
+            ])
             ->orderByDesc('date')->limit(5)->get();
 
-        $upcoming = TrainingSession::where('trainer_id', $trainer->id)
-            ->where('date', '>=', now())->orderBy('date')->limit(3)->get();
+        $upcoming = $mySessionsQuery()
+            ->where('date', '>=', today())
+            ->with('trainingGroups:id,name,color')
+            ->withCount([
+                'attendances as cancellation_count' => fn($q) => $q->where('pre_absent', true),
+            ])
+            ->withExists('trainingPlan as has_plan')
+            ->orderBy('date')->limit(8)->get();
 
         // ── Chart-Daten: letzte 10 Einheiten Beteiligung ────────────────────
-        $chartSessions = TrainingSession::where('trainer_id', $trainer->id)
+        $chartSessions = $mySessionsQuery()
             ->withCount([
                 'attendances as present_count' => fn($q) => $q->where('attended', true),
                 'attendances as total_count',

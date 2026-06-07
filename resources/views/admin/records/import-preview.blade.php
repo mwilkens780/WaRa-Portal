@@ -6,7 +6,8 @@
 <div class="mt-2 space-y-4">
 
     <div class="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-xl">
-        <strong>{{ count($rows) }} Zeilen erkannt</strong> (Typ: {{ $type === 'vereinsrekord' ? 'Vereinsrekorde' : 'Landesrekorde' }}, Bahn: {{ $course }}).
+        <strong>{{ count($rows) }} Zeilen erkannt</strong> – Typ: {{ $type === 'vereinsrekord' ? 'Vereinsrekorde' : 'Landesrekorde' }}.
+        Bahnlänge und Klasse werden pro Zeile aus der CSV-Blockstruktur übernommen.
         Prüfe die Daten und korrigiere fehlerhafte Erkennungen. Zeilen ohne Haken werden nicht importiert.
     </div>
 
@@ -83,8 +84,8 @@
                                 <td class="px-3 py-2">
                                     <select name="rows[{{ $i }}][course]"
                                             class="px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                                        <option value="LCM" {{ ($row['course'] ?? $course) === 'LCM' ? 'selected' : '' }}>LCM</option>
-                                        <option value="SCM" {{ ($row['course'] ?? $course) === 'SCM' ? 'selected' : '' }}>SCM</option>
+                                        <option value="LCM" {{ ($row['course'] ?? 'LCM') === 'LCM' ? 'selected' : '' }}>LCM</option>
+                                        <option value="SCM" {{ ($row['course'] ?? 'LCM') === 'SCM' ? 'selected' : '' }}>SCM</option>
                                     </select>
                                 </td>
                                 {{-- Time (hidden ms + displayed string) --}}
