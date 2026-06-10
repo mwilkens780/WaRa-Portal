@@ -53,72 +53,146 @@ DSV7-Dateien sind UTF-8- oder Windows-1252-Textdateien. Jede Zeile ist ein Eleme
 | `*-Wk.DSV7` | Wettkampfdefinitionsdatei | Vor dem Wettkampf: Wettkampffolge, Pflichtzeiten, Meldegelder |
 | `*-Vm.DSV7` | Vereinsmeldedatei | Vor dem Wettkampf: Meldung beim Ausrichter — **wird generiert** |
 
-### 2.2 Struktur Wettkampfergebnisliste (`*-Pr.DSV7`)
+### 2.2 Trennzeichen — kritische Konvention
+
+> ⚠️ **DSV Standard 7 verwendet `:` (Doppelpunkt) als Trenner zwischen Schlüsselwort und Feldern,
+> dann `;` zwischen den Feldern.** Format: `SATZART:Feld1;Feld2;Feld3`
+>
+> Bestätigt durch `app/Services/Dsv7Parser.php`:
+> ```php
+> $colonPos = strpos($line, ':');
+> if ($colonPos === false) continue;   // Zeilen ohne ':' werden übersprungen
+> $keyword = trim(substr($line, 0, $colonPos));
+> $rest    = substr($line, $colonPos + 1);
+> $fields  = explode(';', $rest);
+> ```
+> Zeilen im Format `VERANSTALTUNG;Name;...` (nur Semikola) würden vom Parser **ignoriert**.
+
+### 2.3 Struktur Wettkampfergebnisliste (`*-Pr.DSV7`)
 
 ```
-FORMAT;Wettkampfergebnisliste;7
-ERZEUGER;EasyWk;3.2.1;info@easywk.de
-VERANSTALTUNG;NDM 2026;Braunschweig;50;AUTOMATISCH;...
-VERANSTALTUNGSORT;Sportbad Heidberg;Sachsendamm 10;Braunschweig;GER
-WETTKAMPF;1;200;B;OK;2026;...          ← Disziplin-Definition
-EINZELERGEBNIS;1;Müller;Anna;2008;Wasserratten;...;GER;02:28,45;1;...
-STAFFELERGEBNIS;...
+FORMAT:Wettkampfergebnisliste;7
+ERZEUGER:EasyWk;3.2.1;info@easywk.de
+VERANSTALTUNG:NDM 2026;Braunschweig;50;AUTOMATISCH;08.05.2026;10.05.2026
+VERANSTALTER:Norddeutscher Schwimmverband e.V.
+ABSCHNITT:1;08.05.2026;1. Abschnitt        ← Session-Datum, parsed in ABSCHNITT-Handler
+WETTKAMPF:1;V;1;1;200;B;E;W               ← nr;art;abschnitt;legs;strecke;technik;ausübung;geschlecht
+WERTUNG:1;V;101;E;0;9999;W;Offene Klasse  ← wkNr;art;wertungsID;typ;ageMin;ageMax;geschl;name
+WERTUNG:1;V;102;E;2008;2008;W;Jahrgang 2008
+PNERGEBNIS:1;V;101;1;;Müller, Anna;DSV123456;VID;W;2008;OK;SG Wasserratten;VNR;02:28,45;742;
+STAFFELERGEBNIS:...
+STAFFELMITGLIED:...
 DATEIENDE
 ```
 
-### 2.3 Struktur Wettkampfdefinitionsdatei (`*-Wk.DSV7`)
+**WETTKAMPF-Felder (new format — Standard ab EasyWk 3.x):**
+
+| Pos | Inhalt | Beispiel |
+|---|---|---|
+| 0 | WK-Nummer | `1` |
+| 1 | Art (V=Vorlauf, F=Finale, E=Entscheidung) | `V` |
+| 2 | Abschnitt-Nummer | `1` |
+| 3 | Staffel-Legs (1=Einzel) | `1` |
+| 4 | Streckenlänge (bei Staffel: pro Lage) | `200` |
+| 5 | Technik-Code (F/B/R/S/L) | `B` |
+| 6 | Ausübungsart (E=Einzel) | `E` |
+| 7 | Geschlecht (M/W/X) | `W` |
+
+**WERTUNG-Felder (new format):**
+
+| Pos | Inhalt | Beispiel |
+|---|---|---|
+| 0 | WK-Nummer (Referenz zu WETTKAMPF) | `1` |
+| 1 | Art | `V` |
+| 2 | WertungsID (eindeutig, referenziert PNERGEBNIS) | `101` |
+| 3 | Typ | `E` |
+| 4 | Jahrgang Min (0 = kein Limit) | `0` |
+| 5 | Jahrgang Max (9999 = kein Limit) | `9999` |
+| 6 | Geschlecht | `W` |
+| 7 | Name der Wertungsklasse | `Offene Klasse` |
+
+### 2.4 Struktur Wettkampfdefinitionsdatei (`*-Wk.DSV7`)
 
 ```
-FORMAT;Wettkampfdefinitionsliste;7
-VERANSTALTUNG;NDM 2026;Braunschweig;50;AUTOMATISCH;08.05.2026;10.05.2026
-KAMPFGERICHT;...
-WETTKAMPF;1;200;B;W;OK;...            ← Disziplin ohne Ergebnisse
-PFLICHTZEIT;1;W;OK;02:47,32           ← Pflichtzeit zu WK 1
-MELDEGELD;1;11,00                      ← Meldegeld zu WK 1
+FORMAT:Wettkampfdefinitionsliste;7
+ERZEUGER:EasyWk;3.2.1;info@easywk.de
+VERANSTALTUNG:NDM 2026;Braunschweig;50;AUTOMATISCH;08.05.2026;10.05.2026
+VERANSTALTER:Norddeutscher Schwimmverband e.V.
+KAMPFGERICHT:Schiedsrichter;Max Mustermann;LSV Niedersachsen
+ABSCHNITT:1;08.05.2026;1. Abschnitt
+WETTKAMPF:1;E;1;1;200;B;E;W
+WERTUNG:1;E;101;E;0;9999;W;Offene Klasse
+WERTUNG:1;E;102;E;2008;2008;W;Jahrgang 2008
+PFLICHTZEIT:1;E;101;;02:47,32              ← wkNr;art;wertungsID;(meldeschluss);zeit
+PFLICHTZEIT:1;E;102;;02:50,20
+MELDEGELD:1;E;101;11,00;EUR               ← wkNr;art;wertungsID;betrag;währung
 DATEIENDE
 ```
 
-### 2.4 Struktur Vereinsmeldedatei (`*-Vm.DSV7`) — wird vom Portal generiert
+> Der PFLICHTZEIT-Parser (`Dsv7Parser.php`) erwartet im new format:
+> `wkNr;art;wertungsID;meldeschluss;zeit` — das `meldeschluss`-Feld kann leer sein.
+
+### 2.5 Struktur Vereinsmeldedatei (`*-Vm.DSV7`) — wird vom Portal generiert
+
+> ⚠️ **Die exakte Feldstruktur von `ANMELDUNG` und `MELDUNG` folgt DSV Standard 7 Formular 101
+> und muss vor dem ersten produktiven Einsatz gegen die offizielle Spezifikation verifiziert werden.**
+> Der Dsv7Parser überspringt diese Satzarten (`SKIP_KEYWORDS`), weshalb kein direkter Abgleich
+> aus dem bestehenden Code möglich ist.
 
 ```
-FORMAT;Vereinsmeldung;7
-ERZEUGER;WaRa-Portal;1.0;portal@wasserratten.de
-VERANSTALTUNG;NDM 2026;Braunschweig;50;AUTOMATISCH;08.05.2026;10.05.2026
-VEREIN;SG Wasserratten Norderstedt;WARA-001;SHSV
-ANMELDUNG;Müller;Anna;2008;W;DSV123456;SG Wasserratten Norderstedt;SHSV;GER
-MELDUNG;DSV123456;1;02:28,45          ← WK-Nr + Meldezeit (beste Vereinszeit)
-MELDUNG;DSV123456;5;00:33,32
-STAFFELANMELDUNG;4x100F;W;OK;SG Wasserratten Norderstedt
-STAFFELMELDUNG;DSV123456;1
-STAFFELMELDUNG;DSV789012;2
-STAFFELMELDUNG;DSV345678;3
-STAFFELMELDUNG;DSV901234;4
+FORMAT:Vereinsmeldung;7
+ERZEUGER:WaRa-Portal;1.0;portal@wasserratten.de
+VERANSTALTUNG:NDM 2026;Braunschweig;50;AUTOMATISCH;08.05.2026;10.05.2026
+VEREIN:SG Wasserratten Norderstedt;WARA-SH;SHSV;GER
+ANMELDUNG:Müller;Anna;2008;W;DSV123456;SG Wasserratten Norderstedt;SHSV;GER
+MELDUNG:DSV123456;101;00:28,45    ← DSV-ID;wertungsID;meldezeit (⚠ Format zu verifizieren)
+MELDUNG:DSV123456;102;00:28,45    ← selbe Zeit, andere Wertungsklasse (Jahrgang)
+STAFFELANMELDUNG:4x100F;W;OK;SG Wasserratten Norderstedt   (⚠ Format zu verifizieren)
+STAFFELMELDUNG:DSV123456;1
+STAFFELMELDUNG:DSV789012;2
+STAFFELMELDUNG:DSV345678;3
+STAFFELMELDUNG:DSV901234;4
 DATEIENDE
 ```
 
-### 2.5 Zeitformat und Speicherung im Portal
+**Wichtige Unterschiede zur alten Dokumentation:**
+- `MELDUNG` referenziert die **WertungsID** (z.B. `101`), nicht die WK-Nummer (`1`)
+- Für jede Wertungsklasse (OK + Jahrgang) ist eine separate `MELDUNG`-Zeile nötig
 
-DSV7 speichert Zeiten als `MM:SS,hh` oder `HH:MM:SS,hh`. **Das Portal speichert in `time_ms` (Millisekunden).**
+### 2.6 Zeitformat und Speicherung im Portal
+
+DSV7 speichert Zeiten im Format `MM:SS,hh` (Komma als Dezimaltrenner vor Hundertstel).
+**Das Portal speichert intern in `time_ms` (Millisekunden).**
 
 ```php
-// Konversion: Hundertstel × 10 = Millisekunden
-// "02:28,45" → 148 Sek 45 Hundertstel = 14845 Hundertstel × 10 = 148450 ms
+// Konversion DSV7 → Portal (in Dsv7Parser.php::parseTime / secCentiToMs):
+// "28,45"   → Komma wird zu Punkt → sec=28, centi=45 → 28×1000 + 45×10 = 28 450 ms
+// "02:28,45" → min=2, sec=28, centi=45 → (2×60 000) + 28 000 + 450 = 148 450 ms
+// "1:02:28,45" → h=1, min=2, sec=28, centi=45 = 3 748 450 ms
 
-// ✅ Implementiert in app/Services/Dsv7Parser.php::parseTimeMs()
+// ✅ Implementiert in app/Services/Dsv7Parser.php::parseTime() + secCentiToMs()
 
-// Rückkonversion für Meldedatei-Generator:
+// Rückkonversion Portal → DSV7 (für Generator):
 public static function msToDs7(int $ms): string
 {
-    $hundertstel = intdiv($ms, 10);
-    $h  = intdiv($hundertstel, 360000);
-    $m  = intdiv($hundertstel % 360000, 6000);
-    $s  = intdiv($hundertstel % 6000, 100);
-    $hh = $hundertstel % 100;
+    $h  = intdiv($ms, 3_600_000);
+    $m  = intdiv($ms % 3_600_000, 60_000);
+    $s  = intdiv($ms % 60_000, 1_000);
+    $hh = intdiv($ms % 1_000, 10);   // Hundertstel (nicht Millisekunden!)
     return $h > 0
         ? sprintf('%02d:%02d:%02d,%02d', $h, $m, $s, $hh)
         : sprintf('%02d:%02d,%02d', $m, $s, $hh);
 }
+
+// Beispiele:
+// msToDs7(28_450)   → "00:28,45"
+// msToDs7(148_450)  → "02:28,45"
+// msToDs7(3_748_450) → "01:02:28,45"
 ```
+
+> **Geschlecht-Konversion:** DSV7 verwendet `W` (weiblich) und `M` (männlich). Das Portal
+> speichert intern `F` (female). Beim Generieren von DSV7-Dateien muss `F` → `W` konvertiert
+> werden. Im Parser ist dies in `normalizeGender()` umgekehrt implementiert (`W` → `F`).
 
 ### 2.6 Disziplin-Mapping (DSV7 ↔ Portal)
 
@@ -131,6 +205,22 @@ public static function msToDs7(int $ms): string
 | `L` | `lagen` | Lagen |
 
 ✅ Implementiert in `app/Services/Dsv7Parser.php::STROKE_MAP`.
+
+### 2.7 WertungsID speichern (🔄 ALTER TABLE nötig für Meldedatei-Generator)
+
+Der `MeldedateiGenerator` braucht die **WertungsID** (aus dem `WERTUNG`-Record der importierten
+`*-Wk.DSV7`), nicht die WK-Nummer. Diese muss beim Import gespeichert werden:
+
+```sql
+ALTER TABLE competition_events
+    ADD COLUMN dsv_wertungs_id INT UNSIGNED NULL
+        COMMENT 'WertungsID aus DSV7 WERTUNG-Record — für Meldedatei-Generator'
+        AFTER event_number;
+```
+
+Beim Import einer `*-Wk.DSV7` über `parseMeetDefinition()` muss `$wertungMap[$wid]` die
+`$wertungsId` in `dsv_wertungs_id` speichern. Ohne dieses Feld fällt der Generator auf die
+WK-Nummer zurück (Fallback, möglicherweise nicht kompatibel mit EasyWk/WebClub).
 
 ---
 
@@ -803,44 +893,56 @@ public function generate(Competition $competition): string
         ->where('status', 'entered')
         ->get();
 
+    // DSV7 erwartet W (weiblich); Portal speichert F (female) → Konversion
+    $genderDs7 = fn(string $g): string => $g === 'F' ? 'W' : $g;
+
+    // Korrekte DSV7-Trenner: SATZART:Feld1;Feld2;...
     $lines = [];
-    $lines[] = 'FORMAT;Vereinsmeldung;7';
-    $lines[] = 'ERZEUGER;WaRa-Portal;1.0;portal@wasserratten.de';
-    $lines[] = implode(';', [
-        'VERANSTALTUNG', $competition->name, $competition->location,
-        $competition->course === 'LCM' ? '50' : '25', 'AUTOMATISCH',
+    $lines[] = 'FORMAT:Vereinsmeldung;7';
+    $lines[] = 'ERZEUGER:WaRa-Portal;1.0;portal@wasserratten.de';
+    $lines[] = 'VERANSTALTUNG:' . implode(';', [
+        $competition->name,
+        $competition->location,
+        $competition->course === 'LCM' ? '50' : '25',
+        'AUTOMATISCH',
         $competition->date->format('d.m.Y'),
         ($competition->date_end ?? $competition->date)->format('d.m.Y'),
     ]);
-    $lines[] = 'VEREIN;SG Wasserratten Norderstedt;WARA-SH;SHSV';
+    $lines[] = 'VEREIN:SG Wasserratten Norderstedt;WARA-SH;SHSV;GER';
 
     foreach ($entries as $userId => $userEntries) {
         $user = $userEntries->first()->user;
-        $lines[] = implode(';', [
-            'ANMELDUNG', $user->lastname, $user->firstname,
+        // ⚠ ANMELDUNG-Felder nach DSV7 Formular 101 verifizieren
+        $lines[] = 'ANMELDUNG:' . implode(';', [
+            $user->lastname, $user->firstname,
             $user->birth_date?->year ?? '',
-            $user->gender,
+            $genderDs7($user->gender),   // F → W
             $user->dsv_id ?? '',
             'SG Wasserratten Norderstedt', 'SHSV', 'GER',
         ]);
         foreach ($userEntries as $entry) {
             $zeit = $entry->entry_time_ms
-                ? Dsv7Parser::msToDs7($entry->entry_time_ms)
+                ? self::msToDs7($entry->entry_time_ms)
                 : '99:99,99';
-            $lines[] = "MELDUNG;{$user->dsv_id};{$entry->competitionEvent?->event_number};{$zeit}";
+            // MELDUNG referenziert WertungsID (nicht WK-Nummer).
+            // dsv_wertungs_id muss beim Import aus *-Wk.DSV7 in competition_events gespeichert werden.
+            // ⚠ Feldstruktur nach DSV7 Formular 101 verifizieren
+            $wertungsId = $entry->competitionEvent?->dsv_wertungs_id
+                          ?? $entry->competitionEvent?->event_number;  // Fallback
+            $lines[] = "MELDUNG:{$user->dsv_id};{$wertungsId};{$zeit}";
         }
     }
 
     foreach ($relayEntries as $relay) {
-        $lines[] = implode(';', [
-            'STAFFELANMELDUNG',
-            "{$relay->distance}x{$relay->distance}",  // vereinfacht
-            strtoupper(substr($relay->discipline, 0, 1)),
-            $relay->gender === 'mixed' ? 'mixed' : ($relay->gender === 'M' ? 'M' : 'W'),
-            'SG Wasserratten Norderstedt',
-        ]);
+        $strokeCode = strtoupper(
+            array_flip(Dsv7Parser::STROKE_MAP)[$relay->discipline] ?? 'F'
+        );
+        $gDs7 = $relay->gender === 'mixed' ? 'X' : $genderDs7($relay->gender);
+        // ⚠ STAFFELANMELDUNG-Felder nach DSV7 Formular 102 verifizieren
+        $wkNr = $relay->competitionEvent?->event_number ?? '';
+        $lines[] = "STAFFELANMELDUNG:{$wkNr};{$strokeCode};{$gDs7};SG Wasserratten Norderstedt";
         foreach ($relay->members->sortBy('position') as $member) {
-            $lines[] = "STAFFELMELDUNG;{$member->user->dsv_id};{$member->position}";
+            $lines[] = "STAFFELMELDUNG:{$member->user->dsv_id};{$member->position}";
         }
     }
 
@@ -955,43 +1057,102 @@ Generiert eine `*-Wk.DSV7`-Datei aus den Wettkampf-Daten für WebClub / EasyWk:
 // app/Services/Competition/DefinitionsdateiGenerator.php
 public function generate(Competition $competition): string
 {
-    $lines = ['FORMAT;Wettkampfdefinitionsliste;7'];
-    $lines[] = 'ERZEUGER;WaRa-Portal;1.0;portal@wasserratten.de';
-    $lines[] = implode(';', [
-        'VERANSTALTUNG', $competition->name, $competition->location,
-        $competition->course === 'LCM' ? '50' : '25', 'AUTOMATISCH',
+    // DSV7 Trenner: SATZART:Feld1;Feld2;...  (Doppelpunkt nach Satzart!)
+    $gDs7 = fn(string $g): string => $g === 'F' ? 'W' : $g;  // F → W
+
+    $lines = ['FORMAT:Wettkampfdefinitionsliste;7'];
+    $lines[] = 'ERZEUGER:WaRa-Portal;1.0;portal@wasserratten.de';
+    $lines[] = 'VERANSTALTUNG:' . implode(';', [
+        $competition->name,
+        $competition->location,
+        $competition->course === 'LCM' ? '50' : '25',
+        'AUTOMATISCH',
         $competition->date->format('d.m.Y'),
         ($competition->date_end ?? $competition->date)->format('d.m.Y'),
     ]);
 
-    $kampfgericht = $competition->kampfgericht ?? [];
-    foreach ($kampfgericht as $official) {
-        $lines[] = "KAMPFGERICHT;{$official['role']};{$official['name']};{$official['club'] ?? ''}";
+    if ($competition->organizer) {
+        $lines[] = "VERANSTALTER:{$competition->organizer}";
     }
 
-    foreach ($competition->events as $event) {
+    foreach ($competition->kampfgericht ?? [] as $official) {
+        $lines[] = "KAMPFGERICHT:{$official['role']};{$official['name']};{$official['club'] ?? ''}";
+    }
+
+    // ABSCHNITT-Records für alle Sitzungsdaten
+    $sessions = $competition->events->groupBy('session_number');
+    foreach ($sessions as $sessionNum => $sessionEvents) {
+        $firstEvt = $sessionEvents->first();
+        $dateStr  = $firstEvt->session_date?->format('d.m.Y') ?? '';
+        $name     = $firstEvt->session_name ?? ('Abschnitt ' . $sessionNum);
+        $lines[] = "ABSCHNITT:{$sessionNum};{$dateStr};{$name}";
+    }
+
+    // WETTKAMPF + WERTUNG + PFLICHTZEIT + MELDEGELD
+    // Neue Format-Feldfolge: nr;art;abschnitt;legs;strecke;technik;ausübung;geschlecht
+    $wertungsIdCounter = 1;
+
+    foreach ($competition->events->groupBy('event_number') as $eventNum => $wertungen) {
+        $base = $wertungen->first();
+        $isRelay  = str_contains($base->age_group ?? '', 'Staffel')
+                    || ($base->distance > 400 && str_contains($base->discipline, 'freistil'));
+        $legs = $isRelay ? 4 : 1;
+        $perLegDist = $isRelay ? intdiv($base->distance, $legs) : $base->distance;
+        $strokeCode = strtoupper(array_flip(Dsv7Parser::STROKE_MAP)[$base->discipline] ?? 'F');
+
         $lines[] = implode(';', [
-            'WETTKAMPF',
-            $event->event_number,
-            $event->distance,
-            strtoupper(substr(array_flip(Dsv7Parser::STROKE_MAP)[$event->discipline] ?? 'F', 0, 1)),
-            $event->gender,
-            $event->age_group ?? 'OK',
-            $event->session_number,
-            $event->session_date?->format('d.m.Y') ?? '',
-            $event->session_name ?? '',
+            "WETTKAMPF:{$eventNum}",   // nr
+            'E',                        // art: E=Entscheidung (vereinfacht; V/F bei Vorläufen)
+            $base->session_number,      // abschnitt
+            $legs,                      // legs (1=Einzel, 4=Staffel)
+            $perLegDist,                // strecke
+            $strokeCode,                // technik
+            'E',                        // ausübung
+            $gDs7($base->gender),       // geschlecht (W/M/X)
         ]);
-        if ($event->qualifying_time_ms > 0) {
-            $lines[] = "PFLICHTZEIT;{$event->event_number};{$event->gender};{$event->age_group};".
-                       Dsv7Parser::msToDs7($event->qualifying_time_ms);
-        }
-        if ($event->meldegeld > 0) {
-            $lines[] = "MELDEGELD;{$event->event_number};".
-                       number_format($event->meldegeld, 2, ',', '');
+
+        // Eine WERTUNG pro Altersklasse in diesem WK
+        foreach ($wertungen as $wertung) {
+            $ageMin = $wertung->age_min ?? 0;
+            $ageMax = $wertung->age_max ?? 9999;
+            $label  = $wertung->age_group ?: 'Offene Klasse';
+            $lines[] = implode(';', [
+                "WERTUNG:{$eventNum}",
+                'E',
+                $wertungsIdCounter,
+                'E',
+                $ageMin,
+                $ageMax,
+                $gDs7($wertung->gender),
+                $label,
+            ]);
+            if ($wertung->qualifying_time_ms > 0) {
+                $zeit = self::msToDs7($wertung->qualifying_time_ms);
+                // new format: wkNr;art;wertungsID;(meldeschluss leer);zeit
+                $lines[] = "PFLICHTZEIT:{$eventNum};E;{$wertungsIdCounter};;{$zeit}";
+            }
+            if ($wertung->meldegeld > 0) {
+                $betrag = number_format($wertung->meldegeld, 2, ',', '');
+                $lines[] = "MELDEGELD:{$eventNum};E;{$wertungsIdCounter};{$betrag};EUR";
+            }
+            $wertungsIdCounter++;
         }
     }
+
     $lines[] = 'DATEIENDE';
     return implode("\r\n", $lines);
+}
+
+// Hilfsmethode (auch in MeldedateiGenerator verwenden)
+public static function msToDs7(int $ms): string
+{
+    $h  = intdiv($ms, 3_600_000);
+    $m  = intdiv($ms % 3_600_000, 60_000);
+    $s  = intdiv($ms % 60_000, 1_000);
+    $hh = intdiv($ms % 1_000, 10);
+    return $h > 0
+        ? sprintf('%02d:%02d:%02d,%02d', $h, $m, $s, $hh)
+        : sprintf('%02d:%02d,%02d', $m, $s, $hh);
 }
 ```
 
@@ -1180,3 +1341,5 @@ Schritt 10: season_scores anlegen (optional, nur wenn Ranking-Feature live)
 | **Shared Hosting** | Kein Daemon für Scraper | Laravel Scheduler via Cron: `* * * * * php artisan schedule:run` |
 | **Zwei parallele Ergebnissysteme** | `competition_results` vs. `ext_competition_results` | Klar getrennte Zuständigkeit: `competition_results` = eigene Schwimmer (Cockpit, PBs, Rekorde); `ext_competition_results` = alle Athleten (Rankings, Vollansicht) |
 | **Eingehende Meldungen** | Andere Vereine senden ggf. DSV6 oder fehlerhafte Dateien | Strikte Validierung; Upload-Fehler klar im Import-Log protokollieren |
+| **MELDUNG/ANMELDUNG Format** | Exakte Feldstruktur für Vereinsmeldedatei (Formular 101/102) nicht im Parser verifizierbar — Parser überspringt diese Satzarten | Vor erstem produktivem Einsatz gegen offizielle DSV Standard 7 Spezifikation (dsv.de) abgleichen; Testlauf mit WebClub/EasyWk |
+| **STAFFELANMELDUNG Format** | Relay-Meldungsformat (Formular 102) unbekannt | Wie oben; alternativ beim NSV/SHSV eine Beispiel-Meldedatei anfragen |
