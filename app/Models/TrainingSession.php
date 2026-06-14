@@ -77,7 +77,6 @@ class TrainingSession extends Model
     public function getTypeLabelAttribute(): string
     {
         return match($this->type) {
-            'kondition'      => 'Kondition',
             'technik'        => 'Technik',
             'wettkampf'      => 'Wettkampfvorbereitung',
             'ausdauer'       => 'Ausdauer',
