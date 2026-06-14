@@ -8,6 +8,7 @@
          activeTab: '{{ $errors->has('dsv_file') ? 'info' : 'ergebnisse' }}',
          showForm: false,
          showImport: {{ $errors->has('dsv_file') ? 'true' : 'false' }},
+         resultsView: 'strecke',
      }">
 
     {{-- Info-Header --}}
@@ -470,75 +471,201 @@
             @if($results->isEmpty())
                 <p class="text-sm text-gray-400 px-5 py-8 text-center">Noch keine Ergebnisse eingetragen.</p>
             @else
-                @foreach($results as $key => $group)
-                    @php $first = $group->first(); $rank = 0; @endphp
-                    <div class="border-b border-gray-100 last:border-0">
-                        <div class="bg-gray-50 px-5 py-2">
-                            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                {{ $first->distance }} m {{ $first->discipline_label }}
-                            </p>
-                        </div>
-                        <table class="w-full text-sm">
-                            <tbody class="divide-y divide-gray-50">
-                                @foreach($group as $swim)
-                                    @php if (!$swim->is_dns) $rank++; @endphp
-                                    <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
-                                        <td class="px-5 py-2.5 text-gray-400 w-8 text-xs">
-                                            {{ !$swim->is_dns ? $rank . '.' : '–' }}
-                                        </td>
-                                        <td class="px-5 py-2.5 font-medium text-gray-800">{{ $swim->user?->name }}</td>
-                                        <td class="px-5 py-2.5">
-                                            @if(!$swim->is_dns)
-                                                <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
-                                            @elseif($swim->notes)
-                                                <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
-                                            @else
-                                                <span class="text-gray-400 text-xs">NT</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-5 py-2.5">
-                                            @if(!empty($swim->placements))
-                                                <div class="flex flex-col gap-0.5">
-                                                    @foreach($swim->placements as $p)
-                                                        <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-600 font-semibold' : 'text-gray-500' }}">
-                                                            @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
-                                                            Platz {{ $p->placement }}
-                                                        </span>
-                                                    @endforeach
+                {{-- Toggle: Strecke / Sportler --}}
+                <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100">
+                    <span class="text-xs font-medium text-gray-500 mr-1">Gruppierung:</span>
+                    <button @click="resultsView = 'strecke'"
+                            :class="resultsView === 'strecke'
+                                ? 'bg-primary text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                        Nach Strecke
+                    </button>
+                    <button @click="resultsView = 'sportler'"
+                            :class="resultsView === 'sportler'
+                                ? 'bg-primary text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                        Nach Sportler
+                    </button>
+                </div>
+
+                {{-- Ansicht: Nach Strecke --}}
+                <div x-show="resultsView === 'strecke'">
+                    @foreach($results as $key => $group)
+                        @php $first = $group->first(); $rank = 0; @endphp
+                        <div class="border-b border-gray-100 last:border-0">
+                            <div class="bg-gray-50 px-5 py-2">
+                                <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    {{ $first->distance }} m {{ $first->discipline_label }}
+                                </p>
+                            </div>
+                            <table class="w-full text-sm">
+                                <tbody class="divide-y divide-gray-50">
+                                    @foreach($group as $swim)
+                                        @php if (!$swim->is_dns) $rank++; @endphp
+                                        <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
+                                            <td class="px-5 py-2.5 text-gray-400 w-8 text-xs">
+                                                {{ !$swim->is_dns ? $rank . '.' : '–' }}
+                                            </td>
+                                            <td class="px-5 py-2.5 font-medium text-gray-800">{{ $swim->user?->name }}</td>
+                                            <td class="px-5 py-2.5">
+                                                @if(!$swim->is_dns)
+                                                    <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
+                                                @elseif($swim->notes)
+                                                    <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
+                                                @else
+                                                    <span class="text-gray-400 text-xs">NT</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-2.5">
+                                                @if(!empty($swim->placements))
+                                                    <div class="flex flex-col gap-0.5">
+                                                        @foreach($swim->placements as $p)
+                                                            <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-600 font-semibold' : 'text-gray-500' }}">
+                                                                @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
+                                                                Platz {{ $p->placement }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-2.5">
+                                                <div class="flex gap-1 flex-wrap">
+                                                    @if($swim->is_final)
+                                                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Finale</span>
+                                                    @endif
+                                                    @if($swim->is_personal_best && !$swim->is_dns)
+                                                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">PB</span>
+                                                    @endif
+                                                    @if($swim->breaks_vereinsrekord)
+                                                        <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">VR</span>
+                                                    @endif
+                                                    @if($swim->breaks_landesrekord)
+                                                        <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">LR</span>
+                                                    @endif
                                                 </div>
+                                            </td>
+                                            @if(auth()->user()->role === 'admin')
+                                            <td class="px-5 py-2.5 text-right">
+                                                <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
+                                                      onsubmit="return confirm('Ergebnis löschen?')">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                                                </form>
+                                            </td>
                                             @endif
-                                        </td>
-                                        <td class="px-5 py-2.5">
-                                            <div class="flex gap-1 flex-wrap">
-                                                @if($swim->is_final)
-                                                    <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Finale</span>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Ansicht: Nach Sportler --}}
+                <div x-show="resultsView === 'sportler'" x-cloak>
+                    @php
+                        $bySwimmer = $results->flatten(1)
+                            ->groupBy('user_id')
+                            ->sortBy(fn($g) => ($g->first()->user?->lastname ?? '') . ($g->first()->user?->firstname ?? ''));
+                    @endphp
+                    @foreach($bySwimmer as $uid => $swims)
+                        @php
+                            $user       = $swims->first()->user;
+                            $swimsSorted = $swims->sortBy(fn($s) => [$s->discipline, $s->distance, $s->time_ms]);
+                            $pbCount    = $swims->where('is_personal_best', true)->where('is_dns', false)->count();
+                            $vrCount    = $swims->where('breaks_vereinsrekord', true)->count();
+                        @endphp
+                        <div class="border-b border-gray-100 last:border-0">
+                            {{-- Sportler-Header --}}
+                            <div class="bg-gray-50 px-5 py-2.5 flex items-center justify-between">
+                                <p class="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    {{ $user?->name ?? '–' }}
+                                    @if($user?->birth_year ?? $user?->birth_date?->year)
+                                        <span class="font-normal text-gray-400 normal-case">· Jg.&nbsp;{{ $user->birth_year ?? $user->birth_date?->year }}</span>
+                                    @endif
+                                </p>
+                                <div class="flex gap-1">
+                                    @if($pbCount > 0)
+                                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{{ $pbCount }} PB</span>
+                                    @endif
+                                    @if($vrCount > 0)
+                                        <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">{{ $vrCount }} VR</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <table class="w-full text-sm">
+                                <tbody class="divide-y divide-gray-50">
+                                    @foreach($swimsSorted as $swim)
+                                        <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
+                                            <td class="px-5 py-2.5 text-gray-700 font-medium w-40">
+                                                {{ $swim->distance }} m {{ $swim->discipline_label }}
+                                            </td>
+                                            <td class="px-5 py-2.5">
+                                                @if(!$swim->is_dns)
+                                                    <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
+                                                @elseif($swim->notes)
+                                                    <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
+                                                @else
+                                                    <span class="text-gray-400 text-xs">NT</span>
                                                 @endif
-                                                @if($swim->is_personal_best && !$swim->is_dns)
-                                                    <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">PB</span>
+                                            </td>
+                                            <td class="px-5 py-2.5">
+                                                @if(!empty($swim->placements))
+                                                    <div class="flex flex-col gap-0.5">
+                                                        @foreach($swim->placements as $p)
+                                                            <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-600 font-semibold' : 'text-gray-500' }}">
+                                                                @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
+                                                                Platz {{ $p->placement }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
                                                 @endif
-                                                @if($swim->breaks_vereinsrekord)
-                                                    <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">VR</span>
-                                                @endif
-                                                @if($swim->breaks_landesrekord)
-                                                    <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">LR</span>
-                                                @endif
-                                            </div>
-                                        </td>
-                                        @if(auth()->user()->role === 'admin')
-                                        <td class="px-5 py-2.5 text-right">
-                                            <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
-                                                  onsubmit="return confirm('Ergebnis löschen? Bei mehreren Wertungsklassen werden alle zugehörigen Einträge entfernt.')">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
-                                            </form>
-                                        </td>
-                                        @endif
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endforeach
+                                            </td>
+                                            <td class="px-5 py-2.5">
+                                                <div class="flex gap-1 flex-wrap">
+                                                    @if($swim->is_final)
+                                                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Finale</span>
+                                                    @endif
+                                                    @if($swim->is_personal_best && !$swim->is_dns)
+                                                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">PB</span>
+                                                    @endif
+                                                    @if($swim->breaks_vereinsrekord)
+                                                        <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">VR</span>
+                                                    @endif
+                                                    @if($swim->breaks_landesrekord)
+                                                        <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">LR</span>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            @if(!empty($swim->wertungen))
+                                                <td class="px-5 py-2.5">
+                                                    <div class="flex flex-wrap gap-0.5">
+                                                        @foreach($swim->wertungen as $w)
+                                                            <span class="px-1 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{{ $w }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                </td>
+                                            @else
+                                                <td></td>
+                                            @endif
+                                            @if(auth()->user()->role === 'admin')
+                                            <td class="px-5 py-2.5 text-right">
+                                                <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
+                                                      onsubmit="return confirm('Ergebnis löschen?')">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                                                </form>
+                                            </td>
+                                            @endif
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endforeach
+                </div>
             @endif
         </div>
 
