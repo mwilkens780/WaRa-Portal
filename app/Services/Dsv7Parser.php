@@ -19,11 +19,11 @@ namespace App\Services;
 class Dsv7Parser
 {
     const STROKE_MAP = [
-        'F' => 'freistil',
-        'B' => 'brust',
-        'R' => 'ruecken',
-        'S' => 'schmetterling',
-        'L' => 'lagen',
+        'F' => 'F',
+        'B' => 'B',
+        'R' => 'R',
+        'S' => 'S',
+        'L' => 'L',
     ];
 
     // Status codes that indicate the swimmer did not achieve a valid result
@@ -69,7 +69,7 @@ class Dsv7Parser
             'meets' => [[
                 'name'      => $meta['name'] ?? '',
                 'city'      => $meta['city'] ?? '',
-                'course'    => $meta['course'] ?? 'SCM',
+                'course'    => $meta['course'] ?? 'Kurzbahn',
                 'startdate' => $startdate,
                 'enddate'   => $enddate,
                 'organizer' => $meta['organizer'] ?? '',
@@ -107,7 +107,7 @@ class Dsv7Parser
             'meets' => [[
                 'name'      => $meta['name'] ?? '',
                 'city'      => $meta['city'] ?? '',
-                'course'    => $meta['course'] ?? 'SCM',
+                'course'    => $meta['course'] ?? 'Kurzbahn',
                 'startdate' => $startdate,
                 'enddate'   => $enddate,
                 'organizer' => $meta['organizer'] ?? '',
@@ -164,7 +164,7 @@ class Dsv7Parser
                     // Name;City;PoolLength(25|50);TimingType;...
                     $meta['name']   = $f(0);
                     $meta['city']   = $f(1);
-                    $meta['course'] = $f(2) === '50' ? 'LCM' : 'SCM';
+                    $meta['course'] = $f(2) === '50' ? 'Langbahn' : 'Kurzbahn';
                     break;
 
                 case 'VERANSTALTER':

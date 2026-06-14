@@ -40,11 +40,11 @@ class DsvImportService
     }
 
     const STROKE_MAP = [
-        'FREE'    => 'freistil',
-        'BACK'    => 'ruecken',
-        'BREAST'  => 'brust',
-        'FLY'     => 'schmetterling',
-        'MEDLEY'  => 'lagen',
+        'FREE'   => 'F',
+        'BACK'   => 'R',
+        'BREAST' => 'B',
+        'FLY'    => 'S',
+        'MEDLEY' => 'L',
     ];
 
     /**
@@ -109,7 +109,7 @@ class DsvImportService
             $meetData = [
                 'name'      => (string)$meet['name'],
                 'city'      => (string)$meet['city'],
-                'course'    => strtoupper((string)($meet['course'] ?? 'SCM')),
+                'course'    => strtoupper((string)($meet['course'] ?? '')) === 'LCM' ? 'Langbahn' : 'Kurzbahn',
                 'startdate' => $startdate,
                 'enddate'   => $enddate,
                 'organizer' => (string)($meet->ORGANIZER['name'] ?? ''),
@@ -207,7 +207,7 @@ class DsvImportService
         $data = [
             'name'      => (string)$meet['name'],
             'city'      => (string)$meet['city'],
-            'course'    => strtoupper((string)($meet['course'] ?? 'SCM')),
+            'course'    => strtoupper((string)($meet['course'] ?? '')) === 'LCM' ? 'Langbahn' : 'Kurzbahn',
             'startdate' => $startdate,
             'enddate'   => $enddate,
             'events'    => [],
@@ -331,5 +331,118 @@ class DsvImportService
         [$sec, $centi] = array_pad(explode('.', $swimtime, 2), 2, '0');
         return ((int)$sec * 1_000)
             + (int)str_pad(substr($centi, 0, 2), 2, '0') * 10;
+    }
+
+    /**
+     * Parse a DSV7 result file and persist results for matched own swimmers.
+     * Used by BatchImporter and Crawlers.
+     *
+     * Stores the import_hash on the created/found Competition to prevent duplicates.
+     */
+    public function importResultsFile(
+        string  $filePath,
+        string  $source     = 'manual',
+        ?string $importHash = null,
+        ?string $sourceUrl  = null
+    ): void {
+        $parsed = $this->parse($filePath);
+        $meet   = $parsed['meets'][0] ?? null;
+
+        if (!$meet) {
+            throw new \RuntimeException('Keine gültigen Wettkampfdaten in Datei gefunden.');
+        }
+
+        // Find or create Competition
+        $competition = \App\Models\Competition::firstOrCreate(
+            ['name' => $meet['name'], 'date' => $meet['startdate'] ?? now()->toDateString()],
+            [
+                'location'    => $meet['city'] ?? '',
+                'type'        => 'regional',
+                'organizer'   => $meet['organizer'] ?? null,
+                'course'      => ($meet['course'] ?? 'Kurzbahn'),
+                'date_end'    => $meet['enddate'] ?? null,
+                'source_file' => basename($filePath),
+                'source_url'  => $sourceUrl,
+                'import_hash' => $importHash,
+            ]
+        );
+
+        if ($importHash && !$competition->import_hash) {
+            $competition->update(['import_hash' => $importHash]);
+        }
+
+        $swimmers = \App\Models\User::where('role', 'schwimmer')->where('active', true)->get();
+
+        foreach ($meet['clubs'] as $club) {
+            foreach ($club['athletes'] as $athlete) {
+                if ($athlete['is_relay'] ?? false) continue;
+
+                $userId = $this->matchAthleteToUser($athlete, $swimmers);
+                if (!$userId) continue;
+
+                foreach ($athlete['results'] ?? [] as $result) {
+                    $this->persistResult($competition->id, $userId, $result, $athlete['gender'] ?? 'X');
+                }
+            }
+        }
+
+        \App\Models\ImportLog::create([
+            'source'         => $source,
+            'source_url'     => $sourceUrl,
+            'filename'       => basename($filePath),
+            'status'         => 'success',
+            'competition_id' => $competition->id,
+            'message'        => 'Automatischer Import',
+        ]);
+    }
+
+    private function matchAthleteToUser(array $athlete, \Illuminate\Support\Collection $swimmers): ?int
+    {
+        $first = mb_strtolower(trim($athlete['firstname'] ?? ''));
+        $last  = mb_strtolower(trim($athlete['lastname']  ?? ''));
+        foreach ($swimmers as $swimmer) {
+            if (mb_strtolower(trim($swimmer->firstname)) === $first
+                && mb_strtolower(trim($swimmer->lastname)) === $last) {
+                return $swimmer->id;
+            }
+        }
+        return null;
+    }
+
+    private function persistResult(int $competitionId, int $userId, array $result, string $gender): void
+    {
+        $exists = \App\Models\CompetitionResult::where([
+            'competition_id' => $competitionId,
+            'user_id'        => $userId,
+            'discipline'     => $result['discipline'],
+            'distance'       => $result['distance'],
+            'age_group'      => $result['age_group'] ?? null,
+        ])->exists();
+
+        if ($exists) return;
+
+        $isPb = false;
+        if (!empty($result['time_ms'])) {
+            $best = \App\Models\CompetitionResult::where('user_id', $userId)
+                ->where('discipline', $result['discipline'])
+                ->where('distance', $result['distance'])
+                ->where('time_ms', '>', 0)
+                ->min('time_ms');
+            $isPb = !$best || $result['time_ms'] < $best;
+        }
+
+        \App\Models\CompetitionResult::create([
+            'competition_id'   => $competitionId,
+            'user_id'          => $userId,
+            'discipline'       => $result['discipline'],
+            'distance'         => $result['distance'],
+            'time_ms'          => $result['time_ms'] ?? 0,
+            'placement'        => $result['place'] ?? null,
+            'is_personal_best' => $isPb,
+            'age_group'        => $result['age_group'] ?? null,
+            'gender'           => $gender !== 'X' ? $gender : null,
+            'is_final'         => ($result['round_type'] ?? '') === 'F',
+            'notes'            => $result['status'] ?? null,
+        ]);
     }
 }

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('competitions', function (Blueprint $table) {
             if (!Schema::hasColumn('competitions', 'course')) {
-                $table->string('course', 3)->nullable()->after('organizer');
+                $table->string('course', 10)->nullable()->after('organizer');
             }
         });
 
@@ -22,7 +22,7 @@ return new class extends Migration
                 $table->unsignedTinyInteger('session_number')->default(1);
                 $table->date('session_date')->nullable();
                 $table->string('session_name', 100)->nullable();
-                $table->enum('discipline', ['freistil', 'ruecken', 'brust', 'schmetterling', 'lagen']);
+                $table->enum('discipline', ['F', 'B', 'R', 'S', 'L']);
                 $table->unsignedSmallInteger('distance');
                 $table->enum('gender', ['M', 'F', 'X'])->default('X');
                 $table->unsignedTinyInteger('age_min')->nullable();

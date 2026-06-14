@@ -33,7 +33,7 @@ class RecordController extends Controller
         $buildKlassen = fn($records) => $records->map(fn($r) => [
             'key'   => $r->gender . '|' . $r->course . '|' . ($r->age_group ?? ''),
             'label' => ($r->gender === 'F' ? 'Weiblich' : 'Männlich') . ', ' .
-                       ($r->course === 'SCM' ? 'Kurzbahn' : 'Langbahn') . ', ' .
+                       ($r->course === 'Kurzbahn' ? 'Kurzbahn' : 'Langbahn') . ', ' .
                        ($r->age_group ?: 'Offen'),
         ])->unique('key')->sortBy('label')->values();
 
@@ -49,11 +49,11 @@ class RecordController extends Controller
     {
         $data = $request->validate([
             'type'         => ['required', 'in:vereinsrekord,landesrekord'],
-            'discipline'   => ['required', 'in:freistil,brust,ruecken,schmetterling,lagen'],
+            'discipline'   => ['required', 'in:F,B,R,S,L'],
             'distance'     => ['required', 'integer', 'min:25'],
             'gender'       => ['required', 'in:M,F'],
             'age_group'    => ['nullable', 'string', 'max:20'],
-            'course'       => ['required', 'in:LCM,SCM'],
+            'course'       => ['required', 'in:Kurzbahn,Langbahn'],
             'swimmer_name' => ['required', 'string', 'max:255'],
             'time_minutes' => ['nullable', 'integer', 'min:0'],
             'time_seconds' => ['required', 'integer', 'min:0', 'max:59'],
@@ -195,13 +195,13 @@ class RecordController extends Controller
             $gender      = $row['gender']        ?? null;
             $swimmerName = trim($row['swimmer_name'] ?? '');
             $ageGroup    = trim($row['age_group'] ?? '') ?: null;
-            $rowCourse   = $row['course'] ?? 'LCM';
+            $rowCourse   = $row['course'] ?? 'Langbahn';
             $timeMs      = (int)($row['time_ms'] ?? 0);
             $setDate     = $row['set_date'] ?: null;
             $location    = trim($row['location'] ?? '') ?: null;
 
             if (!$discipline || !$distance || !$gender || !$swimmerName || $timeMs <= 0) continue;
-            if (!in_array($discipline, ['freistil', 'brust', 'ruecken', 'schmetterling', 'lagen'])) continue;
+            if (!in_array($discipline, ['F', 'B', 'R', 'S', 'L'])) continue;
             if (!in_array($gender, ['M', 'F'])) continue;
 
             $existing = Record::where('type', $type)

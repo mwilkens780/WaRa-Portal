@@ -27,11 +27,11 @@ class SwimmerGoal extends Model
     }
 
     const DISC_LABELS = [
-        'freistil'      => 'Freistil',
-        'brust'         => 'Brust',
-        'ruecken'       => 'Rücken',
-        'schmetterling' => 'Schmetterling',
-        'lagen'         => 'Lagen',
+        'F' => 'Freistil',
+        'B' => 'Brust',
+        'R' => 'Rücken',
+        'S' => 'Schmetterling',
+        'L' => 'Lagen',
     ];
 
     const TYPE_LABELS = [

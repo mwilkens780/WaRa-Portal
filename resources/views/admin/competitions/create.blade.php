@@ -160,12 +160,23 @@
                     </div>
 
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Meisterschaftsebene</label>
+                        <select name="level"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">– nicht angegeben –</option>
+                            @foreach(\App\Models\Competition::LEVEL_LABELS as $v => $l)
+                                <option value="{{ $v }}" {{ old('level') === $v ? 'selected' : '' }}>{{ $l }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Bahnlänge</label>
                         <select name="course"
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">– nicht angegeben –</option>
-                            <option value="SCM" {{ old('course', $lenexData['course'] ?? '') === 'SCM' ? 'selected' : '' }}>25 m (Kurzbahn)</option>
-                            <option value="LCM" {{ old('course', $lenexData['course'] ?? '') === 'LCM' ? 'selected' : '' }}>50 m (Langbahn)</option>
+                            <option value="Kurzbahn" {{ old('course', $lenexData['course'] ?? '') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
+                            <option value="Langbahn" {{ old('course', $lenexData['course'] ?? '') === 'Langbahn' ? 'selected' : '' }}>Langbahn (50 m)</option>
                         </select>
                     </div>
 
@@ -203,7 +214,7 @@
                                     <div class="flex-1 min-w-0">
                                         <span class="text-sm font-medium text-gray-700">
                                             <span x-text="'Nr. ' + ev.event_number + ':  ' + ev.distance + ' m ' +
-                                                {'freistil':'Freistil','ruecken':'Rücken','brust':'Brust','schmetterling':'Schmetterling','lagen':'Lagen'}[ev.discipline]">
+                                                {'F':'Freistil','B':'Brust','R':'Rücken','S':'Schmetterling','L':'Lagen'}[ev.discipline] || ev.discipline">
                                             </span>
                                             <span x-show="ev.age_group" x-text="' · ' + ev.age_group" class="text-gray-400"></span>
                                             <span x-show="ev.gender !== 'X'" x-text="ev.gender === 'M' ? ' · Männer' : ' · Frauen'" class="text-gray-400"></span>

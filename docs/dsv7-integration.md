@@ -9,6 +9,10 @@
 - 🔄 ALTER TABLE / Migration nötig (bestehende Daten bleiben erhalten)
 - 🆕 Neue Tabelle / neues Feature
 
+> **Änderungsprotokoll Juni 2026:** Ausschreibungs-PDF-Import vollständig implementiert
+> (Abschnitte 3.1, 4.3, 5.1, 7.1, 11.1 aktualisiert). `smalot/pdfparser`-Abhängigkeit
+> entfernt — PDFs werden nativ als Base64-Dokument an die Claude API gesendet.
+
 ---
 
 ## 1. Kontext & Datenquellen
@@ -272,17 +276,18 @@ AUSWERTUNGEN (beide Typen)
 
 | Tab | Status | Inhalt |
 |---|---|---|
-| Ausschreibung | 🆕 | PDF-Upload/Anzeige; strukturierte Metadaten aus PDF; Generator für eigene Veranstaltungen |
+| Import | ✅ | DSV7 Ergebnisdatei-Upload (3-Schritt-Workflow) |
 | Wettkampffolge | ✅ | DSV7 *-Wk.DSV7 Import; Abschnitte, Disziplinen |
 | Pflichtzeiten | ✅ | Aus *-Wk.DSV7; Tabelle pro Disziplin/Jahrgang |
 | Meldegelder | ✅ | Aus *-Wk.DSV7; Einzel- und Staffelgebühren |
-| Kampfgericht | 🆕 | Schiedsrichter, Kampfrichter, Ausrichter-Kontakt |
-| Anmeldungen | ✅🔄 | **Zusammengelegt aus „Gruppen" + bisherigem „Anmeldungen"-Tab**; Gruppen/Schwimmer definieren; interne Abfrage starten, überwachen, erinnern |
-| Meldungen | ✅🔄 | Bisheriger Teilnehmerstatus **erweitert um**: Streckenauswahl pro Schwimmer; Staffelmeldungen; Validierung; DSV7 Meldedatei-Generator |
 | Ergebnisse | ✅ | DSV7 *-Pr / *-VPr Import; automatische Vereinsfilterung; PBs, Rekorde |
 | Auswertung | ✅ | KI-Bericht (Claude API); Ergebnisübersicht |
+| Gruppen | ✅ | Trainingsgruppen dem Wettkampf zuordnen |
+| Anmeldungen | ✅🔄 | **Zusammengelegt aus „Gruppen" + bisherigem „Anmeldungen"-Tab**; Gruppen/Schwimmer definieren; interne Abfrage starten, überwachen, erinnern |
 | Organisation | ✅ | Freie Notizen (Anreise, Hotel, Kontakte) |
-| Import | ✅ | DSV7 Ergebnisdatei-Upload (3-Schritt-Workflow) |
+| Ausschreibung | ✅ | **PDF-Upload → Claude AI extrahiert automatisch**: Fristen, Wettkampfstätte, Kampfgericht, WB-Abweichungen, ENM, Akkreditierung, Pflichtzeiten; „Daten übernehmen"-Button schreibt in Wettkampf-Felder |
+| Meldungen | ✅🔄 | Bisheriger Teilnehmerstatus **erweitert um**: Streckenauswahl pro Schwimmer; Staffelmeldungen; Validierung; DSV7 Meldedatei-Generator |
+| Kampfgericht | 🆕 | Eigenständiger Tab für Schiedsrichter, Kampfrichter, Ausrichter-Kontakt (aktuell in Ausschreibung-Tab integriert) |
 
 > **Hinweis Zusammenlegung:** Der bisherige „Gruppen"-Tab und „Anmeldungen"-Tab werden zu **einem Tab „Anmeldungen"** zusammengeführt. Oben: Gruppen/Schwimmer-Definition. Darunter: Abfrage-Workflow (Draft → Aktivieren → Überwachen → Schließen).
 
@@ -312,9 +317,15 @@ id, name, location, date, date_end, meldeschluss,
 type ENUM('vereinsintern','regional','national','international',
           'meisterschaften','einladung','nop','dms','shsv'),
 description, organizer,
-course ENUM('LCM','SCM'),       -- LCM = 50m Langbahn, SCM = 25m Kurzbahn
+ausrichter VARCHAR(255),         -- ✅ Migration 31
+course ENUM('LCM','SCM'),        -- LCM = 50m Langbahn, SCM = 25m Kurzbahn
 season_id,
 organisation_notes JSON,
+announcement_data JSON,          -- ✅ Migration 30  — Claude-geparste Ausschreibungsdaten
+venue_details JSON,              -- ✅ Migration 31  — Wettkampfstätte (name, street, pool_length …)
+kampfgericht JSON,               -- ✅ Migration 31  — Kampfgericht-Kontakte und Besonderheiten
+contact_info JSON,               -- ✅ Migration 31  — Meldeanschrift, Fristen, IBAN
+announcement_pdf_path VARCHAR,   -- ✅ Migration 31  — Pfad zur gespeicherten PDF-Datei
 created_at, updated_at
 ```
 
@@ -356,33 +367,29 @@ dsv_id VARCHAR(20) UNIQUE,      -- DSV-Startnummer
 role ENUM('admin','trainer','schwimmer','elternteil')
 ```
 
-### 4.3 Geplante Migrationen (🔄 ALTER TABLE — keine Daten gehen verloren)
+### 4.3 Migrationen competitions-Tabelle
+
+**Bereits migriert (✅):**
+
+| Migration | Felder |
+|---|---|
+| `2026_06_07_000028` | `organisation_notes JSON` |
+| `2026_06_10_000030` | `announcement_data JSON` |
+| `2026_06_10_000031` | `ausrichter`, `venue_details JSON`, `kampfgericht JSON`, `contact_info JSON`, `announcement_pdf_path` |
+
+**Noch ausstehend (🔄):**
 
 ```sql
--- Migration: add_import_and_competition_fields_to_competitions
 ALTER TABLE competitions
-    ADD COLUMN federation_id        TINYINT UNSIGNED NULL
+    ADD COLUMN federation_id  TINYINT UNSIGNED NULL
         COMMENT 'shsv=1, nsv=2, dsv=3 — NULL für eigene Veranstaltungen'
         AFTER season_id,
-    ADD COLUMN level                VARCHAR(20) NULL
+    ADD COLUMN level          VARCHAR(20) NULL
         COMMENT 'dsv_dm|dsv_djm|nsv|shsv_lm|shsv_open|vereins'
         AFTER federation_id,
-    ADD COLUMN ausrichter           VARCHAR(255) NULL
-        AFTER level,
-    ADD COLUMN venue_details        JSON NULL
-        COMMENT '{"pool_length":50,"lanes":8,"depth":"2-3.8m","temp":25}'
-        AFTER ausrichter,
-    ADD COLUMN kampfgericht         JSON NULL
-        COMMENT '[{"role":"Schiedsrichter","name":"Max Müller","club":"..."}]'
-        AFTER venue_details,
-    ADD COLUMN contact_info         JSON NULL
-        COMMENT '{"melde_email":"...","melde_name":"...","meldeschluss_note":"..."}'
-        AFTER kampfgericht,
-    ADD COLUMN announcement_pdf_path VARCHAR(255) NULL
-        AFTER contact_info,
-    ADD COLUMN source_file          VARCHAR(255) NULL AFTER announcement_pdf_path,
-    ADD COLUMN source_url           VARCHAR(500) NULL AFTER source_file,
-    ADD COLUMN import_hash          CHAR(64) NULL UNIQUE
+    ADD COLUMN source_file    VARCHAR(255) NULL AFTER announcement_pdf_path,
+    ADD COLUMN source_url     VARCHAR(500) NULL AFTER source_file,
+    ADD COLUMN import_hash    CHAR(64) NULL UNIQUE
         COMMENT 'SHA-256 des DSV7-Dateiinhalts'
         AFTER source_url;
 
@@ -562,7 +569,39 @@ app/Services/
 │                                   (aktuell: nur eigene Schwimmer via user_id-Matching)
 ├── RecordCheckService.php       ✅ Prüft ob Ergebnis Vereins- oder Landesrekord bricht
 ├── CompetitionResultGrouper.php ✅ Zusammenführung mehrerer Wertungsklassen
-└── WebClubImportService.php     ✅ WebClub-CSV-Import (Wettkampf-Termine)
+├── WebClubImportService.php     ✅ WebClub-CSV-Import (Wettkampf-Termine)
+└── Competition/
+    └── AusschreibungParserService.php  ✅ PDF → strukturierte Ausschreibungsdaten
+        │  Methoden:
+        │    parseFromPath(string $pdfPath): array
+        │    mapToCompetitionFields(array $data): array   → Competition-Felder
+        │    extractQualifyingTimes(array $data): array   → competition_events-Zeilen
+        │
+        │  Technologie:
+        │    - PDF wird base64-encodiert und als natives Dokument an Claude API gesendet
+        │    - Kein PHP-PDF-Parser nötig (smalot/pdfparser NICHT mehr als Abhängigkeit)
+        │    - Claude verarbeitet Layout, Tabellen und Spalten nativ
+        │    - Timeout: 120s (typische DJM-PDF: ca. 10–20s)
+        │    - Max. PDF-Größe: 10 MB
+        │
+        │  Extrahierte Felder (aus announcement_data JSON):
+        │    competition.{name, subtitle, level, date_from, date_to, eligible_age_groups}
+        │    venue.{name, street, city, zip, pool_length_m, lanes_heats, lanes_finals,
+        │           water_depth_m, water_temp_c, lane_ropes, timing, warmup_pool}
+        │    organizer.{veranstalter, ausrichter}
+        │    deadlines[].{date, time, type, description}
+        │    entry.{contact_name, contact_email, format, fee_individual_cents,
+        │           payment_deadline, payment_iban, payment_bic, payment_bank, payment_reference}
+        │    kampfgericht.{note, special[], contacts[]}
+        │    enm.cases[].{trigger, description, amount_cents, waiver_condition}
+        │    accreditation.{initial_coaches, initial_athletes, additional_per_athletes,
+        │                   additional_count, extra_card_fee_cents, lost_card_fee_cents, notes}
+        │    special_rules[].{category, title, text, is_deviation_from_wb}
+        │    qualification.{period_from, period_to, pool_type, series, rudolph_min, note}
+        │    start_quotas.{JAHRGANG: {50m, 100m, 200m, 400m, 800m_1500m}}
+        │    qualifying_times.{M|W: {JAHRGANG: {50F, 100F, …, 400L}}}
+        │    relay_qualification[].{stroke, gender, min_time, top_n}
+        │    schedule[].{date, session, type, start_time, events[]}
 ```
 
 ### 5.2 Neue Services (🆕)
@@ -696,18 +735,54 @@ Alle Athleten (alle Clubs) werden ggf. in `ext_competition_results` gespeichert.
 
 Vollständiger Workflow vom „Wettkampf gefunden" bis „Ergebnisse importiert".
 
-### 7.1 Schritt 1: Ausschreibung erfassen (Tab „Ausschreibung")
+### 7.1 Schritt 1: Ausschreibung erfassen (Tab „Ausschreibung") ✅
 
-**Tab-Inhalt:**
-- PDF-Upload: Ausschreibungs-PDF hochladen → Speicherung unter `competitions.announcement_pdf_path`
-- PDF-Anzeige: eingebetteter PDF-Viewer im Tab
-- Strukturierte Metadaten aus der Ausschreibung erfassen (Formularfelder):
-  - Veranstalter, Ausrichter
-  - Kontaktdaten Meldeanschrift (E-Mail, Name)
-  - Meldeschluss-Datum (→ `competitions.meldeschluss`)
-  - Maximale Teilnehmerzahl (falls begrenzt)
-  - Zahlungsdaten für Meldegeld
-  - Besondere Hinweise / Allgemeine Bestimmungen
+**Tab-Inhalt (implementiert):**
+
+```
+┌─ PDF hochladen ──────────────────────────────────────────────────┐
+│  [Datei auswählen]  [ PDF analysieren ]                          │
+│  → HTTP POST → CompetitionController::parseAnnouncement()        │
+│  → AusschreibungParserService::parseFromPath()                   │
+│    → PDF als base64 an Claude API (claude-sonnet-4-6)            │
+│    → Antwort: JSON mit allen Ausschreibungsdaten                 │
+└──────────────────────────────────────────────────────────────────┘
+
+┌─ Geparste Daten (Alpine.js) ─────────────────────────────────────┐
+│  Header: Wettkampfname + Parsezeitpunkt + [Daten übernehmen]    │
+│                                                                   │
+│  Wettkampfstätte: Hallenname, Adresse, Bahnlänge, Wassertiefe,  │
+│                   Temp, Leinenart, Zeitmessung, Einschwinmbecken │
+│  Veranstalter: Veranstalter, Ausrichter                          │
+│  Meldeanschrift: E-Mail, Meldegeld-Betrag, IBAN, Bank, VWZ      │
+│                                                                   │
+│  Fristen (Tabelle): Datum, Uhrzeit, Art, Beschreibung            │
+│    → Meldeschluss Einzel farblich hervorgehoben (amber)         │
+│  Kampfgericht: Notiz, Besonderheiten (Chips), Kontakte           │
+│  Besondere Regeln: Regeltext + Kategorie-Badge                   │
+│    → WB-Abweichungen rot markiert                               │
+│  ENM: Fallbeschreibung + Betrag + Erlass-Bedingung              │
+│  Akkreditierung: Kennzahlen-Kacheln + Hinweis-Text              │
+│  Qualifikation: Zeitraum, Bahntyp, Rudolph-Min, Hinweise        │
+│  Qualifikationszeiten: scrollbare Tabelle (Jahrgang × Strecke)  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**API-Routen:**
+```
+POST /wettkaempfe/{competition}/ausschreibung/parsen
+     → CompetitionController::parseAnnouncement()
+     → Response: JSON { pdf_path, data }
+
+POST /wettkaempfe/{competition}/ausschreibung/speichern
+     → CompetitionController::saveAnnouncement()
+     → Schreibt gemappte Felder in competitions + announcement_data
+     → Response: JSON { success: true }
+```
+
+**Felder die beim „Daten übernehmen" in competitions geschrieben werden:**
+`name`, `level`, `date`, `date_end`, `location`, `organizer`, `ausrichter`, `meldeschluss`,
+`venue_details`, `kampfgericht`, `contact_info`, `announcement_data`, `announcement_pdf_path`
 
 **DSV7 Definitionsdatei importieren:**
 
@@ -715,7 +790,6 @@ Parallel zum PDF kann eine `*-Wk.DSV7`-Datei importiert werden. Diese befüllt a
 - Tab „Wettkampffolge" (competition_events)
 - Tab „Pflichtzeiten" (qualifying_time_ms)
 - Tab „Meldegelder" (meldegeld)
-- Tab „Kampfgericht" (kampfgericht JSON)
 
 ```
 Quelle für *-Wk.DSV7:
@@ -1247,16 +1321,17 @@ Inline-Edit in der Admin-Wettkampfliste ermöglicht schnelle Nachkorrektur.
 - DSV7 Ergebnisdatei importieren (3-Schritt: Upload → Vorschau → Speichern)
 - Wettkampffolge, Pflichtzeiten, Meldegelder aus DSV7 *-Wk.DSV7
 - Tabs: Import, Wettkampffolge, Pflichtzeiten, Meldegelder, Ergebnisse, Auswertung
-- Anmeldeworkflow (Signup-Request): Draft → Aktivieren → Erinnern → Schließen ✅
-- Organisation-Tab (freie Notizen) ✅
-- Meldungen-Tab (Teilnehmerliste) ✅
+- Anmeldeworkflow (Signup-Request): Draft → Aktivieren → Erinnern → Schließen
+- Organisation-Tab (freie Notizen)
+- Meldungen-Tab (Teilnehmerliste)
+- **Tab „Ausschreibung":** PDF-Upload → Claude AI extrahiert alle strukturierten Daten (Fristen, Stätte, Kampfgericht, WB-Abweichungen, ENM, Pflichtzeiten); „Daten übernehmen" schreibt in competitions-Felder
 
-### 11.2 Neue Funktionen (🆕)
+### 11.2 Neue Funktionen (🆕 — noch nicht implementiert)
 
-- **Tab „Ausschreibung":** PDF-Upload/Anzeige; strukturierte Metadaten; Ausschreibungs-Generator
-- **Tab „Kampfgericht":** Schiedsrichter, Kampfrichter, Ausrichter-Kontakt
+- **Tab „Kampfgericht" (eigenständig):** Schiedsrichter, Kampfrichter, Ausrichter-Kontakt (aktuell im Ausschreibung-Tab integriert)
 - **Tab „Anmeldungen" (merged):** Gruppen + interne Abfrage in einem Tab
 - **Tab „Meldungen" (erweitert):** Streckenauswahl je Schwimmer; Staffelmeldungen; Validierung; DSV7-Generator
+- **Ausschreibungs-Generator:** Aus competitions-Daten → PDF generieren (für eigene Wettkämpfe)
 - **Batch-Import-Upload:** ZIP mit mehreren DSV7-Dateien
 - **Import-Log-Seite:** `import_log` mit Status, Dateiname, Fehler, Zeitstempel
 - **Vollständige Ergebnisse:** Neuer Abschnitt in Tab „Ergebnisse" für `ext_competition_results` (alle Clubs)
@@ -1309,8 +1384,11 @@ Jeder Schritt ist isoliert testbar. Die bestehende Funktionalität bleibt nach j
 
 ```
 Schritt 1:  federations anlegen (neue Tabelle, kein Risiko)
-Schritt 2:  competitions erweitern (level, ausrichter, venue_details, kampfgericht,
-            contact_info, announcement_pdf_path, source_file, source_url, import_hash)
+Schritt 2:  competitions erweitern
+            ✅ 2026_06_10_000030: announcement_data JSON
+            ✅ 2026_06_10_000031: ausrichter, venue_details, kampfgericht,
+                                   contact_info, announcement_pdf_path
+            🔄 noch offen: level, federation_id, source_file, source_url, import_hash
             → alle nullable, bestehende Zeilen unberührt
 Schritt 3:  athletes anlegen
 Schritt 4:  ext_competition_results anlegen
@@ -1342,4 +1420,7 @@ Schritt 10: season_scores anlegen (optional, nur wenn Ranking-Feature live)
 | **Zwei parallele Ergebnissysteme** | `competition_results` vs. `ext_competition_results` | Klar getrennte Zuständigkeit: `competition_results` = eigene Schwimmer (Cockpit, PBs, Rekorde); `ext_competition_results` = alle Athleten (Rankings, Vollansicht) |
 | **Eingehende Meldungen** | Andere Vereine senden ggf. DSV6 oder fehlerhafte Dateien | Strikte Validierung; Upload-Fehler klar im Import-Log protokollieren |
 | **MELDUNG/ANMELDUNG Format** | Exakte Feldstruktur für Vereinsmeldedatei (Formular 101/102) nicht im Parser verifizierbar — Parser überspringt diese Satzarten | Vor erstem produktivem Einsatz gegen offizielle DSV Standard 7 Spezifikation (dsv.de) abgleichen; Testlauf mit WebClub/EasyWk |
+| **Ausschreibungs-PDF-Größe** | PDFs mit vielen Fotos können >10 MB sein | Limit auf 10 MB gesetzt; Ausschreibungen sind i.d.R. text-dominiert (DJM-Beispiel: ~3–5 MB) |
+| **Claude-API-Kosten** | Jede Ausschreibung kostet ~1–3 Anthropic-API-Einheiten (Input: Bilder + Text) | Einmaliger Vorgang pro Wettkampf; kein Auto-Re-Parse; akzeptables Kostenniveau |
+| **Claude-Parsing-Fehler** | Gelegentlich falsche Zeiten oder fehlende Felder | „Daten übernehmen" ist manueller Schritt; Trainer sieht alle Daten vor dem Speichern |
 | **STAFFELANMELDUNG Format** | Relay-Meldungsformat (Formular 102) unbekannt | Wie oben; alternativ beim NSV/SHSV eine Beispiel-Meldedatei anfragen |

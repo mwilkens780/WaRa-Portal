@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CompetitionEvent extends Model
 {
     protected $fillable = [
-        'competition_id', 'event_number', 'session_number', 'session_date',
+        'competition_id', 'event_number', 'dsv_wertungs_id', 'session_number', 'session_date',
         'session_name', 'discipline', 'distance', 'gender', 'age_min', 'age_max', 'age_group',
         'qualifying_time_ms', 'meldegeld',
     ];
@@ -44,12 +44,12 @@ class CompetitionEvent extends Model
     public function getDisciplineLabelAttribute(): string
     {
         return match($this->discipline) {
-            'freistil'      => 'Freistil',
-            'brust'         => 'Brust',
-            'ruecken'       => 'Rücken',
-            'schmetterling' => 'Schmetterling',
-            'lagen'         => 'Lagen',
-            default         => $this->discipline,
+            'F' => 'Freistil',
+            'B' => 'Brust',
+            'R' => 'Rücken',
+            'S' => 'Schmetterling',
+            'L' => 'Lagen',
+            default => $this->discipline,
         };
     }
 

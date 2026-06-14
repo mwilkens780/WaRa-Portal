@@ -23,152 +23,191 @@
             'mentaltraining' => 'bg-purple-100 text-purple-700',
             'sonstiges'      => 'bg-gray-100 text-gray-600',
         ];
+
+        // Wochentag-Kürzel Mo–Sa
+        $dayLabels = [1 => 'Mo', 2 => 'Di', 3 => 'Mi', 4 => 'Do', 5 => 'Fr', 6 => 'Sa', 7 => 'So'];
+
+        /**
+         * Gruppiert eine Collection von Sessions nach Serien (recurrence_group_id).
+         * Sortierung: Wochentag (Mo–Sa), dann Startzeit.
+         * Rückgabe: Collection von ['rep' => Session, 'sessions' => Collection, 'dow' => int, 'is_series' => bool]
+         */
+        $buildSeries = function (\Illuminate\Support\Collection $sessions) {
+            return $sessions
+                ->groupBy(fn($s) => $s->recurrence_group_id ?? ('__single__' . $s->id))
+                ->map(function ($group) {
+                    $rep = $group->sortBy('date')->first();
+                    return [
+                        'rep'       => $rep,
+                        'sessions'  => $group->sortBy('date'),
+                        'dow'       => (int) $rep->date->dayOfWeekIso,   // 1=Mo … 7=So
+                        'is_series' => $group->count() > 1,
+                    ];
+                })
+                ->sortBy([['dow', 'asc'], [fn($a) => $a['rep']->start_time, 'asc']]);
+        };
     @endphp
 
     @forelse($groups as $group)
-        @php $tgc = \App\Models\TrainingGroup::COLORS[$group->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
+        @php
+            $tgc    = \App\Models\TrainingGroup::COLORS[$group->color] ?? \App\Models\TrainingGroup::COLORS['blue'];
+            $series = $buildSeries($group->sessions);
+        @endphp
         <div>
             <div class="flex items-center gap-2 mb-2 px-1">
                 <span class="w-2.5 h-2.5 rounded-full {{ $tgc['dot'] }}"></span>
                 <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">{{ $group->name }}</h2>
-                <span class="text-xs text-gray-400">{{ $group->sessions->count() }} {{ Str::plural('Einheit', $group->sessions->count()) }}</span>
+                <span class="text-xs text-gray-400">{{ $series->count() }} {{ Str::plural('Serie', $series->count()) }}</span>
             </div>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600">Datum</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600">Einheit</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Typ</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Trainer</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Uhrzeit</th>
-                                <th class="px-5 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @foreach($group->sessions as $session)
-                                <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="px-5 py-3 text-gray-600 whitespace-nowrap">
-                                        <div>{{ $session->date->format('d.m.Y') }}</div>
-                                        <div class="text-xs text-gray-400">{{ $session->date->isoFormat('dddd') }}</div>
-                                    </td>
-                                    <td class="px-5 py-3">
-                                        <div class="flex items-center gap-1.5">
-                                        <a href="{{ route('trainer.sessions.show', $session) }}"
-                                           class="font-medium text-primary hover:underline">{{ $session->title }}</a>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                @foreach($series as $s)
+                    @php
+                        $rep  = $s['rep'];
+                        $all  = $s['sessions'];
+                        $isSeries = $s['is_series'];
+                        $dow  = $dayLabels[$s['dow']] ?? '';
+                    @endphp
+
+                    <details class="group/series">
+                        <summary class="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors select-none list-none">
+                            {{-- Wochentag-Badge --}}
+                            <span class="w-9 text-center text-xs font-bold text-primary bg-blue-50 rounded-md py-1 shrink-0">{{ $dow }}</span>
+
+                            {{-- Titel + Uhrzeit --}}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-gray-800 text-sm">{{ $rep->title }}</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$rep->type] ?? 'bg-gray-100' }}">
+                                        {{ $rep->type_label }}
+                                    </span>
+                                    @if($isSeries)
+                                        <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                                            {{ $all->count() }}×
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="text-xs text-gray-400 mt-0.5">
+                                    {{ $rep->start_time }}@if($rep->end_time) – {{ $rep->end_time }}@endif
+                                    @if($rep->location) · {{ $rep->location }} @endif
+                                    @if($isSeries)
+                                        · {{ $all->first()->date->format('d.m.Y') }} – {{ $all->last()->date->format('d.m.Y') }}
+                                    @else
+                                        · {{ $rep->date->format('d.m.Y') }}
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Trainer --}}
+                            @php $trainerNames = $rep->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', '); @endphp
+                            @if($trainerNames)
+                                <span class="text-xs text-gray-400 hidden lg:block shrink-0">{{ $trainerNames }}</span>
+                            @endif
+
+                            {{-- Expand-Icon --}}
+                            <svg class="w-4 h-4 text-gray-400 shrink-0 group-open/series:rotate-180 transition-transform"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </summary>
+
+                        {{-- Einzelne Iterationen --}}
+                        <div class="bg-gray-50 border-t border-gray-100">
+                            @foreach($all as $session)
+                                <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white transition-colors border-b border-gray-100 last:border-0">
+                                    <span class="w-9 shrink-0"></span>
+                                    <div class="flex-1 min-w-0 text-sm">
+                                        <span class="text-gray-700">{{ $session->date->isoFormat('dd, D. MMM YYYY') }}</span>
                                         @if($session->has_missing_trainer)
                                             @include('partials.no-trainer-badge')
                                         @endif
-                                        </div>
-                                        <div class="flex flex-wrap gap-1 mt-0.5">
-                                            @foreach($session->trainingGroups as $tg)
-                                                @php $tc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
-                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full {{ $tc['badge'] }}">
-                                                    <span class="w-1.5 h-1.5 rounded-full {{ $tc['dot'] }}"></span>{{ $tg->name }}
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                        <p class="text-xs text-gray-400">{{ $session->location }}</p>
-                                    </td>
-                                    <td class="px-5 py-3 hidden md:table-cell">
-                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$session->type] ?? 'bg-gray-100' }}">
-                                            {{ $session->type_label }}
-                                        </span>
-                                    </td>
-                                    <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">{{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') ?: '–' }}</td>
-                                    <td class="px-5 py-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
-                                        {{ $session->start_time }}
-                                        @if($session->end_time) – {{ $session->end_time }} @endif
-                                    </td>
-                                    <td class="px-5 py-3">
-                                        <div class="flex items-center gap-2 justify-end">
-                                            <a href="{{ route('trainer.sessions.show', $session) }}"
-                                               class="text-primary hover:text-primary-dark text-xs font-medium">Details</a>
-                                            <a href="{{ route('trainer.sessions.edit', $session) }}"
-                                               class="text-gray-500 hover:text-gray-700 text-xs">Bearbeiten</a>
-                                            <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
-                                                  onsubmit="return confirm('Trainingseinheit löschen?')">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs">Löschen</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
+                                    </div>
+                                    <div class="flex items-center gap-3 shrink-0 text-xs">
+                                        <a href="{{ route('trainer.sessions.show', $session) }}"
+                                           class="text-primary hover:text-primary-dark font-medium">Details</a>
+                                        <a href="{{ route('trainer.sessions.edit', $session) }}"
+                                           class="text-gray-500 hover:text-gray-700">Bearbeiten</a>
+                                        <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
+                                              onsubmit="return confirm('Trainingseinheit löschen?')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="text-red-500 hover:text-red-700">Löschen</button>
+                                        </form>
+                                    </div>
+                                </div>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                    </details>
+                @endforeach
             </div>
         </div>
     @empty
     @endforelse
 
+    {{-- Einheiten ohne Gruppe --}}
     @if($ungroupedSessions->isNotEmpty())
+        @php $series = $buildSeries($ungroupedSessions); @endphp
         <div>
             <div class="flex items-center gap-2 mb-2 px-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
                 <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Ohne Gruppe</h2>
-                <span class="text-xs text-gray-400">{{ $ungroupedSessions->count() }} {{ Str::plural('Einheit', $ungroupedSessions->count()) }}</span>
+                <span class="text-xs text-gray-400">{{ $series->count() }} {{ Str::plural('Serie', $series->count()) }}</span>
             </div>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600">Datum</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600">Einheit</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Typ</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Trainer</th>
-                                <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Uhrzeit</th>
-                                <th class="px-5 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @foreach($ungroupedSessions as $session)
-                                <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="px-5 py-3 text-gray-600 whitespace-nowrap">
-                                        <div>{{ $session->date->format('d.m.Y') }}</div>
-                                        <div class="text-xs text-gray-400">{{ $session->date->isoFormat('dddd') }}</div>
-                                    </td>
-                                    <td class="px-5 py-3">
-                                        <div class="flex items-center gap-1.5">
-                                        <a href="{{ route('trainer.sessions.show', $session) }}"
-                                           class="font-medium text-primary hover:underline">{{ $session->title }}</a>
-                                        @if($session->has_missing_trainer)
-                                            @include('partials.no-trainer-badge')
-                                        @endif
-                                        </div>
-                                        <p class="text-xs text-gray-400">{{ $session->location }}</p>
-                                    </td>
-                                    <td class="px-5 py-3 hidden md:table-cell">
-                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$session->type] ?? 'bg-gray-100' }}">
-                                            {{ $session->type_label }}
-                                        </span>
-                                    </td>
-                                    <td class="px-5 py-3 text-gray-500 hidden lg:table-cell">{{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') ?: '–' }}</td>
-                                    <td class="px-5 py-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
-                                        {{ $session->start_time }}
-                                        @if($session->end_time) – {{ $session->end_time }} @endif
-                                    </td>
-                                    <td class="px-5 py-3">
-                                        <div class="flex items-center gap-2 justify-end">
-                                            <a href="{{ route('trainer.sessions.show', $session) }}"
-                                               class="text-primary hover:text-primary-dark text-xs font-medium">Details</a>
-                                            <a href="{{ route('trainer.sessions.edit', $session) }}"
-                                               class="text-gray-500 hover:text-gray-700 text-xs">Bearbeiten</a>
-                                            <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
-                                                  onsubmit="return confirm('Trainingseinheit löschen?')">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs">Löschen</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                @foreach($series as $s)
+                    @php
+                        $rep  = $s['rep'];
+                        $all  = $s['sessions'];
+                        $isSeries = $s['is_series'];
+                        $dow  = $dayLabels[$s['dow']] ?? '';
+                    @endphp
+                    <details class="group/series">
+                        <summary class="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors select-none list-none">
+                            <span class="w-9 text-center text-xs font-bold text-primary bg-blue-50 rounded-md py-1 shrink-0">{{ $dow }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-gray-800 text-sm">{{ $rep->title }}</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$rep->type] ?? 'bg-gray-100' }}">{{ $rep->type_label }}</span>
+                                    @if($isSeries)
+                                        <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{{ $all->count() }}×</span>
+                                    @endif
+                                </div>
+                                <div class="text-xs text-gray-400 mt-0.5">
+                                    {{ $rep->start_time }}@if($rep->end_time) – {{ $rep->end_time }}@endif
+                                    @if($rep->location) · {{ $rep->location }} @endif
+                                    @if($isSeries)
+                                        · {{ $all->first()->date->format('d.m.Y') }} – {{ $all->last()->date->format('d.m.Y') }}
+                                    @else
+                                        · {{ $rep->date->format('d.m.Y') }}
+                                    @endif
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0 group-open/series:rotate-180 transition-transform"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </summary>
+                        <div class="bg-gray-50 border-t border-gray-100">
+                            @foreach($all as $session)
+                                <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white transition-colors border-b border-gray-100 last:border-0">
+                                    <span class="w-9 shrink-0"></span>
+                                    <div class="flex-1 text-sm text-gray-700">
+                                        {{ $session->date->isoFormat('dd, D. MMM YYYY') }}
+                                        @if($session->has_missing_trainer) @include('partials.no-trainer-badge') @endif
+                                    </div>
+                                    <div class="flex items-center gap-3 shrink-0 text-xs">
+                                        <a href="{{ route('trainer.sessions.show', $session) }}" class="text-primary hover:text-primary-dark font-medium">Details</a>
+                                        <a href="{{ route('trainer.sessions.edit', $session) }}" class="text-gray-500 hover:text-gray-700">Bearbeiten</a>
+                                        <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}" onsubmit="return confirm('Trainingseinheit löschen?')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="text-red-500 hover:text-red-700">Löschen</button>
+                                        </form>
+                                    </div>
+                                </div>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                    </details>
+                @endforeach
             </div>
         </div>
     @endif

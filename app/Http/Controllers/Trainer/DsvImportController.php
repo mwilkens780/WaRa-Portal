@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Trainer;
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionResult;
+use App\Models\RelayResult;
 use App\Models\User;
 use App\Services\DsvImportService;
 use Illuminate\Http\Request;
@@ -97,7 +98,7 @@ class DsvImportController extends Controller
             'comp_date'     => ['required', 'date'],
             'comp_date_end' => ['nullable', 'date', 'after_or_equal:comp_date'],
             'comp_type'     => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung'],
-            'comp_course'   => ['required', 'in:LCM,SCM'],
+            'comp_course'   => ['required', 'in:Kurzbahn,Langbahn'],
             'mappings'      => ['present', 'array'],
         ]);
 
@@ -123,11 +124,20 @@ class DsvImportController extends Controller
             'course'    => $data['comp_course'],
         ]);
 
-        $imported = 0;
-        $skipped  = 0;
+        $imported      = 0;
+        $skipped       = 0;
+        $relayImported = 0;
 
         foreach ($meet['clubs'] as $ci => $club) {
             foreach ($club['athletes'] as $ai => $athlete) {
+                if ($athlete['is_relay'] ?? false) {
+                    foreach ($athlete['results'] as $result) {
+                        $this->importRelayResult($competition->id, $club['name'], $athlete, $result);
+                        $relayImported++;
+                    }
+                    continue;
+                }
+
                 $userId = (int)($data['mappings'][$ci][$ai] ?? 0);
 
                 if (!$userId) {
@@ -150,11 +160,12 @@ class DsvImportController extends Controller
 
         return redirect()->route('trainer.dsv-import.index')
             ->with('import_success', [
-                'competition' => $competition->name,
-                'date'        => $competition->date->format('d.m.Y'),
-                'imported'    => $imported,
-                'skipped'     => $skipped,
-                'comp_id'     => $competition->id,
+                'competition'   => $competition->name,
+                'date'          => $competition->date->format('d.m.Y'),
+                'imported'      => $imported,
+                'skipped'       => $skipped,
+                'relay_imported'=> $relayImported,
+                'comp_id'       => $competition->id,
             ]);
     }
 
@@ -183,6 +194,31 @@ class DsvImportController extends Controller
         }
 
         return null;
+    }
+
+    private function importRelayResult(int $competitionId, string $clubName, array $athlete, array $result): void
+    {
+        $exists = RelayResult::where([
+            'competition_id' => $competitionId,
+            'discipline'     => $result['discipline'],
+            'distance'       => $result['distance'],
+            'club_name'      => $clubName,
+            'time_ms'        => $result['time_ms'],
+        ])->exists();
+
+        if ($exists) return;
+
+        RelayResult::create([
+            'competition_id' => $competitionId,
+            'discipline'     => $result['discipline'],
+            'distance'       => $result['distance'],
+            'club_name'      => $clubName,
+            'time_ms'        => $result['time_ms'],
+            'placement'      => $result['place'] ?? null,
+            'age_group'      => $result['age_group'] ?? null,
+            'gender'         => $athlete['gender'] ?? null,
+            'status'         => 'OK',
+        ]);
     }
 
     private function importResult(int $competitionId, int $userId, array $result): void

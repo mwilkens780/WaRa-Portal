@@ -8,7 +8,7 @@ class CompetitionResult extends Model
 {
     protected $fillable = [
         'competition_id', 'user_id', 'discipline', 'distance', 'time_ms',
-        'placement', 'is_personal_best', 'age_group', 'gender', 'notes',
+        'placement', 'is_personal_best', 'is_season_best', 'age_group', 'gender', 'notes',
         'breaks_vereinsrekord', 'breaks_landesrekord', 'is_final',
     ];
 
@@ -16,6 +16,7 @@ class CompetitionResult extends Model
     {
         return [
             'is_personal_best'     => 'boolean',
+            'is_season_best'       => 'boolean',
             'breaks_vereinsrekord' => 'boolean',
             'breaks_landesrekord'  => 'boolean',
             'is_final'             => 'boolean',
@@ -43,11 +44,11 @@ class CompetitionResult extends Model
     public function getDisciplineLabelAttribute(): string
     {
         return match($this->discipline) {
-            'freistil' => 'Freistil',
-            'brust' => 'Brust',
-            'ruecken' => 'Rücken',
-            'schmetterling' => 'Schmetterling',
-            'lagen' => 'Lagen',
+            'F' => 'Freistil',
+            'B' => 'Brust',
+            'R' => 'Rücken',
+            'S' => 'Schmetterling',
+            'L' => 'Lagen',
             default => $this->discipline,
         };
     }

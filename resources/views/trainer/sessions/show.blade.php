@@ -612,11 +612,11 @@
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">Disziplin</label>
                             <select name="discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="freistil">Freistil</option>
-                                <option value="brust">Brust</option>
-                                <option value="ruecken">Rücken</option>
-                                <option value="schmetterling">Schmetterling</option>
-                                <option value="lagen">Lagen</option>
+                                <option value="F">Freistil</option>
+                                <option value="B">Brust</option>
+                                <option value="R">Rücken</option>
+                                <option value="S">Schmetterling</option>
+                                <option value="L">Lagen</option>
                             </select>
                         </div>
                         <div>

@@ -455,7 +455,7 @@ class TrainingSessionController extends Controller
 
         $data = $request->validate([
             'user_id'            => ['required', 'exists:users,id'],
-            'discipline'         => ['required', 'in:freistil,brust,ruecken,schmetterling,lagen'],
+            'discipline'         => ['required', 'in:F,B,R,S,L'],
             'distance'           => ['required', 'integer', 'min:25'],
             'time_minutes'       => ['nullable', 'integer', 'min:0'],
             'time_seconds'       => ['required', 'integer', 'min:0', 'max:59'],

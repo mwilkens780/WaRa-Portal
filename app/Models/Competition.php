@@ -10,9 +10,22 @@ class Competition extends Model
 {
     use HasFactory, Auditable;
 
+    const LEVEL_LABELS = [
+        'dsv_dm'    => 'Deutsche Meisterschaften (DM)',
+        'dsv_djm'   => 'Deutsche Jahrgangsmeisterschaften (DJM)',
+        'nsv'       => 'Norddeutsche Meisterschaften (NDM)',
+        'shsv_lm'   => 'Schleswig-Holsteinische Landesmeisterschaften',
+        'shsv_open' => 'Offene SHSV-Veranstaltung',
+        'vereins'   => 'Vereinswettkampf',
+    ];
+
     protected $fillable = [
         'name', 'location', 'date', 'date_end', 'meldeschluss', 'type', 'description',
         'organizer', 'course', 'season_id', 'organisation_notes',
+        'ausrichter', 'venue_details', 'kampfgericht', 'contact_info',
+        'announcement_pdf_path', 'announcement_data',
+        'source_file', 'source_url', 'import_hash', 'level', 'federation_id',
+        'analysis_text',
     ];
 
     protected function casts(): array
@@ -22,6 +35,10 @@ class Competition extends Model
             'date_end'           => 'date',
             'meldeschluss'       => 'date',
             'organisation_notes' => 'array',
+            'venue_details'      => 'array',
+            'kampfgericht'       => 'array',
+            'contact_info'       => 'array',
+            'announcement_data'  => 'array',
         ];
     }
 
@@ -52,12 +69,47 @@ class Competition extends Model
         return $this->hasOne(CompetitionSignupRequest::class);
     }
 
+    public function federation()
+    {
+        return $this->belongsTo(Federation::class);
+    }
+
+    public function entries()
+    {
+        return $this->hasMany(CompetitionEntry::class);
+    }
+
+    public function relayEntries()
+    {
+        return $this->hasMany(CompetitionRelayEntry::class);
+    }
+
+    public function extResults()
+    {
+        return $this->hasMany(ExtCompetitionResult::class);
+    }
+
+    public function relayResults()
+    {
+        return $this->hasMany(RelayResult::class);
+    }
+
+    public function importLogs()
+    {
+        return $this->hasMany(ImportLog::class);
+    }
+
+    public function getLevelLabelAttribute(): string
+    {
+        return self::LEVEL_LABELS[$this->level] ?? ($this->level ?? '–');
+    }
+
     public function getCourseLabelAttribute(): string
     {
         return match($this->course) {
-            'LCM' => '50 m Langbahn',
-            'SCM' => '25 m Kurzbahn',
-            default => '–',
+            'Langbahn' => 'Langbahn',
+            'Kurzbahn' => 'Kurzbahn',
+            default    => '–',
         };
     }
 

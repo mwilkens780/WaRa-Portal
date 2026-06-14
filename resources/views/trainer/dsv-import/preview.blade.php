@@ -78,8 +78,8 @@
                         <label class="block text-xs font-medium text-gray-500 mb-1">Bahnlänge <span class="text-red-500">*</span></label>
                         <select name="comp_course"
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                            <option value="SCM" {{ ($meet['course'] ?? 'SCM') === 'SCM' ? 'selected' : '' }}>25 m (Kurzbahn)</option>
-                            <option value="LCM" {{ ($meet['course'] ?? '') === 'LCM' ? 'selected' : '' }}>50 m (Langbahn)</option>
+                            <option value="Kurzbahn" {{ ($meet['course'] ?? 'Kurzbahn') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
+                            <option value="Langbahn" {{ ($meet['course'] ?? '') === 'Langbahn' ? 'selected' : '' }}>Langbahn (50 m)</option>
                         </select>
                     </div>
                 </div>
@@ -134,7 +134,7 @@
                                             @foreach($athlete['results'] as $r)
                                                 <p class="text-xs text-gray-500">
                                                     {{ $r['distance'] }} m
-                                                    {{ ['freistil'=>'FS','ruecken'=>'RK','brust'=>'BR','schmetterling'=>'SM','lagen'=>'LA'][$r['discipline']] ?? $r['discipline'] }}
+                                                    {{ $r['discipline'] }}
                                                     <span class="font-mono text-primary">{{ $r['swimtime'] }}</span>
                                                     @if($r['place']) <span class="text-gray-400">Pl. {{ $r['place'] }}</span> @endif
                                                 </p>

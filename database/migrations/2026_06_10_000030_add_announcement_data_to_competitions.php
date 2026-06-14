@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (!Schema::hasColumn('competitions', 'announcement_data')) {
+            Schema::table('competitions', function (Blueprint $table) {
+                $table->json('announcement_data')
+                      ->nullable()
+                      ->after('organisation_notes')
+                      ->comment('Strukturierte Daten aus PDF-Import der Ausschreibung (Claude-geparst)');
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        Schema::table('competitions', function (Blueprint $table) {
+            $table->dropColumn('announcement_data');
+        });
+    }
+};

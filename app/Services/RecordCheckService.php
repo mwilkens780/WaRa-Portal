@@ -17,7 +17,7 @@ class RecordCheckService
         if ($result->time_ms <= 0) return;
         if (!$result->gender || $result->gender === 'X') return;
 
-        $course    = $result->competition->course ?? 'LCM';
+        $course    = $result->competition->course ?? 'Langbahn';
         $ageGroup  = $result->age_group ?: null;
 
         $this->checkVr($result, $course, $ageGroup);
@@ -111,7 +111,7 @@ class RecordCheckService
                 $r->distance,
                 $r->gender,
                 $r->age_group ?? '',
-                $r->competition?->course ?? 'LCM',
+                $r->competition?->course ?? 'Langbahn',
             ]));
 
             foreach ($grouped as $key => $group) {

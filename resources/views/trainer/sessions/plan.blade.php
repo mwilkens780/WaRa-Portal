@@ -419,11 +419,11 @@ function planBuilder(initialBlocks, targetSeconds) {
         _nextKey: 1,
 
         disciplineOptions: [
-            { key: 'freistil',      label: 'Freistil',       short: 'F' },
-            { key: 'ruecken',       label: 'Rücken',         short: 'R' },
-            { key: 'brust',         label: 'Brust',          short: 'B' },
-            { key: 'schmetterling', label: 'Schmetterling',  short: 'S' },
-            { key: 'lagen',         label: 'Lagen',          short: 'L' },
+            { key: 'F', label: 'Freistil',      short: 'F' },
+            { key: 'R', label: 'Rücken',        short: 'R' },
+            { key: 'B', label: 'Brust',         short: 'B' },
+            { key: 'S', label: 'Schmetterling', short: 'S' },
+            { key: 'L', label: 'Lagen',         short: 'L' },
         ],
 
         materialOptions: ['Pullbuoy', 'Brett', 'Pullkick', 'Widerstandshose', 'Fingerpaddles', 'Kurzflossen', 'Gummiband', 'Frontschnorchel'],

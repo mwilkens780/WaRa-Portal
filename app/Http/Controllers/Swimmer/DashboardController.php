@@ -20,11 +20,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class DashboardController extends Controller
 {
     private const DISC_LABELS = [
-        'freistil'      => 'Freistil',
-        'brust'         => 'Brust',
-        'ruecken'       => 'Rücken',
-        'schmetterling' => 'Schmetterling',
-        'lagen'         => 'Lagen',
+        'F' => 'Freistil',
+        'B' => 'Brust',
+        'R' => 'Rücken',
+        'S' => 'Schmetterling',
+        'L' => 'Lagen',
     ];
 
     public function index()
@@ -376,8 +376,8 @@ class DashboardController extends Controller
         $compResults = $compQuery->get();
 
         // Build best per discipline+distance from both sources
-        $discLabels = ['freistil' => 'Freistil', 'brust' => 'Brust', 'ruecken' => 'Rücken', 'schmetterling' => 'Schmetterling', 'lagen' => 'Lagen'];
-        $discOrder  = ['freistil' => 0, 'brust' => 1, 'ruecken' => 2, 'schmetterling' => 3, 'lagen' => 4];
+        $discLabels = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
+        $discOrder  = ['F' => 0, 'B' => 1, 'R' => 2, 'S' => 3, 'L' => 4];
         $bestsByKey = [];
 
         foreach ($trainTimes as $t) {
@@ -490,7 +490,7 @@ class DashboardController extends Controller
             };
 
             // Check which records this result equals or beats
-            $course    = $swim->competition?->course ?? 'LCM';
+            $course    = $swim->competition?->course ?? 'Langbahn';
             $gender    = $swim->gender ?? '';
             $ageGroups = collect($swim->result_ids)
                 ->map(fn($id) => $resultAgeGroupMap->get($id))

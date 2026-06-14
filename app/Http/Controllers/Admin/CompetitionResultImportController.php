@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionResult;
+use App\Models\RelayResult;
 use App\Models\User;
 use App\Services\DsvImportService;
 use App\Services\RecordCheckService;
@@ -148,14 +149,17 @@ class CompetitionResultImportController extends Controller
             return back()->withErrors(['meet_index' => 'Ungültiger Wettkampf-Index.']);
         }
 
-        $imported = 0;
-        $skipped  = 0;
+        $imported      = 0;
+        $skipped       = 0;
+        $relayImported = 0;
 
         foreach ($meet['clubs'] as $ci => $club) {
             foreach ($club['athletes'] as $ai => $athlete) {
-                // Skip relay entries (no single user to map to)
                 if ($athlete['is_relay'] ?? false) {
-                    $skipped++;
+                    foreach ($athlete['results'] as $result) {
+                        $this->importRelayResult($competition->id, $club['name'], $athlete, $result);
+                        $relayImported++;
+                    }
                     continue;
                 }
 
@@ -183,11 +187,16 @@ class CompetitionResultImportController extends Controller
             'comp_result_import_mismatch',
         ]);
 
+        $msg = "{$imported} Ergebnis" . ($imported !== 1 ? 'se' : '') . " importiert";
+        if ($relayImported > 0) {
+            $msg .= ", {$relayImported} Staffelergebnis" . ($relayImported !== 1 ? 'se' : '') . " importiert";
+        }
+        if ($skipped > 0) {
+            $msg .= ", {$skipped} Athlet" . ($skipped !== 1 ? 'en' : '') . " übersprungen";
+        }
+
         return redirect()->route('admin.competitions.show', $competition)
-            ->with('success',
-                "{$imported} Ergebnis" . ($imported !== 1 ? 'se' : '') . " importiert" .
-                ($skipped ? ", {$skipped} Athlet" . ($skipped !== 1 ? 'en' : '') . " übersprungen" : '') . '.'
-            );
+            ->with('success', $msg . '.');
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -222,6 +231,31 @@ class CompetitionResultImportController extends Controller
         }
 
         return null;
+    }
+
+    private function importRelayResult(int $competitionId, string $clubName, array $athlete, array $result): void
+    {
+        $exists = RelayResult::where([
+            'competition_id' => $competitionId,
+            'discipline'     => $result['discipline'],
+            'distance'       => $result['distance'],
+            'club_name'      => $clubName,
+            'time_ms'        => $result['time_ms'],
+        ])->exists();
+
+        if ($exists) return;
+
+        RelayResult::create([
+            'competition_id' => $competitionId,
+            'discipline'     => $result['discipline'],
+            'distance'       => $result['distance'],
+            'club_name'      => $clubName,
+            'time_ms'        => $result['time_ms'],
+            'placement'      => $result['place'] ?? null,
+            'age_group'      => $result['age_group'] ?? null,
+            'gender'         => $athlete['gender'] ?? null,
+            'status'         => 'OK',
+        ]);
     }
 
     private function importResult(int $competitionId, int $userId, array $result, string $gender = 'X'): ?CompetitionResult

@@ -107,7 +107,7 @@
                         <label class="block text-xs font-semibold text-gray-500 mb-1">Disziplin</label>
                         <select name="discipline" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                             <option value="">–</option>
-                            @foreach(['freistil' => 'Freistil','brust' => 'Brust','ruecken' => 'Rücken','schmetterling' => 'Schmetterling','lagen' => 'Lagen'] as $v => $l)
+                            @foreach(['F' => 'Freistil','B' => 'Brust','R' => 'Rücken','S' => 'Schmetterling','L' => 'Lagen'] as $v => $l)
                                 <option value="{{ $v }}">{{ $l }}</option>
                             @endforeach
                         </select>
@@ -121,8 +121,8 @@
                         <label class="block text-xs font-semibold text-gray-500 mb-1">Bahn</label>
                         <select name="course" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                             <option value="">–</option>
-                            <option value="SCM">SCM (25 m)</option>
-                            <option value="LCM">LCM (50 m)</option>
+                            <option value="Kurzbahn">Kurzbahn (25 m)</option>
+                            <option value="Langbahn">Langbahn (50 m)</option>
                         </select>
                     </div>
                     <div>

@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
 use App\Http\Controllers\Admin\CompetitionResultImportController;
+use App\Http\Controllers\Admin\WebClubCsvImportController;
 use App\Http\Controllers\Admin\RecordController;
 use App\Http\Controllers\Admin\CalendarEventController;
 use App\Http\Controllers\CalendarController;
@@ -14,7 +15,9 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\TrainingGroupController;
 use App\Http\Controllers\Admin\WebClubImportController;
 use App\Http\Controllers\Admin\CompetitionWebclubImportController;
+use App\Http\Controllers\Admin\CompetitionEntryController;
 use App\Http\Controllers\Admin\CompetitionSignupController;
+use App\Http\Controllers\Admin\ImportLogController;
 use App\Http\Controllers\Swimmer\SignupController as SwimmerSignupController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
 use App\Http\Controllers\Trainer\TrainingSessionController;
@@ -121,12 +124,34 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
     Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
     Route::post('/wettkaempfe/{competition}/auswertung', [AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
+    Route::post('/wettkaempfe/{competition}/auswertung/speichern', [AdminCompetitionController::class, 'saveAnalysis'])->name('competitions.analysis.save');
+    Route::get('/wettkaempfe/{competition}/auswertung/pdf', [AdminCompetitionController::class, 'exportAnalysisPdf'])->name('competitions.analysis.pdf');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import', [CompetitionResultImportController::class, 'upload'])->name('competitions.results-import.upload');
     Route::get('/wettkaempfe/{competition}/ergebnisse-import/vorschau', [CompetitionResultImportController::class, 'preview'])->name('competitions.results-import.preview');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import/speichern', [CompetitionResultImportController::class, 'execute'])->name('competitions.results-import.execute');
+    Route::post('/wettkaempfe/{competition}/webclub-csv-import', [WebClubCsvImportController::class, 'upload'])->name('competitions.wc-import.upload');
+    Route::get('/wettkaempfe/{competition}/webclub-csv-import/vorschau', [WebClubCsvImportController::class, 'preview'])->name('competitions.wc-import.preview');
+    Route::post('/wettkaempfe/{competition}/webclub-csv-import/speichern', [WebClubCsvImportController::class, 'execute'])->name('competitions.wc-import.execute');
 
     // Organisation-Notizen speichern
     Route::post('/wettkaempfe/{competition}/organisation', [AdminCompetitionController::class, 'saveOrganisation'])->name('competitions.organisation.save');
+
+    // Ausschreibungs-Import (PDF → Claude → strukturierte Daten)
+    Route::post('/wettkaempfe/{competition}/ausschreibung/parsen',     [AdminCompetitionController::class, 'parseAnnouncement'])->name('competitions.announcement.parse');
+    Route::post('/wettkaempfe/{competition}/ausschreibung/speichern',  [AdminCompetitionController::class, 'saveAnnouncement'])->name('competitions.announcement.save');
+
+    // Meldungen (Entries + DSV7-Generatoren)
+    Route::get('/wettkaempfe/{competition}/meldungen/entries', [CompetitionEntryController::class, 'index'])->name('competitions.entries.index');
+    Route::post('/wettkaempfe/{competition}/meldungen/entries', [CompetitionEntryController::class, 'store'])->name('competitions.entries.store');
+    Route::delete('/wettkaempfe/{competition}/meldungen/entries/{entry}', [CompetitionEntryController::class, 'destroy'])->name('competitions.entries.destroy');
+    Route::post('/wettkaempfe/{competition}/meldungen/staffel', [CompetitionEntryController::class, 'storeRelay'])->name('competitions.entries.relay');
+    Route::get('/wettkaempfe/{competition}/dsv7/meldedatei', [CompetitionEntryController::class, 'downloadMeldedatei'])->name('competitions.dsv7.meldedatei');
+    Route::get('/wettkaempfe/{competition}/dsv7/definitionsdatei', [CompetitionEntryController::class, 'downloadDefinitionsdatei'])->name('competitions.dsv7.definitionsdatei');
+    Route::get('/wettkaempfe/{competition}/dsv7/ausschreibung-pdf', [CompetitionEntryController::class, 'downloadAusschreibungPdf'])->name('competitions.dsv7.ausschreibung-pdf');
+    Route::post('/wettkaempfe/{competition}/vollimport', [AdminCompetitionController::class, 'fullImport'])->name('competitions.full-import');
+
+    // Import-Log
+    Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');
 
     // Anmeldeabfrage (Signup-Workflow)
     Route::post('/wettkaempfe/{competition}/anmeldung', [CompetitionSignupController::class, 'store'])->name('competitions.signup.store');

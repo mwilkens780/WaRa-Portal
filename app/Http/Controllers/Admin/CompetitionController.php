@@ -9,7 +9,9 @@ use App\Models\CompetitionResult;
 use App\Models\TrainingGroup;
 use App\Models\User;
 use App\Services\CompetitionResultGrouper;
+use App\Services\Competition\AusschreibungParserService;
 use App\Services\DsvImportService;
+use App\Services\Import\FullCompetitionImporter;
 use App\Services\RecordCheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,13 +21,23 @@ use Illuminate\Support\Facades\Storage;
 class CompetitionController extends Controller
 {
     public function __construct(
-        private DsvImportService $service,
-        private RecordCheckService $recordCheck,
+        private DsvImportService      $service,
+        private RecordCheckService    $recordCheck,
+        private FullCompetitionImporter $fullImporter,
     ) {}
 
     public function index(Request $request)
     {
-        $query = Competition::withCount('results');
+        $query = Competition::withCount('results')
+            ->addSelect([
+                'participants_count' => \App\Models\CompetitionResult::query()
+                    ->selectRaw('COUNT(DISTINCT user_id)')
+                    ->whereColumn('competition_id', 'competitions.id'),
+                'entries_count' => \App\Models\CompetitionEntry::query()
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('competition_id', 'competitions.id')
+                    ->where('status', 'entered'),
+            ]);
 
         if ($ort = $request->get('ort')) {
             $query->where('location', 'like', '%' . $ort . '%');
@@ -92,14 +104,16 @@ class CompetitionController extends Controller
 
     public function store(Request $request)
     {
+        $levelValues = implode(',', array_keys(Competition::LEVEL_LABELS));
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'location'    => ['required', 'string', 'max:255'],
             'date'        => ['required', 'date'],
             'date_end'    => ['nullable', 'date', 'gte:date'],
             'type'        => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung,nop,dms,shsv'],
+            'level'       => ['nullable', "in:{$levelValues}"],
             'organizer'   => ['nullable', 'string', 'max:255'],
-            'course'      => ['nullable', 'in:LCM,SCM'],
+            'course'      => ['nullable', 'in:Kurzbahn,Langbahn'],
             'description' => ['nullable', 'string'],
             'events_json' => ['nullable', 'json'],
         ]);
@@ -127,6 +141,7 @@ class CompetitionController extends Controller
                 'date'        => $data['date'],
                 'date_end'    => $data['date_end'] ?? null,
                 'type'        => $data['type'],
+                'level'       => $data['level'] ?? null,
                 'organizer'   => $data['organizer'] ?? null,
                 'course'      => $data['course'] ?? null,
                 'description' => $data['description'] ?? null,
@@ -195,6 +210,78 @@ class CompetitionController extends Controller
                     'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest'));
     }
 
+    // ── Ausschreibungs-Import (PDF → Claude → strukturierte Daten) ────────────
+
+    public function parseAnnouncement(Request $request, Competition $competition)
+    {
+        $request->validate([
+            'announcement_pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+        ]);
+
+        $path = $request->file('announcement_pdf')
+                        ->store('announcements', 'local');
+
+        try {
+            $service = new AusschreibungParserService();
+            $data    = $service->parseFromPath(storage_path('app/' . $path));
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        // Keep the PDF on disk; path returned for potential save step
+        return response()->json([
+            'pdf_path' => $path,
+            'data'     => $data,
+        ]);
+    }
+
+    public function saveAnnouncement(Request $request, Competition $competition)
+    {
+        $request->validate([
+            'pdf_path'        => ['nullable', 'string'],
+            'announcement'    => ['required', 'array'],
+            'apply_to_fields' => ['nullable', 'array'],  // which top-level fields to write
+        ]);
+
+        $data    = $request->input('announcement');
+        $apply   = $request->input('apply_to_fields', [
+            'name', 'level', 'date', 'date_end', 'location',
+            'organizer', 'ausrichter', 'meldeschluss',
+            'venue_details', 'kampfgericht', 'contact_info',
+        ]);
+
+        $service = new AusschreibungParserService();
+        $mapped  = $service->mapToCompetitionFields($data);
+
+        // Only update fields the trainer explicitly confirmed
+        $toSave = array_intersect_key($mapped, array_flip($apply));
+
+        // Always save announcement_data and pdf_path
+        $toSave['announcement_data'] = $data;
+        if ($pdfPath = $request->input('pdf_path')) {
+            $toSave['announcement_pdf_path'] = $pdfPath;
+        }
+
+        $competition->update($toSave);
+
+        // Optionally write qualifying times to competition_events
+        if ($request->boolean('import_qualifying_times')) {
+            $qtRows = $service->extractQualifyingTimes($data);
+            foreach ($qtRows as $row) {
+                CompetitionEvent::where([
+                    'competition_id' => $competition->id,
+                    'discipline'     => $row['discipline'],
+                    'distance'       => $row['distance'],
+                    'gender'         => $row['gender'],
+                    'age_group'      => $row['age_group'],
+                ])->update(['qualifying_time_ms' => $row['qualifying_time_ms']]);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     public function saveOrganisation(Request $request, Competition $competition)
     {
         $data = $request->validate([
@@ -220,14 +307,16 @@ class CompetitionController extends Controller
 
     public function update(Request $request, Competition $competition)
     {
+        $levelValues = implode(',', array_keys(Competition::LEVEL_LABELS));
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'location'    => ['required', 'string', 'max:255'],
             'date'        => ['required', 'date'],
             'date_end'    => ['nullable', 'date', 'gte:date'],
             'type'        => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung,nop,dms,shsv'],
+            'level'       => ['nullable', "in:{$levelValues}"],
             'organizer'   => ['nullable', 'string', 'max:255'],
-            'course'      => ['nullable', 'in:LCM,SCM'],
+            'course'      => ['nullable', 'in:Kurzbahn,Langbahn'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -250,7 +339,7 @@ class CompetitionController extends Controller
     {
         $data = $request->validate([
             'user_id'           => ['required', 'exists:users,id'],
-            'discipline'        => ['required', 'in:freistil,brust,ruecken,schmetterling,lagen'],
+            'discipline'        => ['required', 'in:F,B,R,S,L'],
             'distance'          => ['required', 'integer', 'min:25'],
             'gender'            => ['nullable', 'in:M,F'],
             'time_minutes'      => ['nullable', 'integer', 'min:0'],
@@ -303,6 +392,54 @@ class CompetitionController extends Controller
         return back()->with('success', 'Ergebnis wurde gelöscht.');
     }
 
+    // ── Auswertungstext speichern / PDF-Export ───────────────────────────────
+
+    public function saveAnalysis(Request $request, Competition $competition)
+    {
+        $request->validate(['text' => ['nullable', 'string']]);
+        $competition->update(['analysis_text' => $request->input('text') ?: null]);
+        return response()->json(['success' => true]);
+    }
+
+    public function exportAnalysisPdf(Competition $competition)
+    {
+        $rawResults = $competition->results()->with('user')->orderBy('discipline')->orderBy('distance')->get();
+        $results    = CompetitionResultGrouper::forCompetition($rawResults);
+
+        return view('competitions.auswertung-print', [
+            'competition'  => $competition,
+            'results'      => $results,
+            'analysisHtml' => $competition->analysis_text ?? '',
+        ]);
+    }
+
+    // ── Vollständiger Ergebnisimport (alle Clubs → ext_competition_results) ───
+
+    public function fullImport(Request $request, Competition $competition)
+    {
+        $request->validate([
+            'dsv_file' => ['required', 'file', 'max:20480'],
+        ]);
+
+        $path     = $request->file('dsv_file')->store('dsv-imports', 'local');
+        $fullPath = storage_path('app/' . $path);
+
+        try {
+            $stats = $this->fullImporter->importFile($fullPath, $competition, 'manual');
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        Storage::disk('local')->delete($path);
+
+        return response()->json([
+            'success'  => true,
+            'inserted' => $stats['inserted'],
+            'errors'   => $stats['errors'],
+        ]);
+    }
+
     public function generateAnalysis(Request $request, Competition $competition)
     {
         $rawResults = $competition->results()->with('user')->where('time_ms', '>', 0)->get();
@@ -348,7 +485,8 @@ class CompetitionController extends Controller
                 'x-api-key'         => $apiKey,
                 'anthropic-version' => '2023-06-01',
                 'content-type'      => 'application/json',
-            ])->post('https://api.anthropic.com/v1/messages', [
+            ])->withOptions(['verify' => !env('CRAWLER_SSL_VERIFY_DISABLE', false)])
+              ->post('https://api.anthropic.com/v1/messages', [
                 'model'      => 'claude-haiku-4-5-20251001',
                 'max_tokens' => 800,
                 'messages'   => [['role' => 'user', 'content' => $prompt]],

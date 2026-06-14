@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('competition_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('discipline', ['freistil', 'brust', 'ruecken', 'schmetterling', 'lagen']);
+            $table->enum('discipline', ['F', 'B', 'R', 'S', 'L']);
             $table->unsignedSmallInteger('distance'); // in Metern
             $table->unsignedInteger('time_ms'); // Zeit in Millisekunden
             $table->unsignedSmallInteger('placement')->nullable(); // Platzierung

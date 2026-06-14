@@ -57,19 +57,19 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
                     <select name="course" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="LCM">Langbahn (50m)</option>
-                        <option value="SCM">Kurzbahn (25m)</option>
+                        <option value="Langbahn">Langbahn (50 m)</option>
+                        <option value="Kurzbahn">Kurzbahn (25 m)</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-500">*</span></label>
                     <select name="discipline" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="freistil">Freistil</option>
-                        <option value="brust">Brust</option>
-                        <option value="ruecken">Rücken</option>
-                        <option value="schmetterling">Schmetterling</option>
-                        <option value="lagen">Lagen</option>
+                        <option value="F">Freistil</option>
+                        <option value="B">Brust</option>
+                        <option value="R">Rücken</option>
+                        <option value="S">Schmetterling</option>
+                        <option value="L">Lagen</option>
                     </select>
                 </div>
                 <div>

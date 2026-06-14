@@ -70,7 +70,7 @@
                         <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Ort</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600">Datum</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Typ</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Ergebnisse</th>
+                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Teilnehmer / Meldungen</th>
                         <th class="px-5 py-3"></th>
                     </tr>
                 </thead>
@@ -105,7 +105,27 @@
                                     {{ $comp->type_label }}
                                 </span>
                             </td>
-                            <td class="px-5 py-3 text-gray-500">{{ $comp->results_count }}</td>
+                            <td class="px-5 py-3">
+                                <div class="flex flex-wrap gap-1.5">
+                                    @if($comp->participants_count > 0)
+                                        <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium"
+                                              title="{{ $comp->results_count }} Einzelergebnisse">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+                                            {{ $comp->participants_count }} Teiln.
+                                        </span>
+                                    @endif
+                                    @if($comp->entries_count > 0)
+                                        <span class="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium"
+                                              title="Gemeldete Starts">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                            {{ $comp->entries_count }} Meld.
+                                        </span>
+                                    @endif
+                                    @if($comp->participants_count == 0 && $comp->entries_count == 0)
+                                        <span class="text-xs text-gray-300">–</span>
+                                    @endif
+                                </div>
+                            </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-3 justify-end">
                                     <a href="{{ route('admin.competitions.show', $comp) }}"

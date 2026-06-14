@@ -13,11 +13,11 @@ return new class extends Migration
         Schema::create('records', function (Blueprint $table) {
             $table->id();
             $table->enum('type', ['vereinsrekord', 'landesrekord']);
-            $table->enum('discipline', ['freistil', 'brust', 'ruecken', 'schmetterling', 'lagen']);
+            $table->enum('discipline', ['F', 'B', 'R', 'S', 'L']);
             $table->unsignedSmallInteger('distance');
             $table->enum('gender', ['M', 'F']);
             $table->string('age_group', 20)->nullable(); // null = Offene Klasse
-            $table->enum('course', ['LCM', 'SCM'])->default('LCM');
+            $table->enum('course', ['Langbahn', 'Kurzbahn'])->default('Langbahn');
             $table->string('swimmer_name');
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('time_ms');

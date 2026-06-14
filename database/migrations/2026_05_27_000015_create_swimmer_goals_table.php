@@ -17,7 +17,7 @@ return new class extends Migration
                 $table->string('title');
                 $table->string('discipline', 50)->nullable();
                 $table->integer('distance')->nullable();
-                $table->enum('course', ['SCM', 'LCM'])->nullable();
+                $table->enum('course', ['Kurzbahn', 'Langbahn'])->nullable();
                 $table->integer('target_time_ms')->nullable();
                 $table->enum('status', ['open', 'achieved', 'not_achieved', 'cancelled'])->default('open');
                 $table->boolean('achieved')->default(false);
@@ -42,7 +42,7 @@ return new class extends Migration
                     $table->integer('achieved_time_ms')->nullable()->after('achieved_at');
                 }
                 if (!Schema::hasColumn('swimmer_goals', 'course')) {
-                    $table->enum('course', ['SCM', 'LCM'])->nullable()->after('distance');
+                    $table->enum('course', ['Kurzbahn', 'Langbahn'])->nullable()->after('distance');
                 }
             });
         }

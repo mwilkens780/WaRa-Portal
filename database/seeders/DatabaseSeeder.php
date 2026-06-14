@@ -100,7 +100,7 @@ class DatabaseSeeder extends Seeder
                 SwimmingTime::create([
                     'user_id' => $swimmers[0]->id,
                     'training_session_id' => $session->id,
-                    'discipline' => 'freistil',
+                    'discipline' => 'F',
                     'distance' => 100,
                     'time_ms' => 75000 + rand(-2000, 2000),
                     'is_personal_best' => false,
@@ -112,7 +112,7 @@ class DatabaseSeeder extends Seeder
         SwimmingTime::create([
             'user_id' => $swimmers[0]->id,
             'training_session_id' => null,
-            'discipline' => 'freistil',
+            'discipline' => 'F',
             'distance' => 100,
             'time_ms' => 72340,
             'is_personal_best' => true,
@@ -132,7 +132,7 @@ class DatabaseSeeder extends Seeder
         CompetitionResult::create([
             'competition_id' => $comp->id,
             'user_id' => $swimmers[0]->id,
-            'discipline' => 'freistil',
+            'discipline' => 'F',
             'distance' => 100,
             'time_ms' => 72340,
             'placement' => 3,
@@ -143,7 +143,7 @@ class DatabaseSeeder extends Seeder
         CompetitionResult::create([
             'competition_id' => $comp->id,
             'user_id' => $swimmers[1]->id,
-            'discipline' => 'brust',
+            'discipline' => 'B',
             'distance' => 100,
             'time_ms' => 83500,
             'placement' => 5,

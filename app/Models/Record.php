@@ -39,12 +39,12 @@ class Record extends Model
     public function getDisciplineLabelAttribute(): string
     {
         return match($this->discipline) {
-            'freistil'      => 'Freistil',
-            'brust'         => 'Brust',
-            'ruecken'       => 'Rücken',
-            'schmetterling' => 'Schmetterling',
-            'lagen'         => 'Lagen',
-            default         => $this->discipline,
+            'F' => 'Freistil',
+            'B' => 'Brust',
+            'R' => 'Rücken',
+            'S' => 'Schmetterling',
+            'L' => 'Lagen',
+            default => $this->discipline,
         };
     }
 

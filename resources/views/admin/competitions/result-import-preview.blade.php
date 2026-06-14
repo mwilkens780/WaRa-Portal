@@ -175,7 +175,7 @@
                                         @foreach($athlete['results'] as $r)
                                             <p class="text-xs text-gray-500">
                                                 {{ $r['distance'] }} m
-                                                {{ ['freistil'=>'FS','ruecken'=>'RK','brust'=>'BR','schmetterling'=>'SM','lagen'=>'LA'][$r['discipline']] ?? $r['discipline'] }}
+                                                {{ $r['discipline'] }}
                                                 <span class="font-mono text-purple-600 font-medium">{{ $r['swimtime'] }}</span>
                                                 @if($r['place'] ?? null) <span class="text-gray-400">Pl.&nbsp;{{ $r['place'] }}</span> @endif
                                             </p>
@@ -183,8 +183,7 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-3">
-                                    <p class="text-xs text-gray-400 italic">Staffelergebnis – wird übersprungen</p>
-                                    <input type="hidden" name="mappings[{{ $ci }}][{{ $ai }}]" value="0">
+                                    <p class="text-xs text-purple-600 font-medium">Staffelergebnis – wird importiert</p>
                                 </td>
                             </tr>
                         @else
@@ -207,7 +206,7 @@
                                         @foreach($athlete['results'] as $r)
                                             <p class="text-xs text-gray-500">
                                                 {{ $r['distance'] }} m
-                                                {{ ['freistil'=>'FS','ruecken'=>'RK','brust'=>'BR','schmetterling'=>'SM','lagen'=>'LA'][$r['discipline']] ?? $r['discipline'] }}
+                                                {{ $r['discipline'] }}
                                                 <span class="font-mono text-primary font-medium">{{ $r['swimtime'] }}</span>
                                                 @if($r['place'] ?? null) <span class="text-gray-400">Pl.&nbsp;{{ $r['place'] }}</span> @endif
                                             </p>
@@ -270,7 +269,7 @@
                 <strong>{{ $autoMatched }}/{{ $totalAthletes }}</strong> Athleten automatisch erkannt ·
                 <strong>{{ $totalResults }}</strong> Einzelergebnisse bereit
                 @if($totalRelay > 0)
-                    · <strong>{{ $totalRelay }}</strong> Staffeln (werden übersprungen)
+                    · <strong>{{ $totalRelay }}</strong> Staffelergebnis{{ $totalRelay !== 1 ? 'se' : '' }} (werden importiert)
                 @endif
             </div>
             <div class="flex gap-3">

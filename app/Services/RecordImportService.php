@@ -17,16 +17,16 @@ use App\Models\SwimmingTime;
 class RecordImportService
 {
     const DISCIPLINE_MAP = [
-        'freistil'      => ['frei', 'crawl', 'free', 'freestyle'],
-        'brust'         => ['brust', 'breast'],
-        'ruecken'       => ['rück', 'rueck', 'back'],
-        'schmetterling' => ['schmetterling', 'butterfly', 'fly', 'delphin'],
-        'lagen'         => ['lagen', 'medley', 'mixed', 'im '],
+        'F' => ['frei', 'crawl', 'free', 'freestyle'],
+        'B' => ['brust', 'breast'],
+        'R' => ['rück', 'rueck', 'back'],
+        'S' => ['schmetterling', 'butterfly', 'fly', 'delphin'],
+        'L' => ['lagen', 'medley', 'mixed', 'im '],
     ];
 
     const STANDARD_DISTANCES = [25, 50, 100, 200, 400, 800, 1500];
 
-    public function parse(string $path, string $defaultCourse = 'LCM'): array
+    public function parse(string $path, string $defaultCourse = 'Langbahn'): array
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
@@ -227,7 +227,7 @@ class RecordImportService
 
         $records     = [];
         $gender      = null;
-        $course      = 'LCM';
+        $course      = 'Langbahn';
         $ageGroup    = null;
         $inDataBlock = false;
 
@@ -287,14 +287,14 @@ class RecordImportService
     private function parseBlockHeader(string $header): array
     {
         $gender   = null;
-        $course   = 'LCM';
+        $course   = 'Langbahn';
         $ageGroup = null;
 
         if (preg_match('/weiblich/iu', $header))              $gender = 'F';
         elseif (preg_match('/männlich|maennlich/iu', $header)) $gender = 'M';
 
-        if (preg_match('/kurzbahn/iu', $header))    $course = 'SCM';
-        elseif (preg_match('/langbahn/iu', $header)) $course = 'LCM';
+        if (preg_match('/kurzbahn/iu', $header))    $course = 'Kurzbahn';
+        elseif (preg_match('/langbahn/iu', $header)) $course = 'Langbahn';
 
         if (preg_match('/AK\s*(\d+)/i', $header, $m)) $ageGroup = 'AK' . $m[1];
         // "Offen" → $ageGroup stays null
@@ -318,19 +318,19 @@ class RecordImportService
         // Standard discipline codes (German swimming federation notation)
         // Leg-only youth disciplines are mapped to the parent stroke
         $map = [
-            'F'   => 'freistil',
-            'FR'  => 'freistil',
-            'KB'  => 'freistil',        // Kraul-Bein
-            'B'   => 'brust',
-            'BR'  => 'brust',
-            'BB'  => 'brust',           // Brust-Bein
-            'R'   => 'ruecken',
-            'RU'  => 'ruecken',
-            'RB'  => 'ruecken',         // Rücken-Bein
-            'S'   => 'schmetterling',
-            'SCH' => 'schmetterling',
-            'DB'  => 'schmetterling',   // Delfin-Bein
-            'L'   => 'lagen',
+            'F'   => 'F',
+            'FR'  => 'F',
+            'KB'  => 'F',   // Kraul-Bein
+            'B'   => 'B',
+            'BR'  => 'B',
+            'BB'  => 'B',   // Brust-Bein
+            'R'   => 'R',
+            'RU'  => 'R',
+            'RB'  => 'R',   // Rücken-Bein
+            'S'   => 'S',
+            'SCH' => 'S',
+            'DB'  => 'S',   // Delfin-Bein
+            'L'   => 'L',
         ];
 
         $discipline = $map[$code] ?? null;

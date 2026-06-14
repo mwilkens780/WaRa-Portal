@@ -49,7 +49,7 @@
                                     <select name="rows[{{ $i }}][discipline]"
                                             class="px-2 py-1 border {{ !$row['discipline'] ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
                                         <option value="">– wählen –</option>
-                                        @foreach(['freistil' => 'Freistil', 'brust' => 'Brust', 'ruecken' => 'Rücken', 'schmetterling' => 'Schmetterling', 'lagen' => 'Lagen'] as $val => $label)
+                                        @foreach(['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'] as $val => $label)
                                             <option value="{{ $val }}" {{ $row['discipline'] === $val ? 'selected' : '' }}>{{ $label }}</option>
                                         @endforeach
                                     </select>
@@ -84,8 +84,8 @@
                                 <td class="px-3 py-2">
                                     <select name="rows[{{ $i }}][course]"
                                             class="px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                                        <option value="LCM" {{ ($row['course'] ?? 'LCM') === 'LCM' ? 'selected' : '' }}>LCM</option>
-                                        <option value="SCM" {{ ($row['course'] ?? 'LCM') === 'SCM' ? 'selected' : '' }}>SCM</option>
+                                        <option value="Langbahn" {{ ($row['course'] ?? 'Langbahn') === 'Langbahn' ? 'selected' : '' }}>Langbahn</option>
+                                        <option value="Kurzbahn" {{ ($row['course'] ?? 'Langbahn') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn</option>
                                     </select>
                                 </td>
                                 {{-- Time (hidden ms + displayed string) --}}
