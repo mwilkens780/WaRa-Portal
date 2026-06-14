@@ -261,20 +261,22 @@ class CompetitionResultImportController extends Controller
     private function importResult(int $competitionId, int $userId, array $result, string $gender = 'X'): ?CompetitionResult
     {
         $ageGroup  = $result['age_group'] ?? null;
+        $wertungen = !empty($result['wertungen']) ? $result['wertungen'] : ($ageGroup ? [$ageGroup] : null);
         $isDns     = !empty($result['status']);
         $resGender = $result['gender'] ?? $gender;
         if ($resGender === 'X') $resGender = $gender;
+        $isFinal   = in_array($result['round_type'] ?? '', ['F', 'E']);
 
+        // Dedup by physical swim: competition + user + discipline + distance + round_type + time
         $exists = CompetitionResult::where('competition_id', $competitionId)
             ->where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
-            ->where('age_group', $ageGroup)
+            ->where('is_final', $isFinal)
+            ->where('time_ms', $isDns ? 0 : $result['time_ms'])
             ->exists();
 
         if ($exists) return null;
-
-        $isFinal = ($result['round_type'] ?? '') === 'F';
 
         // DNS / AB / DNF / DQ — store with time_ms=0, no PB
         if ($isDns) {
@@ -287,6 +289,7 @@ class CompetitionResultImportController extends Controller
                 'placement'        => 0,
                 'is_personal_best' => false,
                 'age_group'        => $ageGroup,
+                'wertungen'        => $wertungen,
                 'gender'           => $resGender !== 'X' ? $resGender : null,
                 'notes'            => $result['status'],
                 'is_final'         => $isFinal,
@@ -318,6 +321,7 @@ class CompetitionResultImportController extends Controller
             'placement'        => $result['place'] ?? null,
             'is_personal_best' => $isPb,
             'age_group'        => $ageGroup,
+            'wertungen'        => $wertungen,
             'gender'           => $resGender !== 'X' ? $resGender : null,
             'is_final'         => $isFinal,
         ]);

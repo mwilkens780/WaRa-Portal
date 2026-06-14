@@ -412,19 +412,41 @@ class Dsv7Parser
                         ];
                     }
 
-                    $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
-                        'eventid'    => (string)$wertungId,
-                        'discipline' => $wertung['discipline'],
-                        'distance'   => $wertung['distance'],
-                        'age_group'  => $ageGroup,
-                        'gender'     => $gender !== 'X' ? $gender : ($wertung['gender'] ?? 'X'),
-                        'time_ms'    => $timeMs,
-                        'swimtime'   => $timeMs > 0 ? $this->formatTime($timeMs) : ($isDnsType ? $rawStatus : 'NT'),
-                        'place'      => $isDnsType ? 0 : ($placement ?: null),
-                        'status'     => $isDnsType ? $rawStatus : null,
-                        'round_type' => $wertung['art'] ?? '', // V=Vorlauf, F=Finale, Z=Zwischenlauf
-                        'is_relay'   => false,
-                    ];
+                    // Deduplicate: same physical swim = same (event_number, round_type, time/status)
+                    $eventNum  = $wertung['event_number'];
+                    $roundType = $wertung['art'] ?? '';
+                    $resultKey = $eventNum . '|' . ($isDnsType ? ('DNS.' . $rawStatus) : $roundType);
+
+                    $foundIdx = null;
+                    foreach ($clubs[$clubName]['athletes'][$athleteKey]['results'] as $i => $r) {
+                        if (($r['result_key'] ?? '') === $resultKey) {
+                            $foundIdx = $i;
+                            break;
+                        }
+                    }
+
+                    if ($foundIdx !== null) {
+                        // Same physical swim in another Wertung — accumulate only
+                        if ($ageGroup !== '' && !in_array($ageGroup, $clubs[$clubName]['athletes'][$athleteKey]['results'][$foundIdx]['wertungen'])) {
+                            $clubs[$clubName]['athletes'][$athleteKey]['results'][$foundIdx]['wertungen'][] = $ageGroup;
+                        }
+                    } else {
+                        $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
+                            'result_key' => $resultKey,
+                            'eventid'    => (string)$wertungId,
+                            'discipline' => $wertung['discipline'],
+                            'distance'   => $wertung['distance'],
+                            'age_group'  => $ageGroup,
+                            'wertungen'  => $ageGroup !== '' ? [$ageGroup] : [],
+                            'gender'     => $gender !== 'X' ? $gender : ($wertung['gender'] ?? 'X'),
+                            'time_ms'    => $timeMs,
+                            'swimtime'   => $timeMs > 0 ? $this->formatTime($timeMs) : ($isDnsType ? $rawStatus : 'NT'),
+                            'place'      => $isDnsType ? 0 : ($placement ?: null),
+                            'status'     => $isDnsType ? $rawStatus : null,
+                            'round_type' => $roundType,
+                            'is_relay'   => false,
+                        ];
+                    }
                     break;
 
                 case 'STAFFELERGEBNIS':
@@ -448,14 +470,13 @@ class Dsv7Parser
                         $staffelName = 'Staffel';
                         $clubName    = $currentClub ?? '';
                         $staffelId   = (int)$f(0);
-                        $athleteKey  = '__relay_' . $wertungId . '_' . $staffelId;
                     } else {
                         $wertungId   = (int)$f(2);
                         $placement   = ((int)$f(0)) ?: null;
                         $timeStr     = $f(8);
                         $staffelName = $f(5) !== '' ? $f(5) : 'Staffel';
                         $clubName    = $f(6);
-                        $athleteKey  = '__relay_' . $wertungId . '_' . md5($staffelName);
+                        $staffelId   = 0;
                     }
 
                     if (!isset($wertungMap[$wertungId])) break;
@@ -465,7 +486,11 @@ class Dsv7Parser
                     $timeMs = $this->parseTime($timeStr);
                     if ($timeMs <= 0) break;
 
-                    $wertung = $wertungMap[$wertungId];
+                    $wertung    = $wertungMap[$wertungId];
+                    $ageGroup   = $wertung['age_group'] ?? '';
+                    $eventNum   = $wertung['event_number'];
+                    // Key by event + staffelId (not wertungId) so same relay under multiple Wertungen merges
+                    $athleteKey = '__relay_' . $eventNum . '_' . ($staffelId ?: md5($staffelName));
 
                     if (!isset($clubs[$clubName])) {
                         $clubs[$clubName] = ['name' => $clubName, 'athletes' => []];
@@ -486,17 +511,22 @@ class Dsv7Parser
                         ];
                     }
 
-                    $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
-                        'eventid'    => (string)$wertungId,
-                        'discipline' => $wertung['discipline'],
-                        'distance'   => $wertung['distance'],
-                        'age_group'  => $wertung['age_group'] ?? '',
-                        'time_ms'    => $timeMs,
-                        'swimtime'   => $this->formatTime($timeMs),
-                        'place'      => $placement,
-                        'status'     => null,
-                        'is_relay'   => true,
-                    ];
+                    if (empty($clubs[$clubName]['athletes'][$athleteKey]['results'])) {
+                        $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
+                            'eventid'    => (string)$wertungId,
+                            'discipline' => $wertung['discipline'],
+                            'distance'   => $wertung['distance'],
+                            'age_group'  => $ageGroup,
+                            'wertungen'  => $ageGroup !== '' ? [$ageGroup] : [],
+                            'time_ms'    => $timeMs,
+                            'swimtime'   => $this->formatTime($timeMs),
+                            'place'      => $placement,
+                            'status'     => null,
+                            'is_relay'   => true,
+                        ];
+                    } elseif ($ageGroup !== '' && !in_array($ageGroup, $clubs[$clubName]['athletes'][$athleteKey]['results'][0]['wertungen'])) {
+                        $clubs[$clubName]['athletes'][$athleteKey]['results'][0]['wertungen'][] = $ageGroup;
+                    }
 
                     $pendingRelay = ['club' => $clubName, 'key' => $athleteKey];
                     break;
@@ -509,7 +539,6 @@ class Dsv7Parser
                     $staffelName = $f(5) !== '' ? $f(5) : 'Staffel';
                     $clubName    = $f(7);
                     $timeStr     = $f(9);
-                    $athleteKey  = '__relay_' . $wertungId . '_' . $staffelId;
 
                     if (!isset($wertungMap[$wertungId])) break;
                     if ($clubName === '') break;
@@ -518,7 +547,10 @@ class Dsv7Parser
                     $timeMs = $this->parseTime($timeStr);
                     if ($timeMs <= 0) break;
 
-                    $wertung = $wertungMap[$wertungId];
+                    $wertung    = $wertungMap[$wertungId];
+                    $ageGroup   = $wertung['age_group'] ?? '';
+                    $eventNum   = $wertung['event_number'];
+                    $athleteKey = '__relay_' . $eventNum . '_' . $staffelId;
 
                     if (!isset($clubs[$clubName])) {
                         $clubs[$clubName] = ['name' => $clubName, 'athletes' => []];
@@ -539,17 +571,22 @@ class Dsv7Parser
                         ];
                     }
 
-                    $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
-                        'eventid'    => (string)$wertungId,
-                        'discipline' => $wertung['discipline'],
-                        'distance'   => $wertung['distance'],
-                        'age_group'  => $wertung['age_group'] ?? '',
-                        'time_ms'    => $timeMs,
-                        'swimtime'   => $this->formatTime($timeMs),
-                        'place'      => $placement,
-                        'status'     => null,
-                        'is_relay'   => true,
-                    ];
+                    if (empty($clubs[$clubName]['athletes'][$athleteKey]['results'])) {
+                        $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
+                            'eventid'    => (string)$wertungId,
+                            'discipline' => $wertung['discipline'],
+                            'distance'   => $wertung['distance'],
+                            'age_group'  => $ageGroup,
+                            'wertungen'  => $ageGroup !== '' ? [$ageGroup] : [],
+                            'time_ms'    => $timeMs,
+                            'swimtime'   => $this->formatTime($timeMs),
+                            'place'      => $placement,
+                            'status'     => null,
+                            'is_relay'   => true,
+                        ];
+                    } elseif ($ageGroup !== '' && !in_array($ageGroup, $clubs[$clubName]['athletes'][$athleteKey]['results'][0]['wertungen'])) {
+                        $clubs[$clubName]['athletes'][$athleteKey]['results'][0]['wertungen'][] = $ageGroup;
+                    }
 
                     $pendingRelay = ['club' => $clubName, 'key' => $athleteKey];
                     break;

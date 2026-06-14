@@ -202,14 +202,21 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-3">
-                                    <div class="space-y-0.5">
+                                    <div class="space-y-1">
                                         @foreach($athlete['results'] as $r)
-                                            <p class="text-xs text-gray-500">
-                                                {{ $r['distance'] }} m
-                                                {{ $r['discipline'] }}
+                                            <div class="text-xs text-gray-500">
+                                                <span>{{ $r['distance'] }} m {{ $r['discipline'] }}</span>
+                                                @if($r['round_type'] ?? '') <span class="text-gray-400">{{ ['V'=>'VL','F'=>'Fin','E'=>'E','Z'=>'ZL'][$r['round_type']] ?? $r['round_type'] }}</span> @endif
                                                 <span class="font-mono text-primary font-medium">{{ $r['swimtime'] }}</span>
                                                 @if($r['place'] ?? null) <span class="text-gray-400">Pl.&nbsp;{{ $r['place'] }}</span> @endif
-                                            </p>
+                                                @if(!empty($r['wertungen']))
+                                                    <span class="ml-1 inline-flex flex-wrap gap-0.5">
+                                                        @foreach($r['wertungen'] as $w)
+                                                            <span class="px-1 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{{ $w }}</span>
+                                                        @endforeach
+                                                    </span>
+                                                @endif
+                                            </div>
                                         @endforeach
                                     </div>
                                 </td>

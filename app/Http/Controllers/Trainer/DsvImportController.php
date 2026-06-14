@@ -223,25 +223,30 @@ class DsvImportController extends Controller
 
     private function importResult(int $competitionId, int $userId, array $result): void
     {
-        // Check if already imported (same competition + user + discipline + distance)
+        $ageGroup  = $result['age_group'] ?? null;
+        $wertungen = !empty($result['wertungen']) ? $result['wertungen'] : ($ageGroup ? [$ageGroup] : null);
+        $isFinal   = in_array($result['round_type'] ?? '', ['F', 'E']);
+
+        // Dedup by physical swim: competition + user + discipline + distance + round_type + time
         $exists = CompetitionResult::where('competition_id', $competitionId)
             ->where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
+            ->where('is_final', $isFinal)
+            ->where('time_ms', $result['time_ms'])
             ->exists();
 
         if ($exists) return;
 
-        // Determine personal best status
         $existingBest = CompetitionResult::where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
+            ->where('time_ms', '>', 0)
             ->min('time_ms');
 
         $isPb = !$existingBest || $result['time_ms'] < $existingBest;
 
         if ($isPb && $existingBest) {
-            // Revoke previous PB flag
             CompetitionResult::where('user_id', $userId)
                 ->where('discipline', $result['discipline'])
                 ->where('distance', $result['distance'])
@@ -250,13 +255,16 @@ class DsvImportController extends Controller
         }
 
         CompetitionResult::create([
-            'competition_id'  => $competitionId,
-            'user_id'         => $userId,
-            'discipline'      => $result['discipline'],
-            'distance'        => $result['distance'],
-            'time_ms'         => $result['time_ms'],
-            'placement'       => $result['place'],
-            'is_personal_best'=> $isPb,
+            'competition_id'   => $competitionId,
+            'user_id'          => $userId,
+            'discipline'       => $result['discipline'],
+            'distance'         => $result['distance'],
+            'time_ms'          => $result['time_ms'],
+            'placement'        => $result['place'],
+            'is_personal_best' => $isPb,
+            'age_group'        => $ageGroup,
+            'wertungen'        => $wertungen,
+            'is_final'         => $isFinal,
         ]);
     }
 }

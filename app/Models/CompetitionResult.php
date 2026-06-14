@@ -8,7 +8,7 @@ class CompetitionResult extends Model
 {
     protected $fillable = [
         'competition_id', 'user_id', 'discipline', 'distance', 'time_ms',
-        'placement', 'is_personal_best', 'is_season_best', 'age_group', 'gender', 'notes',
+        'placement', 'is_personal_best', 'is_season_best', 'age_group', 'wertungen', 'gender', 'notes',
         'breaks_vereinsrekord', 'breaks_landesrekord', 'is_final',
     ];
 
@@ -23,6 +23,7 @@ class CompetitionResult extends Model
             'distance'             => 'integer',
             'time_ms'              => 'integer',
             'placement'            => 'integer',
+            'wertungen'            => 'array',
         ];
     }
 
