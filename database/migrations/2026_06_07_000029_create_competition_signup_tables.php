@@ -28,7 +28,9 @@ return new class extends Migration
         if (!Schema::hasTable('competition_signup_responses')) {
             Schema::create('competition_signup_responses', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('competition_signup_request_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('competition_signup_request_id')
+                    ->constrained('competition_signup_requests', 'id', 'cs_responses_request_fk')
+                    ->cascadeOnDelete();
                 $table->foreignId('user_id')->constrained()->cascadeOnDelete();
                 $table->enum('status', ['pending', 'attending', 'not_attending'])->default('pending');
                 $table->text('note')->nullable();
