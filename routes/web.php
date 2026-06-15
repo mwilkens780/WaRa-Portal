@@ -246,6 +246,16 @@ Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
     Route::delete('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar.events.destroy');
 });
 
+// Scheduler-Trigger für URL-Cron (all-inkl.com unterstützt kein Shell-Cron)
+Route::get('/cron/run/{token}', function (string $token) {
+    if (!hash_equals(config('app.scheduler_token', ''), $token)) {
+        abort(403);
+    }
+    \Illuminate\Support\Facades\Artisan::call('schedule:run');
+    return response('OK ' . now()->toDateTimeString(), 200)
+        ->header('Content-Type', 'text/plain');
+})->name('cron.run');
+
 // Schwimmer-Bereich
 Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimmer.')->group(function () {
     Route::get('/dashboard', [SwimmerDashboard::class, 'index'])->name('dashboard');
