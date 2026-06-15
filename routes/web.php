@@ -29,6 +29,7 @@ use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
 use App\Http\Controllers\Trainer\HallBookingController;
 use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
 use App\Http\Controllers\Admin\PermissionMatrixController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Trainer\UserLiteController;
 
 // Startseite -> Login
@@ -252,10 +253,13 @@ Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
     Route::delete('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar.events.destroy');
 });
 
-// Berechtigungs-Matrix (nur Admin)
+// Berechtigungs-Matrix + Einstellungen (nur Admin)
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/berechtigungen', [PermissionMatrixController::class, 'index'])->name('admin.permissions.index');
     Route::put('/admin/berechtigungen', [PermissionMatrixController::class, 'update'])->name('admin.permissions.update');
+
+    Route::get('/admin/einstellungen', [SettingsController::class, 'index'])->name('admin.settings.index');
+    Route::put('/admin/einstellungen', [SettingsController::class, 'update'])->name('admin.settings.update');
 });
 
 // Benutzerverwaltung Lite (Trainer + Vorstand)

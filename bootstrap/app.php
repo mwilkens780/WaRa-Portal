@@ -12,8 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'role' => \App\Http\Middleware\CheckRole::class,
+            'role'        => \App\Http\Middleware\CheckRole::class,
+            'maintenance' => \App\Http\Middleware\MaintenanceModeCheck::class,
         ]);
+        $middleware->appendToGroup('web', \App\Http\Middleware\MaintenanceModeCheck::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->report(function (\Throwable $e) {

@@ -30,6 +30,17 @@ class Setting extends Model
         static::$cache[$key] = (string) $value;
     }
 
+    public static function getBool(string $key, bool $default = false): bool
+    {
+        return static::getCached($key, $default ? '1' : '0') === '1';
+    }
+
+    public static function getBypassUserIds(): array
+    {
+        $raw = static::getCached('maintenance_bypass_users', '[]');
+        return json_decode($raw, true) ?? [];
+    }
+
     public static function clearCache(): void
     {
         static::$cache = [];
