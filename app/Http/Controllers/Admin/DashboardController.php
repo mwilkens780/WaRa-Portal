@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompetitionResult;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\TrainingSession;
 use App\Models\Competition;
@@ -43,7 +44,9 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_sessions', 'upcoming_competitions', 'new_records'));
+        $maintenanceMode = Setting::getBool('maintenance_mode');
+
+        return view('admin.dashboard', compact('stats', 'recent_sessions', 'upcoming_competitions', 'new_records', 'maintenanceMode'));
     }
 
     private function currentSeasonRange(): array

@@ -199,7 +199,7 @@ class CompetitionController extends Controller
         $results    = CompetitionResultGrouper::forCompetition($rawResults);
 
         $swimmers         = User::where('role', 'schwimmer')->where('active', true)->orderBy('name')->get();
-        $allGroups        = TrainingGroup::orderBy('name')->get();
+        $allGroups        = TrainingGroup::visibleTo(auth()->user())->orderBy('name')->get();
         $hasPflichtzeiten = $competition->events->where('qualifying_time_ms', '>', 0)->isNotEmpty();
         $hasMeldegelder   = $competition->events->where('meldegeld', '>', 0)->isNotEmpty();
 

@@ -28,7 +28,8 @@ class HallBookingController extends Controller
         // Serialize all bookings for Alpine.js
         $bookingsJson = $bookings->map->toGridArray()->values();
 
-        $groups = TrainingGroup::with('trainers:id,firstname,lastname')->where('active', true)->orderBy('name')->get();
+        $groups = TrainingGroup::visibleTo(auth()->user())
+            ->with('trainers:id,firstname,lastname')->where('active', true)->orderBy('name')->get();
 
         $trainers = User::whereIn('role', ['trainer', 'admin'])
             ->where('active', true)

@@ -42,6 +42,21 @@ class TrainingGroup extends Model
         return $this->belongsToMany(TrainingSession::class, 'training_session_group');
     }
 
+    /**
+     * Scope: nur Gruppen, die der User sehen darf.
+     * Admins: alle | Trainer: ihre Gruppen | Schwimmer: ihre Gruppen
+     */
+    public function scopeVisibleTo($query, User $user): void
+    {
+        if ($user->isAdmin()) return;
+
+        if (in_array($user->role, ['trainer'])) {
+            $query->whereHas('trainers', fn($q) => $q->where('users.id', $user->id));
+        } elseif ($user->role === 'schwimmer') {
+            $query->whereHas('swimmers', fn($q) => $q->where('users.id', $user->id));
+        }
+    }
+
     public function canEdit(User $user): bool
     {
         if ($user->isAdmin()) return true;
