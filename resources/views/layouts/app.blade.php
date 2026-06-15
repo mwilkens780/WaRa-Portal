@@ -269,7 +269,6 @@
             WaRa-Portal &copy; {{ date('Y') }} – SG Wasserratten Norderstedt e.V.
         </footer>
     </div>
-</div>
 
 {{-- Passwort-ändern-Modal (global, für alle Rollen) --}}
 <div x-show="pwModal" x-cloak
@@ -345,6 +344,7 @@
         </form>
     </div>
 </div>
+</div>{{-- Ende x-data (sidebarOpen, pwModal, pwLoading) --}}
 
 @stack('scripts')
 </body>
