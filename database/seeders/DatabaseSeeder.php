@@ -151,6 +151,8 @@ class DatabaseSeeder extends Seeder
             'age_group' => 'AK16',
         ]);
 
+        $this->call(MenuPermissionSeeder::class);
+
         $this->command->info('');
         $this->command->info('✓ Testdaten wurden angelegt. Login-Daten:');
         $this->command->info('  Admin:     admin@wasserratten.de / Admin1234');

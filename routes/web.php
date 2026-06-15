@@ -28,6 +28,8 @@ use App\Http\Controllers\Swimmer\GoalController as SwimmerGoalController;
 use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
 use App\Http\Controllers\Trainer\HallBookingController;
 use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
+use App\Http\Controllers\Admin\PermissionMatrixController;
+use App\Http\Controllers\Trainer\UserLiteController;
 
 // Startseite -> Login
 Route::get('/', fn() => redirect()->route('login'));
@@ -78,8 +80,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/wettkaempfe/{competition}/ergebnis', [AdminCompetitionController::class, 'storeResult'])->name('competitions.result.store');
     Route::delete('/ergebnis/{result}', [AdminCompetitionController::class, 'destroyResult'])->name('competitions.result.destroy');
 
-    // Rekorde
-    Route::get('/rekorde', [RecordController::class, 'index'])->name('records.index');
+    // Rekorde – Verwaltung (Admin only)
     Route::post('/rekorde', [RecordController::class, 'store'])->name('records.store');
     Route::delete('/rekorde/{record}', [RecordController::class, 'destroy'])->name('records.destroy');
     Route::post('/rekorde/import/upload', [RecordController::class, 'importUpload'])->name('records.import.upload');
@@ -119,8 +120,8 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::post('/trainingsgruppen/{trainingGroup}/csv-speichern', [TrainingGroupController::class, 'importCsvExecute'])->name('training-groups.csv-execute');
 });
 
-// Wettkämpfe – Ansicht & Import auch für Trainer zugänglich
-Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.')->group(function () {
+// Wettkämpfe – Ansicht & Import auch für Trainer, Vorstand, Kampfrichter zugänglich
+Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
     Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
     Route::post('/wettkaempfe/{competition}/auswertung', [AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
@@ -161,6 +162,11 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/erinnern', [CompetitionSignupController::class, 'remind'])->name('competitions.signup.remind');
     Route::delete('/wettkaempfe/{competition}/anmeldung/{signupRequest}', [CompetitionSignupController::class, 'destroy'])->name('competitions.signup.destroy');
     Route::get('/wettkaempfe/{competition}/anmeldung/{signupRequest}/anhang', [CompetitionSignupController::class, 'downloadAttachment'])->name('competitions.signup.attachment');
+});
+
+// Rekorde – Ansicht für Trainer, Vorstand und Admin
+Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/rekorde', [RecordController::class, 'index'])->name('records.index');
 });
 
 // Trainer-Bereich (Trainer + Admin)
@@ -244,6 +250,22 @@ Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
     Route::get('/kalender/termin/{calendarEvent}/bearbeiten', [CalendarEventController::class, 'edit'])->name('calendar.events.edit');
     Route::put('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'update'])->name('calendar.events.update');
     Route::delete('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar.events.destroy');
+});
+
+// Berechtigungs-Matrix (nur Admin)
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin/berechtigungen', [PermissionMatrixController::class, 'index'])->name('admin.permissions.index');
+    Route::put('/admin/berechtigungen', [PermissionMatrixController::class, 'update'])->name('admin.permissions.update');
+});
+
+// Benutzerverwaltung Lite (Trainer + Vorstand)
+Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('benutzer')->name('users-lite.')->group(function () {
+    Route::get('/',                    [UserLiteController::class, 'index'])->name('index');
+    Route::get('/neu',                 [UserLiteController::class, 'create'])->name('create');
+    Route::post('/',                   [UserLiteController::class, 'store'])->name('store');
+    Route::get('/{user}/bearbeiten',   [UserLiteController::class, 'edit'])->name('edit');
+    Route::put('/{user}',              [UserLiteController::class, 'update'])->name('update');
+    Route::post('/{user}/toggle',      [UserLiteController::class, 'toggleActive'])->name('toggle');
 });
 
 // Scheduler-Trigger für URL-Cron (all-inkl.com unterstützt kein Shell-Cron)

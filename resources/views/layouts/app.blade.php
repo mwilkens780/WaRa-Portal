@@ -64,127 +64,173 @@
         <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
             @php
                 $role = auth()->user()->role;
-                $navLink = fn(string $route, string $pattern) =>
-                    request()->routeIs($pattern)
-                        ? 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold bg-white text-[#1B5EAB] shadow-sm'
-                        : 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-colors';
+                $can  = fn(string $k) => \App\Models\MenuPermission::can($role, $k);
+                $cls  = fn(string $pat) => request()->routeIs($pat)
+                    ? 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold bg-white text-[#1B5EAB] shadow-sm'
+                    : 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-colors';
+
+                $dashUrl = match($role) {
+                    'admin'      => route('admin.dashboard'),
+                    'trainer'    => route('trainer.dashboard'),
+                    'schwimmer'  => route('swimmer.dashboard'),
+                    'elternteil' => route('parent.dashboard'),
+                    default      => route('calendar.index'),
+                };
+                $dashPat = match($role) {
+                    'admin'      => 'admin.dashboard',
+                    'trainer'    => 'trainer.dashboard',
+                    'schwimmer'  => 'swimmer.dashboard',
+                    'elternteil' => 'parent.dashboard',
+                    default      => '_none_',
+                };
+
+                $ti = [
+                    'training'        => in_array($role, ['trainer','admin']) && $can('training'),
+                    'training_groups' => in_array($role, ['trainer','admin']) && $can('training_groups'),
+                    'competitions'    => in_array($role, ['trainer','admin','vorstand','kampfrichter']) && $can('competitions'),
+                    'records'         => in_array($role, ['trainer','admin','vorstand']) && $can('records'),
+                    'goals'           => in_array($role, ['trainer','admin']) && $can('goals'),
+                    'hall'            => in_array($role, ['trainer','admin']) && $can('hall'),
+                ];
+                $showTrainerSection = in_array(true, $ti, true);
+                $showCalendar       = $can('calendar');
+                $showUsersLite      = $role !== 'admin' && $can('users_lite');
             @endphp
 
+            {{-- Dashboard (immer zuerst) --}}
+            <a href="{{ $dashUrl }}" class="{{ $cls($dashPat) }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/></svg>
+                <span>Dashboard</span>
+            </a>
+
+            {{-- Administration (nur Admin) --}}
             @if($role === 'admin')
-                <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pt-3 pb-1.5">Administration</p>
+            <div class="border-t border-white/15 my-3 mx-1"></div>
+            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Administration</p>
 
-                <a href="{{ route('admin.dashboard') }}" class="{{ $navLink('admin.dashboard','admin.dashboard') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/></svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="{{ route('admin.users.index') }}" class="{{ $navLink('admin.users.index','admin.users.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    <span>Benutzerverwaltung</span>
-                </a>
-<a href="{{ route('admin.competitions.index') }}" class="{{ $navLink('admin.competitions.index','admin.competitions.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Wettkämpfe</span>
-                </a>
-                <a href="{{ route('admin.records.index') }}" class="{{ $navLink('admin.records.index','admin.records.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                    <span>Rekorde</span>
-                </a>
-                <a href="{{ route('admin.logs.index') }}" class="{{ $navLink('admin.logs.index','admin.logs.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    <span>Protokoll</span>
-                </a>
+            <a href="{{ route('admin.users.index') }}" class="{{ $cls('admin.users.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span>Benutzerverwaltung</span>
+            </a>
+            <a href="{{ route('admin.permissions.index') }}" class="{{ $cls('admin.permissions.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <span>Berechtigungs-Matrix</span>
+            </a>
+            <a href="{{ route('admin.logs.index') }}" class="{{ $cls('admin.logs.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <span>Protokoll</span>
+            </a>
+            @endif
 
-                <div class="border-t border-white/15 my-3 mx-1"></div>
-                <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Trainer-Bereich</p>
+            {{-- Trainer-Bereich (Trainer, Admin, Vorstand/Kampfrichter je nach Berechtigung) --}}
+            @if($showTrainerSection)
+            <div class="border-t border-white/15 my-3 mx-1"></div>
+            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Trainer-Bereich</p>
 
-                <a href="{{ route('trainer.sessions.index') }}" class="{{ $navLink('trainer.sessions.index','trainer.sessions.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span>Trainingseinheiten</span>
-                </a>
-                <a href="{{ route('admin.training-groups.index') }}" class="{{ $navLink('admin.training-groups.index','admin.training-groups.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    <span>Trainingsgruppen</span>
-                </a>
-                <a href="{{ route('calendar.index') }}" class="{{ $navLink('calendar.index','calendar.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span>Kalender</span>
-                </a>
-                <a href="{{ route('trainer.goals.index') }}" class="{{ $navLink('trainer.goals.index','trainer.goals.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    <span>Ziele</span>
-                </a>
-                <a href="{{ route('trainer.hall.index') }}" class="{{ $navLink('trainer.hall.index','trainer.hall.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    <span>Hallenbelegung</span>
-                </a>
+            @if($ti['training'])
+            <a href="{{ route('trainer.sessions.index') }}" class="{{ $cls('trainer.sessions.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>Trainingseinheiten</span>
+            </a>
+            @endif
 
-            @elseif($role === 'trainer')
-                <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pt-3 pb-1.5">Trainer</p>
+            @if($ti['training_groups'])
+            <a href="{{ route('admin.training-groups.index') }}" class="{{ $cls('admin.training-groups.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span>Trainingsgruppen</span>
+            </a>
+            @endif
 
-                <a href="{{ route('trainer.dashboard') }}" class="{{ $navLink('trainer.dashboard','trainer.dashboard') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/></svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="{{ route('trainer.sessions.index') }}" class="{{ $navLink('trainer.sessions.index','trainer.sessions.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span>Trainingseinheiten</span>
-                </a>
-                <a href="{{ route('admin.training-groups.index') }}" class="{{ $navLink('admin.training-groups.index','admin.training-groups.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    <span>Trainingsgruppen</span>
-                </a>
-                <a href="{{ route('calendar.index') }}" class="{{ $navLink('calendar.index','calendar.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span>Kalender</span>
-                </a>
-                <a href="{{ route('admin.competitions.index') }}" class="{{ $navLink('admin.competitions.index','admin.competitions.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Wettkämpfe</span>
-                </a>
-                <a href="{{ route('trainer.goals.index') }}" class="{{ $navLink('trainer.goals.index','trainer.goals.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    <span>Ziele</span>
-                </a>
-                <a href="{{ route('trainer.hall.index') }}" class="{{ $navLink('trainer.hall.index','trainer.hall.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    <span>Hallenbelegung</span>
-                </a>
+            @if($ti['competitions'])
+            <a href="{{ route('admin.competitions.index') }}" class="{{ $cls('admin.competitions.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Wettkämpfe</span>
+            </a>
+            @endif
 
-            @elseif($role === 'schwimmer')
-                <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pt-3 pb-1.5">Mein Bereich</p>
+            @if($ti['records'])
+            <a href="{{ route('admin.records.index') }}" class="{{ $cls('admin.records.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                <span>Rekorde</span>
+            </a>
+            @endif
 
-                <a href="{{ route('swimmer.dashboard') }}" class="{{ $navLink('swimmer.dashboard','swimmer.dashboard') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/></svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="{{ route('swimmer.sessions') }}" class="{{ $navLink('swimmer.sessions','swimmer.sessions') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span>Mein Training</span>
-                </a>
-                <a href="{{ route('swimmer.times') }}" class="{{ $navLink('swimmer.times','swimmer.times') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Meine Bestzeiten</span>
-                </a>
-                <a href="{{ route('swimmer.competitions') }}" class="{{ $navLink('swimmer.competitions','swimmer.competitions') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Wettkämpfe</span>
-                </a>
-                <a href="{{ route('swimmer.goals.index') }}" class="{{ $navLink('swimmer.goals.index','swimmer.goals.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    <span>Meine Ziele</span>
-                </a>
-                <a href="{{ route('calendar.index') }}" class="{{ $navLink('calendar.index','calendar.*') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span>Kalender</span>
-                </a>
+            @if($ti['goals'])
+            <a href="{{ route('trainer.goals.index') }}" class="{{ $cls('trainer.goals.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span>Ziele</span>
+            </a>
+            @endif
 
-            @elseif($role === 'elternteil')
-                <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pt-3 pb-1.5">Eltern-Bereich</p>
+            @if($ti['hall'])
+            <a href="{{ route('trainer.hall.index') }}" class="{{ $cls('trainer.hall.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                <span>Hallenbelegung</span>
+            </a>
+            @endif
+            @endif
 
-                <a href="{{ route('parent.dashboard') }}" class="{{ $navLink('parent.dashboard','parent.dashboard') }}">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    <span>Meine Kinder</span>
-                </a>
+            {{-- Allgemein: Kalender + Benutzerverwaltung (Lite) --}}
+            @if($showCalendar || $showUsersLite)
+            <div class="border-t border-white/15 my-3 mx-1"></div>
+            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Allgemein</p>
+
+            @if($showCalendar)
+            <a href="{{ route('calendar.index') }}" class="{{ $cls('calendar.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>Kalender</span>
+            </a>
+            @endif
+
+            @if($showUsersLite)
+            <a href="{{ route('users-lite.index') }}" class="{{ $cls('users-lite.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span>Benutzerverwaltung</span>
+            </a>
+            @endif
+            @endif
+
+            {{-- Schwimmer --}}
+            @if($role === 'schwimmer')
+            <div class="border-t border-white/15 my-3 mx-1"></div>
+            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Mein Bereich</p>
+
+            @if($can('swimmer_times'))
+            <a href="{{ route('swimmer.times') }}" class="{{ $cls('swimmer.times') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Meine Bestzeiten</span>
+            </a>
+            @endif
+
+            @if($can('swimmer_comps'))
+            <a href="{{ route('swimmer.competitions') }}" class="{{ $cls('swimmer.competitions') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Meine Wettkämpfe</span>
+            </a>
+            @endif
+
+            @if($can('swimmer_goals'))
+            <a href="{{ route('swimmer.goals.index') }}" class="{{ $cls('swimmer.goals.*') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span>Meine Ziele</span>
+            </a>
+            @endif
+
+            <a href="{{ route('swimmer.sessions') }}" class="{{ $cls('swimmer.sessions') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <span>Mein Training</span>
+            </a>
+            @endif
+
+            {{-- Elternteil --}}
+            @if($role === 'elternteil' && $can('parent_area'))
+            <div class="border-t border-white/15 my-3 mx-1"></div>
+            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Eltern-Bereich</p>
+
+            <a href="{{ route('parent.dashboard') }}" class="{{ $cls('parent.dashboard') }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                <span>Meine Kinder</span>
+            </a>
             @endif
         </nav>
 
