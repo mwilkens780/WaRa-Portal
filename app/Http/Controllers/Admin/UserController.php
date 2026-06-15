@@ -133,7 +133,7 @@ class UserController extends Controller
             $data['initial_password'] = null;
         }
 
-        $data['active'] = $request->boolean('active');
+        $data['active'] = $request->has('active') ? $request->boolean('active') : $user->active;
         $user->update($data);
         $user->syncRoles($roles);
 
