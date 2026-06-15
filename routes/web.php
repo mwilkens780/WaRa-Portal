@@ -248,7 +248,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
 
 // Scheduler-Trigger für URL-Cron (all-inkl.com unterstützt kein Shell-Cron)
 Route::get('/cron/run/{token}', function (string $token) {
-    if (!hash_equals(config('app.scheduler_token', ''), $token)) {
+    if (!hash_equals(config('cron.scheduler_token', ''), $token)) {
         abort(403);
     }
     \Illuminate\Support\Facades\Artisan::call('schedule:run');
