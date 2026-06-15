@@ -1,0 +1,42 @@
+name: Deploy to all-inkl.com
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.SSH_PATH }}
+
+            echo "── Git pull ──"
+            git pull origin main
+
+            echo "── Composer install ──"
+            php composer.phar install \
+              --no-dev \
+              --optimize-autoloader \
+              --no-interaction \
+              --no-progress
+
+            echo "── Migrations ──"
+            php artisan migrate --force
+
+            echo "── Cache neu aufbauen ──"
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+
+            echo "── Deployment abgeschlossen ──"
