@@ -70,7 +70,7 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
-                            <p class="text-xs text-gray-500">{{ $session->trainer->name }} · {{ $session->type_label }}</p>
+                            <p class="text-xs text-gray-500">{{ $session->trainer?->name ?? '–' }} · {{ $session->type_label }}</p>
                         </div>
                         <span class="text-xs text-gray-400">{{ $session->start_time }}</span>
                     </div>
