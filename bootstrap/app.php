@@ -13,10 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
         $middleware->alias([
-            'role'        => \App\Http\Middleware\CheckRole::class,
-            'maintenance' => \App\Http\Middleware\MaintenanceModeCheck::class,
+            'role'                    => \App\Http\Middleware\CheckRole::class,
+            'maintenance'             => \App\Http\Middleware\MaintenanceModeCheck::class,
+            'ensure.password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\MaintenanceModeCheck::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsurePasswordChanged::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->report(function (\Throwable $e) {

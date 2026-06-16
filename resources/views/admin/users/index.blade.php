@@ -65,6 +65,7 @@
                         <th class="text-left px-5 py-3 font-semibold text-gray-600">Rollen</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Geburtstag</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600">Mitglied</th>
+                        <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Passwort</th>
                         <th class="px-5 py-3"></th>
                     </tr>
                 </thead>
@@ -128,6 +129,15 @@
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Ehemaliges Mitglied</span>
                                 @endif
                             </td>
+                            <td class="px-5 py-3 hidden lg:table-cell">
+                                @if($user->hasInitialPassword())
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Initialpasswort</span>
+                                @elseif($user->role)
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Geändert</span>
+                                @else
+                                    <span class="text-gray-300 text-xs">–</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-2 justify-end">
                                     <a href="{{ route('admin.users.edit', $user) }}" class="text-primary hover:text-primary-dark font-medium text-xs">Bearbeiten</a>
@@ -148,7 +158,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">Keine Benutzer gefunden.</td></tr>
+                        <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">Keine Benutzer gefunden.</td></tr>
                     @endforelse
                 </tbody>
             </table>
