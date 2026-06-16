@@ -286,6 +286,7 @@ Route::get('/cron/run/{token}', function (string $token) {
 Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimmer.')->group(function () {
     Route::get('/dashboard', [SwimmerDashboard::class, 'index'])->name('dashboard');
     Route::post('/anmeldung/{signupRequest}/antworten', [SwimmerSignupController::class, 'respond'])->name('signup.respond');
+    Route::post('/anmeldung/{signupRequest}/bus', [SwimmerSignupController::class, 'toggleBus'])->name('signup.bus');
     Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->name('times');
     Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->name('competitions');
     Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->name('sessions');

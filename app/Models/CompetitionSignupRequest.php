@@ -10,6 +10,7 @@ class CompetitionSignupRequest extends Model
         'competition_id', 'status', 'message', 'attachment_path',
         'deadline', 'eligible_group_ids', 'eligible_user_ids',
         'created_by_id', 'activated_at', 'closed_at',
+        'meeting_point', 'meeting_time', 'bus_available', 'bus_seats',
     ];
 
     protected function casts(): array
@@ -20,7 +21,19 @@ class CompetitionSignupRequest extends Model
             'deadline'           => 'date',
             'activated_at'       => 'datetime',
             'closed_at'          => 'datetime',
+            'bus_available'      => 'boolean',
+            'bus_seats'          => 'integer',
         ];
+    }
+
+    public function busBookedCount(): int
+    {
+        return $this->responses()->where('bus_booked', true)->count();
+    }
+
+    public function busSeatsRemaining(): int
+    {
+        return max(0, ($this->bus_seats ?? 8) - $this->busBookedCount());
     }
 
     public function competition() { return $this->belongsTo(Competition::class); }

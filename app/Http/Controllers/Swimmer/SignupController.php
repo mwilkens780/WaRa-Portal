@@ -37,4 +37,31 @@ class SignupController extends Controller
         $label = $data['status'] === 'attending' ? 'Zusage' : 'Absage';
         return back()->with('success', "{$label} gespeichert.");
     }
+
+    public function toggleBus(CompetitionSignupRequest $signupRequest)
+    {
+        if (!$signupRequest->isActive()) {
+            return back()->with('error', 'Diese Anmeldeabfrage ist nicht mehr aktiv.');
+        }
+        if (!$signupRequest->bus_available) {
+            return back()->with('error', 'Für diese Abfrage ist kein Bus verfügbar.');
+        }
+
+        $response = CompetitionSignupResponse::where('competition_signup_request_id', $signupRequest->id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$response || !$response->isAttending()) {
+            return back()->with('error', 'Du hast dich noch nicht als Teilnehmer angemeldet.');
+        }
+
+        if (!$response->bus_booked && $signupRequest->busSeatsRemaining() <= 0) {
+            return back()->with('error', 'Leider sind keine Plätze mehr frei.');
+        }
+
+        $response->update(['bus_booked' => !$response->bus_booked]);
+
+        $msg = $response->bus_booked ? 'Busplatz gebucht.' : 'Busplatz storniert.';
+        return back()->with('success', $msg);
+    }
 }

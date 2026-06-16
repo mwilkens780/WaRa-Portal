@@ -1,6 +1,14 @@
 @extends('layouts.auth')
 @section('title', 'Anmelden')
 
+@push('scripts')
+<script>
+window.addEventListener('pageshow', function(e) {
+    if (e.persisted) window.location.reload();
+});
+</script>
+@endpush
+
 @section('content')
 <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Anmelden</h2>
 

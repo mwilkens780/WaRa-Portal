@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CompetitionSignupResponse extends Model
 {
     protected $fillable = [
-        'competition_signup_request_id', 'user_id', 'status', 'note', 'responded_at', 'reminder_sent_at',
+        'competition_signup_request_id', 'user_id', 'status', 'note', 'responded_at', 'reminder_sent_at', 'bus_booked',
     ];
 
     protected function casts(): array
@@ -15,6 +15,7 @@ class CompetitionSignupResponse extends Model
         return [
             'responded_at'     => 'datetime',
             'reminder_sent_at' => 'datetime',
+            'bus_booked'       => 'boolean',
         ];
     }
 

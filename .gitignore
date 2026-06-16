@@ -5,11 +5,12 @@
 /storage/app/dsv-imports
 /storage/framework/cache
 /storage/framework/sessions
+/storage/framework/sessions
 /storage/framework/testing
 /storage/framework/views
 /storage/logs
 /vendor
-/bootstrap/cache
+/bootstrap/cache/*.php
 .env
 .env.backup
 .env.production

@@ -39,5 +39,6 @@
             &copy; {{ date('Y') }} SG Wasserratten Norderstedt e.V.
         </p>
     </div>
+@stack('scripts')
 </body>
 </html>

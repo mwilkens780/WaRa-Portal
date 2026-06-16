@@ -140,12 +140,19 @@ class DashboardController extends Controller
             ->with('competition')
             ->get();
 
+        // Aktive Abfragen mit Bus-Option, bei denen der Schwimmer bereits zugesagt hat
+        $busSignups = CompetitionSignupRequest::where('status', 'active')
+            ->where('bus_available', true)
+            ->whereHas('responses', fn($q) => $q->where('user_id', $swimmer->id)->where('status', 'attending'))
+            ->with(['competition', 'responses' => fn($q) => $q->where('user_id', $swimmer->id)])
+            ->get();
+
         return view('swimmer.dashboard', compact(
             'stats', 'allBests', 'yearBests', 'seasonBests',
             'recent_sessions', 'recent_results',
             'next_competition', 'upcoming_sessions', 'my_pre_absences',
             'goalsTotal', 'goalsAchieved', 'goalsUnnotified',
-            'pendingSignups'
+            'pendingSignups', 'busSignups'
         ));
     }
 

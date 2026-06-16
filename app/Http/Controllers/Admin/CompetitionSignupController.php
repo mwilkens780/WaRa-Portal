@@ -25,6 +25,10 @@ class CompetitionSignupController extends Controller
             'eligible_user_ids'    => ['nullable', 'array'],
             'eligible_user_ids.*'  => ['exists:users,id'],
             'attachment'           => ['nullable', 'file', 'max:10240'],
+            'meeting_point'        => ['nullable', 'string', 'max:255'],
+            'meeting_time'         => ['nullable', 'date_format:H:i'],
+            'bus_available'        => ['boolean'],
+            'bus_seats'            => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $attachmentPath = null;
@@ -41,6 +45,10 @@ class CompetitionSignupController extends Controller
             'eligible_user_ids'  => $data['eligible_user_ids'] ?? null,
             'attachment_path'    => $attachmentPath,
             'created_by_id'      => auth()->id(),
+            'meeting_point'      => $data['meeting_point'] ?? null,
+            'meeting_time'       => $data['meeting_time'] ?? null,
+            'bus_available'      => $data['bus_available'] ?? false,
+            'bus_seats'          => $data['bus_seats'] ?? 8,
         ]);
 
         return back()->with('success', 'Anmeldeabfrage als Entwurf gespeichert.');
@@ -60,6 +68,10 @@ class CompetitionSignupController extends Controller
             'eligible_user_ids'    => ['nullable', 'array'],
             'eligible_user_ids.*'  => ['exists:users,id'],
             'attachment'           => ['nullable', 'file', 'max:10240'],
+            'meeting_point'        => ['nullable', 'string', 'max:255'],
+            'meeting_time'         => ['nullable', 'date_format:H:i'],
+            'bus_available'        => ['boolean'],
+            'bus_seats'            => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $attachmentPath = $signupRequest->attachment_path;
@@ -76,6 +88,10 @@ class CompetitionSignupController extends Controller
             'eligible_group_ids' => $data['eligible_group_ids'] ?? null,
             'eligible_user_ids'  => $data['eligible_user_ids'] ?? null,
             'attachment_path'    => $attachmentPath,
+            'meeting_point'      => $data['meeting_point'] ?? null,
+            'meeting_time'       => $data['meeting_time'] ?? null,
+            'bus_available'      => $data['bus_available'] ?? false,
+            'bus_seats'          => $data['bus_seats'] ?? 8,
         ]);
 
         return back()->with('success', 'Anmeldeabfrage aktualisiert.');

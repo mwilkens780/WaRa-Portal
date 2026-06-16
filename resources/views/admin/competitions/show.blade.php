@@ -880,6 +880,20 @@
                     </div>
                 </div>
 
+                @if($signupRequest->meeting_point || $signupRequest->meeting_time)
+                    <div class="bg-sky-50 border border-sky-100 rounded-lg px-4 py-3 mb-4 text-sm text-gray-700 flex items-center gap-3">
+                        <svg class="w-4 h-4 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>
+                            <strong>Treffpunkt:</strong>
+                            @if($signupRequest->meeting_time){{ \Illuminate\Support\Str::substr($signupRequest->meeting_time, 0, 5) }} Uhr @endif
+                            @if($signupRequest->meeting_point) – {{ $signupRequest->meeting_point }} @endif
+                        </span>
+                    </div>
+                @endif
+
                 @if($signupRequest->message)
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-5 text-sm text-gray-700 whitespace-pre-line">
                         {{ $signupRequest->message }}
@@ -904,8 +918,10 @@
                     $countAttending    = $responses->where('status', 'attending')->count();
                     $countNotAttending = $responses->where('status', 'not_attending')->count();
                     $countPending      = $responses->where('status', 'pending')->count();
+                    $busBooked         = $signupRequest->bus_available ? $signupRequest->busBookedCount() : null;
+                    $busRemaining      = $signupRequest->bus_available ? $signupRequest->busSeatsRemaining() : null;
                 @endphp
-                <div class="flex gap-4 mb-4 flex-wrap">
+                <div class="flex gap-6 mb-4 flex-wrap items-end">
                     <div class="text-center">
                         <p class="text-2xl font-bold text-green-600">{{ $countAttending }}</p>
                         <p class="text-xs text-gray-500">Zusagen</p>
@@ -918,6 +934,17 @@
                         <p class="text-2xl font-bold text-amber-500">{{ $countPending }}</p>
                         <p class="text-xs text-gray-500">Ausstehend</p>
                     </div>
+                    @if($signupRequest->bus_available)
+                        <div class="text-center border-l border-gray-200 pl-6">
+                            <p class="text-2xl font-bold text-blue-600">{{ $busBooked }} / {{ $signupRequest->bus_seats }}</p>
+                            <p class="text-xs text-gray-500">Bus gebucht</p>
+                        </div>
+                        @if($busRemaining === 0)
+                            <span class="text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">Ausgebucht</span>
+                        @else
+                            <span class="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">{{ $busRemaining }} Plätze frei</span>
+                        @endif
+                    @endif
                 </div>
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
                     <table class="w-full text-sm">
@@ -925,6 +952,9 @@
                             <tr>
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                                @if($signupRequest->bus_available)
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bus</th>
+                                @endif
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Antwort am</th>
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Erinnert</th>
@@ -943,6 +973,17 @@
                                             <span class="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">Ausstehend</span>
                                         @endif
                                     </td>
+                                    @if($signupRequest->bus_available)
+                                        <td class="px-4 py-2.5">
+                                            @if($response->bus_booked)
+                                                <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Gebucht</span>
+                                            @elseif($response->isAttending())
+                                                <span class="text-xs text-gray-400">–</span>
+                                            @else
+                                                <span class="text-xs text-gray-300">–</span>
+                                            @endif
+                                        </td>
+                                    @endif
                                     <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->responded_at?->format('d.m.Y H:i') ?? '–' }}</td>
                                     <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
                                     <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $response->reminder_sent_at?->format('d.m. H:i') ?? '–' }}</td>
@@ -965,14 +1006,41 @@
                     </div>
                 </div>
                 @php
-                    $responses = $signupRequest->responses->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
+                    $responses      = $signupRequest->responses->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
+                    $busBookedCount = $signupRequest->bus_available ? $signupRequest->busBookedCount() : null;
                 @endphp
+
+                @if($signupRequest->meeting_point || $signupRequest->meeting_time)
+                    <div class="bg-sky-50 border border-sky-100 rounded-lg px-4 py-3 mb-4 text-sm text-gray-700 flex items-center gap-3">
+                        <svg class="w-4 h-4 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>
+                            <strong>Treffpunkt:</strong>
+                            @if($signupRequest->meeting_time){{ \Illuminate\Support\Str::substr($signupRequest->meeting_time, 0, 5) }} Uhr @endif
+                            @if($signupRequest->meeting_point) – {{ $signupRequest->meeting_point }} @endif
+                        </span>
+                    </div>
+                @endif
+
+                @if($signupRequest->bus_available)
+                    <div class="mb-4 flex items-center gap-3">
+                        <span class="text-sm text-gray-700">
+                            <strong>Bus:</strong> {{ $busBookedCount }} von {{ $signupRequest->bus_seats }} Plätzen gebucht
+                        </span>
+                    </div>
+                @endif
+
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                                @if($signupRequest->bus_available)
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bus</th>
+                                @endif
                                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
                             </tr>
                         </thead>
@@ -989,6 +1057,15 @@
                                             <span class="text-xs font-semibold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Keine Antwort</span>
                                         @endif
                                     </td>
+                                    @if($signupRequest->bus_available)
+                                        <td class="px-4 py-2.5">
+                                            @if($response->bus_booked)
+                                                <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Gebucht</span>
+                                            @else
+                                                <span class="text-xs text-gray-300">–</span>
+                                            @endif
+                                        </td>
+                                    @endif
                                     <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
                                 </tr>
                             @endforeach

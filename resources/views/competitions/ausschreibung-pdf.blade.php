@@ -62,7 +62,7 @@
     @if(!empty($venue['name']))
     <div class="meta-row">
       <div class="meta-label">Wettkampfstätte</div>
-      <div class="meta-value">{{ $venue['name'] }}@if(!empty($venue['street'])), {{ $venue['street'] }}@endif@if(!empty($venue['city'])), {{ $venue['city'] }}@endif</div>
+      <div class="meta-value">{{ $venue['name'] }}@if(!empty($venue['street'])), {{ $venue['street'] }} @endif @if(!empty($venue['city'])), {{ $venue['city'] }} @endif</div>
     </div>
     @endif
     <div class="meta-row">

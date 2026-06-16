@@ -23,6 +23,13 @@
                                 {{ $signup->competition->date_range }} · {{ $signup->competition->location }}
                                 @if($signup->deadline) · <strong>Anmeldefrist: {{ $signup->deadline->format('d.m.Y') }}</strong>@endif
                             </p>
+                            @if($signup->meeting_point || $signup->meeting_time)
+                                <p class="text-xs text-gray-600 mt-1.5">
+                                    <span class="font-medium">Treffpunkt:</span>
+                                    @if($signup->meeting_time){{ \Illuminate\Support\Str::substr($signup->meeting_time, 0, 5) }} Uhr @endif
+                                    @if($signup->meeting_point) · {{ $signup->meeting_point }} @endif
+                                </p>
+                            @endif
                             @if($signup->message)
                                 <p class="text-sm text-gray-700 mt-2 whitespace-pre-line">{{ $signup->message }}</p>
                             @endif
@@ -66,6 +73,66 @@
                 @if(session('success'))
                     <p class="mt-3 text-sm text-green-700 font-medium">{{ session('success') }}</p>
                 @endif
+            </div>
+        @endforeach
+    @endif
+
+    {{-- Bus-Buchungen für bereits zugesagte Wettkämpfe --}}
+    @if($busSignups->isNotEmpty())
+        @foreach($busSignups as $signup)
+            @php
+                $myResponse  = $signup->responses->first();
+                $busBooked   = $myResponse?->bus_booked ?? false;
+                $remaining   = $signup->busSeatsRemaining();
+                $canBook     = !$busBooked && $remaining > 0;
+            @endphp
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                <div class="flex items-start gap-3">
+                    <div class="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 7h8M8 11h8M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-semibold text-gray-800 text-sm">Vereinsbus: {{ $signup->competition->name }}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            {{ $signup->competition->date_range }}
+                            @if($signup->meeting_time) · Treffpunkt {{ \Illuminate\Support\Str::substr($signup->meeting_time, 0, 5) }} Uhr @endif
+                            @if($signup->meeting_point) · {{ $signup->meeting_point }} @endif
+                        </p>
+                        <div class="flex items-center gap-3 mt-3 flex-wrap">
+                            @if($busBooked)
+                                <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Busplatz gebucht
+                                </span>
+                                <form method="POST" action="{{ route('swimmer.signup.bus', $signup) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="text-xs text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                                        Busplatz stornieren
+                                    </button>
+                                </form>
+                            @elseif($canBook)
+                                <form method="POST" action="{{ route('swimmer.signup.bus', $signup) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
+                                        Busplatz buchen
+                                    </button>
+                                </form>
+                                <span class="text-xs text-gray-500">Noch {{ $remaining }} von {{ $signup->bus_seats }} Plätzen frei</span>
+                            @else
+                                <span class="text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg">
+                                    Alle Plätze belegt ({{ $signup->bus_seats }} / {{ $signup->bus_seats }})
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
             </div>
         @endforeach
     @endif

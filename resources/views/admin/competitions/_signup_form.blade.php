@@ -62,3 +62,42 @@
         @endif
     </div>
 </div>
+
+{{-- Treffpunkt & Bus --}}
+<div class="border-t border-gray-100 pt-4">
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Treffpunkt & Bus</p>
+    <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Treffpunkt</label>
+            <input type="text" name="meeting_point"
+                   value="{{ $signupRequest?->meeting_point }}"
+                   placeholder="z.B. Parkplatz Schwimmhalle Nord"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Treffpunkt-Uhrzeit</label>
+            <input type="time" name="meeting_time"
+                   value="{{ $signupRequest?->meeting_time ? \Illuminate\Support\Str::substr($signupRequest->meeting_time, 0, 5) : '' }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+    </div>
+
+    <div x-data="{ busOn: {{ ($signupRequest?->bus_available ?? false) ? 'true' : 'false' }} }" class="mt-4 space-y-3">
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+            <input type="hidden" name="bus_available" value="0">
+            <input type="checkbox" name="bus_available" value="1"
+                   x-model="busOn"
+                   {{ ($signupRequest?->bus_available ?? false) ? 'checked' : '' }}
+                   class="rounded border-gray-300 text-primary focus:ring-primary">
+            <span class="text-sm font-medium text-gray-700">Vereinsbus anbieten</span>
+        </label>
+
+        <div x-show="busOn" x-cloak>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Maximale Plätze im Bus</label>
+            <input type="number" name="bus_seats"
+                   value="{{ $signupRequest?->bus_seats ?? 8 }}"
+                   min="1" max="100"
+                   class="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+    </div>
+</div>
