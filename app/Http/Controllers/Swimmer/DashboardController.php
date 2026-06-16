@@ -33,10 +33,9 @@ class DashboardController extends Controller
 
         $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        // Only sessions relevant to this swimmer (their groups, or ungrouped sessions)
-        $relevantSessions = fn($q) => $q->where(
-            fn($q2) => $q2->whereDoesntHave('trainingGroups')
-                ->orWhereHas('trainingGroups', fn($q3) => $q3->whereIn('training_groups.id', $swimmerGroupIds))
+        // Only sessions explicitly assigned to one of the swimmer's training groups
+        $relevantSessions = fn($q) => $q->whereHas('trainingGroups',
+            fn($q2) => $q2->whereIn('training_groups.id', $swimmerGroupIds)
         );
 
         $attendedTotal = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)->count();
@@ -123,9 +122,10 @@ class DashboardController extends Controller
         $goalsAchieved = $currentSeason ? SwimmerGoal::where('user_id', $swimmer->id)->where('season_id', $currentSeason->id)->where('achieved', true)->count() : 0;
         $goalsUnnotified = $currentSeason ? SwimmerGoal::where('user_id', $swimmer->id)->where('season_id', $currentSeason->id)->where('notified', false)->where('achieved', true)->count() : 0;
 
-        // Geplante Trainings nächste 2 Wochen
+        // Geplante Trainings nächste 2 Wochen (nur Gruppen des Schwimmers)
         $upcoming_sessions = TrainingSession::where('date', '>', today())
             ->where('date', '<=', today()->addDays(14))
+            ->tap($relevantSessions)
             ->orderBy('date')->orderBy('start_time')
             ->get();
 
@@ -261,10 +261,9 @@ class DashboardController extends Controller
         $swimmer         = auth()->user();
         $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        // Scope: sessions relevant to this swimmer's groups (or ungrouped)
-        $relevantSessions = fn($q) => $q->where(
-            fn($q2) => $q2->whereDoesntHave('trainingGroups')
-                ->orWhereHas('trainingGroups', fn($q3) => $q3->whereIn('training_groups.id', $swimmerGroupIds))
+        // Only sessions explicitly assigned to one of the swimmer's training groups
+        $relevantSessions = fn($q) => $q->whereHas('trainingGroups',
+            fn($q2) => $q2->whereIn('training_groups.id', $swimmerGroupIds)
         );
 
         // ── Statistics ──────────────────────────────────────────────────────
@@ -548,6 +547,11 @@ class DashboardController extends Controller
 
     public function sessionDetail(\App\Models\TrainingSession $session)
     {
+        $swimmerGroupIds = auth()->user()->trainingGroups()->pluck('training_groups.id');
+        if ($swimmerGroupIds->isEmpty() || !$session->trainingGroups()->whereIn('training_groups.id', $swimmerGroupIds)->exists()) {
+            abort(403);
+        }
+
         $session->load('coTrainers:id,firstname,lastname', 'diaries.user', 'trainingPlan.blocks');
         $diary = $session->diaryFor(auth()->id());
 
