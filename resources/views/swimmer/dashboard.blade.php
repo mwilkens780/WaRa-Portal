@@ -482,7 +482,7 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
-                                <p class="text-xs text-gray-500">{{ $session->trainer->name }} · {{ $session->type_label }}</p>
+                                <p class="text-xs text-gray-500">{{ $session->trainer?->name ?? '–' }} · {{ $session->type_label }}</p>
                             </div>
                             {{-- Tagebuch-Badge --}}
                             @if($diary)

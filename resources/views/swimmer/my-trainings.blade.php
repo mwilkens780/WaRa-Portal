@@ -127,7 +127,7 @@
                                 <p class="text-xs text-gray-500">
                                     {{ $session->start_time }}@if($session->end_time) – {{ $session->end_time }}@endif Uhr
                                     · {{ $session->location }}
-                                    · {{ $session->trainer->name }}
+                                    · {{ $session->trainer?->name ?? '–' }}
                                 </p>
                                 @if($isAbsent && $absence->pre_absent_note)
                                     <p class="text-xs text-red-500 mt-0.5">Grund: {{ $absence->pre_absent_note }}</p>
@@ -243,7 +243,7 @@
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     {{ $session->start_time }}@if($session->end_time) – {{ $session->end_time }}@endif Uhr
                                     · {{ $session->location }}
-                                    · {{ $session->trainer->name }}
+                                    · {{ $session->trainer?->name ?? '–' }}
                                 </p>
 
                                 {{-- Diary preview (when collapsed) --}}

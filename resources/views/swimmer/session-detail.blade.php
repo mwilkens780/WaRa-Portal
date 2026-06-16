@@ -25,7 +25,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-500">Trainer</p>
-                <p class="font-semibold text-gray-800">{{ $session->trainer->name }}</p>
+                <p class="font-semibold text-gray-800">{{ $session->trainer?->name ?? '–' }}</p>
                 <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full {{ $session->type_color }} mt-0.5">
                     {{ $session->type_label }}
                 </span>
