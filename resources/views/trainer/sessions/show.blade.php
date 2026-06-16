@@ -133,6 +133,131 @@
         @endif
     </div>
 
+    {{-- Individuelle Schwimmer-Zuweisung ─────────────────────────────────── --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-data="{ showAssignForm: false, assignScope: 'session' }">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-sm font-semibold text-gray-700">Individuelle Schwimmer-Zuweisung</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Schwimmer unabhängig von ihrer Gruppe zuweisen</p>
+            </div>
+            <button @click="showAssignForm = !showAssignForm" type="button"
+                    class="text-xs text-primary hover:underline font-medium" x-text="showAssignForm ? 'Schließen' : '+ Schwimmer zuweisen'"></button>
+        </div>
+
+        {{-- Add form --}}
+        <div x-show="showAssignForm" x-transition class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex flex-wrap gap-3">
+                {{-- Single session --}}
+                <form method="POST" action="{{ route('trainer.sessions.swimmer.add', $session) }}" class="flex items-end gap-2">
+                    @csrf
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Schwimmer (nur diese Einheit)</label>
+                        <select name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">Wählen...</option>
+                            @foreach($allSwimmersForAssign as $s)
+                                <option value="{{ $s->id }}">{{ $s->lastname }}, {{ $s->firstname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors whitespace-nowrap">
+                        Zu Einheit
+                    </button>
+                </form>
+
+                @if($session->recurrence_group_id)
+                {{-- Series --}}
+                <form method="POST" action="{{ route('trainer.sessions.series.swimmer.add', $session->recurrence_group_id) }}" class="flex items-end gap-2">
+                    @csrf
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Schwimmer (zur ganzen Serie)</label>
+                        <select name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">Wählen...</option>
+                            @foreach($allSwimmersForAssign as $s)
+                                <option value="{{ $s->id }}">{{ $s->lastname }}, {{ $s->firstname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap">
+                        Zur Serie
+                    </button>
+                </form>
+                @endif
+            </div>
+        </div>
+
+        {{-- Individual assignments for this session --}}
+        @if($individualSwimmers->isNotEmpty())
+        <div class="mb-3">
+            <p class="text-xs text-gray-500 font-medium mb-2">Nur diese Einheit:</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($individualSwimmers as $assign)
+                <div class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs">
+                    <span class="font-medium text-blue-800">{{ $assign->user?->name }}</span>
+                    <form method="POST" action="{{ route('trainer.sessions.swimmer.remove', [$session, $assign->user_id]) }}">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-blue-400 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
+                    </form>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        {{-- Series assignments --}}
+        @if($seriesIndividualSwimmers->isNotEmpty())
+        <div class="mb-3">
+            <p class="text-xs text-gray-500 font-medium mb-2">Zur ganzen Serie:</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($seriesIndividualSwimmers as $assign)
+                <div class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1 text-xs">
+                    <span class="text-indigo-400 font-semibold">≈</span>
+                    <span class="font-medium text-indigo-800">{{ $assign->user?->name }}</span>
+                    <form method="POST" action="{{ route('trainer.sessions.series.swimmer.remove', [$session->recurrence_group_id, $assign->user_id]) }}">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-indigo-400 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
+                    </form>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        @if($individualSwimmers->isEmpty() && $seriesIndividualSwimmers->isEmpty())
+            <p class="text-xs text-gray-400">Keine individuellen Zuweisungen.</p>
+        @endif
+
+        {{-- Registrations --}}
+        @if($session->registration_open || $sessionRegistrations->isNotEmpty())
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <div class="flex items-center gap-2 mb-2">
+                <p class="text-xs text-gray-500 font-medium">Anmeldungen</p>
+                @if($session->registration_open)
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">offen</span>
+                @else
+                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">geschlossen</span>
+                @endif
+                @if($session->max_participants)
+                    <span class="text-xs text-gray-400">{{ $sessionRegistrations->count() }}/{{ $session->max_participants }} Plätze</span>
+                @else
+                    <span class="text-xs text-gray-400">{{ $sessionRegistrations->count() }} angemeldet</span>
+                @endif
+            </div>
+            @if($sessionRegistrations->isNotEmpty())
+            <div class="flex flex-wrap gap-2">
+                @foreach($sessionRegistrations as $reg)
+                <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
+                    {{ $reg->user?->name }}
+                    <span class="text-green-400 text-[10px]">{{ $reg->registered_at->format('d.m. H:i') }}</span>
+                </span>
+                @endforeach
+            </div>
+            @else
+                <p class="text-xs text-gray-400">Noch keine Anmeldungen.</p>
+            @endif
+        </div>
+        @endif
+    </div>
+
     {{-- Bahnbelegung ──────────────────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
          x-data="laneBookingApp()">

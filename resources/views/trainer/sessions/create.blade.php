@@ -243,6 +243,26 @@ function trainingCreateForm() {
                     <p class="text-xs text-gray-400 mt-1">PDF, Word, JPG oder PNG – max. 5 MB</p>
                     @error('team_plan')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
+
+                {{-- Teilnehmerlimit & Anmeldung --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max. Teilnehmer <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="number" name="max_participants" min="1" max="999" value="{{ old('max_participants') }}"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                           placeholder="Unbegrenzt">
+                    @error('max_participants')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <div class="flex items-center gap-3 pt-7">
+                    <input type="hidden" name="registration_open" value="0">
+                    <input type="checkbox" name="registration_open" id="registration_open" value="1"
+                           {{ old('registration_open') ? 'checked' : '' }}
+                           class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="registration_open" class="text-sm font-medium text-gray-700">
+                        Anmeldung für Schwimmer öffnen
+                        <span class="block text-xs text-gray-400 font-normal">Schwimmer können sich selbst anmelden (first come, first serve)</span>
+                    </label>
+                </div>
             </div>
 
             <div class="flex gap-3 pt-2 border-t border-gray-100">

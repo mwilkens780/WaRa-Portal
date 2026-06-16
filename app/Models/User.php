@@ -135,6 +135,27 @@ class User extends Authenticatable
         return $this->belongsToMany(TrainingGroup::class, 'training_group_swimmer');
     }
 
+    public function individualSessions(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(TrainingSession::class, 'training_session_swimmers', 'user_id', 'training_session_id')
+            ->whereNotNull('training_session_swimmers.training_session_id');
+    }
+
+    public function individualSeries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TrainingSessionSwimmer::class)->whereNotNull('recurrence_group_id');
+    }
+
+    public function seriesExclusions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SwimmerSeriesExclusion::class);
+    }
+
+    public function sessionRegistrations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TrainingSessionRegistration::class);
+    }
+
     public function children()
     {
         return $this->belongsToMany(User::class, 'parent_swimmer', 'parent_id', 'swimmer_id');

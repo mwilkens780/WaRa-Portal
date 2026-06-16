@@ -88,6 +88,60 @@
         </div>
     </div>
 
+    {{-- ── Trainingsplanung ────────────────────────────────────────────────── --}}
+    @if($trainingSeries->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" x-data="{ showMuted: false }">
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Trainingsplanung</h2>
+                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{{ $trainingSeries->count() }} Serien</span>
+                @if($excludedSeriesIds->isNotEmpty())
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{{ $excludedSeriesIds->count() }} ausgeblendet</span>
+                @endif
+            </div>
+            @if($excludedSeriesIds->isNotEmpty())
+            <button type="button" @click="showMuted = !showMuted"
+                    class="text-xs text-gray-500 border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50 transition-colors"
+                    x-text="showMuted ? 'Ausgeblendete verstecken' : 'Ausgeblendete anzeigen'">
+            </button>
+            @endif
+        </div>
+
+        <div class="divide-y divide-gray-50">
+            @foreach($trainingSeries as $series)
+                @php $isExcluded = $series->is_excluded; @endphp
+                <div x-show="{{ $isExcluded ? 'showMuted' : 'true' }}"
+                     class="px-4 py-3 flex items-center gap-3 {{ $isExcluded ? 'opacity-50' : '' }}">
+                    <span class="flex-shrink-0 inline-block px-2 py-0.5 rounded-full text-xs font-semibold {{ $series->type_color }}">
+                        {{ $series->title }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                        @if($series->groups->isNotEmpty())
+                            <p class="text-xs text-gray-400">{{ $series->groups->pluck('name')->join(', ') }}</p>
+                        @endif
+                    </div>
+                    @if($isExcluded)
+                        <span class="text-xs text-amber-600 font-medium mr-2">ausgeblendet</span>
+                        <form method="POST" action="{{ route('swimmer.series.include', $series->recurrence_group_id) }}">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-xs text-primary border border-primary/30 px-3 py-1 rounded-lg hover:bg-primary/5 transition-colors">
+                                Einblenden
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('swimmer.series.exclude', $series->recurrence_group_id) }}">
+                            @csrf
+                            <button type="submit" class="text-xs text-gray-400 border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50 transition-colors">
+                                Ausblenden
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- ── Bevorstehende Trainings ─────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
@@ -103,16 +157,20 @@
             <div class="divide-y divide-gray-50">
                 @foreach($upcoming as $session)
                     @php
-                        $absence = $preAbsenceMap->get($session->id);
-                        $isAbsent = $absence !== null;
+                        $absence    = $preAbsenceMap->get($session->id);
+                        $isAbsent   = $absence !== null;
+                        $isRegistered = $myRegistrations->contains($session->id);
+                        $regOpen    = $session->registration_open;
+                        $spots      = $session->remainingSpots();
+                        $noSpots    = $regOpen && $spots !== null && $spots <= 0 && !$isRegistered;
                     @endphp
-                    <div x-data="{ showNote: false }" class="px-4 py-3 {{ $isAbsent ? 'bg-red-50/40' : '' }}">
+                    <div x-data="{ showNote: false }" class="px-4 py-3 {{ $isAbsent ? 'bg-red-50/40' : ($regOpen ? 'bg-green-50/30' : '') }}">
                         <div class="flex items-start gap-3">
 
                             {{-- Date block --}}
-                            <div class="text-center rounded-lg p-2 min-w-[52px] flex-shrink-0 {{ $isAbsent ? 'bg-red-100' : 'bg-primary/10' }}">
-                                <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : 'text-primary' }}">{{ $session->date->format('d.M') }}</p>
-                                <p class="text-[10px] {{ $isAbsent ? 'text-red-400' : 'text-primary/60' }}">{{ $session->date->isoFormat('ddd') }}</p>
+                            <div class="text-center rounded-lg p-2 min-w-[52px] flex-shrink-0 {{ $isAbsent ? 'bg-red-100' : ($regOpen ? 'bg-green-100' : 'bg-primary/10') }}">
+                                <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : ($regOpen ? 'text-green-700' : 'text-primary') }}">{{ $session->date->format('d.M') }}</p>
+                                <p class="text-[10px] {{ $isAbsent ? 'text-red-400' : ($regOpen ? 'text-green-500' : 'text-primary/60') }}">{{ $session->date->isoFormat('ddd') }}</p>
                             </div>
 
                             {{-- Session info --}}
@@ -122,6 +180,14 @@
                                     <span class="text-xs px-1.5 py-0.5 rounded-full {{ $session->type_color }}">{{ $session->type_label }}</span>
                                     @if($isAbsent)
                                         <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-semibold">Abgesagt</span>
+                                    @endif
+                                    @if($regOpen)
+                                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                            Anmeldung offen{{ $spots !== null ? ' · '.$spots.' Plätze frei' : '' }}
+                                        </span>
+                                    @endif
+                                    @if($isRegistered)
+                                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Angemeldet</span>
                                     @endif
                                 </div>
                                 <p class="text-xs text-gray-500">
@@ -134,19 +200,38 @@
                                 @endif
                             </div>
 
-                            {{-- Action --}}
+                            {{-- Actions --}}
                             <div class="flex-shrink-0 flex flex-col items-end gap-1.5">
+                                {{-- Registration button --}}
+                                @if($regOpen && !$isAbsent)
+                                    @if($isRegistered)
+                                        <form method="POST" action="{{ route('swimmer.session.unregister', $session) }}">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="text-xs text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                                                Abmelden
+                                            </button>
+                                        </form>
+                                    @elseif(!$noSpots)
+                                        <form method="POST" action="{{ route('swimmer.session.register', $session) }}">
+                                            @csrf
+                                            <button type="submit" class="text-xs text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-semibold">
+                                                Anmelden
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-gray-400 border border-gray-200 px-3 py-1.5 rounded-lg">Ausgebucht</span>
+                                    @endif
+                                @endif
+
+                                {{-- Absence --}}
                                 @if($isAbsent)
-                                    {{-- Undo absence --}}
                                     <form method="POST" action="{{ route('swimmer.session.cancel', $session) }}">
                                         @csrf
-                                        <button type="submit"
-                                                class="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                                        <button type="submit" class="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
                                             Zurücknehmen
                                         </button>
                                     </form>
                                 @else
-                                    {{-- Absence toggle button --}}
                                     <button type="button" @click="showNote = !showNote"
                                             class="text-xs text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                             x-text="showNote ? 'Abbrechen' : 'Absagen'">

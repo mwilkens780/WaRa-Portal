@@ -31,6 +31,8 @@ use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
 use App\Http\Controllers\Admin\PermissionMatrixController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Trainer\UserLiteController;
+use App\Http\Controllers\Swimmer\SessionPlanningController;
+use App\Http\Controllers\Trainer\SessionSwimmerController;
 
 // Startseite -> Login
 Route::get('/', fn() => redirect()->route('login'));
@@ -228,6 +230,12 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     // Trainingseinheit → Bahnbelegung
     Route::post('/training/{session}/bahnen', [TrainingSessionController::class, 'bookLanes'])->name('sessions.book-lanes');
     Route::delete('/training/{session}/bahnen/{booking}', [TrainingSessionController::class, 'removeLane'])->name('sessions.remove-lane');
+
+    // Individuelle Schwimmer-Zuweisung zu Einheit oder Serie
+    Route::post('/training/{session}/schwimmer', [SessionSwimmerController::class, 'addToSession'])->name('sessions.swimmer.add');
+    Route::delete('/training/{session}/schwimmer/{user}', [SessionSwimmerController::class, 'removeFromSession'])->name('sessions.swimmer.remove');
+    Route::post('/training-serien/{recurrenceGroupId}/schwimmer', [SessionSwimmerController::class, 'addToSeries'])->name('sessions.series.swimmer.add');
+    Route::delete('/training-serien/{recurrenceGroupId}/schwimmer/{user}', [SessionSwimmerController::class, 'removeFromSeries'])->name('sessions.series.swimmer.remove');
 });
 
 // Trainingsplan-Download & Tagebuch (alle eingeloggten Rollen)
@@ -292,6 +300,14 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->name('sessions');
     Route::get('/training/{session}', [SwimmerDashboard::class, 'sessionDetail'])->name('session.show');
     Route::post('/training/{session}/absage', [SwimmerDashboard::class, 'cancelSession'])->name('session.cancel');
+
+    // Trainingsplanung: Serien ausblenden/einblenden
+    Route::post('/serien/{recurrenceGroupId}/ausblenden', [SessionPlanningController::class, 'excludeSeries'])->name('series.exclude');
+    Route::delete('/serien/{recurrenceGroupId}/ausblenden', [SessionPlanningController::class, 'includeSeries'])->name('series.include');
+
+    // Registrierung für offene Einheiten
+    Route::post('/training/{session}/anmelden', [SessionPlanningController::class, 'register'])->name('session.register');
+    Route::delete('/training/{session}/anmelden', [SessionPlanningController::class, 'unregister'])->name('session.unregister');
 
     // Ziele
     Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');

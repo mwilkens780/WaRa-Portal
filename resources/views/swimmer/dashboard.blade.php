@@ -265,18 +265,24 @@
         </div>
         <div class="divide-y divide-gray-50">
             @foreach($upcoming_sessions as $session)
-                @php $isAbsent = $my_pre_absences->has($session->id); @endphp
-                <div class="flex items-center gap-4 px-5 py-3 {{ $isAbsent ? 'bg-red-50/50' : 'hover:bg-gray-50' }} transition-colors">
+                @php
+                    $isAbsent = $my_pre_absences->has($session->id);
+                    $regOpen  = $session->registration_open;
+                @endphp
+                <div class="flex items-center gap-4 px-5 py-3 {{ $isAbsent ? 'bg-red-50/50' : ($regOpen ? 'bg-green-50/30' : 'hover:bg-gray-50') }} transition-colors">
                     <a href="{{ route('swimmer.session.show', $session) }}" class="flex items-center gap-4 flex-1 min-w-0">
-                        <div class="text-center {{ $isAbsent ? 'bg-red-100' : 'bg-primary/10' }} rounded-lg p-2 min-w-[54px]">
-                            <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : 'text-primary' }}">{{ $session->date->format('d.M') }}</p>
-                            <p class="text-xs {{ $isAbsent ? 'text-red-400' : 'text-primary/60' }}">{{ $session->date->isoFormat('ddd') }}</p>
+                        <div class="text-center {{ $isAbsent ? 'bg-red-100' : ($regOpen ? 'bg-green-100' : 'bg-primary/10') }} rounded-lg p-2 min-w-[54px]">
+                            <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : ($regOpen ? 'text-green-700' : 'text-primary') }}">{{ $session->date->format('d.M') }}</p>
+                            <p class="text-xs {{ $isAbsent ? 'text-red-400' : ($regOpen ? 'text-green-500' : 'text-primary/60') }}">{{ $session->date->isoFormat('ddd') }}</p>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
                                 <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
                                 @if($isAbsent)
                                     <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">Abgesagt</span>
+                                @endif
+                                @if($regOpen)
+                                    <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">Anmeldung offen</span>
                                 @endif
                             </div>
                             <p class="text-xs text-gray-500">

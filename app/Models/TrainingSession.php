@@ -19,13 +19,15 @@ class TrainingSession extends Model
         'title', 'date', 'start_time', 'end_time', 'location', 'type', 'notes',
         'recurrence_type', 'recurrence_until', 'recurrence_group_id',
         'team_plan_path', 'individual_plan_path',
+        'max_participants', 'registration_open',
     ];
 
     protected function casts(): array
     {
         return [
-            'date' => 'date',
-            'recurrence_until' => 'date',
+            'date'              => 'date',
+            'recurrence_until'  => 'date',
+            'registration_open' => 'boolean',
         ];
     }
 
@@ -126,6 +128,28 @@ class TrainingSession extends Model
             return $this->coTrainers->first();
         }
         return $this->coTrainers()->first();
+    }
+
+    public function individualSwimmers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'training_session_swimmers', 'training_session_id', 'user_id')
+            ->whereNotNull('training_session_swimmers.training_session_id');
+    }
+
+    public function registrations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TrainingSessionRegistration::class, 'training_session_id');
+    }
+
+    public function registrationCount(): int
+    {
+        return $this->registrations()->count();
+    }
+
+    public function remainingSpots(): ?int
+    {
+        if ($this->max_participants === null) return null;
+        return max(0, $this->max_participants - $this->registrationCount());
     }
 
     public function hallBookings(): \Illuminate\Database\Eloquent\Relations\HasMany

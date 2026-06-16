@@ -79,7 +79,11 @@ class TrainingSessionController extends Controller
             'team_plan'         => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,png', 'max:5120'],
             'co_trainer_ids'    => ['nullable', 'array'],
             'co_trainer_ids.*'  => ['exists:users,id'],
+            'max_participants'  => ['nullable', 'integer', 'min:1', 'max:999'],
+            'registration_open' => ['nullable', 'boolean'],
         ]);
+
+        $data['registration_open'] = $request->boolean('registration_open');
 
         $groupIds     = $request->input('groups', []);
         $coTrainerIds = $request->input('co_trainer_ids', []);
@@ -234,11 +238,31 @@ class TrainingSessionController extends Controller
             $freeResources = $allResources->reject(fn($r) => $bookedIds->contains($r->id))->values();
         }
 
+        // Individual swimmer assignments for this session
+        $individualSwimmers = \App\Models\TrainingSessionSwimmer::where('training_session_id', $session->id)
+            ->with('user:id,firstname,lastname')
+            ->get();
+
+        // Individual swimmer assignments for this series
+        $seriesIndividualSwimmers = $session->recurrence_group_id
+            ? \App\Models\TrainingSessionSwimmer::where('recurrence_group_id', $session->recurrence_group_id)
+                ->with('user:id,firstname,lastname')
+                ->get()
+            : collect();
+
+        // All swimmers for the assignment dropdown (all active swimmers)
+        $allSwimmersForAssign = \App\Models\User::where('role', 'schwimmer')
+            ->where('active', true)->orderBy('lastname')->orderBy('firstname')->get();
+
+        // Registrations for this session
+        $sessionRegistrations = $session->registrations()->with('user:id,firstname,lastname')->get();
+
         return view('trainer.sessions.show', compact(
             'session', 'swimmers', 'attendedIds',
             'participationPct', 'presentCount', 'totalSwimmers',
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
-            'siblings', 'blockTimesMap', 'allResources', 'freeResources'
+            'siblings', 'blockTimesMap', 'allResources', 'freeResources',
+            'individualSwimmers', 'seriesIndividualSwimmers', 'allSwimmersForAssign', 'sessionRegistrations'
         ));
     }
 
@@ -304,7 +328,11 @@ class TrainingSessionController extends Controller
             'co_trainer_ids'   => ['nullable', 'array'],
             'co_trainer_ids.*' => ['exists:users,id'],
             'edit_scope'       => ['nullable', 'in:single,series'],
+            'max_participants'  => ['nullable', 'integer', 'min:1', 'max:999'],
+            'registration_open' => ['nullable', 'boolean'],
         ]);
+
+        $data['registration_open'] = $request->boolean('registration_open');
 
         $groupIds     = $request->input('groups', []);
         $coTrainerIds = $request->input('co_trainer_ids', []);
@@ -317,6 +345,7 @@ class TrainingSessionController extends Controller
 
             $seriesData = array_intersect_key($data, array_flip([
                 'title', 'start_time', 'end_time', 'location', 'type', 'notes',
+                'max_participants', 'registration_open',
             ]));
 
             $newDate   = Carbon::parse($data['date']);

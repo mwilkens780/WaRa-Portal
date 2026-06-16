@@ -8,8 +8,10 @@ use App\Models\CompetitionSignupRequest;
 use App\Models\Record;
 use App\Models\Season;
 use App\Models\SwimmerGoal;
+use App\Models\SwimmerSeriesExclusion;
 use App\Models\TrainingAttendance;
 use App\Models\TrainingSession;
+use App\Models\TrainingSessionSwimmer;
 use App\Models\SwimmingTime;
 use App\Models\CompetitionResult;
 use App\Services\CompetitionResultGrouper;
@@ -27,16 +29,51 @@ class DashboardController extends Controller
         'L' => 'Lagen',
     ];
 
+    private function buildVisibilityFilter(int $swimmerId): \Closure
+    {
+        $groupIds        = \App\Models\User::find($swimmerId)->trainingGroups()->pluck('training_groups.id');
+        $individualIds   = TrainingSessionSwimmer::where('user_id', $swimmerId)->whereNotNull('training_session_id')->pluck('training_session_id');
+        $seriesGroupIds  = TrainingSessionSwimmer::where('user_id', $swimmerId)->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
+
+        return function ($q) use ($groupIds, $individualIds, $seriesGroupIds) {
+            $q->where(function ($inner) use ($groupIds, $individualIds, $seriesGroupIds) {
+                // Sessions belonging to one of swimmer's training groups
+                if ($groupIds->isNotEmpty()) {
+                    $inner->orWhereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
+                }
+                // Individually assigned sessions
+                if ($individualIds->isNotEmpty()) {
+                    $inner->orWhereIn('id', $individualIds);
+                }
+                // Sessions belonging to an individually assigned series
+                if ($seriesGroupIds->isNotEmpty()) {
+                    $inner->orWhereIn('recurrence_group_id', $seriesGroupIds);
+                }
+            });
+        };
+    }
+
+    private function buildExclusionFilter(int $swimmerId): \Closure
+    {
+        $excluded = SwimmerSeriesExclusion::where('user_id', $swimmerId)->pluck('recurrence_group_id');
+
+        return function ($q) use ($excluded) {
+            if ($excluded->isNotEmpty()) {
+                $q->where(function ($inner) use ($excluded) {
+                    $inner->whereNull('recurrence_group_id')
+                          ->orWhereNotIn('recurrence_group_id', $excluded);
+                });
+            }
+        };
+    }
+
     public function index()
     {
         $swimmer = auth()->user();
 
         $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        // Only sessions explicitly assigned to one of the swimmer's training groups
-        $relevantSessions = fn($q) => $q->whereHas('trainingGroups',
-            fn($q2) => $q2->whereIn('training_groups.id', $swimmerGroupIds)
-        );
+        $relevantSessions = $this->buildVisibilityFilter($swimmer->id);
 
         $attendedTotal = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)->count();
         $totalSessions = TrainingSession::where('date', '<=', today())->tap($relevantSessions)->count();
@@ -122,10 +159,12 @@ class DashboardController extends Controller
         $goalsAchieved = $currentSeason ? SwimmerGoal::where('user_id', $swimmer->id)->where('season_id', $currentSeason->id)->where('achieved', true)->count() : 0;
         $goalsUnnotified = $currentSeason ? SwimmerGoal::where('user_id', $swimmer->id)->where('season_id', $currentSeason->id)->where('notified', false)->where('achieved', true)->count() : 0;
 
-        // Geplante Trainings nächste 2 Wochen (nur Gruppen des Schwimmers)
+        // Geplante Trainings nächste 2 Wochen (Gruppen + individuelle Zuweisungen, ohne ausgeblendete Serien)
+        $exclusionFilter = $this->buildExclusionFilter($swimmer->id);
         $upcoming_sessions = TrainingSession::where('date', '>', today())
             ->where('date', '<=', today()->addDays(14))
             ->tap($relevantSessions)
+            ->tap($exclusionFilter)
             ->orderBy('date')->orderBy('start_time')
             ->get();
 
@@ -258,13 +297,9 @@ class DashboardController extends Controller
 
     public function myTrainings()
     {
-        $swimmer         = auth()->user();
-        $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
-
-        // Only sessions explicitly assigned to one of the swimmer's training groups
-        $relevantSessions = fn($q) => $q->whereHas('trainingGroups',
-            fn($q2) => $q2->whereIn('training_groups.id', $swimmerGroupIds)
-        );
+        $swimmer          = auth()->user();
+        $relevantSessions = $this->buildVisibilityFilter($swimmer->id);
+        $exclusionFilter  = $this->buildExclusionFilter($swimmer->id);
 
         // ── Statistics ──────────────────────────────────────────────────────
         $totalRelevant = TrainingSession::where('date', '<=', today())->tap($relevantSessions)->count();
@@ -279,12 +314,54 @@ class DashboardController extends Controller
             ->whereDoesntHave('diaries', fn($q) => $q->where('user_id', $swimmer->id))
             ->count();
 
-        // ── Upcoming sessions (strictly future) ─────────────────────────────
+        // ── Trainingsplanung: assigned series (grouped by recurrence_group_id) ──
+        $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
+
+        // Series from group membership
+        $groupSeriesIds = TrainingSession::whereNotNull('recurrence_group_id')
+            ->whereHas('trainingGroups', fn($q) => $q->whereIn('training_groups.id', $swimmerGroupIds))
+            ->distinct()->pluck('recurrence_group_id');
+
+        // Series from individual assignment
+        $individualSeriesIds = TrainingSessionSwimmer::where('user_id', $swimmer->id)
+            ->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
+
+        $allSeriesIds = $groupSeriesIds->merge($individualSeriesIds)->unique()->values();
+
+        // For each series, load representative session + exclusion status
+        $excludedSeriesIds = SwimmerSeriesExclusion::where('user_id', $swimmer->id)->pluck('recurrence_group_id');
+
+        $trainingSeries = collect();
+        foreach ($allSeriesIds as $seriesId) {
+            $rep = TrainingSession::where('recurrence_group_id', $seriesId)
+                ->with(['trainingGroups:id,name', 'coTrainers:id,firstname,lastname'])
+                ->orderBy('date')
+                ->first();
+            if ($rep) {
+                $trainingSeries->push((object)[
+                    'recurrence_group_id' => $seriesId,
+                    'title'               => $rep->title,
+                    'type'                => $rep->type,
+                    'type_color'          => $rep->type_color,
+                    'groups'              => $rep->trainingGroups,
+                    'trainer'             => $rep->trainer,
+                    'is_excluded'         => $excludedSeriesIds->contains($seriesId),
+                ]);
+            }
+        }
+
+        // ── Upcoming sessions (strictly future, exclusions applied) ──────────
         $upcoming = TrainingSession::where('date', '>', today())
             ->tap($relevantSessions)
+            ->tap($exclusionFilter)
             ->with(['coTrainers:id,firstname,lastname', 'trainingGroups'])
             ->orderBy('date')->orderBy('start_time')
             ->get();
+
+        // Registrations of this swimmer for upcoming sessions
+        $myRegistrations = \App\Models\TrainingSessionRegistration::where('user_id', $swimmer->id)
+            ->whereIn('training_session_id', $upcoming->pluck('id'))
+            ->pluck('training_session_id');
 
         $preAbsenceMap = TrainingAttendance::where('user_id', $swimmer->id)
             ->where('pre_absent', true)
@@ -313,7 +390,8 @@ class DashboardController extends Controller
 
         return view('swimmer.my-trainings', compact(
             'totalRelevant', 'totalAttended', 'pct', 'diaryPendingCount',
-            'upcoming', 'preAbsenceMap',
+            'trainingSeries', 'excludedSeriesIds',
+            'upcoming', 'preAbsenceMap', 'myRegistrations',
             'pastSessions', 'filter'
         ));
     }
@@ -547,8 +625,18 @@ class DashboardController extends Controller
 
     public function sessionDetail(\App\Models\TrainingSession $session)
     {
-        $swimmerGroupIds = auth()->user()->trainingGroups()->pluck('training_groups.id');
-        if ($swimmerGroupIds->isEmpty() || !$session->trainingGroups()->whereIn('training_groups.id', $swimmerGroupIds)->exists()) {
+        $user            = auth()->user();
+        $swimmerGroupIds = $user->trainingGroups()->pluck('training_groups.id');
+        $hasGroupAccess  = $swimmerGroupIds->isNotEmpty() && $session->trainingGroups()->whereIn('training_groups.id', $swimmerGroupIds)->exists();
+        $hasIndividual   = TrainingSessionSwimmer::where('user_id', $user->id)
+            ->where(function ($q) use ($session) {
+                $q->where('training_session_id', $session->id);
+                if ($session->recurrence_group_id) {
+                    $q->orWhere('recurrence_group_id', $session->recurrence_group_id);
+                }
+            })->exists();
+
+        if (!$hasGroupAccess && !$hasIndividual) {
             abort(403);
         }
 
