@@ -161,6 +161,7 @@ class CompetitionController extends Controller
                     'session_name'   => $ev['session_name'] ?: null,
                     'discipline'     => $ev['discipline'],
                     'distance'       => (int)$ev['distance'],
+                    'relay_legs'     => isset($ev['relay_legs']) && (int)$ev['relay_legs'] > 1 ? (int)$ev['relay_legs'] : null,
                     'gender'         => $ev['gender'] ?? 'X',
                     // Normalize: 0 = "no minimum", 9999+ = "no maximum" → store as null
                     'age_min'             => ($ageMin > 0) ? $ageMin : null,
@@ -536,6 +537,7 @@ class CompetitionController extends Controller
                     'session_name'        => $ev['session_name'] ?: null,
                     'discipline'          => $ev['discipline'],
                     'distance'            => (int)$ev['distance'],
+                    'relay_legs'          => isset($ev['relay_legs']) && (int)$ev['relay_legs'] > 1 ? (int)$ev['relay_legs'] : null,
                     'gender'              => $ev['gender'] ?? 'X',
                     'age_min'             => ($ageMin > 0) ? $ageMin : null,
                     'age_max'             => ($ageMax > 0 && $ageMax < 9999) ? $ageMax : null,
@@ -548,6 +550,15 @@ class CompetitionController extends Controller
                 ]);
             }
         });
+
+        // Persist header data and update meldeschluss if parsed
+        if (!empty($meet['dsv_header'])) {
+            $updateData = ['dsv_header_data' => $meet['dsv_header']];
+            if (!empty($meet['dsv_header']['meldeschluss_date_iso'])) {
+                $updateData['meldeschluss'] = $meet['dsv_header']['meldeschluss_date_iso'];
+            }
+            $competition->update($updateData);
+        }
 
         $eventCount = count($meet['events']);
         return back()->with('success', "Wettkampffolge importiert: {$eventCount} Wertungen übernommen.");

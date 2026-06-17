@@ -25,7 +25,7 @@ class Competition extends Model
         'ausrichter', 'venue_details', 'kampfgericht', 'contact_info',
         'announcement_pdf_path', 'announcement_data',
         'source_file', 'source_url', 'import_hash', 'level', 'federation_id',
-        'analysis_text',
+        'analysis_text', 'dsv_header_data',
     ];
 
     protected function casts(): array
@@ -39,6 +39,7 @@ class Competition extends Model
             'kampfgericht'       => 'array',
             'contact_info'       => 'array',
             'announcement_data'  => 'array',
+            'dsv_header_data'    => 'array',
         ];
     }
 

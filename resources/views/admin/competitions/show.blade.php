@@ -297,7 +297,8 @@
                                             {{ $eventNum }}
                                         </span>
                                         <span class="text-sm font-medium text-gray-700">
-                                            {{ $baseWk->distance }} m {{ $baseWk->discipline_label }}
+                                            {{ $baseWk->distance_label }} m {{ $baseWk->discipline_label }}
+                                            @if($baseWk->relay_legs) <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium ml-1">Staffel</span> @endif
                                             @if($baseWk->gender !== 'X')
                                                 <span class="text-gray-400 font-normal">· {{ $baseWk->gender === 'M' ? 'Männlich' : 'Weiblich' }}</span>
                                             @endif
@@ -353,7 +354,7 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 font-bold text-primary text-xs w-12">{{ $eventNum }}</td>
                                         <td class="px-5 py-2.5 text-gray-700">
-                                            {{ $ev->distance }} m {{ $ev->discipline_label }}
+                                            {{ $ev->distance_label }} m {{ $ev->discipline_label }}
                                             @if($ev->gender !== 'X')
                                                 <span class="text-gray-400">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
                                             @endif
@@ -402,7 +403,7 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 font-bold text-primary text-xs w-12">{{ $eventNum }}</td>
                                         <td class="px-5 py-2.5 text-gray-700">
-                                            {{ $ev->distance }} m {{ $ev->discipline_label }}
+                                            {{ $ev->distance_label }} m {{ $ev->discipline_label }}
                                             @if($ev->gender !== 'X')
                                                 <span class="text-gray-400">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
                                             @endif
@@ -1179,7 +1180,7 @@
                             @foreach($qualifyingEvents as $qev)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->event_number }}</td>
-                                <td class="px-4 py-2 font-medium text-gray-800">{{ $qev->distance }} m {{ $qev->discipline_label }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-800">{{ $qev->distance_label }} m {{ $qev->discipline_label }}</td>
                                 <td class="px-4 py-2 text-gray-600">{{ $qev->gender_label }}</td>
                                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->age_group ?: '–' }}</td>
                                 <td class="px-4 py-2 font-mono font-semibold text-blue-700">{{ $qev->formatted_qualifying_time }}</td>
@@ -1221,7 +1222,7 @@
                                 <th class="px-3 py-2.5 text-center font-semibold">Jg.</th>
                                 @foreach($qualifyingEvents->unique(fn($e) => $e->discipline . '_' . $e->distance) as $qev)
                                 <th class="px-3 py-2.5 text-center font-semibold min-w-[100px]">
-                                    {{ $qev->distance }}m {{ $qev->discipline_label }}<br>
+                                    {{ $qev->distance_label }}m {{ $qev->discipline_label }}<br>
                                     <span class="text-gray-400 font-normal">PZ {{ $qev->formatted_qualifying_time }}</span>
                                 </th>
                                 @endforeach
@@ -1490,7 +1491,7 @@
                                                 </button>
 
                                                 <div class="flex-1 min-w-0">
-                                                    <span class="text-sm font-medium text-gray-800">WK {{ $event->event_number }} · {{ $event->distance }}m {{ $event->discipline_label }}</span>
+                                                    <span class="text-sm font-medium text-gray-800">WK {{ $event->event_number }} · {{ $event->distance_label }}m {{ $event->discipline_label }}</span>
                                                     @if($event->age_group)
                                                         <span class="text-xs text-gray-400 ml-1">{{ $event->age_group }}</span>
                                                     @endif
@@ -1628,6 +1629,125 @@
                 },
              }"
              class="p-5 space-y-6">
+
+            {{-- DSV Kopfdaten (aus Definitionsdatei-Import) --}}
+            @if($competition->dsv_header_data)
+            @php $hd = $competition->dsv_header_data; @endphp
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-indigo-800">Kopfdaten aus DSV7-Definitionsdatei</h3>
+                    @if($hd['software'] ?? null)
+                        <span class="text-xs text-indigo-400">{{ $hd['software'] }}</span>
+                    @endif
+                </div>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
+
+                    @if($hd['venue_name'] ?? null)
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Wettkampfstätte</p>
+                        <p class="text-sm font-medium text-gray-800">{{ $hd['venue_name'] }}</p>
+                        @if($hd['venue_street'] ?? null)
+                            <p class="text-xs text-gray-500">{{ $hd['venue_street'] }}</p>
+                            <p class="text-xs text-gray-500">{{ $hd['venue_plz'] ?? '' }} {{ $hd['venue_city'] ?? '' }}</p>
+                        @endif
+                        @if($hd['venue_phone'] ?? null)
+                            <p class="text-xs text-gray-400 mt-1">{{ $hd['venue_phone'] }}</p>
+                        @endif
+                    </div>
+                    @endif
+
+                    @if($hd['ausrichter_name'] ?? null)
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Ausrichter</p>
+                        <p class="text-sm font-medium text-gray-800">{{ $hd['ausrichter_name'] }}</p>
+                        @if($hd['ausrichter_person'] ?? null)
+                            <p class="text-xs text-gray-500">{{ $hd['ausrichter_person'] }}</p>
+                        @endif
+                        @if($hd['ausrichter_street'] ?? null)
+                            <p class="text-xs text-gray-500">{{ $hd['ausrichter_street'] }}, {{ $hd['ausrichter_plz'] ?? '' }} {{ $hd['ausrichter_city'] ?? '' }}</p>
+                        @endif
+                        @if($hd['ausrichter_phone'] ?? null)
+                            <p class="text-xs text-gray-400 mt-0.5">{{ $hd['ausrichter_phone'] }}</p>
+                        @endif
+                        @if($hd['ausrichter_email'] ?? null)
+                            <p class="text-xs text-gray-400">{{ $hd['ausrichter_email'] }}</p>
+                        @endif
+                    </div>
+                    @endif
+
+                    <div class="space-y-3">
+                        @if($hd['meldeschluss_date'] ?? null)
+                        <div>
+                            <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Meldeschluss</p>
+                            <p class="text-sm font-semibold text-primary">
+                                {{ $hd['meldeschluss_date'] }}
+                                @if($hd['meldeschluss_time'] ?? null) · {{ $hd['meldeschluss_time'] }} Uhr @endif
+                            </p>
+                        </div>
+                        @endif
+                        @if($hd['melde_email'] ?? null)
+                        <div>
+                            <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Meldeadresse</p>
+                            @if($hd['melde_person'] ?? null)
+                                <p class="text-xs text-gray-600">{{ $hd['melde_person'] }}</p>
+                            @endif
+                            <p class="text-xs text-gray-500">{{ $hd['melde_email'] }}</p>
+                            @if($hd['melde_phone'] ?? null)
+                                <p class="text-xs text-gray-400">{{ $hd['melde_phone'] }}</p>
+                            @endif
+                        </div>
+                        @endif
+                    </div>
+
+                    @if($hd['bank_iban'] ?? null)
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Bankverbindung</p>
+                        @if($hd['bank_recipient'] ?? null)
+                            <p class="text-xs font-medium text-gray-700">{{ $hd['bank_recipient'] }}</p>
+                        @endif
+                        <p class="text-xs font-mono text-gray-600">{{ $hd['bank_iban'] }}</p>
+                        @if($hd['bank_bic'] ?? null)
+                            <p class="text-xs font-mono text-gray-400">BIC: {{ $hd['bank_bic'] }}</p>
+                        @endif
+                    </div>
+                    @endif
+
+                    @if(!empty($hd['sessions']))
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Abschnitte</p>
+                        @foreach($hd['sessions'] as $sess)
+                        <div class="text-xs text-gray-600 mb-1">
+                            <span class="font-medium">Abschnitt {{ $sess['nr'] }}:</span>
+                            {{ $sess['date'] ?? '' }}
+                            @if(($sess['start_time'] ?? '') && $sess['start_time'] !== '00:00')
+                                · Start {{ $sess['start_time'] }} Uhr
+                            @endif
+                            @if(($sess['warmup_start'] ?? '') && $sess['warmup_start'] !== '00:00')
+                                · Einschwimmen ab {{ $sess['warmup_start'] }} Uhr
+                            @endif
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+
+                    @if(($hd['besonderes'] ?? null) && $hd['besonderes'] !== '')
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Besonderes</p>
+                        <p class="text-xs text-gray-600">{{ $hd['besonderes'] }}</p>
+                    </div>
+                    @endif
+
+                    @if(($hd['announcement_url'] ?? null) && $hd['announcement_url'] !== '')
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Ausschreibung Online</p>
+                        <a href="{{ $hd['announcement_url'] }}" target="_blank" rel="noopener"
+                           class="text-xs text-primary hover:underline break-all">{{ $hd['announcement_url'] }}</a>
+                    </div>
+                    @endif
+
+                </div>
+            </div>
+            @endif
 
             {{-- Upload-Bereich --}}
             <div class="bg-gray-50 border border-gray-200 rounded-xl p-5">

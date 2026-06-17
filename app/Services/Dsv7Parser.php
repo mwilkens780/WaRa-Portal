@@ -31,15 +31,14 @@ class Dsv7Parser
 
     // Record types that carry no result/definition data — skip entirely
     private const SKIP_KEYWORDS = [
-        'FORMAT', 'WETTKAMPFENDE', 'DATEIENDE', 'DATEI', 'ERZEUGER',
+        'FORMAT', 'WETTKAMPFENDE', 'DATEIENDE', 'DATEI',
         'PNZWISCHENZEIT', 'ZWISCHENZEIT', 'ZWISCHENZEITEN', 'STZWISCHENZEIT',
         'PNREAKTION', 'STABLOESE',
         'MELDUNG', 'ANMELDUNG', 'NACHMELDUNG',
         'STAFFELSTART', 'STAFFELAUSSCHLUSS',
         'AUSSCHLUSS', 'DISQUALIFIKATION',
-        'VERANSTALTUNGSORT', 'AUSRICHTER', 'KAMPFGERICHT',
-        'ANSPRECHPARTNER', 'BANKVERBINDUNG', 'BESONDERES',
-        'NACHWEIS', 'MELDESCHLUSS', 'MELDEADRESSE',
+        'KAMPFGERICHT', 'ANSPRECHPARTNER',
+        'NACHWEIS',
         'KARIMELDUNG', 'KARIABSCHNITT',
         'TRAINER', 'PNMELDUNG', 'STARTPN', 'STMELDUNG', 'STARTST',
     ];
@@ -48,7 +47,7 @@ class Dsv7Parser
 
     public function parseResults(string $filePath): array
     {
-        [$meta, $sessions, , $clubs] = $this->parseFile($filePath);
+        [$meta, $sessions, , $clubs] = $this->parseFile($filePath); // $wertungMap and $sessionMeta not needed here
 
         $startdate = $this->firstDate($sessions);
         $enddate   = $this->lastDate($sessions);
@@ -80,7 +79,7 @@ class Dsv7Parser
 
     public function parseMeetDefinition(string $filePath): array
     {
-        [$meta, $sessions, $wertungMap] = $this->parseFile($filePath);
+        [$meta, $sessions, $wertungMap, , $sessionMeta] = $this->parseFile($filePath);
 
         $startdate = $this->firstDate($sessions);
         $enddate   = $this->lastDate($sessions);
@@ -94,6 +93,7 @@ class Dsv7Parser
                 'session_name'       => 'Abschnitt ' . $w['session_number'],
                 'discipline'         => $w['discipline'],
                 'distance'           => $w['distance'],
+                'relay_legs'         => ($w['relay_legs'] ?? 0) > 1 ? (int)$w['relay_legs'] : null,
                 'gender'             => $w['gender'],
                 'age_min'            => $w['age_min'] ?? null,
                 'age_max'            => $w['age_max'] ?? null,
@@ -104,15 +104,48 @@ class Dsv7Parser
             ];
         }
 
+        // Build DSV header for display in the Ausschreibung tab
+        $dsvHeader = array_filter([
+            'software'          => trim($meta['software'] ?? ''),
+            'venue_name'        => trim($meta['venue_name'] ?? ''),
+            'venue_street'      => trim($meta['venue_street'] ?? ''),
+            'venue_plz'         => trim($meta['venue_plz'] ?? ''),
+            'venue_city'        => trim($meta['venue_city'] ?? ''),
+            'venue_phone'       => trim($meta['venue_phone'] ?? ''),
+            'announcement_url'  => trim($meta['announcement_url'] ?? ''),
+            'ausrichter_name'   => trim($meta['ausrichter_name'] ?? ''),
+            'ausrichter_person' => trim($meta['ausrichter_person'] ?? ''),
+            'ausrichter_street' => trim($meta['ausrichter_street'] ?? ''),
+            'ausrichter_plz'    => trim($meta['ausrichter_plz'] ?? ''),
+            'ausrichter_city'   => trim($meta['ausrichter_city'] ?? ''),
+            'ausrichter_phone'  => trim($meta['ausrichter_phone'] ?? ''),
+            'ausrichter_email'  => trim($meta['ausrichter_email'] ?? ''),
+            'melde_person'      => trim($meta['melde_person'] ?? ''),
+            'melde_street'      => trim($meta['melde_street'] ?? ''),
+            'melde_plz'         => trim($meta['melde_plz'] ?? ''),
+            'melde_city'        => trim($meta['melde_city'] ?? ''),
+            'melde_phone'       => trim($meta['melde_phone'] ?? ''),
+            'melde_email'       => trim($meta['melde_email'] ?? ''),
+            'meldeschluss_date'     => trim($meta['meldeschluss_date'] ?? ''),
+            'meldeschluss_date_iso' => trim($meta['meldeschluss_date_iso'] ?? ''),
+            'meldeschluss_time'     => trim($meta['meldeschluss_time'] ?? ''),
+            'bank_recipient'    => trim($meta['bank_recipient'] ?? ''),
+            'bank_iban'         => trim($meta['bank_iban'] ?? ''),
+            'bank_bic'          => trim($meta['bank_bic'] ?? ''),
+            'besonderes'        => trim($meta['besonderes'] ?? ''),
+            'sessions'          => array_values($sessionMeta),
+        ]);
+
         return [
             'meets' => [[
-                'name'      => $meta['name'] ?? '',
-                'city'      => $meta['city'] ?? '',
-                'course'    => $meta['course'] ?? 'Kurzbahn',
-                'startdate' => $startdate,
-                'enddate'   => $enddate,
-                'organizer' => $meta['organizer'] ?? '',
-                'events'    => $events,
+                'name'       => $meta['name'] ?? '',
+                'city'       => $meta['city'] ?? '',
+                'course'     => $meta['course'] ?? 'Kurzbahn',
+                'startdate'  => $startdate,
+                'enddate'    => $enddate,
+                'organizer'  => $meta['organizer'] ?? '',
+                'events'     => $events,
+                'dsv_header' => $dsvHeader ?: null,
             ]],
         ];
     }
@@ -126,6 +159,7 @@ class Dsv7Parser
 
         $meta             = [];
         $sessions         = [];
+        $sessionMeta      = []; // sessionNum → [nr, date, warmup_start, warmup_end, start_time]
         $wertungMap       = [];
         $clubs            = [];
         $wettkampfByNum   = []; // eventNum → wettkampf data, for WERTUNG lookup by wkNr
@@ -137,6 +171,7 @@ class Dsv7Parser
         // Post-parse lookups: PFLICHTZEIT / MELDEGELD may appear after all WERTUNGs
         $pflichtzeiten    = []; // wertungsID → ['time_ms' => int, 'deadline' => string|null]
         $meldegelder      = []; // wertungsID → meldegeld amount
+        $meldegelderByWk  = []; // wkNr (event_number) → meldegeld amount
 
         foreach ($lines as $rawLine) {
             $line = trim($rawLine);
@@ -172,11 +207,84 @@ class Dsv7Parser
                     $meta['organizer'] = $f(0);
                     break;
 
+                case 'ERZEUGER':
+                    // cps-schwimm;5.10.14;email
+                    $software = trim($f(0));
+                    $version  = trim($f(1));
+                    if ($software) {
+                        $meta['software'] = $version ? "{$software} {$version}" : $software;
+                    }
+                    break;
+
+                case 'VERANSTALTUNGSORT':
+                    // name; street; plz; city; country; phone; fax; url; ...
+                    $meta['venue_name']   = $f(0);
+                    $meta['venue_street'] = $f(1);
+                    $meta['venue_plz']    = $f(2);
+                    $meta['venue_city']   = $f(3);
+                    $meta['venue_phone']  = $f(5);
+                    break;
+
+                case 'AUSSCHREIBUNGIMNETZ':
+                    $meta['announcement_url'] = $f(0);
+                    break;
+
+                case 'AUSRICHTER':
+                    // name; person; street; plz; city; country; phone; fax; email
+                    $meta['ausrichter_name']   = $f(0);
+                    $meta['ausrichter_person'] = $f(1);
+                    $meta['ausrichter_street'] = $f(2);
+                    $meta['ausrichter_plz']    = $f(3);
+                    $meta['ausrichter_city']   = $f(4);
+                    $meta['ausrichter_phone']  = $f(6);
+                    $meta['ausrichter_email']  = $f(8);
+                    break;
+
+                case 'MELDEADRESSE':
+                    // person; street; plz; city; country; phone; fax; email
+                    $meta['melde_person'] = $f(0);
+                    $meta['melde_street'] = $f(1);
+                    $meta['melde_plz']    = $f(2);
+                    $meta['melde_city']   = $f(3);
+                    $meta['melde_phone']  = $f(5);
+                    $meta['melde_email']  = $f(7);
+                    break;
+
+                case 'MELDESCHLUSS':
+                    // DD.MM.YYYY; HH:MM
+                    $meta['meldeschluss_date'] = $f(0);
+                    $meta['meldeschluss_time'] = $f(1);
+                    $parsed = \DateTime::createFromFormat('d.m.Y', trim($f(0)));
+                    if ($parsed) {
+                        $meta['meldeschluss_date_iso'] = $parsed->format('Y-m-d');
+                    }
+                    break;
+
+                case 'BANKVERBINDUNG':
+                    // recipient; IBAN; BIC
+                    $meta['bank_recipient'] = $f(0);
+                    $meta['bank_iban']      = $f(1);
+                    $meta['bank_bic']       = $f(2);
+                    break;
+
+                case 'BESONDERES':
+                    $meta['besonderes'] = $f(0);
+                    break;
+
                 case 'ABSCHNITT':
-                    // Nr;DD.MM.YYYY;...
+                    // Nr; DD.MM.YYYY; warmup_start; warmup_end; start_time; [flag]
                     $num = (int)$f(0);
                     $dt  = $this->parseGermanDate($f(1));
-                    if ($num && $dt) $sessions[$num] = $dt;
+                    if ($num && $dt) {
+                        $sessions[$num] = $dt;
+                        $sessionMeta[$num] = [
+                            'nr'           => $num,
+                            'date'         => $f(1),
+                            'warmup_start' => $f(2),
+                            'warmup_end'   => $f(3),
+                            'start_time'   => $f(4),
+                        ];
+                    }
                     break;
 
                 case 'VEREIN':
@@ -331,22 +439,40 @@ class Dsv7Parser
                     break;
 
                 case 'MELDEGELD':
-                    // Entry fee per start, optionally per Wertung.
+                    // Entry fee per start, optionally per Wertung or per Wettkampf.
                     //
-                    // New format (per wertung): wkNr ; art ; wertungsID ; betrag ; waehrung
-                    //                             0     1        2           3        4
+                    // Format A — per wertungsID (new DSV):
+                    //   wkNr ; art ; wertungsID ; betrag ; waehrung
+                    //     0     1        2           3        4
                     //
-                    // Simple format (global):  betrag ; waehrung ; beschreibung
-                    //                             0        1            2
+                    // Format B — per wettkampfNr (CPS-Schwimm / description first):
+                    //   beschreibung ; betrag ; [wkNr]
+                    //       0            1        2
+                    //
+                    // Format C — global (simple):
+                    //   betrag ; waehrung ; beschreibung
+                    //     0        1            2
 
-                    if ($useNewFormat && ctype_alpha($f(1)) && $f(1) !== '' && is_numeric($f(3))) {
+                    if ($useNewFormat && ctype_alpha($f(1)) && $f(1) !== '' && is_numeric(str_replace(',', '.', $f(3)))) {
+                        // Format A: per wertungsID
                         $mWertungId = (int)$f(2);
                         $mAmount    = (float)str_replace(',', '.', $f(3));
                         if ($mWertungId && $mAmount > 0) {
                             $meldegelder[$mWertungId] = $mAmount;
                         }
+                    } elseif (!is_numeric(str_replace(',', '.', $f(0))) && is_numeric(str_replace(',', '.', $f(1)))) {
+                        // Format B: description first, amount second, optional wkNr third
+                        $mAmount = (float)str_replace(',', '.', $f(1));
+                        $mWkNr   = $f(2) !== '' && ctype_digit(trim($f(2))) ? (int)$f(2) : null;
+                        if ($mAmount > 0) {
+                            if ($mWkNr !== null) {
+                                $meldegelderByWk[$mWkNr] = $mAmount;
+                            } else {
+                                $meldegelder['__global__'] = $mAmount;
+                            }
+                        }
                     } elseif (is_numeric(str_replace(',', '.', $f(0)))) {
-                        // Global fee: apply to all wertungen (resolved after parsing)
+                        // Format C: global fee
                         $mAmount = (float)str_replace(',', '.', $f(0));
                         if ($mAmount > 0) {
                             $meldegelder['__global__'] = $mAmount;
@@ -636,18 +762,22 @@ class Dsv7Parser
 
         foreach ($wertungMap as $wid => &$wertung) {
             if (isset($pflichtzeiten[$wid])) {
-                $wertung['qualifying_time_ms'] = $pflichtzeiten[$wid]['time_ms'];
+                $wertung['qualifying_time_ms']  = $pflichtzeiten[$wid]['time_ms'];
                 $wertung['qualifying_deadline'] = $pflichtzeiten[$wid]['deadline'];
             }
+            // Priority: per-wertungsID > per-wkNr > global
+            $wkNr = $wertung['event_number'] ?? null;
             if (isset($meldegelder[$wid])) {
                 $wertung['meldegeld'] = $meldegelder[$wid];
+            } elseif ($wkNr !== null && isset($meldegelderByWk[$wkNr])) {
+                $wertung['meldegeld'] = $meldegelderByWk[$wkNr];
             } elseif ($globalFee !== null) {
                 $wertung['meldegeld'] = $globalFee;
             }
         }
         unset($wertung);
 
-        return [$meta, $sessions, $wertungMap, $clubs];
+        return [$meta, $sessions, $wertungMap, $clubs, $sessionMeta];
     }
 
     // ── File reading ────────────────────────────────────────────────────────

@@ -8,17 +8,18 @@ class CompetitionEvent extends Model
 {
     protected $fillable = [
         'competition_id', 'event_number', 'dsv_wertungs_id', 'session_number', 'session_date',
-        'session_name', 'discipline', 'distance', 'gender', 'age_min', 'age_max', 'age_group',
-        'qualifying_time_ms', 'qualifying_deadline', 'meldegeld',
+        'session_name', 'discipline', 'distance', 'relay_legs', 'gender', 'age_min', 'age_max',
+        'age_group', 'qualifying_time_ms', 'qualifying_deadline', 'meldegeld',
     ];
 
     protected function casts(): array
     {
         return [
-            'session_date'       => 'date',
-            'distance'           => 'integer',
-            'age_min'            => 'integer',
-            'age_max'            => 'integer',
+            'session_date'        => 'date',
+            'distance'            => 'integer',
+            'relay_legs'          => 'integer',
+            'age_min'             => 'integer',
+            'age_max'             => 'integer',
             'qualifying_time_ms'  => 'integer',
             'qualifying_deadline' => 'date',
             'meldegeld'           => 'decimal:2',
@@ -54,6 +55,15 @@ class CompetitionEvent extends Model
         };
     }
 
+    public function getDistanceLabelAttribute(): string
+    {
+        if ($this->relay_legs && $this->relay_legs > 1) {
+            $legDist = intdiv((int)$this->distance, (int)$this->relay_legs);
+            return $this->relay_legs . '×' . $legDist;
+        }
+        return (string)$this->distance;
+    }
+
     public function getGenderLabelAttribute(): string
     {
         return match($this->gender) {
@@ -65,7 +75,7 @@ class CompetitionEvent extends Model
 
     public function getLabelAttribute(): string
     {
-        $parts = [$this->distance . ' m', $this->discipline_label];
+        $parts = [$this->distance_label . ' m', $this->discipline_label];
         if ($this->age_group) $parts[] = $this->age_group;
         if ($this->gender !== 'X') $parts[] = $this->gender === 'M' ? 'M' : 'W';
         return implode(' · ', $parts);
