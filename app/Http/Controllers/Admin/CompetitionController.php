@@ -384,6 +384,36 @@ class CompetitionController extends Controller
         return back()->with('success', 'Startberechtigte Gruppen aktualisiert.');
     }
 
+    public function updateEventQualifyingTime(Request $request, Competition $competition)
+    {
+        $data = $request->validate([
+            'event_number'        => ['required', 'integer', 'min:1'],
+            'time_minutes'        => ['required', 'integer', 'min:0', 'max:99'],
+            'time_seconds'        => ['required', 'integer', 'min:0', 'max:59'],
+            'time_centiseconds'   => ['required', 'integer', 'min:0', 'max:99'],
+            'qualifying_deadline' => ['nullable', 'date'],
+            'clear'               => ['nullable', 'boolean'],
+        ]);
+
+        $clear = $request->boolean('clear');
+        $ms    = $clear ? null
+            : (($data['time_minutes'] * 60 + $data['time_seconds']) * 1000 + $data['time_centiseconds'] * 10);
+
+        if (!$clear && $ms === 0) {
+            return back()->withErrors(['time_seconds' => 'Bitte eine Zeit größer als 0 eingeben.']);
+        }
+
+        CompetitionEvent::where('competition_id', $competition->id)
+            ->where('event_number', $data['event_number'])
+            ->update([
+                'qualifying_time_ms'  => $ms,
+                'qualifying_deadline' => $ms ? ($data['qualifying_deadline'] ?? null) : null,
+            ]);
+
+        $msg = $clear ? 'Pflichtzeit entfernt.' : 'Pflichtzeit gespeichert.';
+        return back()->with('success', $msg);
+    }
+
     public function edit(Competition $competition)
     {
         return view('admin.competitions.edit', compact('competition'));

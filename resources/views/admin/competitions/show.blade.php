@@ -8,6 +8,7 @@
          activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : 'ergebnisse' }}',
          showForm: false,
          resultsView: 'strecke',
+         editPZ: {},
      }">
 
     {{-- Info-Header --}}
@@ -289,32 +290,101 @@
                         </p>
                         <div class="space-y-3">
                             @foreach($byEvent as $eventNum => $wertungen)
-                                @php $baseWk = $wertungen->first(); @endphp
-                                <div class="flex flex-wrap items-start gap-2">
-                                    {{-- Wettkampf-Label --}}
-                                    <div class="flex items-center gap-2 min-w-[220px]">
-                                        <span class="text-xs font-bold text-primary bg-blue-50 border border-blue-100 px-2 py-1 rounded w-10 text-center shrink-0">
-                                            {{ $eventNum }}
-                                        </span>
-                                        <span class="text-sm font-medium text-gray-700">
-                                            {{ $baseWk->distance_label }} m {{ $baseWk->discipline_label }}
-                                            @if($baseWk->relay_legs) <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium ml-1">Staffel</span> @endif
-                                            @if($baseWk->gender !== 'X')
-                                                <span class="text-gray-400 font-normal">· {{ $baseWk->gender === 'M' ? 'Männlich' : 'Weiblich' }}</span>
-                                            @endif
-                                        </span>
-                                    </div>
-                                    {{-- Wertungen als Chips --}}
-                                    <div class="flex flex-wrap gap-1.5">
-                                        @foreach($wertungen as $wertung)
-                                            <span class="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 bg-gray-50">
-                                                {{ $wertung->age_group ?: 'Offene Klasse' }}
-                                                @if($wertung->gender !== $baseWk->gender)
-                                                    <span class="text-gray-400">· {{ $wertung->gender === 'M' ? 'M' : 'W' }}</span>
+                                @php
+                                    $baseWk = $wertungen->first();
+                                    $pzMs   = $baseWk->qualifying_time_ms;
+                                    $pzMin  = $pzMs ? intdiv($pzMs, 60_000) : 0;
+                                    $pzSec  = $pzMs ? intdiv($pzMs % 60_000, 1_000) : 0;
+                                    $pzCs   = $pzMs ? intdiv($pzMs % 1_000, 10) : 0;
+                                    $pzKey  = 'pz_' . $sessionNum . '_' . $eventNum;
+                                @endphp
+                                <div class="space-y-1.5">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        {{-- Wettkampf-Label --}}
+                                        <div class="flex items-center gap-2 min-w-[220px]">
+                                            <span class="text-xs font-bold text-primary bg-blue-50 border border-blue-100 px-2 py-1 rounded w-10 text-center shrink-0">
+                                                {{ $eventNum }}
+                                            </span>
+                                            <span class="text-sm font-medium text-gray-700">
+                                                {{ $baseWk->distance_label }} m {{ $baseWk->discipline_label }}
+                                                @if($baseWk->relay_legs) <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium ml-1">Staffel</span> @endif
+                                                @if($baseWk->gender !== 'X')
+                                                    <span class="text-gray-400 font-normal">· {{ $baseWk->gender === 'M' ? 'Männlich' : 'Weiblich' }}</span>
                                                 @endif
                                             </span>
-                                        @endforeach
+                                        </div>
+                                        {{-- Wertungen als Chips --}}
+                                        <div class="flex flex-wrap gap-1.5">
+                                            @foreach($wertungen as $wertung)
+                                                <span class="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 bg-gray-50">
+                                                    {{ $wertung->age_group ?: 'Offene Klasse' }}
+                                                    @if($wertung->gender !== $baseWk->gender)
+                                                        <span class="text-gray-400">· {{ $wertung->gender === 'M' ? 'M' : 'W' }}</span>
+                                                    @endif
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                        {{-- PZ-Anzeige + Edit-Button (Admin) --}}
+                                        @if(auth()->user()->role === 'admin')
+                                        <div class="ml-auto flex items-center gap-2">
+                                            @if($pzMs)
+                                                <span class="text-xs font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                                    PZ {{ $baseWk->formatted_qualifying_time }}
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-gray-400">keine PZ</span>
+                                            @endif
+                                            <button type="button"
+                                                    @click="editPZ['{{ $pzKey }}'] = !editPZ['{{ $pzKey }}']"
+                                                    class="text-xs text-blue-600 hover:text-blue-800 underline">
+                                                <span x-text="editPZ['{{ $pzKey }}'] ? 'Abbrechen' : 'PZ bearbeiten'">PZ bearbeiten</span>
+                                            </button>
+                                        </div>
+                                        @endif
                                     </div>
+
+                                    {{-- PZ-Bearbeiten-Formular --}}
+                                    @if(auth()->user()->role === 'admin')
+                                    <div x-show="editPZ['{{ $pzKey }}']" x-cloak
+                                         class="ml-12 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+                                        <form method="POST" action="{{ route('admin.competitions.event.qualifying-time', $competition) }}"
+                                              class="flex flex-wrap items-end gap-3">
+                                            @csrf
+                                            <input type="hidden" name="event_number" value="{{ $eventNum }}">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Pflichtzeit (Min : Sek , 1/100)</label>
+                                                <div class="flex items-center gap-1">
+                                                    <input type="number" name="time_minutes" min="0" max="99" value="{{ $pzMin }}"
+                                                           class="w-14 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
+                                                    <span class="text-gray-400 font-bold">:</span>
+                                                    <input type="number" name="time_seconds" min="0" max="59" value="{{ $pzSec }}"
+                                                           class="w-14 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
+                                                    <span class="text-gray-400 font-bold">,</span>
+                                                    <input type="number" name="time_centiseconds" min="0" max="99" value="{{ $pzCs }}"
+                                                           class="w-14 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Stichtag (optional)</label>
+                                                <input type="date" name="qualifying_deadline"
+                                                       value="{{ $baseWk->qualifying_deadline?->format('Y-m-d') }}"
+                                                       class="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <button type="submit"
+                                                        class="bg-primary hover:bg-primary-dark text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors">
+                                                    Speichern
+                                                </button>
+                                                @if($pzMs)
+                                                <button type="submit" name="clear" value="1"
+                                                        class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold px-3 py-1.5 rounded transition-colors">
+                                                    PZ löschen
+                                                </button>
+                                                @endif
+                                            </div>
+                                        </form>
+                                    </div>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>

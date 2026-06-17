@@ -50,7 +50,10 @@
 
     {{-- Main form --}}
     <form method="POST" action="{{ route('admin.users.update', $user) }}" class="space-y-5"
-          x-data="{ role: '{{ old('role', $user->role) }}' }">
+          x-data="{
+              role: '{{ old('role', $user->role) }}',
+              elternChecked: {{ in_array('elternteil', $assignedRoles) ? 'true' : 'false' }},
+          }">
         @csrf @method('PUT')
 
         {{-- ── Stammdaten ──────────────────────────────────────────────── --}}
@@ -177,6 +180,7 @@
                 <label class="flex items-center gap-2 text-sm cursor-pointer p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
                     <input type="checkbox" name="user_roles[]" value="{{ $value }}"
                            {{ in_array($value, $assignedRoles) ? 'checked' : '' }}
+                           {{ $value === 'elternteil' ? '@change="elternChecked = $event.target.checked"' : '' }}
                            class="w-4 h-4 rounded border-gray-300 text-primary">
                     <span class="text-gray-700">{{ $label }}</span>
                 </label>
@@ -204,7 +208,7 @@
             </div>
 
             {{-- Children (Elternteil) --}}
-            <div x-show="role === 'elternteil'" x-cloak class="mt-4 border-t border-gray-100 pt-4">
+            <div x-show="role === 'elternteil' || elternChecked" x-cloak class="mt-4 border-t border-gray-100 pt-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Kinder</label>
                 <div class="border border-gray-200 rounded-lg divide-y max-h-48 overflow-y-auto">
                     @foreach($swimmers as $swimmer)

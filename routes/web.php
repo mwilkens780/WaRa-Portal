@@ -83,6 +83,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'update'])->name('competitions.update');
     Route::delete('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'destroy'])->name('competitions.destroy');
     Route::post('/wettkaempfe/{competition}/gruppen', [AdminCompetitionController::class, 'syncGroups'])->name('competitions.sync-groups');
+    Route::post('/wettkaempfe/{competition}/pflichtzeit', [AdminCompetitionController::class, 'updateEventQualifyingTime'])->name('competitions.event.qualifying-time');
     Route::post('/wettkaempfe/{competition}/ergebnis', [AdminCompetitionController::class, 'storeResult'])->name('competitions.result.store');
     Route::delete('/ergebnis/{result}', [AdminCompetitionController::class, 'destroyResult'])->name('competitions.result.destroy');
 

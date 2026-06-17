@@ -145,7 +145,7 @@ class UserController extends Controller
         $user->update($data);
         $user->syncRoles($roles);
 
-        if (($data['role'] ?? '') === 'elternteil') {
+        if (($data['role'] ?? '') === 'elternteil' || in_array('elternteil', $roles)) {
             $user->children()->sync($request->children ?? []);
         }
 
