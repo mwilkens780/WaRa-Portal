@@ -250,6 +250,28 @@
                     <input type="date" name="police_clearance_date" value="{{ old('police_clearance_date', $user->police_clearance_date?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
+                @if($user->role === 'kampfrichter' || $user->userRoles->contains('role', 'kampfrichter'))
+                <div class="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Kampfrichter-Lizenz</p>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Lizenz-Nr.</label>
+                            <input type="text" name="kampfrichter_license_nr" value="{{ old('kampfrichter_license_nr', $user->kampfrichter_license_nr) }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ausstellungsdatum</label>
+                            <input type="date" name="kampfrichter_license_issued" value="{{ old('kampfrichter_license_issued', $user->kampfrichter_license_issued?->format('Y-m-d')) }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gültig bis</label>
+                            <input type="date" name="kampfrichter_license_valid_until" value="{{ old('kampfrichter_license_valid_until', $user->kampfrichter_license_valid_until?->format('Y-m-d')) }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
         @endif

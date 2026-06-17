@@ -32,7 +32,9 @@ class User extends Authenticatable
         'initial_password',
         'trainer_license_nr', 'trainer_license_valid_until',
         'rescue_certificate_until', 'first_aid_until',
-        'police_clearance_date', 'notes',
+        'police_clearance_date',
+        'kampfrichter_license_nr', 'kampfrichter_license_issued', 'kampfrichter_license_valid_until',
+        'notes',
     ];
 
     protected $hidden = [
@@ -50,7 +52,9 @@ class User extends Authenticatable
             'trainer_license_valid_until' => 'date',
             'rescue_certificate_until'    => 'date',
             'first_aid_until'             => 'date',
-            'police_clearance_date'       => 'date',
+            'police_clearance_date'            => 'date',
+            'kampfrichter_license_issued'      => 'date',
+            'kampfrichter_license_valid_until'  => 'date',
         ];
     }
 
