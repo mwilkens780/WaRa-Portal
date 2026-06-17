@@ -120,10 +120,12 @@
                                                     <div class="flex gap-1.5 items-baseline">
                                                         <span class="text-gray-500 w-28 flex-shrink-0">{{ $field }}</span>
                                                         @if(isset($tx->changes['before'][$field]))
-                                                            <span class="line-through text-red-400">{{ Str::limit((string) $tx->changes['before'][$field], 40) }}</span>
+                                                            @php $bv = $tx->changes['before'][$field]; $bv = is_array($bv) ? json_encode($bv) : (string) $bv; @endphp
+                                                            <span class="line-through text-red-400">{{ Str::limit($bv, 40) }}</span>
                                                             <span class="text-gray-400">→</span>
                                                         @endif
-                                                        <span class="text-green-700">{{ Str::limit((string) $newVal, 60) }}</span>
+                                                        @php $nv = is_array($newVal) ? json_encode($newVal) : (string) $newVal; @endphp
+                                                        <span class="text-green-700">{{ Str::limit($nv, 60) }}</span>
                                                     </div>
                                                 @endforeach
                                             @endif
@@ -221,9 +223,10 @@
                                         </button>
                                         <div x-show="open" x-cloak class="mt-1.5 font-mono bg-gray-50 rounded p-2 space-y-0.5 border border-gray-200 max-w-md">
                                             @foreach($trace->context as $key => $val)
+                                                @php $cv = is_array($val) ? json_encode($val) : (string) $val; @endphp
                                                 <div class="flex gap-1.5">
                                                     <span class="text-gray-500 w-20 flex-shrink-0">{{ $key }}</span>
-                                                    <span class="text-gray-700 break-all">{{ Str::limit((string) $val, 120) }}</span>
+                                                    <span class="text-gray-700 break-all">{{ Str::limit($cv, 120) }}</span>
                                                 </div>
                                             @endforeach
                                         </div>
