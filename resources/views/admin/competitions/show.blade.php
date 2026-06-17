@@ -1719,7 +1719,9 @@
                         <div class="text-xs text-gray-600 mb-1">
                             <span class="font-medium">Abschnitt {{ $sess['nr'] }}:</span>
                             {{ $sess['date'] ?? '' }}
-                            @if(($sess['start_time'] ?? '') && $sess['start_time'] !== '00:00')
+                            @if($sess['pause_after'] ?? null)
+                                · <span class="text-amber-600">+{{ $sess['pause_after'] }} nach Ende des vorherigen Abschnitts</span>
+                            @elseif(($sess['start_time'] ?? '') && $sess['start_time'] !== '00:00')
                                 · Start {{ $sess['start_time'] }} Uhr
                             @endif
                             @if(($sess['warmup_start'] ?? '') && $sess['warmup_start'] !== '00:00')

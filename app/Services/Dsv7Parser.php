@@ -272,17 +272,21 @@ class Dsv7Parser
                     break;
 
                 case 'ABSCHNITT':
-                    // Nr; DD.MM.YYYY; warmup_start; warmup_end; start_time; [flag]
+                    // Nr; DD.MM.YYYY; warmup_start; warmup_end; start_time; [J=relative pause]
+                    // When f(5) is non-empty (e.g. 'J'), f(4) is a pause duration after the
+                    // previous session ends — not an absolute clock time.
                     $num = (int)$f(0);
                     $dt  = $this->parseGermanDate($f(1));
                     if ($num && $dt) {
                         $sessions[$num] = $dt;
+                        $relativePause  = trim($f(5)) !== '';
                         $sessionMeta[$num] = [
-                            'nr'           => $num,
-                            'date'         => $f(1),
-                            'warmup_start' => $f(2),
-                            'warmup_end'   => $f(3),
-                            'start_time'   => $f(4),
+                            'nr'             => $num,
+                            'date'           => $f(1),
+                            'warmup_start'   => $f(2),
+                            'warmup_end'     => $f(3),
+                            'start_time'     => $relativePause ? null : $f(4),
+                            'pause_after'    => $relativePause ? $f(4) : null,
                         ];
                     }
                     break;
