@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\CompetitionEntryController;
 use App\Http\Controllers\Admin\CompetitionSignupController;
 use App\Http\Controllers\Admin\CompetitionDocumentController;
 use App\Http\Controllers\Admin\ImportLogController;
+use App\Http\Controllers\Admin\CronController;
 use App\Http\Controllers\Swimmer\SignupController as SwimmerSignupController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
 use App\Http\Controllers\Trainer\TrainingSessionController;
@@ -293,14 +294,7 @@ Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('benutzer')->
 });
 
 // Scheduler-Trigger für URL-Cron (all-inkl.com unterstützt kein Shell-Cron)
-Route::get('/cron/run/{token}', function (string $token) {
-    if (!hash_equals(config('cron.scheduler_token', ''), $token)) {
-        abort(403);
-    }
-    \Illuminate\Support\Facades\Artisan::call('schedule:run');
-    return response('OK ' . now()->toDateTimeString(), 200)
-        ->header('Content-Type', 'text/plain');
-})->name('cron.run');
+Route::get('/cron/run/{token}', [CronController::class, 'run'])->name('cron.run');
 
 // Schwimmer-Bereich
 Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimmer.')->group(function () {
