@@ -73,7 +73,7 @@
                         @foreach($logs as $log)
                             <tr class="hover:bg-gray-50 {{ $log->isError() ? 'bg-red-50/30' : '' }}">
                                 <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
-                                    {{ $log->imported_at?->format('d.m.Y H:i') ?? '–' }}
+                                    {{ $log->imported_at?->deBerlin('d.m.Y H:i') ?? '–' }}
                                 </td>
                                 <td class="px-4 py-2.5 whitespace-nowrap">
                                     @if($log->isSuccess())

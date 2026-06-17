@@ -856,7 +856,7 @@
                             <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Aktiv
                         </span>
                         <p class="text-sm text-gray-500 mt-1">
-                            Gestartet {{ $signupRequest->activated_at->format('d.m.Y H:i') }} Uhr
+                            Gestartet {{ $signupRequest->activated_at->deBerlin('d.m.Y H:i') }} Uhr
                             @if($signupRequest->deadline) · Deadline: {{ $signupRequest->deadline->format('d.m.Y') }}@endif
                         </p>
                     </div>
@@ -984,9 +984,9 @@
                                             @endif
                                         </td>
                                     @endif
-                                    <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->responded_at?->format('d.m.Y H:i') ?? '–' }}</td>
+                                    <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->responded_at?->deBerlin('d.m.Y H:i') ?? '–' }}</td>
                                     <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
-                                    <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $response->reminder_sent_at?->format('d.m. H:i') ?? '–' }}</td>
+                                    <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $response->reminder_sent_at?->deBerlin('d.m. H:i') ?? '–' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -1001,7 +1001,7 @@
                             Geschlossen
                         </span>
                         <p class="text-sm text-gray-500 mt-1">
-                            Abfrage geschlossen am {{ $signupRequest->closed_at->format('d.m.Y H:i') }} Uhr.
+                            Abfrage geschlossen am {{ $signupRequest->closed_at->deBerlin('d.m.Y H:i') }} Uhr.
                         </p>
                     </div>
                 </div>

@@ -94,7 +94,7 @@
                         @forelse($transactions as $tx)
                             <tr class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
                                 <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
-                                    {{ $tx->created_at->format('d.m.Y H:i:s') }}
+                                    {{ $tx->created_at->deBerlin('d.m.Y H:i:s') }}
                                 </td>
                                 <td class="px-4 py-2.5 text-gray-700 text-xs">{{ $tx->user_name }}</td>
                                 <td class="px-4 py-2.5">
@@ -206,7 +206,7 @@
                         @forelse($traces as $trace)
                             <tr class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
                                 <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
-                                    {{ $trace->created_at->format('d.m.Y H:i:s') }}
+                                    {{ $trace->created_at->deBerlin('d.m.Y H:i:s') }}
                                 </td>
                                 <td class="px-4 py-2.5">
                                     <span class="px-2 py-0.5 rounded text-xs font-semibold {{ $trace->level_color }}">

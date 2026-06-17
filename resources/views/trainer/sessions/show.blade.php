@@ -247,7 +247,7 @@
                 @foreach($sessionRegistrations as $reg)
                 <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
                     {{ $reg->user?->name }}
-                    <span class="text-green-400 text-[10px]">{{ $reg->registered_at->format('d.m. H:i') }}</span>
+                    <span class="text-green-400 text-[10px]">{{ $reg->registered_at->deBerlin('d.m. H:i') }}</span>
                 </span>
                 @endforeach
             </div>

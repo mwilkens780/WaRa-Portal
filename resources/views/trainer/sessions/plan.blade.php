@@ -401,7 +401,7 @@
                 </button>
                 @if($plan)
                     <p class="text-xs text-center text-gray-400 mt-2">
-                        Zuletzt gespeichert: {{ $plan->updated_at->format('d.m.Y H:i') }} Uhr
+                        Zuletzt gespeichert: {{ $plan->updated_at->deBerlin('d.m.Y H:i') }} Uhr
                     </p>
                 @endif
             </div>

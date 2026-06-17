@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Setting;
+use Carbon\Carbon;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
@@ -17,6 +18,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useTailwind();
+
+        // Konvertiert UTC-Timestamps zur Berliner Ortszeit inkl. automatischem DST-Wechsel
+        Carbon::macro('deBerlin', function (string $format = 'd.m.Y H:i:s') {
+            /** @var Carbon $this */
+            return $this->copy()->setTimezone('Europe/Berlin')->format($format);
+        });
 
         // Im Wartungsmodus alle E-Mails an die Admin-Adresse umleiten
         Event::listen(MessageSending::class, function (MessageSending $event) {
