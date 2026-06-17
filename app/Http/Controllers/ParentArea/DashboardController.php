@@ -66,9 +66,16 @@ class DashboardController extends Controller
         $child         = $parent->children()->findOrFail($childId);
         $childGroupIds = $child->trainingGroups()->pluck('training_groups.id');
 
-        $allComps = \App\Models\Competition::whereHas('trainingGroups', fn($q) =>
-                $q->whereIn('training_groups.id', $childGroupIds)
-            )
+        $allComps = \App\Models\Competition::where(function ($q) use ($childGroupIds, $child) {
+                if ($childGroupIds->isNotEmpty()) {
+                    $q->whereHas('trainingGroups', fn($inner) =>
+                        $inner->whereIn('training_groups.id', $childGroupIds)
+                    );
+                }
+                $q->orWhereHas('signupRequest.responses', fn($inner) =>
+                    $inner->where('user_id', $child->id)
+                );
+            })
             ->with([
                 'signupRequest' => fn($q) => $q->with([
                     'responses' => fn($q) => $q->where('user_id', $child->id),

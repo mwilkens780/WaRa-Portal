@@ -151,11 +151,18 @@ class DashboardController extends Controller
                 ->get()
         )->take(5);
 
-        // Nächster anstehender Wettkampf: nur dem Schwimmer zugeordnete Wettkämpfe
+        // Nächster anstehender Wettkampf: Trainingsgruppen-Zuweisung ODER direkte Signup-Einladung
         $next_competition = Competition::where('date', '>=', today())
-            ->whereHas('trainingGroups', fn($q) =>
-                $q->whereIn('training_groups.id', $swimmerGroupIds)
-            )
+            ->where(function ($q) use ($swimmerGroupIds, $swimmer) {
+                if ($swimmerGroupIds->isNotEmpty()) {
+                    $q->whereHas('trainingGroups', fn($inner) =>
+                        $inner->whereIn('training_groups.id', $swimmerGroupIds)
+                    );
+                }
+                $q->orWhereHas('signupRequest.responses', fn($inner) =>
+                    $inner->where('user_id', $swimmer->id)
+                );
+            })
             ->orderBy('date')->first();
 
         // Ziele der aktuellen Saison
@@ -543,10 +550,17 @@ class DashboardController extends Controller
         $swimmer         = auth()->user();
         $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        // All competitions assigned to swimmer's training groups (upcoming + past)
-        $allComps = Competition::whereHas('trainingGroups', fn($q) =>
-                $q->whereIn('training_groups.id', $swimmerGroupIds)
-            )
+        // All competitions assigned to swimmer's training groups OR via direct signup invitation
+        $allComps = Competition::where(function ($q) use ($swimmerGroupIds, $swimmer) {
+                if ($swimmerGroupIds->isNotEmpty()) {
+                    $q->whereHas('trainingGroups', fn($inner) =>
+                        $inner->whereIn('training_groups.id', $swimmerGroupIds)
+                    );
+                }
+                $q->orWhereHas('signupRequest.responses', fn($inner) =>
+                    $inner->where('user_id', $swimmer->id)
+                );
+            })
             ->with([
                 'signupRequest' => fn($q) => $q->with([
                     'responses' => fn($q) => $q->where('user_id', $swimmer->id),

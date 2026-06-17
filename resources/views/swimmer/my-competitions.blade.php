@@ -86,7 +86,8 @@
                     <button @click.stop="tab = 'signup'"
                             :class="tab === 'signup' ? 'border-b-2 border-primary text-primary font-semibold bg-white' : 'text-gray-500 hover:text-gray-700'"
                             class="px-4 py-2.5 text-xs whitespace-nowrap transition-colors">
-                        Anmeldung@if($isPending)<span class="ml-1 inline-block w-1.5 h-1.5 bg-amber-500 rounded-full align-middle"></span>@endif
+                        Anmeldung
+                        @if($isPending)<span class="ml-1 inline-block w-1.5 h-1.5 bg-amber-500 rounded-full align-middle"></span>@endif
                     </button>
                 @endif
                 @if($hasEvents)
