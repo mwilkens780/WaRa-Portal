@@ -29,6 +29,8 @@ class CompetitionSignupController extends Controller
             'meeting_time'         => ['nullable', 'date_format:H:i'],
             'bus_available'        => ['boolean'],
             'bus_seats'            => ['nullable', 'integer', 'min:1', 'max:100'],
+            'offer_overnight'      => ['boolean'],
+            'offer_dinner'         => ['boolean'],
         ]);
 
         $attachmentPath = null;
@@ -49,6 +51,8 @@ class CompetitionSignupController extends Controller
             'meeting_time'       => $data['meeting_time'] ?? null,
             'bus_available'      => $data['bus_available'] ?? false,
             'bus_seats'          => $data['bus_seats'] ?? 8,
+            'offer_overnight'    => $data['offer_overnight'] ?? false,
+            'offer_dinner'       => $data['offer_dinner'] ?? false,
         ]);
 
         return back()->with('success', 'Anmeldeabfrage als Entwurf gespeichert.');
@@ -72,6 +76,8 @@ class CompetitionSignupController extends Controller
             'meeting_time'         => ['nullable', 'date_format:H:i'],
             'bus_available'        => ['boolean'],
             'bus_seats'            => ['nullable', 'integer', 'min:1', 'max:100'],
+            'offer_overnight'      => ['boolean'],
+            'offer_dinner'         => ['boolean'],
         ]);
 
         $attachmentPath = $signupRequest->attachment_path;
@@ -92,6 +98,8 @@ class CompetitionSignupController extends Controller
             'meeting_time'       => $data['meeting_time'] ?? null,
             'bus_available'      => $data['bus_available'] ?? false,
             'bus_seats'          => $data['bus_seats'] ?? 8,
+            'offer_overnight'    => $data['offer_overnight'] ?? false,
+            'offer_dinner'       => $data['offer_dinner'] ?? false,
         ]);
 
         return back()->with('success', 'Anmeldeabfrage aktualisiert.');

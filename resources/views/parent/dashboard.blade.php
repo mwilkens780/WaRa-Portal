@@ -34,6 +34,33 @@
                     </div>
                 </div>
 
+                {{-- Quick actions --}}
+                <div class="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex flex-wrap gap-2">
+                    <a href="{{ route('parent.child.trainings', $child->id) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium text-primary border border-primary/30 bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Trainings
+                    </a>
+                    <a href="{{ route('parent.child.signups', $child->id) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium {{ $data['pending_signups'] > 0 ? 'text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100' : 'text-gray-600 border-gray-200 bg-white hover:bg-gray-50' }} border px-3 py-1.5 rounded-lg transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Wettkampf-Anmeldungen
+                        @if($data['pending_signups'] > 0)
+                            <span class="ml-0.5 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ $data['pending_signups'] }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('parent.child.competitions', $child->id) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Ergebnisse
+                    </a>
+                    <a href="{{ route('parent.child.times', $child->id) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Zeiten
+                    </a>
+                </div>
+
                 <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
                     {{-- Persönliche Bestzeiten --}}
                     <div class="p-5">

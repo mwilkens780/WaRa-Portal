@@ -6,6 +6,7 @@ use App\Models\CalendarEvent;
 use App\Models\Competition;
 use App\Models\Season;
 use App\Models\TrainingSession;
+use App\Models\TrainingSessionSwimmer;
 use App\Services\HolidayService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -200,30 +201,88 @@ class CalendarController extends Controller
             $cursor->addDay();
         }
 
-        $isAdmin   = auth()->user()->isAdmin();
-        $isTrainer = in_array(auth()->user()->role, ['trainer', 'admin']);
+        $user      = auth()->user();
+        $role      = $user->role;
+        $isAdmin   = $user->isAdmin();
+        $isTrainer = in_array($role, ['trainer', 'admin']);
 
-        if ($isTrainer) {
-            $sessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
-                ->whereBetween('date', [$from, $to])
-                ->when(!$isAdmin, fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('users.id', auth()->id())))
-                ->orderBy('date')->orderBy('start_time')
-                ->get();
+        // Build role-specific training session query
+        $sessionQuery = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
+            ->whereBetween('date', [$from, $to])
+            ->orderBy('date')->orderBy('start_time');
 
-            foreach ($sessions as $s) {
-                $key = $s->date->format('Y-m-d');
-                if (!isset($map[$key])) continue;
-                $groups = $s->trainingGroups->pluck('name')->implode(', ');
-                $map[$key][] = [
-                    'type'    => 'training',
-                    'color'   => 'blue',
-                    'time'    => $s->start_time ? substr($s->start_time, 0, 5) : null,
-                    'title'   => $s->title,
-                    'sub'     => $groups,
-                    'trainer' => $s->trainer ? $s->trainer->firstname . ' ' . $s->trainer->lastname : null,
-                    'url'     => route('trainer.sessions.show', $s),
-                ];
+        $sessionDetailRoute = null;
+
+        if ($isAdmin) {
+            // Admin: all sessions
+            $sessionDetailRoute = 'trainer';
+        } elseif ($isTrainer) {
+            // Trainer: sessions where they are trainer or co-trainer
+            $sessionQuery->where(function ($q) use ($user) {
+                $q->where('trainer_id', $user->id)
+                  ->orWhereHas('coTrainers', fn($q2) => $q2->where('users.id', $user->id));
+            });
+            $sessionDetailRoute = 'trainer';
+        } elseif ($role === 'schwimmer') {
+            // Swimmer: sessions from their training groups or individual assignments
+            $groupIds      = $user->trainingGroups()->pluck('training_groups.id');
+            $individualIds = TrainingSessionSwimmer::where('user_id', $user->id)->whereNotNull('training_session_id')->pluck('training_session_id');
+            $seriesIds     = TrainingSessionSwimmer::where('user_id', $user->id)->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
+
+            $sessionQuery->where(function ($q) use ($groupIds, $individualIds, $seriesIds) {
+                if ($groupIds->isNotEmpty()) {
+                    $q->orWhereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
+                }
+                if ($individualIds->isNotEmpty()) {
+                    $q->orWhereIn('id', $individualIds);
+                }
+                if ($seriesIds->isNotEmpty()) {
+                    $q->orWhereIn('recurrence_group_id', $seriesIds);
+                }
+                if ($groupIds->isEmpty() && $individualIds->isEmpty() && $seriesIds->isEmpty()) {
+                    $q->whereRaw('0=1');
+                }
+            });
+            $sessionDetailRoute = 'swimmer';
+        } elseif ($role === 'elternteil') {
+            // Parent: sessions from all children's training groups
+            $childrenGroupIds = collect();
+            foreach ($user->children()->where('active', true)->get() as $child) {
+                $childrenGroupIds = $childrenGroupIds->merge(
+                    $child->trainingGroups()->pluck('training_groups.id')
+                );
             }
+            $childrenGroupIds = $childrenGroupIds->unique();
+
+            if ($childrenGroupIds->isNotEmpty()) {
+                $sessionQuery->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $childrenGroupIds));
+            } else {
+                $sessionQuery->whereRaw('0=1');
+            }
+            $sessionDetailRoute = 'none';
+        } else {
+            $sessionQuery->whereRaw('0=1');
+        }
+
+        $sessions = $sessionQuery->get();
+
+        foreach ($sessions as $s) {
+            $key = $s->date->format('Y-m-d');
+            if (!isset($map[$key])) continue;
+            $groups = $s->trainingGroups->pluck('name')->implode(', ');
+            $map[$key][] = [
+                'type'    => 'training',
+                'color'   => 'blue',
+                'time'    => $s->start_time ? substr($s->start_time, 0, 5) : null,
+                'title'   => $s->title,
+                'sub'     => $groups,
+                'trainer' => $s->trainer ? $s->trainer->firstname . ' ' . $s->trainer->lastname : null,
+                'url'     => match ($sessionDetailRoute) {
+                    'trainer' => route('trainer.sessions.show', $s),
+                    'swimmer' => route('swimmer.session.show', $s),
+                    default   => null,
+                },
+            ];
         }
 
         $competitions = Competition::whereBetween('date', [$from, $to])
@@ -243,7 +302,7 @@ class CalendarController extends Controller
                         'time'  => null,
                         'title' => $c->name,
                         'sub'   => $c->location,
-                        'url'   => route('admin.competitions.show', $c),
+                        'url'   => $isTrainer ? route('admin.competitions.show', $c) : null,
                     ];
                 }
                 $cur->addDay();

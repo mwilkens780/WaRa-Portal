@@ -28,6 +28,8 @@ use App\Http\Controllers\Swimmer\GoalController as SwimmerGoalController;
 use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
 use App\Http\Controllers\Trainer\HallBookingController;
 use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
+use App\Http\Controllers\ParentArea\TrainingController as ParentTrainingController;
+use App\Http\Controllers\ParentArea\SignupController as ParentSignupController;
 use App\Http\Controllers\Admin\PermissionMatrixController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Trainer\UserLiteController;
@@ -323,4 +325,14 @@ Route::middleware(['auth', 'role:elternteil'])->prefix('eltern')->name('parent.'
     Route::get('/dashboard', [ParentDashboard::class, 'index'])->name('dashboard');
     Route::get('/kind/{childId}/zeiten', [ParentDashboard::class, 'childTimes'])->name('child.times');
     Route::get('/kind/{childId}/wettkaempfe', [ParentDashboard::class, 'childCompetitions'])->name('child.competitions');
+
+    // Training: view upcoming sessions + register/cancel for child
+    Route::get('/kind/{childId}/training', [ParentTrainingController::class, 'childTrainings'])->name('child.trainings');
+    Route::post('/kind/{childId}/training/{session}/absage', [ParentTrainingController::class, 'cancelSession'])->name('child.session.cancel');
+    Route::post('/kind/{childId}/training/{session}/anmelden', [ParentTrainingController::class, 'register'])->name('child.session.register');
+    Route::delete('/kind/{childId}/training/{session}/anmelden', [ParentTrainingController::class, 'unregister'])->name('child.session.unregister');
+
+    // Competition signups: view + respond on behalf of child (with carpool/overnight/dinner)
+    Route::get('/kind/{childId}/anmeldungen', [ParentSignupController::class, 'childSignups'])->name('child.signups');
+    Route::post('/kind/{childId}/anmeldungen/{signupRequest}/antworten', [ParentSignupController::class, 'respond'])->name('child.signup.respond');
 });

@@ -65,7 +65,7 @@
 
 {{-- Treffpunkt & Bus --}}
 <div class="border-t border-gray-100 pt-4">
-    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Treffpunkt & Bus</p>
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Treffpunkt & Logistik</p>
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Treffpunkt</label>
@@ -99,5 +99,24 @@
                    min="1" max="100"
                    class="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
+    </div>
+
+    {{-- Übernachtung & Abendessen (für Eltern-Abfrage) --}}
+    <div class="mt-4 pt-4 border-t border-gray-100 space-y-2">
+        <p class="text-xs text-gray-500 mb-2">Optionale Angaben für Eltern-Abfrage:</p>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+            <input type="hidden" name="offer_overnight" value="0">
+            <input type="checkbox" name="offer_overnight" value="1"
+                   {{ ($signupRequest?->offer_overnight ?? false) ? 'checked' : '' }}
+                   class="rounded border-gray-300 text-primary focus:ring-primary">
+            <span class="text-sm font-medium text-gray-700">Übernachtung mit dem Team anbieten</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+            <input type="hidden" name="offer_dinner" value="0">
+            <input type="checkbox" name="offer_dinner" value="1"
+                   {{ ($signupRequest?->offer_dinner ?? false) ? 'checked' : '' }}
+                   class="rounded border-gray-300 text-primary focus:ring-primary">
+            <span class="text-sm font-medium text-gray-700">Gemeinsames Abendessen anbieten</span>
+        </label>
     </div>
 </div>

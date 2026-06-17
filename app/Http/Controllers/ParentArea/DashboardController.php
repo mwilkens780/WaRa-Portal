@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ParentArea;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompetitionSignupRequest;
 use App\Models\TrainingAttendance;
 use App\Models\SwimmingTime;
 use App\Models\CompetitionResult;
@@ -18,6 +19,10 @@ class DashboardController extends Controller
 
         $childData = [];
         foreach ($children as $child) {
+            $pendingSignups = CompetitionSignupRequest::where('status', 'active')
+                ->whereHas('responses', fn($q) => $q->where('user_id', $child->id)->where('status', 'pending'))
+                ->count();
+
             $childData[$child->id] = [
                 'user' => $child,
                 'trainings_this_month' => TrainingAttendance::where('user_id', $child->id)
@@ -35,6 +40,7 @@ class DashboardController extends Controller
                         ->where('time_ms', '>', 0)
                         ->get()
                 )->take(3),
+                'pending_signups' => $pendingSignups,
             ];
         }
 

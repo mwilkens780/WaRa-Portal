@@ -11,6 +11,7 @@ class CompetitionSignupRequest extends Model
         'deadline', 'eligible_group_ids', 'eligible_user_ids',
         'created_by_id', 'activated_at', 'closed_at',
         'meeting_point', 'meeting_time', 'bus_available', 'bus_seats',
+        'offer_overnight', 'offer_dinner',
     ];
 
     protected function casts(): array
@@ -23,6 +24,8 @@ class CompetitionSignupRequest extends Model
             'closed_at'          => 'datetime',
             'bus_available'      => 'boolean',
             'bus_seats'          => 'integer',
+            'offer_overnight'    => 'boolean',
+            'offer_dinner'       => 'boolean',
         ];
     }
 

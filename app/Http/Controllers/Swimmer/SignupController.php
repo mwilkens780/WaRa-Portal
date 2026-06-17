@@ -16,8 +16,10 @@ class SignupController extends Controller
         }
 
         $data = $request->validate([
-            'status' => ['required', 'in:attending,not_attending'],
-            'note'   => ['nullable', 'string', 'max:500'],
+            'status'         => ['required', 'in:attending,not_attending'],
+            'note'           => ['nullable', 'string', 'max:500'],
+            'wants_overnight'=> ['boolean'],
+            'wants_dinner'   => ['boolean'],
         ]);
 
         $response = CompetitionSignupResponse::where('competition_signup_request_id', $signupRequest->id)
@@ -28,11 +30,19 @@ class SignupController extends Controller
             return back()->with('error', 'Du bist nicht für diese Anmeldeabfrage eingeladen.');
         }
 
-        $response->update([
+        $update = [
             'status'       => $data['status'],
             'note'         => $data['note'] ?? null,
             'responded_at' => now(),
-        ]);
+        ];
+        if ($signupRequest->offer_overnight) {
+            $update['wants_overnight'] = $data['wants_overnight'] ?? false;
+        }
+        if ($signupRequest->offer_dinner) {
+            $update['wants_dinner'] = $data['wants_dinner'] ?? false;
+        }
+
+        $response->update($update);
 
         $label = $data['status'] === 'attending' ? 'Zusage' : 'Absage';
         return back()->with('success', "{$label} gespeichert.");
