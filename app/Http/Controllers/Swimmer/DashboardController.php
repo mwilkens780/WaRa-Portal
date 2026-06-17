@@ -55,13 +55,19 @@ class DashboardController extends Controller
 
     private function buildExclusionFilter(int $swimmerId): \Closure
     {
-        $excluded = SwimmerSeriesExclusion::where('user_id', $swimmerId)->pluck('recurrence_group_id');
+        $excluded      = SwimmerSeriesExclusion::where('user_id', $swimmerId)->pluck('recurrence_group_id');
+        $individualIds = TrainingSessionSwimmer::where('user_id', $swimmerId)
+            ->whereNotNull('training_session_id')->pluck('training_session_id');
 
-        return function ($q) use ($excluded) {
+        return function ($q) use ($excluded, $individualIds) {
             if ($excluded->isNotEmpty()) {
-                $q->where(function ($inner) use ($excluded) {
+                $q->where(function ($inner) use ($excluded, $individualIds) {
                     $inner->whereNull('recurrence_group_id')
                           ->orWhereNotIn('recurrence_group_id', $excluded);
+                    if ($individualIds->isNotEmpty()) {
+                        // Explicit individual joins override a series exclusion
+                        $inner->orWhereIn('id', $individualIds);
+                    }
                 });
             }
         };
@@ -317,19 +323,20 @@ class DashboardController extends Controller
         // ── Trainingsplanung: assigned series (grouped by recurrence_group_id) ──
         $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        // Series from group membership
         $groupSeriesIds = TrainingSession::whereNotNull('recurrence_group_id')
             ->whereHas('trainingGroups', fn($q) => $q->whereIn('training_groups.id', $swimmerGroupIds))
             ->distinct()->pluck('recurrence_group_id');
 
-        // Series from individual assignment
         $individualSeriesIds = TrainingSessionSwimmer::where('user_id', $swimmer->id)
             ->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
 
         $allSeriesIds = $groupSeriesIds->merge($individualSeriesIds)->unique()->values();
 
-        // For each series, load representative session + exclusion status
-        $excludedSeriesIds = SwimmerSeriesExclusion::where('user_id', $swimmer->id)->pluck('recurrence_group_id');
+        // Load exclusions as objects to access comment
+        $exclusions        = SwimmerSeriesExclusion::where('user_id', $swimmer->id)->get()->keyBy('recurrence_group_id');
+        $excludedSeriesIds = $exclusions->keys();
+
+        $dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
         $trainingSeries = collect();
         foreach ($allSeriesIds as $seriesId) {
@@ -338,6 +345,17 @@ class DashboardController extends Controller
                 ->orderBy('date')
                 ->first();
             if ($rep) {
+                $isExcluded = $exclusions->has($seriesId);
+                $exclusion  = $exclusions->get($seriesId);
+
+                // Load next upcoming sessions for excluded series (for punctual-join UI)
+                $upcomingForSeries = $isExcluded
+                    ? TrainingSession::where('recurrence_group_id', $seriesId)
+                        ->where('date', '>', today())
+                        ->orderBy('date')->orderBy('start_time')
+                        ->take(6)->get()
+                    : null;
+
                 $trainingSeries->push((object)[
                     'recurrence_group_id' => $seriesId,
                     'title'               => $rep->title,
@@ -345,10 +363,19 @@ class DashboardController extends Controller
                     'type_color'          => $rep->type_color,
                     'groups'              => $rep->trainingGroups,
                     'trainer'             => $rep->trainer,
-                    'is_excluded'         => $excludedSeriesIds->contains($seriesId),
+                    'start_time'          => $rep->start_time ? substr($rep->start_time, 0, 5) : null,
+                    'end_time'            => $rep->end_time   ? substr($rep->end_time,   0, 5) : null,
+                    'day_of_week_iso'     => $rep->date->dayOfWeekIso,
+                    'day_label'           => $dayLabels[$rep->date->dayOfWeekIso - 1],
+                    'is_excluded'         => $isExcluded,
+                    'exclusion_comment'   => $exclusion?->comment,
+                    'upcoming_sessions'   => $upcomingForSeries,
                 ]);
             }
         }
+
+        // Sort chronologically Mo (1) → So (7)
+        $trainingSeries = $trainingSeries->sortBy('day_of_week_iso')->values();
 
         // ── Upcoming sessions (strictly future, exclusions applied) ──────────
         $upcoming = TrainingSession::where('date', '>', today())
@@ -358,7 +385,6 @@ class DashboardController extends Controller
             ->orderBy('date')->orderBy('start_time')
             ->get();
 
-        // Registrations of this swimmer for upcoming sessions
         $myRegistrations = \App\Models\TrainingSessionRegistration::where('user_id', $swimmer->id)
             ->whereIn('training_session_id', $upcoming->pluck('id'))
             ->pluck('training_session_id');
@@ -369,10 +395,12 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('training_session_id');
 
-        // ── Past sessions (incl. today) ──────────────────────────────────────
+        // ── Past sessions: exclude swimmer-cancelled ones, group by month ────
         $filter    = request('filter', 'all');
         $pastQuery = TrainingSession::where('date', '<=', today())
             ->tap($relevantSessions)
+            // Never show sessions the swimmer pre-cancelled
+            ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
             ->with([
                 'coTrainers:id,firstname,lastname',
                 'attendances' => fn($q) => $q->where('user_id', $swimmer->id),
@@ -382,8 +410,6 @@ class DashboardController extends Controller
 
         if ($filter === 'attended') {
             $pastQuery->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true));
-        } elseif ($filter === 'missed') {
-            $pastQuery->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true));
         }
 
         $pastSessions = $pastQuery->paginate(20)->withQueryString();

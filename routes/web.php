@@ -308,6 +308,7 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     // Registrierung für offene Einheiten
     Route::post('/training/{session}/anmelden', [SessionPlanningController::class, 'register'])->name('session.register');
     Route::delete('/training/{session}/anmelden', [SessionPlanningController::class, 'unregister'])->name('session.unregister');
+    Route::post('/training/{session}/einzel-beitreten', [SessionPlanningController::class, 'punctualJoin'])->name('session.punctual.join');
 
     // Ziele
     Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');

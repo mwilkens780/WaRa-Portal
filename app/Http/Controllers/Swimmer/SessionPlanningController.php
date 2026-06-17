@@ -6,18 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Models\SwimmerSeriesExclusion;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionRegistration;
+use App\Models\TrainingSessionSwimmer;
 use Illuminate\Http\Request;
 
 class SessionPlanningController extends Controller
 {
-    public function excludeSeries(string $recurrenceGroupId)
+    public function excludeSeries(Request $request, string $recurrenceGroupId)
     {
-        SwimmerSeriesExclusion::firstOrCreate([
-            'user_id'             => auth()->id(),
-            'recurrence_group_id' => $recurrenceGroupId,
+        $data = $request->validate([
+            'comment' => ['nullable', 'string', 'max:500'],
         ]);
 
-        return back()->with('success', 'Serie ausgeblendet.');
+        SwimmerSeriesExclusion::updateOrCreate(
+            [
+                'user_id'             => auth()->id(),
+                'recurrence_group_id' => $recurrenceGroupId,
+            ],
+            ['comment' => $data['comment'] ?? null]
+        );
+
+        return back()->with('success', 'Serie als Dauerhafte Absage eingetragen.');
     }
 
     public function includeSeries(string $recurrenceGroupId)
@@ -26,7 +34,17 @@ class SessionPlanningController extends Controller
             ->where('recurrence_group_id', $recurrenceGroupId)
             ->delete();
 
-        return back()->with('success', 'Serie wieder eingeblendet.');
+        return back()->with('success', 'Dauerhafte Absage zurückgenommen.');
+    }
+
+    public function punctualJoin(TrainingSession $session)
+    {
+        TrainingSessionSwimmer::firstOrCreate([
+            'user_id'             => auth()->id(),
+            'training_session_id' => $session->id,
+        ]);
+
+        return back()->with('success', 'Für diese Einheit eingetragen.');
     }
 
     public function register(TrainingSession $session)

@@ -9,7 +9,7 @@ class SwimmerSeriesExclusion extends Model
     public $timestamps = false;
     public $incrementing = false;
 
-    protected $fillable = ['user_id', 'recurrence_group_id'];
+    protected $fillable = ['user_id', 'recurrence_group_id', 'comment'];
 
     public function user()
     {
