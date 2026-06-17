@@ -3,6 +3,8 @@
 /public/storage
 /storage/*.key
 /storage/app/dsv-imports
+/storage/app/competition-docs
+/storage/app/announcements
 /storage/framework/cache
 /storage/framework/sessions
 /storage/framework/sessions
