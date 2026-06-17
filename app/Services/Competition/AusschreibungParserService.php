@@ -41,7 +41,7 @@ class AusschreibungParserService
 
     private function extractWithClaude(string $pdfPath): array
     {
-        $apiKey = env('ANTHROPIC_API_KEY');
+        $apiKey = config('services.anthropic.api_key');
         if (!$apiKey) {
             throw new \RuntimeException('ANTHROPIC_API_KEY nicht konfiguriert.');
         }

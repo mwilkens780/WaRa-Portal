@@ -651,7 +651,7 @@ class CompetitionController extends Controller
             return response()->json(['error' => 'Keine gültigen Ergebnisse für die Auswertung vorhanden.'], 422);
         }
 
-        $apiKey = env('ANTHROPIC_API_KEY');
+        $apiKey = config('services.anthropic.api_key');
         if (!$apiKey) {
             return response()->json(['error' => 'Kein API-Key konfiguriert (ANTHROPIC_API_KEY in .env).'], 500);
         }
