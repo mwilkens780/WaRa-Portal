@@ -151,12 +151,10 @@ class DashboardController extends Controller
                 ->get()
         )->take(5);
 
-        // Nächster anstehender Wettkampf (gefiltert nach Gruppen des Schwimmers)
-        $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
+        // Nächster anstehender Wettkampf: nur dem Schwimmer zugeordnete Wettkämpfe
         $next_competition = Competition::where('date', '>=', today())
-            ->where(fn($q) => $q
-                ->whereDoesntHave('trainingGroups')
-                ->orWhereHas('trainingGroups', fn($q) => $q->whereIn('training_groups.id', $swimmerGroupIds))
+            ->whereHas('trainingGroups', fn($q) =>
+                $q->whereIn('training_groups.id', $swimmerGroupIds)
             )
             ->orderBy('date')->first();
 
@@ -542,12 +540,28 @@ class DashboardController extends Controller
 
     public function myCompetitions()
     {
-        $swimmer = auth()->user();
+        $swimmer         = auth()->user();
+        $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
+
+        // All competitions assigned to swimmer's training groups (upcoming + past)
+        $allComps = Competition::whereHas('trainingGroups', fn($q) =>
+                $q->whereIn('training_groups.id', $swimmerGroupIds)
+            )
+            ->with([
+                'signupRequest' => fn($q) => $q->with([
+                    'responses' => fn($q) => $q->where('user_id', $swimmer->id),
+                ]),
+                'entries'  => fn($q) => $q->where('user_id', $swimmer->id),
+                'events',
+            ])
+            ->orderByDesc('date')
+            ->get();
+
+        // Load ALL results for accurate PB/SB detection across all competitions
         $raw = CompetitionResult::with('competition')
             ->where('user_id', $swimmer->id)
             ->get();
 
-        // Build best-time maps for PB/JB/SB detection (competition results only)
         $allTimeBests = [];
         $yearBests    = [];
         $seasonBests  = [];
@@ -567,45 +581,32 @@ class DashboardController extends Controller
             }
         }
 
-        // Age-group map for record checking (id → age_group, null = open class)
         $resultAgeGroupMap = $raw->keyBy('id')->map(fn($r) => $r->age_group);
-
-        // Current records: keyed type|disc|dist|gender|age_group|course → min time_ms
         $allRecords = Record::all()->groupBy(
             fn($r) => $r->type . '|' . $r->discipline . '|' . $r->distance . '|' . $r->gender . '|' . ($r->age_group ?? '') . '|' . $r->course
         )->map(fn($recs) => $recs->min('time_ms'));
 
         $allSwims = CompetitionResultGrouper::forSwimmer($raw);
-
-        // Augment each swim with pb_badge and beaten_records
         $allSwims = $allSwims->map(function ($swim) use ($allTimeBests, $yearBests, $seasonBests, $allRecords, $resultAgeGroupMap) {
             if ($swim->is_dns || !$swim->time_ms) {
-                $swim->pb_badge      = null;
+                $swim->pb_badge       = null;
                 $swim->beaten_records = [];
                 return $swim;
             }
-
             $key  = $swim->discipline . '_' . $swim->distance;
             $date = $swim->competition?->date;
-
-            $isBestEver   = ($swim->time_ms === ($allTimeBests[$key] ?? PHP_INT_MAX));
-            $isBestYear   = $date && ($swim->time_ms === ($yearBests[$date->year][$key] ?? PHP_INT_MAX));
-            $isBestSeason = $date && ($swim->time_ms === ($seasonBests[$this->seasonKey($date)][$key] ?? PHP_INT_MAX));
-
+            $isBestEver   = $swim->time_ms === ($allTimeBests[$key] ?? PHP_INT_MAX);
+            $isBestYear   = $date && $swim->time_ms === ($yearBests[$date->year][$key] ?? PHP_INT_MAX);
+            $isBestSeason = $date && $swim->time_ms === ($seasonBests[$this->seasonKey($date)][$key] ?? PHP_INT_MAX);
             $swim->pb_badge = match(true) {
                 $isBestEver   => 'PB',
                 $isBestYear   => 'JB',
                 $isBestSeason => 'SB',
                 default       => null,
             };
-
-            // Check which records this result equals or beats
             $course    = $swim->competition?->course ?? 'Langbahn';
             $gender    = $swim->gender ?? '';
-            $ageGroups = collect($swim->result_ids)
-                ->map(fn($id) => $resultAgeGroupMap->get($id))
-                ->unique()->values();
-
+            $ageGroups = collect($swim->result_ids)->map(fn($id) => $resultAgeGroupMap->get($id))->unique()->values();
             $beatenRecords = [];
             foreach (['vereinsrekord', 'landesrekord'] as $type) {
                 foreach ($ageGroups as $ag) {
@@ -618,21 +619,18 @@ class DashboardController extends Controller
                 }
             }
             $swim->beaten_records = $beatenRecords;
-
             return $swim;
         });
 
         $grouped = $allSwims->groupBy('competition_id');
 
-        $competitionIds = $grouped->keys()->toArray();
-        $perPage  = 10;
-        $page     = (int) request('page', 1);
-
-        $allComps  = Competition::whereIn('id', $competitionIds)->orderByDesc('date')->get();
-        $pageItems = $allComps->forPage($page, $perPage)->values();
-        foreach ($pageItems as $comp) {
+        foreach ($allComps as $comp) {
             $comp->processedResults = $grouped->get($comp->id, collect());
         }
+
+        $perPage   = 10;
+        $page      = (int) request('page', 1);
+        $pageItems = $allComps->forPage($page, $perPage)->values();
 
         $competitions = new LengthAwarePaginator($pageItems, $allComps->count(), $perPage, $page, [
             'path' => request()->url(),

@@ -62,22 +62,34 @@ class DashboardController extends Controller
 
     public function childCompetitions(int $childId)
     {
-        $parent = auth()->user();
-        $child  = $parent->children()->findOrFail($childId);
+        $parent        = auth()->user();
+        $child         = $parent->children()->findOrFail($childId);
+        $childGroupIds = $child->trainingGroups()->pluck('training_groups.id');
+
+        $allComps = \App\Models\Competition::whereHas('trainingGroups', fn($q) =>
+                $q->whereIn('training_groups.id', $childGroupIds)
+            )
+            ->with([
+                'signupRequest' => fn($q) => $q->with([
+                    'responses' => fn($q) => $q->where('user_id', $child->id),
+                ]),
+                'entries'  => fn($q) => $q->where('user_id', $child->id),
+                'events',
+            ])
+            ->orderByDesc('date')
+            ->get();
 
         $raw      = CompetitionResult::with('competition')->where('user_id', $child->id)->get();
         $allSwims = CompetitionResultGrouper::forSwimmer($raw);
         $grouped  = $allSwims->groupBy('competition_id');
 
-        $competitionIds = $grouped->keys()->toArray();
-        $perPage  = 10;
-        $page     = (int) request('page', 1);
-
-        $allComps  = \App\Models\Competition::whereIn('id', $competitionIds)->orderByDesc('date')->get();
-        $pageItems = $allComps->forPage($page, $perPage)->values();
-        foreach ($pageItems as $comp) {
+        foreach ($allComps as $comp) {
             $comp->processedResults = $grouped->get($comp->id, collect());
         }
+
+        $perPage   = 10;
+        $page      = (int) request('page', 1);
+        $pageItems = $allComps->forPage($page, $perPage)->values();
 
         $competitions = new LengthAwarePaginator($pageItems, $allComps->count(), $perPage, $page, [
             'path' => request()->url(),
