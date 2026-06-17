@@ -8,10 +8,21 @@ class CompetitionRelayEntry extends Model
 {
     public $timestamps = false;
 
+    const GENDER_LABELS = [
+        'M'     => 'Männlich',
+        'F'     => 'Weiblich',
+        'mixed' => 'Mixed',
+    ];
+
     protected $fillable = [
         'competition_id', 'competition_event_id', 'discipline', 'distance',
         'gender', 'age_group', 'entry_time_ms', 'status', 'notes', 'created_by_id',
     ];
+
+    public function getGenderLabelAttribute(): string
+    {
+        return self::GENDER_LABELS[$this->gender] ?? $this->gender;
+    }
 
     public function competition()
     {
