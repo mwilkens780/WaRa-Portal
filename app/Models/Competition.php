@@ -69,6 +69,11 @@ class Competition extends Model
         return $this->hasOne(CompetitionSignupRequest::class);
     }
 
+    public function documents()
+    {
+        return $this->hasMany(\App\Models\CompetitionDocument::class)->orderBy('category')->orderBy('created_at');
+    }
+
     public function federation()
     {
         return $this->belongsTo(Federation::class);

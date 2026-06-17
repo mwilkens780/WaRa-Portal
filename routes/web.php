@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\WebClubImportController;
 use App\Http\Controllers\Admin\CompetitionWebclubImportController;
 use App\Http\Controllers\Admin\CompetitionEntryController;
 use App\Http\Controllers\Admin\CompetitionSignupController;
+use App\Http\Controllers\Admin\CompetitionDocumentController;
 use App\Http\Controllers\Admin\ImportLogController;
 use App\Http\Controllers\Swimmer\SignupController as SwimmerSignupController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
@@ -155,6 +156,12 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
     Route::get('/wettkaempfe/{competition}/dsv7/definitionsdatei', [CompetitionEntryController::class, 'downloadDefinitionsdatei'])->name('competitions.dsv7.definitionsdatei');
     Route::get('/wettkaempfe/{competition}/dsv7/ausschreibung-pdf', [CompetitionEntryController::class, 'downloadAusschreibungPdf'])->name('competitions.dsv7.ausschreibung-pdf');
     Route::post('/wettkaempfe/{competition}/vollimport', [AdminCompetitionController::class, 'fullImport'])->name('competitions.full-import');
+    Route::post('/wettkaempfe/{competition}/definition-import', [AdminCompetitionController::class, 'importDefinition'])->name('competitions.definition-import');
+
+    // Dokumente
+    Route::post('/wettkaempfe/{competition}/dokumente', [CompetitionDocumentController::class, 'store'])->name('competitions.documents.store');
+    Route::get('/wettkaempfe/{competition}/dokumente/{document}/download', [CompetitionDocumentController::class, 'download'])->name('competitions.documents.download');
+    Route::delete('/wettkaempfe/{competition}/dokumente/{document}', [CompetitionDocumentController::class, 'destroy'])->name('competitions.documents.destroy');
 
     // Import-Log
     Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');

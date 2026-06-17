@@ -5,9 +5,8 @@
 @section('content')
 <div class="mt-2 space-y-4"
      x-data="{
-         activeTab: '{{ $errors->has('dsv_file') ? 'info' : 'ergebnisse' }}',
+         activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : 'ergebnisse' }}',
          showForm: false,
-         showImport: {{ $errors->has('dsv_file') ? 'true' : 'false' }},
          resultsView: 'strecke',
      }">
 
@@ -37,15 +36,15 @@
                         Bearbeiten
                     </a>
                 @endif
-                <button @click="activeTab = 'info'; showImport = !showImport; showForm = false"
+                <button @click="activeTab = 'import'; showForm = false"
                         class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                     </svg>
-                    DSV-Import
+                    Import
                 </button>
                 @if(auth()->user()->role === 'admin')
-                    <button @click="activeTab = 'ergebnisse'; showForm = !showForm; showImport = false"
+                    <button @click="activeTab = 'ergebnisse'; showForm = !showForm"
                             class="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">
                         + Ergebnis eintragen
                     </button>
@@ -59,12 +58,23 @@
 
         {{-- Tab-Bar --}}
         <div class="flex border-b border-gray-200 overflow-x-auto">
-            <button @click="activeTab = 'info'"
-                    :class="activeTab === 'info'
+            <button @click="activeTab = 'import'"
+                    :class="activeTab === 'import'
                         ? 'border-primary text-primary bg-blue-50/40'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">
                 Import
+            </button>
+            <button @click="activeTab = 'dokumente'"
+                    :class="activeTab === 'dokumente'
+                        ? 'border-primary text-primary bg-blue-50/40'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                    class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
+                Dokumente
+                @php $docCount = $documents->flatten()->count(); @endphp
+                @if($docCount > 0)
+                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $docCount }}</span>
+                @endif
             </button>
             <button @click="activeTab = 'wettkampf'"
                     :class="activeTab === 'wettkampf'
@@ -178,75 +188,84 @@
         </div>
 
         {{-- Tab: Import --}}
-        <div x-show="activeTab === 'info'" x-cloak>
-            <div x-show="showImport" class="border-b border-gray-100 p-5 space-y-4">
-                {{-- Info-Box: Format --}}
-                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                    <h3 class="font-semibold text-blue-800 mb-2">Unterstütztes Format: Lenex XML (DSV6/7)</h3>
-                    <ul class="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                        <li>Dateiendungen: <strong>.dsv7</strong>, <strong>.lef</strong>, <strong>.xml</strong>, <strong>.txt</strong> – max. 20 MB</li>
-                        <li>Ergebnisdateien vom DSV, Swimrankings oder WebClub (Lenex 2.0 / 3.0)</li>
-                        <li>Vereine aus der Datei werden in einer Vorschau angezeigt – Einträge der SG Wasserratten werden automatisch vorausgewählt</li>
-                        <li>DQ, DNS und DNF werden als solche gespeichert</li>
-                        <li>Bestzeiten werden automatisch erkannt und aktualisiert</li>
-                        <li>Mehrere Wertungsklassen (z.B. AK14 + Offene Wertung) für denselben Start werden zusammengeführt</li>
-                    </ul>
-                </div>
-                <form method="POST" action="{{ route('admin.competitions.results-import.upload', $competition) }}"
-                      enctype="multipart/form-data" class="space-y-4">
-                    @csrf
-                    <div class="border-2 border-dashed {{ $errors->has('dsv_file') ? 'border-red-300 bg-red-50' : 'border-gray-300' }} rounded-xl p-6 text-center hover:border-primary transition-colors">
-                        <svg class="mx-auto w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <p class="text-sm text-gray-400 mb-3">.dsv7, .lef, .xml oder .txt</p>
-                        <input type="file" name="dsv_file" accept=".xml,.lef,.txt,.dsv7"
-                               class="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
-                    </div>
-                    @error('dsv_file')
-                        <p class="text-red-600 text-sm font-medium">{{ $message }}</p>
-                    @enderror
-                    <div class="flex gap-3">
-                        <button type="submit"
-                                class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
-                            Datei einlesen → Vorschau
-                        </button>
-                        <button type="button" @click="showImport = false"
-                                class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                            Abbrechen
-                        </button>
-                    </div>
-                </form>
-            </div>
-            {{-- WebClub CSV Import --}}
-            <div class="border-t border-gray-100 p-5 space-y-3">
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <h3 class="font-semibold text-gray-700 mb-1 text-sm">WebClub CSV-Import</h3>
-                    <p class="text-xs text-gray-500 mb-3">
-                        WebClub-Ergebnisexport (.csv) – enthält PBZ/SBZ/SR-Kennzeichnung. Alle Athleten aus der Datei werden gegen Portal-Schwimmer abgeglichen.
-                    </p>
-                    <form method="POST" action="{{ route('admin.competitions.wc-import.upload', $competition) }}"
-                          enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-                        @csrf
-                        <div>
-                            <input type="file" name="csv_file" accept=".csv,.txt"
-                                   class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-700 cursor-pointer">
-                        </div>
-                        <button type="submit"
-                                class="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
-                            CSV einlesen → Vorschau
-                        </button>
-                    </form>
-                    @error('csv_file')
-                        <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
-                    @enderror
-                </div>
-            </div>
+        <div x-show="activeTab === 'import'" x-cloak>
+            <div class="p-5 space-y-6">
 
-            <div x-show="!showImport" class="p-5">
-                <p class="text-sm text-gray-400 text-center py-4">
-                    Klicke auf <strong class="text-gray-600">DSV-Import</strong> oben, um Ergebnisse aus einer DSV7-Datei zu importieren.
-                </p>
+                {{-- 1. Wettkampfdefinitionsdatei --}}
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                        <h3 class="text-sm font-semibold text-gray-700">Wettkampfdefinitionsdatei importieren (*-Wk.DSV7)</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Ersetzt die aktuelle Wettkampffolge durch die Events aus der Definitionsdatei. Pflichtzeiten und Meldegelder werden automatisch übernommen.</p>
+                    </div>
+                    <div class="p-4">
+                        <form method="POST" action="{{ route('admin.competitions.definition-import', $competition) }}"
+                              enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+                            @csrf
+                            <div>
+                                <input type="file" name="def_file" accept=".dsv7,.txt"
+                                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
+                            </div>
+                            <button type="submit"
+                                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
+                                Wettkampffolge importieren
+                            </button>
+                        </form>
+                        @error('def_file')
+                            <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                {{-- 2. DSV7 Ergebnisse (Vereinsergebnisliste / Wettkampfergebnisliste) --}}
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                        <h3 class="text-sm font-semibold text-gray-700">Ergebnisse importieren – DSV7 / Lenex XML</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Dateiendungen: .dsv7, .lef, .xml, .txt – max. 20 MB. Nur Ergebnisse der eigenen Schwimmer werden zugeordnet; Vorschau vor dem Speichern.</p>
+                    </div>
+                    <div class="p-4">
+                        <form method="POST" action="{{ route('admin.competitions.results-import.upload', $competition) }}"
+                              enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+                            @csrf
+                            <div>
+                                <input type="file" name="dsv_file" accept=".xml,.lef,.txt,.dsv7"
+                                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
+                            </div>
+                            <button type="submit"
+                                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
+                                Datei einlesen → Vorschau
+                            </button>
+                        </form>
+                        @error('dsv_file')
+                            <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                {{-- 3. WebClub CSV --}}
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                        <h3 class="text-sm font-semibold text-gray-700">Ergebnisse importieren – WebClub CSV</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">WebClub-Ergebnisexport (.csv) – enthält PBZ/SBZ/SR-Kennzeichnung. Alle Athleten aus der Datei werden gegen Portal-Schwimmer abgeglichen.</p>
+                    </div>
+                    <div class="p-4">
+                        <form method="POST" action="{{ route('admin.competitions.wc-import.upload', $competition) }}"
+                              enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+                            @csrf
+                            <div>
+                                <input type="file" name="csv_file" accept=".csv,.txt"
+                                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-700 cursor-pointer">
+                            </div>
+                            <button type="submit"
+                                    class="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
+                                CSV einlesen → Vorschau
+                            </button>
+                        </form>
+                        @error('csv_file')
+                            <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -254,7 +273,7 @@
         <div x-show="activeTab === 'wettkampf'" x-cloak>
             @if($competition->events->isEmpty())
                 <p class="text-sm text-gray-400 text-center px-5 py-8">
-                    Noch keine Wettkampffolge hinterlegt. Importiere eine DSV7-Definitionsdatei über die Bearbeiten-Seite.
+                    Noch keine Wettkampffolge hinterlegt. Lade eine DSV7-Definitionsdatei (*-Wk.DSV7) im Import-Tab hoch.
                 </p>
             @else
                 @php $bySession = $competition->events->groupBy('session_number'); @endphp
@@ -1971,6 +1990,70 @@
                 </div>
             </template>
 
+        </div>
+
+        {{-- Tab: Dokumente --}}
+        <div x-show="activeTab === 'dokumente'" x-cloak>
+            <div class="p-5 space-y-6">
+
+                @foreach(\App\Models\CompetitionDocument::CATEGORIES as $catKey => $catLabel)
+                @php $catDocs = $documents->get($catKey, collect()); @endphp
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-700">{{ $catLabel }}</h3>
+                        </div>
+                        <form method="POST" action="{{ route('admin.competitions.documents.store', $competition) }}"
+                              enctype="multipart/form-data" class="flex gap-2 items-center shrink-0">
+                            @csrf
+                            <input type="hidden" name="category" value="{{ $catKey }}">
+                            <input type="file" name="file"
+                                   class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
+                            <button type="submit"
+                                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors whitespace-nowrap">
+                                Hochladen
+                            </button>
+                        </form>
+                    </div>
+
+                    @if($catDocs->isEmpty())
+                        <p class="text-xs text-gray-400 px-4 py-3">Noch keine {{ $catLabel }}-Datei hochgeladen.</p>
+                    @else
+                        <ul class="divide-y divide-gray-50">
+                            @foreach($catDocs as $doc)
+                            <li class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                                <svg class="w-5 h-5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 truncate">{{ $doc->original_name }}</p>
+                                    <p class="text-xs text-gray-400">
+                                        {{ $doc->file_size_formatted }}
+                                        · {{ $doc->created_at->deBerlin('d.m.Y H:i') }}
+                                        @if($doc->createdBy) · {{ $doc->createdBy->name }} @endif
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <a href="{{ route('admin.competitions.documents.download', [$competition, $doc]) }}"
+                                       class="text-xs text-primary hover:text-primary-dark font-medium">
+                                        Download
+                                    </a>
+                                    <form method="POST" action="{{ route('admin.competitions.documents.destroy', [$competition, $doc]) }}"
+                                          onsubmit="return confirm('Dokument wirklich löschen?')"
+                                          class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-medium">Löschen</button>
+                                    </form>
+                                </div>
+                            </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+                @endforeach
+
+            </div>
         </div>
 
     </div>{{-- end tab container --}}

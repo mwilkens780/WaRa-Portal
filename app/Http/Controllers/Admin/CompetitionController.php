@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
+use App\Models\CompetitionDocument;
 use App\Models\CompetitionEvent;
 use App\Models\CompetitionResult;
 use App\Models\SwimmingTime;
@@ -278,11 +279,18 @@ class CompetitionController extends Controller
 
         $hasQualifikation = $hasPflichtzeiten && $signupRequest;
 
+        $documents = CompetitionDocument::where('competition_id', $competition->id)
+            ->with('createdBy')
+            ->orderBy('category')
+            ->orderBy('created_at')
+            ->get()
+            ->groupBy('category');
+
         return view('admin.competitions.show',
             compact('competition', 'results', 'swimmers', 'allGroups',
                     'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest',
                     'hasQualifikation', 'qualifyingEvents', 'qualificationSwimmers',
-                    'qualResultsByUserEvent', 'bestTimesByUserEvent'));
+                    'qualResultsByUserEvent', 'bestTimesByUserEvent', 'documents'));
     }
 
     // ── Ausschreibungs-Import (PDF → Claude → strukturierte Daten) ────────────
@@ -486,6 +494,63 @@ class CompetitionController extends Controller
             'results'      => $results,
             'analysisHtml' => $competition->analysis_text ?? '',
         ]);
+    }
+
+    // ── Wettkampfdefinitionsdatei-Import für bestehenden Wettkampf ────────────
+
+    public function importDefinition(Request $request, Competition $competition)
+    {
+        $request->validate([
+            'def_file' => ['required', 'file', 'max:10240'],
+        ]);
+
+        $path     = $request->file('def_file')->store('dsv-imports', 'local');
+        $fullPath = storage_path('app/' . $path);
+
+        try {
+            $parsed = $this->service->parseMeetDefinition($fullPath);
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            return back()->with('error', 'Fehler beim Parsen der Definitionsdatei: ' . $e->getMessage());
+        }
+
+        Storage::disk('local')->delete($path);
+
+        $meet = $parsed['meets'][0] ?? null;
+        if (!$meet || empty($meet['events'])) {
+            return back()->with('error', 'Keine Wettkampf-Events in der Datei gefunden.');
+        }
+
+        DB::transaction(function () use ($competition, $meet) {
+            $competition->events()->delete();
+
+            foreach ($meet['events'] as $ev) {
+                $ageMin = (int)($ev['age_min'] ?? 0);
+                $ageMax = (int)($ev['age_max'] ?? 0);
+
+                CompetitionEvent::create([
+                    'competition_id'      => $competition->id,
+                    'event_number'        => (int)($ev['event_number'] ?? 0),
+                    'session_number'      => (int)($ev['session_number'] ?? 1),
+                    'session_date'        => $ev['session_date'] ?: null,
+                    'session_name'        => $ev['session_name'] ?: null,
+                    'discipline'          => $ev['discipline'],
+                    'distance'            => (int)$ev['distance'],
+                    'gender'              => $ev['gender'] ?? 'X',
+                    'age_min'             => ($ageMin > 0) ? $ageMin : null,
+                    'age_max'             => ($ageMax > 0 && $ageMax < 9999) ? $ageMax : null,
+                    'age_group'           => mb_substr($ev['age_group'] ?? '', 0, 50) ?: null,
+                    'qualifying_time_ms'  => isset($ev['qualifying_time_ms']) && (int)$ev['qualifying_time_ms'] > 0
+                                                ? (int)$ev['qualifying_time_ms'] : null,
+                    'qualifying_deadline' => $ev['qualifying_deadline'] ?? null,
+                    'meldegeld'           => isset($ev['meldegeld']) && (float)$ev['meldegeld'] > 0
+                                                ? (float)$ev['meldegeld'] : null,
+                ]);
+            }
+        });
+
+        $eventCount = count($meet['events']);
+        return back()->with('success', "Wettkampffolge importiert: {$eventCount} Wertungen übernommen.");
     }
 
     // ── Vollständiger Ergebnisimport (alle Clubs → ext_competition_results) ───
