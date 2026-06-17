@@ -167,6 +167,8 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
     Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/erinnern', [CompetitionSignupController::class, 'remind'])->name('competitions.signup.remind');
     Route::delete('/wettkaempfe/{competition}/anmeldung/{signupRequest}', [CompetitionSignupController::class, 'destroy'])->name('competitions.signup.destroy');
     Route::get('/wettkaempfe/{competition}/anmeldung/{signupRequest}/anhang', [CompetitionSignupController::class, 'downloadAttachment'])->name('competitions.signup.attachment');
+    Route::patch('/wettkaempfe/{competition}/anmeldung/{signupRequest}/qualifikation', [CompetitionSignupController::class, 'updateQualificationPeriod'])->name('competitions.signup.qualification-period');
+    Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/zuweisen', [CompetitionSignupController::class, 'quickAssign'])->name('competitions.signup.quick-assign');
 });
 
 // Rekorde – Ansicht für Trainer, Vorstand und Admin

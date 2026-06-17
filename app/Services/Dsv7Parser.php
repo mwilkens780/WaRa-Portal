@@ -98,8 +98,9 @@ class Dsv7Parser
                 'age_min'            => $w['age_min'] ?? null,
                 'age_max'            => $w['age_max'] ?? null,
                 'age_group'          => $w['age_group'] ?? '',
-                'qualifying_time_ms' => $w['qualifying_time_ms'] ?? null,
-                'meldegeld'          => $w['meldegeld'] ?? null,
+                'qualifying_time_ms'  => $w['qualifying_time_ms'] ?? null,
+                'qualifying_deadline' => $w['qualifying_deadline'] ?? null,
+                'meldegeld'           => $w['meldegeld'] ?? null,
             ];
         }
 
@@ -134,7 +135,7 @@ class Dsv7Parser
         $useNewFormat     = null; // null=undetected; true=new (runde/art field); false=old
 
         // Post-parse lookups: PFLICHTZEIT / MELDEGELD may appear after all WERTUNGs
-        $pflichtzeiten    = []; // wertungsID → qualifying_time_ms
+        $pflichtzeiten    = []; // wertungsID → ['time_ms' => int, 'deadline' => string|null]
         $meldegelder      = []; // wertungsID → meldegeld amount
 
         foreach ($lines as $rawLine) {
@@ -299,17 +300,32 @@ class Dsv7Parser
                     //                   0          1
 
                     if ($useNewFormat && ctype_alpha($f(1)) && $f(1) !== '') {
-                        $pWertungId = (int)$f(2);
-                        $pTimeStr   = $f(4) !== '' ? $f(4) : $f(3); // meldeschluss may be empty
+                        $pWertungId   = (int)$f(2);
+                        $pMeldeschluss = $f(3); // DD.MM.YYYY or empty
+                        $pTimeStr      = $f(4) !== '' ? $f(4) : $f(3);
+                        // If f(4) is empty, f(3) is the time (old 3-field variant)
+                        if ($f(4) === '') {
+                            $pMeldeschluss = '';
+                            $pTimeStr      = $f(3);
+                        }
                     } else {
-                        $pWertungId = (int)$f(0);
-                        $pTimeStr   = $f(1);
+                        $pWertungId    = (int)$f(0);
+                        $pMeldeschluss = '';
+                        $pTimeStr      = $f(1);
                     }
 
                     if ($pWertungId && $pTimeStr !== '' && strtoupper($pTimeStr) !== 'NT') {
                         $pTimeMs = $this->parseTime($pTimeStr);
                         if ($pTimeMs > 0) {
-                            $pflichtzeiten[$pWertungId] = $pTimeMs;
+                            $pDeadline = null;
+                            if ($pMeldeschluss !== '') {
+                                // DSV date format: DD.MM.YYYY
+                                $parsed = \DateTime::createFromFormat('d.m.Y', trim($pMeldeschluss));
+                                if ($parsed) {
+                                    $pDeadline = $parsed->format('Y-m-d');
+                                }
+                            }
+                            $pflichtzeiten[$pWertungId] = ['time_ms' => $pTimeMs, 'deadline' => $pDeadline];
                         }
                     }
                     break;
@@ -620,7 +636,8 @@ class Dsv7Parser
 
         foreach ($wertungMap as $wid => &$wertung) {
             if (isset($pflichtzeiten[$wid])) {
-                $wertung['qualifying_time_ms'] = $pflichtzeiten[$wid];
+                $wertung['qualifying_time_ms'] = $pflichtzeiten[$wid]['time_ms'];
+                $wertung['qualifying_deadline'] = $pflichtzeiten[$wid]['deadline'];
             }
             if (isset($meldegelder[$wid])) {
                 $wertung['meldegeld'] = $meldegelder[$wid];

@@ -8,7 +8,8 @@ class CompetitionSignupRequest extends Model
 {
     protected $fillable = [
         'competition_id', 'status', 'message', 'attachment_path',
-        'deadline', 'eligible_group_ids', 'eligible_user_ids',
+        'deadline', 'qualifying_period_start', 'qualifying_period_end',
+        'eligible_group_ids', 'eligible_user_ids',
         'created_by_id', 'activated_at', 'closed_at',
         'meeting_point', 'meeting_time', 'bus_available', 'bus_seats',
         'offer_overnight', 'offer_dinner',
@@ -19,8 +20,10 @@ class CompetitionSignupRequest extends Model
         return [
             'eligible_group_ids' => 'array',
             'eligible_user_ids'  => 'array',
-            'deadline'           => 'date',
-            'activated_at'       => 'datetime',
+            'deadline'                => 'date',
+            'qualifying_period_start' => 'date',
+            'qualifying_period_end'   => 'date',
+            'activated_at'            => 'datetime',
             'closed_at'          => 'datetime',
             'bus_available'      => 'boolean',
             'bus_seats'          => 'integer',

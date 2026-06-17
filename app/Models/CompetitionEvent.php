@@ -9,7 +9,7 @@ class CompetitionEvent extends Model
     protected $fillable = [
         'competition_id', 'event_number', 'dsv_wertungs_id', 'session_number', 'session_date',
         'session_name', 'discipline', 'distance', 'gender', 'age_min', 'age_max', 'age_group',
-        'qualifying_time_ms', 'meldegeld',
+        'qualifying_time_ms', 'qualifying_deadline', 'meldegeld',
     ];
 
     protected function casts(): array
@@ -19,8 +19,9 @@ class CompetitionEvent extends Model
             'distance'           => 'integer',
             'age_min'            => 'integer',
             'age_max'            => 'integer',
-            'qualifying_time_ms' => 'integer',
-            'meldegeld'          => 'decimal:2',
+            'qualifying_time_ms'  => 'integer',
+            'qualifying_deadline' => 'date',
+            'meldegeld'           => 'decimal:2',
         ];
     }
 

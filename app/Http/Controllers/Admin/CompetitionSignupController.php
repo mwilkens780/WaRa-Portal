@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionSignupRequest;
 use App\Models\CompetitionSignupResponse;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,19 +19,21 @@ class CompetitionSignupController extends Controller
         }
 
         $data = $request->validate([
-            'message'              => ['nullable', 'string'],
-            'deadline'             => ['nullable', 'date'],
-            'eligible_group_ids'   => ['nullable', 'array'],
-            'eligible_group_ids.*' => ['exists:training_groups,id'],
-            'eligible_user_ids'    => ['nullable', 'array'],
-            'eligible_user_ids.*'  => ['exists:users,id'],
-            'attachment'           => ['nullable', 'file', 'max:10240'],
-            'meeting_point'        => ['nullable', 'string', 'max:255'],
-            'meeting_time'         => ['nullable', 'date_format:H:i'],
-            'bus_available'        => ['boolean'],
-            'bus_seats'            => ['nullable', 'integer', 'min:1', 'max:100'],
-            'offer_overnight'      => ['boolean'],
-            'offer_dinner'         => ['boolean'],
+            'message'                  => ['nullable', 'string'],
+            'deadline'                 => ['nullable', 'date'],
+            'qualifying_period_start'  => ['nullable', 'date'],
+            'qualifying_period_end'    => ['nullable', 'date'],
+            'eligible_group_ids'       => ['nullable', 'array'],
+            'eligible_group_ids.*'     => ['exists:training_groups,id'],
+            'eligible_user_ids'        => ['nullable', 'array'],
+            'eligible_user_ids.*'      => ['exists:users,id'],
+            'attachment'               => ['nullable', 'file', 'max:10240'],
+            'meeting_point'            => ['nullable', 'string', 'max:255'],
+            'meeting_time'             => ['nullable', 'date_format:H:i'],
+            'bus_available'            => ['boolean'],
+            'bus_seats'                => ['nullable', 'integer', 'min:1', 'max:100'],
+            'offer_overnight'          => ['boolean'],
+            'offer_dinner'             => ['boolean'],
         ]);
 
         $attachmentPath = null;
@@ -39,20 +42,22 @@ class CompetitionSignupController extends Controller
         }
 
         CompetitionSignupRequest::create([
-            'competition_id'     => $competition->id,
-            'status'             => 'draft',
-            'message'            => $data['message'] ?? null,
-            'deadline'           => $data['deadline'] ?? null,
-            'eligible_group_ids' => $data['eligible_group_ids'] ?? null,
-            'eligible_user_ids'  => $data['eligible_user_ids'] ?? null,
-            'attachment_path'    => $attachmentPath,
-            'created_by_id'      => auth()->id(),
-            'meeting_point'      => $data['meeting_point'] ?? null,
-            'meeting_time'       => $data['meeting_time'] ?? null,
-            'bus_available'      => $data['bus_available'] ?? false,
-            'bus_seats'          => $data['bus_seats'] ?? 8,
-            'offer_overnight'    => $data['offer_overnight'] ?? false,
-            'offer_dinner'       => $data['offer_dinner'] ?? false,
+            'competition_id'          => $competition->id,
+            'status'                  => 'draft',
+            'message'                 => $data['message'] ?? null,
+            'deadline'                => $data['deadline'] ?? null,
+            'qualifying_period_start' => $data['qualifying_period_start'] ?? null,
+            'qualifying_period_end'   => $data['qualifying_period_end'] ?? null,
+            'eligible_group_ids'      => $data['eligible_group_ids'] ?? null,
+            'eligible_user_ids'       => $data['eligible_user_ids'] ?? null,
+            'attachment_path'         => $attachmentPath,
+            'created_by_id'           => auth()->id(),
+            'meeting_point'           => $data['meeting_point'] ?? null,
+            'meeting_time'            => $data['meeting_time'] ?? null,
+            'bus_available'           => $data['bus_available'] ?? false,
+            'bus_seats'               => $data['bus_seats'] ?? 8,
+            'offer_overnight'         => $data['offer_overnight'] ?? false,
+            'offer_dinner'            => $data['offer_dinner'] ?? false,
         ]);
 
         return back()->with('success', 'Anmeldeabfrage als Entwurf gespeichert.');
@@ -65,19 +70,21 @@ class CompetitionSignupController extends Controller
         }
 
         $data = $request->validate([
-            'message'              => ['nullable', 'string'],
-            'deadline'             => ['nullable', 'date'],
-            'eligible_group_ids'   => ['nullable', 'array'],
-            'eligible_group_ids.*' => ['exists:training_groups,id'],
-            'eligible_user_ids'    => ['nullable', 'array'],
-            'eligible_user_ids.*'  => ['exists:users,id'],
-            'attachment'           => ['nullable', 'file', 'max:10240'],
-            'meeting_point'        => ['nullable', 'string', 'max:255'],
-            'meeting_time'         => ['nullable', 'date_format:H:i'],
-            'bus_available'        => ['boolean'],
-            'bus_seats'            => ['nullable', 'integer', 'min:1', 'max:100'],
-            'offer_overnight'      => ['boolean'],
-            'offer_dinner'         => ['boolean'],
+            'message'                  => ['nullable', 'string'],
+            'deadline'                 => ['nullable', 'date'],
+            'qualifying_period_start'  => ['nullable', 'date'],
+            'qualifying_period_end'    => ['nullable', 'date'],
+            'eligible_group_ids'       => ['nullable', 'array'],
+            'eligible_group_ids.*'     => ['exists:training_groups,id'],
+            'eligible_user_ids'        => ['nullable', 'array'],
+            'eligible_user_ids.*'      => ['exists:users,id'],
+            'attachment'               => ['nullable', 'file', 'max:10240'],
+            'meeting_point'            => ['nullable', 'string', 'max:255'],
+            'meeting_time'             => ['nullable', 'date_format:H:i'],
+            'bus_available'            => ['boolean'],
+            'bus_seats'                => ['nullable', 'integer', 'min:1', 'max:100'],
+            'offer_overnight'          => ['boolean'],
+            'offer_dinner'             => ['boolean'],
         ]);
 
         $attachmentPath = $signupRequest->attachment_path;
@@ -89,20 +96,63 @@ class CompetitionSignupController extends Controller
         }
 
         $signupRequest->update([
-            'message'            => $data['message'] ?? null,
-            'deadline'           => $data['deadline'] ?? null,
-            'eligible_group_ids' => $data['eligible_group_ids'] ?? null,
-            'eligible_user_ids'  => $data['eligible_user_ids'] ?? null,
-            'attachment_path'    => $attachmentPath,
-            'meeting_point'      => $data['meeting_point'] ?? null,
-            'meeting_time'       => $data['meeting_time'] ?? null,
-            'bus_available'      => $data['bus_available'] ?? false,
-            'bus_seats'          => $data['bus_seats'] ?? 8,
-            'offer_overnight'    => $data['offer_overnight'] ?? false,
-            'offer_dinner'       => $data['offer_dinner'] ?? false,
+            'message'                 => $data['message'] ?? null,
+            'deadline'                => $data['deadline'] ?? null,
+            'qualifying_period_start' => $data['qualifying_period_start'] ?? null,
+            'qualifying_period_end'   => $data['qualifying_period_end'] ?? null,
+            'eligible_group_ids'      => $data['eligible_group_ids'] ?? null,
+            'eligible_user_ids'       => $data['eligible_user_ids'] ?? null,
+            'attachment_path'         => $attachmentPath,
+            'meeting_point'           => $data['meeting_point'] ?? null,
+            'meeting_time'            => $data['meeting_time'] ?? null,
+            'bus_available'           => $data['bus_available'] ?? false,
+            'bus_seats'               => $data['bus_seats'] ?? 8,
+            'offer_overnight'         => $data['offer_overnight'] ?? false,
+            'offer_dinner'            => $data['offer_dinner'] ?? false,
         ]);
 
         return back()->with('success', 'Anmeldeabfrage aktualisiert.');
+    }
+
+    // Qualifikationszeitraum aktualisieren — auch bei aktiver/geschlossener Abfrage erlaubt
+    public function updateQualificationPeriod(Request $request, Competition $competition, CompetitionSignupRequest $signupRequest)
+    {
+        $data = $request->validate([
+            'qualifying_period_start' => ['nullable', 'date'],
+            'qualifying_period_end'   => ['nullable', 'date'],
+        ]);
+
+        $signupRequest->update([
+            'qualifying_period_start' => $data['qualifying_period_start'] ?? null,
+            'qualifying_period_end'   => $data['qualifying_period_end'] ?? null,
+        ]);
+
+        return back()->with('success', 'Qualifikationszeitraum gespeichert.');
+    }
+
+    // Einzelschwimmer direkt zuweisen (auch nach Aktivierung)
+    public function quickAssign(Request $request, Competition $competition, CompetitionSignupRequest $signupRequest)
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+        ]);
+
+        $userId = (int) $data['user_id'];
+
+        // Add to eligible_user_ids
+        $ids   = collect($signupRequest->eligible_user_ids ?? [])->push($userId)->unique()->values()->all();
+        $signupRequest->update(['eligible_user_ids' => $ids]);
+
+        // If signup is active or closed: also create/ensure a response exists
+        if (!$signupRequest->isDraft()) {
+            CompetitionSignupResponse::firstOrCreate(
+                ['competition_signup_request_id' => $signupRequest->id, 'user_id' => $userId],
+                ['status' => 'pending']
+            );
+        }
+
+        $user = User::find($userId);
+        return back()->with('success', ($user?->name ?? 'Schwimmer') . ' wurde der Anmeldeabfrage hinzugefügt.');
     }
 
     public function activate(Competition $competition, CompetitionSignupRequest $signupRequest)

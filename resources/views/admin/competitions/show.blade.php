@@ -143,6 +143,25 @@
                     <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-normal">PDF</span>
                 @endif
             </button>
+            @if($hasQualifikation)
+            <button @click="activeTab = 'qualifikation'"
+                    :class="activeTab === 'qualifikation'
+                        ? 'border-primary text-primary bg-blue-50/40'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                    class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
+                Qualifikation
+                @php $qualCount = $qualificationSwimmers->filter(function($s) use ($qualifyingEvents, $qualResultsByUserEvent) {
+                    foreach ($qualifyingEvents as $e) {
+                        $k = "{$s->id}_{$e->discipline}_{$e->distance}";
+                        if (isset($qualResultsByUserEvent[$k]) && $qualResultsByUserEvent[$k] <= $e->qualifying_time_ms) return true;
+                    }
+                    return false;
+                })->count(); @endphp
+                @if($qualCount > 0)
+                    <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-normal">{{ $qualCount }} ✓</span>
+                @endif
+            </button>
+            @endif
             <button @click="activeTab = 'meldungen'"
                     :class="activeTab === 'meldungen'
                         ? 'border-primary text-primary bg-blue-50/40'
@@ -1089,6 +1108,179 @@
             </form>
         </div>
 
+        {{-- Tab: Qualifikation --}}
+        @if($hasQualifikation)
+        <div x-show="activeTab === 'qualifikation'" x-cloak class="p-5 space-y-6">
+
+            {{-- Qualifikationszeitraum (immer editierbar) --}}
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <form method="POST" action="{{ route('admin.competitions.signup.qualification-period', [$competition, $signupRequest]) }}" class="space-y-3">
+                    @csrf @method('PATCH')
+                    <div>
+                        <p class="text-sm font-semibold text-blue-800">Qualifikationszeitraum</p>
+                        <p class="text-xs text-blue-600 mt-0.5">Nur Wettkampf-Ergebnisse aus diesem Zeitraum werden für den Pflichtzeiten-Nachweis herangezogen. Leer = keine Datumsbeschränkung.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Von</label>
+                            <input type="date" name="qualifying_period_start"
+                                   value="{{ $signupRequest->qualifying_period_start?->format('Y-m-d') }}"
+                                   class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Bis</label>
+                            <input type="date" name="qualifying_period_end"
+                                   value="{{ $signupRequest->qualifying_period_end?->format('Y-m-d') }}"
+                                   class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        </div>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                            Speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {{-- Pflichtzeiten-Übersicht --}}
+            @if($qualifyingEvents->isNotEmpty())
+            <div>
+                <h3 class="font-semibold text-gray-800 mb-3 text-sm">Pflichtzeiten dieser Veranstaltung</h3>
+                <div class="overflow-x-auto rounded-xl border border-gray-200">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200">
+                            <tr>
+                                <th class="px-4 py-2.5 text-left">WK</th>
+                                <th class="px-4 py-2.5 text-left">Strecke</th>
+                                <th class="px-4 py-2.5 text-left">Geschlecht</th>
+                                <th class="px-4 py-2.5 text-left">Wertung</th>
+                                <th class="px-4 py-2.5 text-left">Pflichtzeit</th>
+                                <th class="px-4 py-2.5 text-left">Meldeschluss PZ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            @foreach($qualifyingEvents as $qev)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->event_number }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-800">{{ $qev->distance }} m {{ $qev->discipline_label }}</td>
+                                <td class="px-4 py-2 text-gray-600">{{ $qev->gender_label }}</td>
+                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->age_group ?: '–' }}</td>
+                                <td class="px-4 py-2 font-mono font-semibold text-blue-700">{{ $qev->formatted_qualifying_time }}</td>
+                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->qualifying_deadline?->format('d.m.Y') ?? '–' }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
+            {{-- Schwimmer-Qualifikationsmatrix --}}
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-gray-800 text-sm">Qualifikationsstand der Schwimmer</h3>
+                    @if(!$signupRequest->qualifying_period_start && !$signupRequest->qualifying_period_end)
+                        <span class="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                            Kein Zeitraum gesetzt – alle Ergebnisse werden berücksichtigt
+                        </span>
+                    @else
+                        <span class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
+                            Zeitraum:
+                            {{ $signupRequest->qualifying_period_start?->format('d.m.Y') ?? '...' }}
+                            –
+                            {{ $signupRequest->qualifying_period_end?->format('d.m.Y') ?? '...' }}
+                        </span>
+                    @endif
+                </div>
+
+                @if($qualificationSwimmers->isEmpty())
+                    <p class="text-sm text-gray-400 text-center py-6">Keine Schwimmer aus zugeordneten Trainingsgruppen oder Einzelzuweisungen gefunden.</p>
+                @else
+                <div class="overflow-x-auto rounded-xl border border-gray-200">
+                    <table class="text-sm w-full">
+                        <thead class="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
+                            <tr>
+                                <th class="px-4 py-2.5 text-left font-semibold sticky left-0 bg-gray-50">Schwimmer</th>
+                                <th class="px-3 py-2.5 text-center font-semibold">Jg.</th>
+                                @foreach($qualifyingEvents->unique(fn($e) => $e->discipline . '_' . $e->distance) as $qev)
+                                <th class="px-3 py-2.5 text-center font-semibold min-w-[100px]">
+                                    {{ $qev->distance }}m {{ $qev->discipline_label }}<br>
+                                    <span class="text-gray-400 font-normal">PZ {{ $qev->formatted_qualifying_time }}</span>
+                                </th>
+                                @endforeach
+                                <th class="px-3 py-2.5 text-left font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            @foreach($qualificationSwimmers as $qs)
+                            @php
+                                $isAssigned   = $signupRequest->responses->contains('user_id', $qs->id);
+                                $qualifiesAny = false;
+                                $swimmerAge   = $competition->date && $qs->birth_date
+                                    ? ($competition->date->year - $qs->birth_date->year)
+                                    : null;
+                            @endphp
+                            <tr class="hover:bg-gray-50 {{ $isAssigned ? 'bg-green-50/30' : '' }}">
+                                <td class="px-4 py-2.5 sticky left-0 bg-inherit">
+                                    <span class="font-medium text-gray-800">{{ $qs->lastname }}, {{ $qs->firstname }}</span>
+                                    @if($qs->gender)
+                                        <span class="text-xs text-gray-400 ml-1">{{ $qs->gender === 'M' ? '♂' : '♀' }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2.5 text-center text-xs text-gray-500">
+                                    {{ $qs->birth_date?->year ?? '–' }}
+                                </td>
+                                @foreach($qualifyingEvents->unique(fn($e) => $e->discipline . '_' . $e->distance) as $qev)
+                                @php
+                                    $rKey    = "{$qs->id}_{$qev->discipline}_{$qev->distance}";
+                                    $bestMs  = $qualResultsByUserEvent[$rKey] ?? null;
+                                    $qualOk  = $bestMs !== null && $bestMs <= $qev->qualifying_time_ms;
+                                    // Gender check
+                                    $genderOk = ($qev->gender === 'X') ||
+                                                ($qs->gender && strtoupper($qs->gender) === $qev->gender);
+                                    // Age check
+                                    $ageOk = $swimmerAge === null ||
+                                             (($qev->age_min === null || $swimmerAge >= $qev->age_min) &&
+                                              ($qev->age_max === null || $swimmerAge <= $qev->age_max));
+                                    if ($qualOk && $genderOk && $ageOk) $qualifiesAny = true;
+                                @endphp
+                                <td class="px-3 py-2.5 text-center text-xs">
+                                    @if(!$genderOk || !$ageOk)
+                                        <span class="text-gray-300">–</span>
+                                    @elseif($bestMs !== null)
+                                        <span class="font-mono {{ $qualOk ? 'text-green-700 font-semibold' : 'text-red-500' }}">
+                                            {{ \App\Models\SwimmingTime::formatMs($bestMs) }}
+                                        </span>
+                                        <span class="{{ $qualOk ? 'text-green-600' : 'text-red-400' }} ml-0.5">{{ $qualOk ? '✓' : '✗' }}</span>
+                                    @else
+                                        <span class="text-gray-300">keine</span>
+                                    @endif
+                                </td>
+                                @endforeach
+                                <td class="px-3 py-2.5">
+                                    @if($isAssigned)
+                                        <span class="text-xs text-green-700 font-medium bg-green-100 px-2 py-0.5 rounded-full">Zugewiesen</span>
+                                    @elseif($qualifiesAny)
+                                        <form method="POST" action="{{ route('admin.competitions.signup.quick-assign', [$competition, $signupRequest]) }}">
+                                            @csrf
+                                            <input type="hidden" name="user_id" value="{{ $qs->id }}">
+                                            <button type="submit"
+                                                    class="text-xs bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg transition-colors font-medium">
+                                                Zuweisen
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-gray-400">Keine PZ</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
         {{-- Tab: Meldungen (erweitert: Streckenauswahl + DSV7-Generator) --}}
         <div x-show="activeTab === 'meldungen'" x-cloak
              x-data="{
@@ -1193,6 +1385,8 @@
                                 if (!$user) continue;
                                 $userEntries = $existingEntries->get($user->id, collect());
                                 $enteredKeys = $userEntries->map(fn($e) => $e->discipline . '_' . $e->distance . '_' . ($e->age_group ?? ''))->all();
+                                $userAge = ($competition->date && $user->birth_date)
+                                    ? ($competition->date->year - $user->birth_date->year) : null;
                             @endphp
                             <details class="border border-gray-200 rounded-xl overflow-hidden group" open>
                                 <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors select-none">
@@ -1218,22 +1412,41 @@
                                 <div class="divide-y divide-gray-50">
                                     @foreach($events->unique(fn($e) => $e->discipline . '_' . $e->distance . '_' . $e->event_number) as $event)
                                         @php
-                                            $key       = $event->discipline . '_' . $event->distance . '_' . ($event->age_group ?? '');
-                                            $entered   = in_array($key, $enteredKeys);
-                                            $entryTime = null;
-                                            if ($entered) {
-                                                $match = $userEntries->first(fn($e) => $e->discipline === $event->discipline && $e->distance === $event->distance);
-                                                $entryTime = $match?->entry_time_formatted;
-                                            }
+                                            $key   = $event->discipline . '_' . $event->distance . '_' . ($event->age_group ?? '');
+                                            $entered = in_array($key, $enteredKeys);
+                                            $match   = $userEntries->first(fn($e) => $e->discipline === $event->discipline && $e->distance === $event->distance);
+
+                                            // Gender eligibility
+                                            $genderOk = ($event->gender === 'X') ||
+                                                        ($user->gender && strtoupper($user->gender) === $event->gender);
+
+                                            // Age eligibility
+                                            $ageOk = $userAge === null ||
+                                                     (($event->age_min === null || $userAge >= $event->age_min) &&
+                                                      ($event->age_max === null || $userAge <= $event->age_max));
+
+                                            // Best qualifying-period time for suggestion
+                                            $rKey       = "{$user->id}_{$event->discipline}_{$event->distance}";
+                                            $qualBestMs = $qualResultsByUserEvent[$rKey] ?? null;
+                                            $allBestMs  = $bestTimesByUserEvent[$rKey] ?? null;
+
+                                            // Entry status
+                                            $entryTime    = $match?->entry_time_formatted;
+                                            $entryMs      = $match?->entry_time_ms;
                                             $meetsPflicht = true;
-                                            if ($entered && $match?->entry_time_ms && $event->qualifying_time_ms) {
-                                                $meetsPflicht = $match->entry_time_ms <= $event->qualifying_time_ms;
+                                            if ($entered && $entryMs && $event->qualifying_time_ms) {
+                                                $meetsPflicht = $entryMs <= $event->qualifying_time_ms;
                                             }
+                                            // Check qualifying period
+                                            $qualOk = $event->qualifying_time_ms
+                                                ? ($qualBestMs !== null && $qualBestMs <= $event->qualifying_time_ms)
+                                                : true;
                                         @endphp
-                                        <div class="flex items-center gap-4 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+                                        <div class="flex items-center gap-4 px-4 py-2.5 hover:bg-gray-50 transition-colors
+                                             {{ (!$genderOk || !$ageOk) && !$entered ? 'opacity-40' : '' }}">
                                             <form method="POST"
                                                   action="{{ $entered
-                                                      ? route('admin.competitions.entries.destroy', [$competition, $userEntries->first(fn($e) => $e->discipline === $event->discipline && $e->distance === $event->distance)?->id ?? 0])
+                                                      ? route('admin.competitions.entries.destroy', [$competition, $match?->id ?? 0])
                                                       : route('admin.competitions.entries.store', $competition) }}"
                                                   class="flex items-center gap-4 flex-1">
                                                 @csrf
@@ -1265,16 +1478,32 @@
                                                 </div>
 
                                                 <div class="text-right shrink-0 space-y-0.5">
-                                                    @if($entryTime)
+                                                    @if($entered && $entryTime)
+                                                        {{-- Already entered: show entry time --}}
                                                         <div class="text-xs font-mono {{ $meetsPflicht ? 'text-green-600' : 'text-red-600' }}">{{ $entryTime }}</div>
+                                                    @elseif(!$entered && $qualBestMs)
+                                                        {{-- Not yet entered: show best qualifying-period time as suggestion --}}
+                                                        <div class="text-xs font-mono {{ $qualOk ? 'text-green-600' : 'text-orange-500' }}">
+                                                            {{ \App\Models\SwimmingTime::formatMs($qualBestMs) }}
+                                                        </div>
+                                                        <div class="text-xs text-gray-400">Vorschlag</div>
+                                                    @elseif(!$entered && $allBestMs)
+                                                        <div class="text-xs font-mono text-gray-400">{{ \App\Models\SwimmingTime::formatMs($allBestMs) }}</div>
+                                                        <div class="text-xs text-gray-300">Best ges.</div>
                                                     @endif
                                                     @if($event->qualifying_time_ms)
-                                                        <div class="text-xs text-gray-400">Pflicht: {{ $event->formatted_qualifying_time }}</div>
+                                                        <div class="text-xs text-gray-400">PZ: {{ $event->formatted_qualifying_time }}</div>
                                                     @endif
                                                 </div>
 
-                                                @if(!$meetsPflicht && $entered)
-                                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full shrink-0">PZ fehlt</span>
+                                                @if($event->qualifying_time_ms)
+                                                    @if($entered && !$meetsPflicht)
+                                                        <span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full shrink-0">PZ fehlt</span>
+                                                    @elseif(!$entered && $qualOk && $qualBestMs)
+                                                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full shrink-0">PZ ✓</span>
+                                                    @elseif(!$entered && $event->qualifying_time_ms && !$qualBestMs)
+                                                        <span class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">PZ?</span>
+                                                    @endif
                                                 @endif
                                             </form>
                                         </div>

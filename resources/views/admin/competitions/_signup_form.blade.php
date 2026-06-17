@@ -63,6 +63,30 @@
     </div>
 </div>
 
+{{-- Qualifikationszeitraum (nur wenn der Wettkampf Pflichtzeiten hat) --}}
+@if(isset($hasPflichtzeiten) && $hasPflichtzeiten)
+<div class="border border-blue-100 bg-blue-50/40 rounded-xl p-4 space-y-3">
+    <div>
+        <p class="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-0.5">Qualifikationszeitraum</p>
+        <p class="text-xs text-blue-600">Zeitraum, in dem Wettkampf-Pflichtzeiten nachgewiesen worden sein müssen. Leer = keine Einschränkung.</p>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Von</label>
+            <input type="date" name="qualifying_period_start"
+                   value="{{ $signupRequest?->qualifying_period_start?->format('Y-m-d') }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bis</label>
+            <input type="date" name="qualifying_period_end"
+                   value="{{ $signupRequest?->qualifying_period_end?->format('Y-m-d') }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- Treffpunkt & Bus --}}
 <div class="border-t border-gray-100 pt-4">
     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Treffpunkt & Logistik</p>

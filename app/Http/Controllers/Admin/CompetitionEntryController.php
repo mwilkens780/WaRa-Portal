@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionEntry;
+use App\Models\CompetitionResult;
 use App\Services\Competition\DefinitionsdateiGenerator;
 use App\Services\Competition\AusschreibungGenerator;
 use App\Services\Competition\EntryService;
@@ -57,6 +58,37 @@ class CompetitionEntryController extends Controller
             'competition_event_id' => ['nullable', 'exists:competition_events,id'],
             'entry_time_ms'        => ['nullable', 'integer', 'min:1'],
         ]);
+
+        // Auto-fill entry_time_ms from best competition result if not supplied
+        if (empty($data['entry_time_ms'])) {
+            $signup = $competition->signupRequest;
+            $best   = CompetitionResult::where('user_id', $data['user_id'])
+                ->where('discipline', $data['discipline'])
+                ->where('distance', $data['distance'])
+                ->where('time_ms', '>', 0)
+                ->when($signup?->qualifying_period_start, fn($q) =>
+                    $q->whereHas('competition', fn($cq) => $cq->where('date', '>=', $signup->qualifying_period_start))
+                )
+                ->when($signup?->qualifying_period_end, fn($q) =>
+                    $q->whereHas('competition', fn($cq) => $cq->where('date', '<=', $signup->qualifying_period_end))
+                )
+                ->orderBy('time_ms')
+                ->value('time_ms');
+
+            if (!$best && ($signup?->qualifying_period_start || $signup?->qualifying_period_end)) {
+                // Fallback: best time overall if period filter returned nothing
+                $best = CompetitionResult::where('user_id', $data['user_id'])
+                    ->where('discipline', $data['discipline'])
+                    ->where('distance', $data['distance'])
+                    ->where('time_ms', '>', 0)
+                    ->orderBy('time_ms')
+                    ->value('time_ms');
+            }
+
+            if ($best) {
+                $data['entry_time_ms'] = $best;
+            }
+        }
 
         $entry = $this->entryService->setEntry(
             $competition->id,

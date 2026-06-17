@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\CompetitionResult;
+use App\Models\SwimmingTime;
 use App\Models\TrainingGroup;
 use App\Models\User;
 use App\Services\CompetitionResultGrouper;
@@ -166,6 +167,7 @@ class CompetitionController extends Controller
                     'age_group'           => mb_substr($ev['age_group'] ?? '', 0, 50) ?: null,
                     'qualifying_time_ms'  => isset($ev['qualifying_time_ms']) && (int)$ev['qualifying_time_ms'] > 0
                                                 ? (int)$ev['qualifying_time_ms'] : null,
+                    'qualifying_deadline' => $ev['qualifying_deadline'] ?? null,
                     'meldegeld'           => isset($ev['meldegeld']) && (float)$ev['meldegeld'] > 0
                                                 ? (float)$ev['meldegeld'] : null,
                 ]);
@@ -205,9 +207,82 @@ class CompetitionController extends Controller
 
         $signupRequest = $competition->signupRequest()->with(['responses.user', 'createdBy'])->first();
 
+        // ── Qualifikations-Daten ──────────────────────────────────────────────
+        $qualifyingEvents       = collect();
+        $qualificationSwimmers  = collect();
+        $qualResultsByUserEvent = [];   // "{uid}_{disc}_{dist}" → min time_ms
+        $bestTimesByUserEvent   = [];   // same, but for Meldungen entry-time suggestion (unrestricted period)
+
+        if ($hasPflichtzeiten && $signupRequest) {
+            // Unique qualifying events (one row per discipline+distance combination)
+            $qualifyingEvents = $competition->events
+                ->where('qualifying_time_ms', '>', 0)
+                ->sortBy(fn($e) => [$e->discipline, $e->distance])
+                ->values();
+
+            // Swimmers: all from assigned training groups + individually assigned
+            $groupSwimmers = $competition->trainingGroups->isNotEmpty()
+                ? User::where('active', true)
+                    ->where('role', 'schwimmer')
+                    ->whereHas('trainingGroups', fn($q) =>
+                        $q->whereIn('training_groups.id', $competition->trainingGroups->pluck('id'))
+                    )
+                    ->orderBy('lastname')->orderBy('firstname')
+                    ->get()
+                : collect();
+
+            $individualIds = collect($signupRequest->eligible_user_ids ?? []);
+            $individualSwimmers = $individualIds->isNotEmpty()
+                ? User::whereIn('id', $individualIds)->orderBy('lastname')->orderBy('firstname')->get()
+                : collect();
+
+            $qualificationSwimmers = $groupSwimmers->merge($individualSwimmers)->unique('id')->values();
+
+            if ($qualificationSwimmers->isNotEmpty() && $qualifyingEvents->isNotEmpty()) {
+                $qStart = $signupRequest->qualifying_period_start;
+                $qEnd   = $signupRequest->qualifying_period_end;
+
+                // Best qualifying-period results per user per discipline+distance
+                $qResults = CompetitionResult::whereIn('user_id', $qualificationSwimmers->pluck('id'))
+                    ->where('time_ms', '>', 0)
+                    ->when($qStart || $qEnd, fn($q) =>
+                        $q->whereHas('competition', fn($cq) =>
+                            $cq->when($qStart, fn($q2) => $q2->where('date', '>=', $qStart))
+                               ->when($qEnd,   fn($q2) => $q2->where('date', '<=', $qEnd))
+                        )
+                    )
+                    ->orderBy('time_ms')
+                    ->get();
+
+                foreach ($qResults as $r) {
+                    $key = "{$r->user_id}_{$r->discipline}_{$r->distance}";
+                    if (!isset($qualResultsByUserEvent[$key]) || $r->time_ms < $qualResultsByUserEvent[$key]) {
+                        $qualResultsByUserEvent[$key] = $r->time_ms;
+                    }
+                }
+
+                // Best times overall (no date filter) for Meldungen entry-time suggestion
+                $allResults = CompetitionResult::whereIn('user_id', $qualificationSwimmers->pluck('id'))
+                    ->where('time_ms', '>', 0)
+                    ->orderBy('time_ms')
+                    ->get();
+
+                foreach ($allResults as $r) {
+                    $key = "{$r->user_id}_{$r->discipline}_{$r->distance}";
+                    if (!isset($bestTimesByUserEvent[$key]) || $r->time_ms < $bestTimesByUserEvent[$key]) {
+                        $bestTimesByUserEvent[$key] = $r->time_ms;
+                    }
+                }
+            }
+        }
+
+        $hasQualifikation = $hasPflichtzeiten && $signupRequest;
+
         return view('admin.competitions.show',
             compact('competition', 'results', 'swimmers', 'allGroups',
-                    'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest'));
+                    'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest',
+                    'hasQualifikation', 'qualifyingEvents', 'qualificationSwimmers',
+                    'qualResultsByUserEvent', 'bestTimesByUserEvent'));
     }
 
     // ── Ausschreibungs-Import (PDF → Claude → strukturierte Daten) ────────────
