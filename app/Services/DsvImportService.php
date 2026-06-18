@@ -2,15 +2,18 @@
 
 namespace App\Services;
 
+use App\Services\WaScoringService;
 use SimpleXMLElement;
 
 class DsvImportService
 {
     private Dsv7Parser $dsv7Parser;
+    private WaScoringService $waScoring;
 
     public function __construct()
     {
         $this->dsv7Parser = new Dsv7Parser();
+        $this->waScoring  = new WaScoringService();
     }
 
     /**
@@ -371,7 +374,10 @@ class DsvImportService
             $competition->update(['import_hash' => $importHash]);
         }
 
-        $swimmers = \App\Models\User::where('role', 'schwimmer')->where('active', true)->get();
+        $swimmers   = \App\Models\User::where('role', 'schwimmer')->where('active', true)->get();
+        $poolLength = $this->waScoring->poolLengthFromCourse($meet['course'] ?? '');
+        $compYear   = (int) substr($meet['startdate'] ?? now()->toDateString(), 0, 4);
+        $waYear     = $this->waScoring->latestYear($poolLength) ?? $compYear;
 
         foreach ($meet['clubs'] as $club) {
             foreach ($club['athletes'] as $athlete) {
@@ -381,7 +387,7 @@ class DsvImportService
                 if (!$userId) continue;
 
                 foreach ($athlete['results'] ?? [] as $result) {
-                    $this->persistResult($competition->id, $userId, $result, $athlete['gender'] ?? 'X');
+                    $this->persistResult($competition->id, $userId, $result, $athlete['gender'] ?? 'X', $poolLength, $waYear);
                 }
             }
         }
@@ -409,7 +415,7 @@ class DsvImportService
         return null;
     }
 
-    private function persistResult(int $competitionId, int $userId, array $result, string $gender): void
+    private function persistResult(int $competitionId, int $userId, array $result, string $gender, int $poolLength = 25, int $waYear = 0): void
     {
         $exists = \App\Models\CompetitionResult::where([
             'competition_id' => $competitionId,
@@ -431,6 +437,17 @@ class DsvImportService
             $isPb = !$best || $result['time_ms'] < $best;
         }
 
+        $resolvedGender = $gender !== 'X' ? $gender : null;
+        $waPoints       = null;
+        $usedWaYear     = null;
+        if ($waYear && $resolvedGender && !empty($result['time_ms'])) {
+            $waPoints   = $this->waScoring->calculatePoints(
+                $result['discipline'], $result['distance'], $resolvedGender,
+                $result['time_ms'], $waYear, $poolLength
+            );
+            $usedWaYear = $waPoints !== null ? $waYear : null;
+        }
+
         \App\Models\CompetitionResult::create([
             'competition_id'   => $competitionId,
             'user_id'          => $userId,
@@ -440,9 +457,11 @@ class DsvImportService
             'placement'        => $result['place'] ?? null,
             'is_personal_best' => $isPb,
             'age_group'        => $result['age_group'] ?? null,
-            'gender'           => $gender !== 'X' ? $gender : null,
+            'gender'           => $resolvedGender,
             'is_final'         => ($result['round_type'] ?? '') === 'F',
             'notes'            => $result['status'] ?? null,
+            'wa_points'        => $waPoints,
+            'wa_table_year'    => $usedWaYear,
         ]);
     }
 }

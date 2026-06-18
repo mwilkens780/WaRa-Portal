@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\CompetitionSignupController;
 use App\Http\Controllers\Admin\CompetitionDocumentController;
 use App\Http\Controllers\Admin\ImportLogController;
 use App\Http\Controllers\Admin\CronController;
+use App\Http\Controllers\Admin\WaScoringController;
 use App\Http\Controllers\Swimmer\SignupController as SwimmerSignupController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
 use App\Http\Controllers\Trainer\TrainingSessionController;
@@ -167,6 +168,12 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
 
     // Import-Log
     Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');
+
+    // WA Punktetabellen
+    Route::get('/wa-scoring',             [WaScoringController::class, 'index'])->name('wa-scoring.index');
+    Route::post('/wa-scoring',            [WaScoringController::class, 'store'])->name('wa-scoring.store');
+    Route::post('/wa-scoring/bulk',       [WaScoringController::class, 'bulkStore'])->name('wa-scoring.bulk-store');
+    Route::delete('/wa-scoring/{waScoringTable}', [WaScoringController::class, 'destroy'])->name('wa-scoring.destroy');
 
     // Anmeldeabfrage (Signup-Workflow)
     Route::post('/wettkaempfe/{competition}/anmeldung', [CompetitionSignupController::class, 'store'])->name('competitions.signup.store');

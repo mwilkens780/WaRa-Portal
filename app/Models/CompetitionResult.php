@@ -9,7 +9,7 @@ class CompetitionResult extends Model
     protected $fillable = [
         'competition_id', 'user_id', 'discipline', 'distance', 'time_ms',
         'placement', 'is_personal_best', 'is_season_best', 'age_group', 'wertungen', 'gender', 'notes',
-        'breaks_vereinsrekord', 'breaks_landesrekord', 'is_final',
+        'breaks_vereinsrekord', 'breaks_landesrekord', 'is_final', 'wa_points', 'wa_table_year',
     ];
 
     protected function casts(): array
@@ -24,6 +24,8 @@ class CompetitionResult extends Model
             'time_ms'              => 'integer',
             'placement'            => 'integer',
             'wertungen'            => 'array',
+            'wa_points'            => 'integer',
+            'wa_table_year'        => 'integer',
         ];
     }
 

@@ -11,17 +11,18 @@ use Illuminate\Support\Facades\Log;
 /**
  * Crawls DSV (Deutscher Schwimm-Verband) for DM/DJM DSV7 result files.
  *
- * DSV event pages are linked from germanaquatics.de / dsv.de.
- * A curated list of known event result pages is maintained here.
- * Add new URLs when new national championships are announced.
+ * DSV event pages no longer host static DSV7 file links (as of 2026 the DSV
+ * website migrated to a JS-rendered results system). Add specific result listing
+ * page URLs here manually when national championships publish their result files.
+ *
+ * Previously used URLs (both now 404/dead):
+ *   - https://www.germanaquatics.de/ergebnisse  (germanaquatics.de is now a magazine)
+ *   - https://www.dsv.de/schwimmen/wettkampfsport/ergebnisse  (URL moved)
  */
 class DsvCrawler implements CrawlerInterface
 {
-    // Known DSV event result listing pages — extend as needed
-    private const EVENT_PAGES = [
-        'https://www.germanaquatics.de/ergebnisse',
-        'https://www.dsv.de/schwimmen/wettkampfsport/ergebnisse',
-    ];
+    // Add static DSV7 result listing page URLs here when available.
+    private const EVENT_PAGES = [];
 
     public function __construct(private DsvImportService $importService) {}
 
