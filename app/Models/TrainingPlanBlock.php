@@ -57,18 +57,22 @@ class TrainingPlanBlock extends Model
     ];
 
     public static array $disciplineLabels = [
-        'F' => 'Freistil',
-        'R' => 'Rücken',
-        'B' => 'Brust',
-        'S' => 'Schmetterling',
-        'L' => 'Lagen',
+        'F'  => 'Freistil',
+        'R'  => 'Rücken',
+        'B'  => 'Brust',
+        'S'  => 'Schmetterling',
+        'L'  => 'Lagen',
+        'HL' => 'Hauptlage',
+        'NL' => 'Nebenlage',
     ];
 
     public static array $disciplineShort = [
-        'F' => 'F',
-        'R' => 'R',
-        'B' => 'B',
-        'S' => 'S',
-        'L' => 'L',
+        'F'  => 'F',
+        'R'  => 'R',
+        'B'  => 'B',
+        'S'  => 'S',
+        'L'  => 'L',
+        'HL' => 'HL',
+        'NL' => 'NL',
     ];
 }
