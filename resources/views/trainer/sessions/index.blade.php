@@ -67,6 +67,7 @@
                         $all  = $s['sessions'];
                         $isSeries = $s['is_series'];
                         $dow  = $dayLabels[$s['dow']] ?? '';
+                        $missingPlan = $all->filter(fn($s) => !$s->trainingPlan)->count();
                     @endphp
 
                     <details class="group/series">
@@ -86,9 +87,15 @@
                                             {{ $all->count() }}×
                                         </span>
                                     @endif
+                                    @if($missingPlan > 0)
+                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                                            {{ $missingPlan === $all->count() ? 'kein Plan' : $missingPlan.'× kein Plan' }}
+                                        </span>
+                                    @endif
                                 </div>
                                 <div class="text-xs text-gray-400 mt-0.5">
-                                    {{ $rep->start_time }}@if($rep->end_time) – {{ $rep->end_time }}@endif
+                                    {{ substr($rep->start_time, 0, 5) }}@if($rep->end_time) – {{ substr($rep->end_time, 0, 5) }}@endif
+                                    @if($rep->duration) · {{ $rep->duration }}@endif
                                     @if($rep->location) · {{ $rep->location }} @endif
                                     @if($isSeries)
                                         · {{ $all->first()->date->format('d.m.Y') }} – {{ $all->last()->date->format('d.m.Y') }}
@@ -118,6 +125,9 @@
                                     <span class="w-9 shrink-0"></span>
                                     <div class="flex-1 min-w-0 text-sm">
                                         <span class="text-gray-700">{{ $session->date->isoFormat('dd, D. MMM YYYY') }}</span>
+                                        @if(!$session->trainingPlan)
+                                            <span class="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">kein Plan</span>
+                                        @endif
                                         @if($session->has_missing_trainer)
                                             @include('partials.no-trainer-badge')
                                         @endif
@@ -160,6 +170,7 @@
                         $all  = $s['sessions'];
                         $isSeries = $s['is_series'];
                         $dow  = $dayLabels[$s['dow']] ?? '';
+                        $missingPlan = $all->filter(fn($s) => !$s->trainingPlan)->count();
                     @endphp
                     <details class="group/series">
                         <summary class="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors select-none list-none">
@@ -171,9 +182,15 @@
                                     @if($isSeries)
                                         <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{{ $all->count() }}×</span>
                                     @endif
+                                    @if($missingPlan > 0)
+                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                                            {{ $missingPlan === $all->count() ? 'kein Plan' : $missingPlan.'× kein Plan' }}
+                                        </span>
+                                    @endif
                                 </div>
                                 <div class="text-xs text-gray-400 mt-0.5">
-                                    {{ $rep->start_time }}@if($rep->end_time) – {{ $rep->end_time }}@endif
+                                    {{ substr($rep->start_time, 0, 5) }}@if($rep->end_time) – {{ substr($rep->end_time, 0, 5) }}@endif
+                                    @if($rep->duration) · {{ $rep->duration }}@endif
                                     @if($rep->location) · {{ $rep->location }} @endif
                                     @if($isSeries)
                                         · {{ $all->first()->date->format('d.m.Y') }} – {{ $all->last()->date->format('d.m.Y') }}
@@ -193,6 +210,9 @@
                                     <span class="w-9 shrink-0"></span>
                                     <div class="flex-1 text-sm text-gray-700">
                                         {{ $session->date->isoFormat('dd, D. MMM YYYY') }}
+                                        @if(!$session->trainingPlan)
+                                            <span class="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">kein Plan</span>
+                                        @endif
                                         @if($session->has_missing_trainer) @include('partials.no-trainer-badge') @endif
                                     </div>
                                     <div class="flex items-center gap-3 shrink-0 text-xs">

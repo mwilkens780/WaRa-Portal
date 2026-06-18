@@ -23,7 +23,7 @@ class TrainingSessionController extends Controller
         $user = auth()->user();
 
         $groupQuery = TrainingGroup::with(['sessions' => function ($q) use ($user) {
-            $q->with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
+            $q->with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color', 'trainingPlan:id,training_session_id'])
               ->when(!$user->isAdmin(), fn($q2) => $q2->whereHas('coTrainers', fn($q3) => $q3->where('user_id', $user->id)))
               ->orderBy('date');
         }])->orderBy('name');
@@ -34,7 +34,7 @@ class TrainingSessionController extends Controller
 
         $groups = $groupQuery->get()->filter(fn($g) => $g->sessions->isNotEmpty());
 
-        $ungroupedSessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
+        $ungroupedSessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color', 'trainingPlan:id,training_session_id'])
             ->when(!$user->isAdmin(), fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', $user->id)))
             ->whereDoesntHave('trainingGroups')
             ->orderBy('date')
