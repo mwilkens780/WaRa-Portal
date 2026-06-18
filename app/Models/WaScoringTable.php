@@ -29,7 +29,7 @@ class WaScoringTable extends Model
     {
         return match($discipline) {
             'F'     => [50, 100, 200, 400, 800, 1500],
-            'L'     => [200, 400],
+            'L'     => [100, 200, 400],
             default => [50, 100, 200],
         };
     }

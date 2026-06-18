@@ -33,6 +33,9 @@ jobs:
             echo "── Migrations ──"
             php artisan migrate --force
 
+            echo "── Referenzdaten ──"
+            php artisan db:seed --class=WaScoringTableSeeder --force
+
             echo "── Cache neu aufbauen ──"
             php artisan config:cache
             php artisan route:cache
