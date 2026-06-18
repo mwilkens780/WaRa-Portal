@@ -59,7 +59,11 @@ class SupportTicketController extends Controller
         ]);
 
         if ($user->email) {
-            Mail::to($user->email)->send(new SupportTicketCreatedMail($ticket, $user));
+            try {
+                Mail::to($user->email)->send(new SupportTicketCreatedMail($ticket, $user));
+            } catch (\Throwable) {
+                // Mail-Fehler nicht an den User weitergeben
+            }
         }
 
         return back()->with('success', "Ticket #" . $issue['number'] . " wurde erfolgreich angelegt.");
@@ -105,7 +109,11 @@ class SupportTicketController extends Controller
         $ticket->update(['github_closed_at' => now()]);
 
         if ($ticket->notify_on_close && $ticket->user?->email) {
-            Mail::to($ticket->user->email)->send(new SupportTicketResolvedMail($ticket, $ticket->user));
+            try {
+                Mail::to($ticket->user->email)->send(new SupportTicketResolvedMail($ticket, $ticket->user));
+            } catch (\Throwable) {
+                // Mail-Fehler nicht an den Webhook-Response weitergeben
+            }
         }
 
         return response()->json(['ok' => true]);
