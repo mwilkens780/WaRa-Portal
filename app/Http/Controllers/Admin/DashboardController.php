@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CompetitionResult;
 use App\Models\Setting;
+use App\Models\SupportTicket;
 use App\Models\User;
 use App\Models\TrainingSession;
 use App\Models\Competition;
@@ -45,9 +46,14 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $maintenanceMode = Setting::getBool('maintenance_mode');
+        $maintenanceMode  = Setting::getBool('maintenance_mode');
+        $openTickets      = SupportTicket::whereNull('github_closed_at')->count();
+        $githubIssuesUrl  = 'https://github.com/' . config('services.github.repo', 'mwilkens780/WaRa-Portal') . '/issues';
 
-        return view('admin.dashboard', compact('stats', 'recent_sessions', 'upcoming_competitions', 'new_records', 'maintenanceMode'));
+        return view('admin.dashboard', compact(
+            'stats', 'recent_sessions', 'upcoming_competitions',
+            'new_records', 'maintenanceMode', 'openTickets', 'githubIssuesUrl'
+        ));
     }
 
     private function currentSeasonRange(): array

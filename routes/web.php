@@ -38,6 +38,8 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Trainer\UserLiteController;
 use App\Http\Controllers\Swimmer\SessionPlanningController;
 use App\Http\Controllers\Trainer\SessionSwimmerController;
+use App\Http\Controllers\SupportTicketController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 // Startseite -> Login
 Route::get('/', fn() => redirect()->route('login'));
@@ -302,6 +304,17 @@ Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('benutzer')->
 
 // Scheduler-Trigger für URL-Cron (all-inkl.com unterstützt kein Shell-Cron)
 Route::get('/cron/run/{token}', [CronController::class, 'run'])->name('cron.run');
+
+// Support-Tickets (alle eingeloggten Rollen)
+Route::middleware('auth')->group(function () {
+    Route::get('/support', [SupportTicketController::class, 'create'])->name('support.create');
+    Route::post('/support', [SupportTicketController::class, 'store'])->name('support.store');
+});
+
+// GitHub Webhook (kein Auth, kein CSRF)
+Route::post('/webhooks/github', [SupportTicketController::class, 'webhook'])
+    ->name('webhooks.github')
+    ->withoutMiddleware([ValidateCsrfToken::class]);
 
 // Schwimmer-Bereich
 Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimmer.')->group(function () {

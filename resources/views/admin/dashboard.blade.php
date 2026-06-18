@@ -54,6 +54,28 @@
         </div>
     </div>
 
+    {{-- Offene Support-Tickets --}}
+    @if($openTickets > 0)
+    <a href="{{ $githubIssuesUrl }}" target="_blank" rel="noopener"
+       class="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 hover:bg-amber-100 transition-colors group">
+        <div class="bg-amber-100 rounded-lg p-2.5 flex-shrink-0 group-hover:bg-amber-200 transition-colors">
+            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+        </div>
+        <div class="flex-1">
+            <p class="text-sm font-semibold text-amber-900">
+                {{ $openTickets }} {{ $openTickets === 1 ? 'offenes Support-Ticket' : 'offene Support-Tickets' }}
+            </p>
+            <p class="text-xs text-amber-700 mt-0.5">Auf GitHub Issues ansehen und bearbeiten →</p>
+        </div>
+        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+        </svg>
+    </a>
+    @endif
+
     <div class="grid lg:grid-cols-2 gap-6">
         {{-- Letzte Trainingseinheiten --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100">
