@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Crawler\DsvCrawler;
+use App\Services\Crawler\DsvDataCrawler;
 use App\Services\Crawler\NsvCrawler;
 use App\Services\Crawler\ShsvCrawler;
 use App\Services\Ranking\SaisonAuswertungService;
@@ -30,6 +31,11 @@ Schedule::call(fn() => app(NsvCrawler::class)->run())
 Schedule::call(fn() => app(DsvCrawler::class)->run())
     ->weekly()
     ->name('dsv-crawler')
+    ->withoutOverlapping();
+
+Schedule::call(fn() => app(DsvDataCrawler::class)->run())
+    ->weeklyOn(3, '07:00')  // Mittwoch — nach Wettkampfwochenenden + Upload-Verzögerung
+    ->name('dsvdata-crawler')
     ->withoutOverlapping();
 
 // Saison-Score-Cache wöchentlich neu berechnen

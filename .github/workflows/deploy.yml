@@ -21,9 +21,15 @@ jobs:
             cd ${{ secrets.SSH_PATH }}
 
             echo "── Git pull ──"
+            # composer.lock vor pull zurücksetzen, falls vom vorherigen Deploy-Schritt geändert
+            # TODO: entfernen sobald composer.lock mit smalot/pdfparser committed ist
+            git checkout -- composer.lock 2>/dev/null || true
             git pull origin main
 
             echo "── Composer install ──"
+            # smalot/pdfparser installieren falls noch nicht in composer.lock
+            # TODO: entfernen sobald composer.lock mit smalot/pdfparser committed ist
+            php composer.phar update --no-dev --no-interaction --no-progress smalot/pdfparser 2>/dev/null || true
             php composer.phar install \
               --no-dev \
               --optimize-autoloader \
