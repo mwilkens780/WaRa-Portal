@@ -401,7 +401,7 @@ class DashboardController extends Controller
             ->keyBy('training_session_id');
 
         // ── Past sessions: exclude swimmer-cancelled ones, group by month ────
-        $filter    = request('filter', 'all');
+        $filter    = request('filter', 'attended');
         $pastQuery = TrainingSession::where('date', '<=', today())
             ->tap($relevantSessions)
             // Never show sessions the swimmer pre-cancelled

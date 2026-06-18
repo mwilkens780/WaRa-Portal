@@ -328,10 +328,10 @@
         @endif
     </div>
 
-    {{-- ── Vergangene Trainings ────────────────────────────────────────────── --}}
+    {{-- ── Trainingstagebuch ───────────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-sm font-semibold text-gray-700">Vergangene Trainings</h2>
+            <h2 class="text-sm font-semibold text-gray-700">Trainingstagebuch</h2>
             {{-- Filter tabs --}}
             <div class="flex gap-1 p-1 bg-white border border-gray-200 rounded-lg text-xs">
                 <a href="{{ route('swimmer.sessions', ['filter' => 'all']) }}"
