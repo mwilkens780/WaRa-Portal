@@ -41,6 +41,13 @@ class Setting extends Model
         return json_decode($raw, true) ?? [];
     }
 
+    public static function getJson(string $key, mixed $default = null): mixed
+    {
+        $raw = static::getCached($key, null);
+        if ($raw === null) return $default;
+        return json_decode($raw, true) ?? $default;
+    }
+
     public static function clearCache(): void
     {
         static::$cache = [];

@@ -5,6 +5,7 @@ namespace App\Services\Crawler;
 use App\Models\Competition;
 use App\Models\CompetitionResult;
 use App\Models\ImportLog;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\WaScoringService;
 use Illuminate\Support\Facades\Http;
@@ -25,8 +26,8 @@ class DsvDataCrawler
     private const LIST_URL     = 'https://dsvdaten.dsv.de/Modules/Results/MeetYear.aspx';
     private const FILE_URL     = 'https://dsvdaten.dsv.de/File.aspx';
 
-    // Schleswig-Holstein; weitere Bundesländer auf Bedarf ergänzen
-    private const STATE_IDS    = [14];
+    // Default-StateID für Schleswig-Holstein; wird durch Admin-Einstellungen überschrieben
+    private const DEFAULT_STATE_IDS = [14];
 
     private const DISCIPLINE_MAP = [
         'freistil'      => 'F',
@@ -53,10 +54,11 @@ class DsvDataCrawler
     {
         $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
 
-        $years  = $this->relevantYears();
-        $parser = new PdfParser();
+        $years    = $this->relevantYears();
+        $stateIds = Setting::getJson('crawler.dsvdata.state_ids', self::DEFAULT_STATE_IDS);
+        $parser   = new PdfParser();
 
-        foreach (self::STATE_IDS as $stateId) {
+        foreach ($stateIds as $stateId) {
             foreach ($years as $year) {
                 $meetIds = $this->fetchMeetIds($year, $stateId);
                 Log::info("DsvDataCrawler: {$year}/StateID={$stateId} → " . count($meetIds) . ' Wettkämpfe');

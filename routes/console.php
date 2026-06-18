@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Setting;
 use App\Services\Crawler\DsvCrawler;
 use App\Services\Crawler\DsvDataCrawler;
 use App\Services\Crawler\NsvCrawler;
@@ -33,10 +34,30 @@ Schedule::call(fn() => app(DsvCrawler::class)->run())
     ->name('dsv-crawler')
     ->withoutOverlapping();
 
-Schedule::call(fn() => app(DsvDataCrawler::class)->run())
-    ->weeklyOn(3, '07:00')  // Mittwoch — nach Wettkampfwochenenden + Upload-Verzögerung
-    ->name('dsvdata-crawler')
-    ->withoutOverlapping();
+// DsvData-Crawler: Zeitplan aus Admin-Einstellungen lesen
+try {
+    $dsvDataEnabled = Setting::getBool('crawler.dsvdata.enabled', true);
+    $dsvDataDays    = Setting::getJson('crawler.dsvdata.schedule_days', [3]); // Default: Mittwoch
+    $dsvDataTime    = Setting::getCached('crawler.dsvdata.schedule_time', '07:00');
+
+    if ($dsvDataEnabled && !empty($dsvDataDays)) {
+        [$h, $m]     = array_pad(explode(':', $dsvDataTime, 2), 2, '00');
+        // ISO-Tage (1=Mo…7=So) → Cron-Tage (0=So…6=Sa): 7→0, sonst unverändert
+        $cronDays    = implode(',', array_map(fn($d) => $d === 7 ? 0 : (int) $d, $dsvDataDays));
+        $cronExpr    = (int)$m . ' ' . (int)$h . ' * * ' . $cronDays;
+
+        Schedule::call(fn() => app(DsvDataCrawler::class)->run())
+            ->cron($cronExpr)
+            ->name('dsvdata-crawler')
+            ->withoutOverlapping();
+    }
+} catch (\Throwable $e) {
+    // DB nicht verfügbar (z.B. vor erster Migration) → Fallback: Mittwoch 07:00
+    Schedule::call(fn() => app(DsvDataCrawler::class)->run())
+        ->weeklyOn(3, '07:00')
+        ->name('dsvdata-crawler')
+        ->withoutOverlapping();
+}
 
 // Saison-Score-Cache wöchentlich neu berechnen
 Schedule::call(function () {
