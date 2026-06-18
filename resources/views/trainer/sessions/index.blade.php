@@ -67,7 +67,6 @@
                         $all  = $s['sessions'];
                         $isSeries = $s['is_series'];
                         $dow  = $dayLabels[$s['dow']] ?? '';
-                        $missingPlan = $all->filter(fn($s) => !$s->trainingPlan)->count();
                     @endphp
 
                     <details class="group/series">
@@ -85,11 +84,6 @@
                                     @if($isSeries)
                                         <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
                                             {{ $all->count() }}×
-                                        </span>
-                                    @endif
-                                    @if($missingPlan > 0)
-                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
-                                            {{ $missingPlan === $all->count() ? 'kein Plan' : $missingPlan.'× kein Plan' }}
                                         </span>
                                     @endif
                                 </div>
@@ -170,7 +164,6 @@
                         $all  = $s['sessions'];
                         $isSeries = $s['is_series'];
                         $dow  = $dayLabels[$s['dow']] ?? '';
-                        $missingPlan = $all->filter(fn($s) => !$s->trainingPlan)->count();
                     @endphp
                     <details class="group/series">
                         <summary class="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors select-none list-none">
@@ -181,11 +174,6 @@
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$rep->type] ?? 'bg-gray-100' }}">{{ $rep->type_label }}</span>
                                     @if($isSeries)
                                         <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{{ $all->count() }}×</span>
-                                    @endif
-                                    @if($missingPlan > 0)
-                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
-                                            {{ $missingPlan === $all->count() ? 'kein Plan' : $missingPlan.'× kein Plan' }}
-                                        </span>
                                     @endif
                                 </div>
                                 <div class="text-xs text-gray-400 mt-0.5">
