@@ -39,6 +39,8 @@ use App\Http\Controllers\Trainer\UserLiteController;
 use App\Http\Controllers\Swimmer\SessionPlanningController;
 use App\Http\Controllers\Trainer\SessionSwimmerController;
 use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\LegalController;
+use App\Http\Controllers\Admin\DsgvoController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 // Startseite -> Login
@@ -115,7 +117,19 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/trainingsgruppen/neu', [TrainingGroupController::class, 'create'])->name('training-groups.create');
     Route::post('/trainingsgruppen', [TrainingGroupController::class, 'store'])->name('training-groups.store');
     Route::delete('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'destroy'])->name('training-groups.destroy');
+
+    // DSGVO-Anfragenverwaltung
+    Route::get('/dsgvo', [DsgvoController::class, 'index'])->name('dsgvo.index');
+    Route::get('/dsgvo/neu', [DsgvoController::class, 'create'])->name('dsgvo.create');
+    Route::post('/dsgvo', [DsgvoController::class, 'store'])->name('dsgvo.store');
+    Route::get('/dsgvo/{dsgvoRequest}', [DsgvoController::class, 'show'])->name('dsgvo.show');
+    Route::patch('/dsgvo/{dsgvoRequest}', [DsgvoController::class, 'update'])->name('dsgvo.update');
+    Route::post('/benutzer/{user}/anonymisieren', [DsgvoController::class, 'anonymize'])->name('dsgvo.anonymize');
 });
+
+// Rechtliche Pflichtseiten (öffentlich)
+Route::get('/impressum', [LegalController::class, 'impressum'])->name('legal.impressum');
+Route::get('/datenschutz', [LegalController::class, 'datenschutz'])->name('legal.datenschutz');
 
 // Trainingsgruppen – Index, Show, Edit: Trainer + Admin
 Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.')->group(function () {
