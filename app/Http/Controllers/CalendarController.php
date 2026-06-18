@@ -45,6 +45,9 @@ class CalendarController extends Controller
         if ($view === 'month') {
             return $this->monthView($request, $seasons, $activeSeason, $activeYear, $mode);
         }
+        if ($view === 'list') {
+            return $this->listView($request, $seasons, $activeSeason, $activeYear, $mode);
+        }
         return $this->overviewView($request, $seasons, $activeSeason, $activeYear, $mode);
     }
 
@@ -137,6 +140,51 @@ class CalendarController extends Controller
         return view('calendar.index', compact(
             'view', 'mode', 'seasons', 'activeSeason', 'activeYear',
             'year', 'month', 'firstOfMonth', 'weeks', 'prevMonth', 'nextMonth'
+        ));
+    }
+
+    // ── List view ─────────────────────────────────────────────────────────
+
+    private function listView(Request $request, $seasons, $activeSeason, $activeYear, string $mode)
+    {
+        $view = 'list';
+
+        if ($mode === 'season' && $activeSeason) {
+            $rangeStart = $activeSeason->start_date->copy()->startOfDay();
+            $rangeEnd   = $activeSeason->end_date->copy()->endOfDay();
+        } else {
+            $y          = $activeYear ?? now()->year;
+            $rangeStart = Carbon::create($y, 1, 1)->startOfDay();
+            $rangeEnd   = Carbon::create($y, 12, 31)->endOfDay();
+        }
+
+        $eventMap = $this->buildEventMap($rangeStart, $rangeEnd);
+
+        // Group days-with-events by month
+        $listMonths = [];
+        $cursor = $rangeStart->copy();
+        while ($cursor->lte($rangeEnd)) {
+            $key    = $cursor->format('Y-m-d');
+            $events = $eventMap[$key] ?? [];
+            if (!empty($events)) {
+                $monthKey = $cursor->format('Y-m');
+                if (!isset($listMonths[$monthKey])) {
+                    $listMonths[$monthKey] = [
+                        'month' => $cursor->copy()->startOfMonth(),
+                        'days'  => [],
+                    ];
+                }
+                $listMonths[$monthKey]['days'][] = [
+                    'date'   => $cursor->copy(),
+                    'events' => $events,
+                ];
+            }
+            $cursor->addDay();
+        }
+
+        return view('calendar.index', compact(
+            'view', 'mode', 'seasons', 'activeSeason', 'activeYear',
+            'rangeStart', 'rangeEnd', 'listMonths'
         ));
     }
 

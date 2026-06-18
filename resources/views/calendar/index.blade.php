@@ -47,6 +47,7 @@
     $monthViewParams    = ['mode' => $mode, 'view' => 'month',    'year' => $navCalYear, 'month' => $navMonth,   'season_id' => $seasonId];
     $weekViewParams     = ['mode' => $mode, 'view' => 'week',     'year' => $navIsoYear, 'week'  => $navIsoWeek, 'season_id' => $seasonId];
     $overviewViewParams = ['mode' => $mode, 'view' => 'overview', 'year' => $navCalYear, 'season_id' => $seasonId];
+    $listViewParams     = ['mode' => $mode, 'view' => 'list',     'year' => $navCalYear, 'season_id' => $seasonId];
 
     $seasonModeParams = ['mode' => 'season', 'view' => $view, 'year' => $navCalYear, 'month' => $navMonth, 'season_id' => $seasonId];
     $yearModeParams   = ['mode' => 'year',   'view' => $view, 'year' => $navCalYear, 'month' => $navMonth];
@@ -114,7 +115,7 @@
 
             <div class="flex-1"></div>
 
-            {{-- View toggle: Monat / Woche / Übersicht --}}
+            {{-- View toggle: Monat / Woche / Übersicht / Liste --}}
             <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
                 <a href="{{ route('calendar.index', $monthViewParams) }}"
                    class="px-3 py-1.5 font-medium transition-colors {{ $view === 'month' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50' }}">
@@ -127,6 +128,10 @@
                 <a href="{{ route('calendar.index', $overviewViewParams) }}"
                    class="px-3 py-1.5 font-medium transition-colors {{ $view === 'overview' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50' }}">
                     Übersicht
+                </a>
+                <a href="{{ route('calendar.index', $listViewParams) }}"
+                   class="px-3 py-1.5 font-medium transition-colors {{ $view === 'list' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50' }}">
+                    Liste
                 </a>
             </div>
 
@@ -351,6 +356,160 @@
         </div>
 
         @include('calendar._legend')
+
+    {{-- ══ LIST VIEW ══════════════════════════════════════════════════════ --}}
+    @elseif($view === 'list')
+
+        {{-- Print styles --}}
+        <style>
+            @media print {
+                aside, [data-print-hide] { display: none !important; }
+                [data-print-show] { display: block !important; }
+                body { background: white !important; }
+                .print-month-header { background: #1B5EAB !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .print-break-before { page-break-before: always; }
+            }
+        </style>
+
+        {{-- Print header (screen: hidden) --}}
+        <div data-print-show style="display:none" class="mb-6">
+            <p class="text-lg font-bold">SG Wasserratten Norderstedt e.V. – Terminübersicht</p>
+            <p class="text-sm text-gray-600">{{ $modeLabel }} · {{ $rangeStart->format('d.m.Y') }} – {{ $rangeEnd->format('d.m.Y') }}</p>
+        </div>
+
+        {{-- Controls: filter toggles + print button --}}
+        <div data-print-hide class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Anzeigen:</span>
+
+                {{-- Type toggles --}}
+                <button type="button" @click="categories.blue = !categories.blue"
+                        :class="categories.blue ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-300' : 'bg-gray-100 text-gray-400'"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                    Trainingseinheiten
+                </button>
+                <button type="button" @click="categories.red = !categories.red"
+                        :class="categories.red ? 'bg-red-100 text-red-800 ring-2 ring-red-300' : 'bg-gray-100 text-gray-400'"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
+                    <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                    Wettkämpfe
+                </button>
+                <button type="button" @click="categories.emerald = !categories.emerald"
+                        :class="categories.emerald ? 'bg-emerald-100 text-emerald-800 ring-2 ring-emerald-300' : 'bg-gray-100 text-gray-400'"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                    Vereinstermine
+                </button>
+                <button type="button"
+                        @click="categories.amber = !categories.amber; categories.orange = !categories.orange; categories.purple = !categories.purple; categories.gray = !categories.gray"
+                        :class="(categories.amber || categories.orange || categories.purple || categories.gray) ? 'bg-amber-100 text-amber-800 ring-2 ring-amber-300' : 'bg-gray-100 text-gray-400'"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
+                    Sonstige
+                </button>
+
+                <div class="flex-1"></div>
+
+                {{-- Print button --}}
+                <button type="button" onclick="window.print()"
+                        class="flex items-center gap-2 px-4 py-1.5 bg-gray-700 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Als PDF drucken
+                </button>
+            </div>
+        </div>
+
+        {{-- Event list grouped by month --}}
+        @if(empty($listMonths))
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center text-gray-400 text-sm">
+                Keine Termine im gewählten Zeitraum.
+            </div>
+        @else
+        <div class="space-y-6">
+            @foreach($listMonths as $monthKey => $monthData)
+            <div>
+                {{-- Month header --}}
+                <div class="print-month-header bg-[#1B5EAB] text-white px-4 py-2 rounded-t-xl flex items-center justify-between">
+                    <h3 class="font-semibold text-sm tracking-wide">
+                        {{ $monthNames[$monthData['month']->month] }} {{ $monthData['month']->year }}
+                    </h3>
+                    <span class="text-xs text-blue-200">{{ count($monthData['days']) }} {{ count($monthData['days']) === 1 ? 'Tag' : 'Tage' }} mit Terminen</span>
+                </div>
+
+                {{-- Days in this month --}}
+                <div class="bg-white border border-gray-100 border-t-0 rounded-b-xl overflow-hidden divide-y divide-gray-50">
+                    @foreach($monthData['days'] as $dayEntry)
+                    @php
+                        $date      = $dayEntry['date'];
+                        $dayNames  = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+                        $dayName   = $dayNames[$date->dayOfWeek];
+                        $isWeekend = in_array($date->dayOfWeek, [0, 6]);
+                        $isToday   = $date->isToday();
+                    @endphp
+                    <div class="flex gap-0 {{ $isToday ? 'bg-blue-50/60' : ($isWeekend ? 'bg-gray-50/40' : '') }}">
+
+                        {{-- Date column --}}
+                        <div class="w-28 flex-shrink-0 px-4 py-3 border-r border-gray-100">
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-xs font-bold {{ $isToday ? 'text-primary' : ($isWeekend ? 'text-blue-500' : 'text-gray-400') }}">{{ $dayName }}</span>
+                                <span class="text-sm font-bold {{ $isToday ? 'text-primary' : 'text-gray-700' }}">{{ $date->format('d.') }}</span>
+                            </div>
+                            @if($isToday)
+                                <span class="text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-medium">Heute</span>
+                            @endif
+                        </div>
+
+                        {{-- Events column --}}
+                        <div class="flex-1 px-4 py-2.5 space-y-1.5">
+                            @foreach($dayEntry['events'] as $evt)
+                            @php $chip = $colorMap[$evt['color']] ?? $colorMap['gray']; @endphp
+                            <div x-show="categories['{{ $evt['color'] }}'] !== false"
+                                 class="flex items-start gap-3">
+                                {{-- Color dot --}}
+                                <span class="mt-1.5 w-2 h-2 rounded-full flex-shrink-0 {{ ($colorMap[$evt['color']] ?? $colorMap['gray'])['dot'] }}"></span>
+                                {{-- Content --}}
+                                <div class="flex-1 min-w-0">
+                                    @if(!empty($evt['url']))
+                                        <a href="{{ $evt['url'] }}" class="font-medium text-sm text-gray-800 hover:text-primary transition-colors">
+                                            {{ $evt['title'] }}
+                                        </a>
+                                    @else
+                                        <span class="font-medium text-sm text-gray-800">{{ $evt['title'] }}</span>
+                                    @endif
+                                    @if($evt['sub'])
+                                        <span class="text-xs text-gray-400 ml-1.5">{{ $evt['sub'] }}</span>
+                                    @endif
+                                </div>
+                                {{-- Time badge (only for timed events) --}}
+                                @if($evt['time'])
+                                    <span class="text-xs text-gray-400 flex-shrink-0 mt-0.5">{{ $evt['time'] }}</span>
+                                @endif
+                                {{-- Type badge --}}
+                                <span class="text-[10px] px-1.5 py-0.5 rounded {{ $chip['chip'] }} flex-shrink-0">
+                                    {{ match($evt['type']) {
+                                        'training'    => 'Training',
+                                        'competition' => 'Wettkampf',
+                                        default       => $evt['sub'] ?? 'Termin',
+                                    } }}
+                                </span>
+                            </div>
+                            @endforeach
+                        </div>
+
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endforeach
+        </div>
+        @endif
+
+        <p class="text-xs text-gray-400 text-center mt-4" data-print-hide>
+            Tipp: Mit „Als PDF drucken" → Druckerziel „Als PDF speichern" exportieren.
+        </p>
 
     {{-- ══ OVERVIEW ════════════════════════════════════════════════════════ --}}
     @else
