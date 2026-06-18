@@ -69,12 +69,9 @@
                     Beschreibung <span class="text-red-500">*</span>
                 </label>
                 <textarea name="description" rows="6" required maxlength="5000"
-                          x-show="type === 'bug'"
-                          placeholder="Was ist passiert? Was hast du erwartet? Wie lässt sich der Fehler reproduzieren?"
-                          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-y {{ $errors->has('description') ? 'border-red-400' : '' }}">{{ old('description') }}</textarea>
-                <textarea name="description" rows="6" required maxlength="5000"
-                          x-show="type === 'enhancement'" x-cloak
-                          placeholder="Was soll verbessert werden? Warum wäre das nützlich? Wie könnte es aussehen?"
+                          :placeholder="type === 'bug'
+                              ? 'Was ist passiert? Was hast du erwartet? Wie lässt sich der Fehler reproduzieren?'
+                              : 'Was soll verbessert werden? Warum wäre das nützlich? Wie könnte es aussehen?'"
                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-y {{ $errors->has('description') ? 'border-red-400' : '' }}">{{ old('description') }}</textarea>
                 @error('description')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
