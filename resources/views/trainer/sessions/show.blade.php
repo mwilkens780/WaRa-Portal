@@ -86,6 +86,33 @@
         </div>
         @endif
 
+        {{-- Überfüllt-Banner --}}
+        @if($isOverCapacity)
+        <div class="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
+            <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+                <p class="font-semibold text-red-800">Kapazitätsgrenze überschritten</p>
+                <p class="text-red-700 text-xs mt-0.5">
+                    {{ $expectedCount }} von {{ $session->max_participants }} Plätzen belegt
+                    ({{ $expectedCount - $session->max_participants }} zu viel).
+                    <a href="{{ route('trainer.sessions.edit', $session) }}" class="underline font-medium">Limit anpassen →</a>
+                </p>
+            </div>
+        </div>
+        @elseif($session->max_participants)
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
+            </svg>
+            Teilnehmerzahl: <span class="font-semibold text-gray-700">{{ $expectedCount }} / {{ $session->max_participants }}</span>
+            @if($preAbsentCount > 0)
+                <span class="text-gray-400">(–{{ $preAbsentCount }} Absagen)</span>
+            @endif
+        </div>
+        @endif
+
         {{-- Trainer --}}
         @if($session->coTrainers->isNotEmpty())
         <div class="mt-4 pt-4 border-t border-gray-100">
@@ -257,6 +284,64 @@
         </div>
         @endif
     </div>
+
+    {{-- Gastgruppe ──────────────────────────────────────────────────────────── --}}
+    @if($session->guest_group_id || $guestBookings->isNotEmpty())
+    @php
+        $guestPreAbsent = $preAbsentCount ?? 0;
+        $availableGuestSpots = $session->max_participants !== null
+            ? max(0, $session->max_participants - ($expectedCount - $guestPreAbsent))
+            : null;
+    @endphp
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-gray-700">Gastgruppe</h2>
+            <a href="{{ route('trainer.sessions.edit', $session) }}" class="text-xs text-primary hover:underline">Bearbeiten</a>
+        </div>
+
+        @if($session->guestGroup)
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+            <span class="text-sm text-gray-700">
+                Gastgruppe: <strong>{{ $session->guestGroup->name }}</strong>
+            </span>
+            @if($availableGuestSpots !== null)
+                @if($availableGuestSpots > 0)
+                    <span class="text-xs bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full font-medium">
+                        {{ $availableGuestSpots }} freie {{ $availableGuestSpots === 1 ? 'Platz' : 'Plätze' }}
+                    </span>
+                @else
+                    <span class="text-xs bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full font-medium">
+                        Keine freien Plätze
+                    </span>
+                @endif
+            @else
+                <span class="text-xs text-gray-400">(kein Teilnehmerlimit gesetzt – Gastfunktion inaktiv)</span>
+            @endif
+        </div>
+        <p class="text-xs text-gray-400 mb-3">
+            Mitglieder der Gastgruppe werden per E-Mail benachrichtigt, wenn durch Absagen Plätze frei werden.
+        </p>
+        @endif
+
+        @if($guestBookings->isNotEmpty())
+        <div>
+            <p class="text-xs text-gray-500 font-medium mb-2">Gastbuchungen:</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($guestBookings as $booking)
+                <span class="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-full px-3 py-1 text-xs font-medium text-purple-800">
+                    <svg class="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    {{ $booking->user?->name }}
+                </span>
+                @endforeach
+            </div>
+        </div>
+        @else
+        <p class="text-xs text-gray-400">Noch keine Gastbuchungen.</p>
+        @endif
+    </div>
+    @endif
 
     {{-- Bahnbelegung ──────────────────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5"

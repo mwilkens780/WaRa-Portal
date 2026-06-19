@@ -115,7 +115,20 @@
                         {{-- Einzelne Iterationen --}}
                         <div class="bg-gray-50 border-t border-gray-100">
                             @foreach($all as $session)
-                                <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white transition-colors border-b border-gray-100 last:border-0">
+                                @php
+                                    $pCount = 0;
+                                    foreach ($session->trainingGroups as $tg) {
+                                        $pCount += $groupSwimmerCounts[$tg->id] ?? 0;
+                                    }
+                                    $pCount += $sessionIndividualCounts[$session->id] ?? 0;
+                                    if ($session->recurrence_group_id) {
+                                        $pCount += $seriesIndividualCounts[$session->recurrence_group_id] ?? 0;
+                                    }
+                                    $sessPreAbsent = $preAbsentCounts[$session->id] ?? 0;
+                                    $overCap = $session->max_participants && $pCount > $session->max_participants;
+                                @endphp
+                                <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white transition-colors border-b border-gray-100 last:border-0
+                                            {{ $overCap ? 'bg-red-50/60' : '' }}">
                                     <span class="w-9 shrink-0"></span>
                                     <div class="flex-1 min-w-0 text-sm">
                                         <span class="text-gray-700">{{ $session->date->isoFormat('dd, D. MMM YYYY') }}</span>
@@ -124,6 +137,22 @@
                                         @endif
                                         @if($session->has_missing_trainer)
                                             @include('partials.no-trainer-badge')
+                                        @endif
+                                        @if($overCap)
+                                            <span class="ml-1.5 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                                ⚠ Überfüllt
+                                            </span>
+                                        @endif
+                                    </div>
+                                    {{-- Teilnehmer-Zähler --}}
+                                    <div class="shrink-0 text-xs {{ $overCap ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
+                                        @if($session->max_participants)
+                                            {{ $pCount }}/{{ $session->max_participants }}
+                                            @if($sessPreAbsent > 0)
+                                                <span class="text-gray-300 font-normal">(–{{ $sessPreAbsent }})</span>
+                                            @endif
+                                        @elseif($pCount > 0)
+                                            {{ $pCount }} TN
                                         @endif
                                     </div>
                                     <div class="flex items-center gap-3 shrink-0 text-xs">
@@ -194,7 +223,14 @@
                         </summary>
                         <div class="bg-gray-50 border-t border-gray-100">
                             @foreach($all as $session)
-                                <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white transition-colors border-b border-gray-100 last:border-0">
+                                @php
+                                    $pCount = ($sessionIndividualCounts[$session->id] ?? 0)
+                                            + ($session->recurrence_group_id ? ($seriesIndividualCounts[$session->recurrence_group_id] ?? 0) : 0);
+                                    $sessPreAbsent = $preAbsentCounts[$session->id] ?? 0;
+                                    $overCap = $session->max_participants && $pCount > $session->max_participants;
+                                @endphp
+                                <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white transition-colors border-b border-gray-100 last:border-0
+                                            {{ $overCap ? 'bg-red-50/60' : '' }}">
                                     <span class="w-9 shrink-0"></span>
                                     <div class="flex-1 text-sm text-gray-700">
                                         {{ $session->date->isoFormat('dd, D. MMM YYYY') }}
@@ -202,7 +238,19 @@
                                             <span class="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">kein Plan</span>
                                         @endif
                                         @if($session->has_missing_trainer) @include('partials.no-trainer-badge') @endif
+                                        @if($overCap)
+                                            <span class="ml-1.5 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">⚠ Überfüllt</span>
+                                        @endif
                                     </div>
+                                    @if($session->max_participants || $pCount > 0)
+                                    <div class="shrink-0 text-xs {{ $overCap ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
+                                        @if($session->max_participants)
+                                            {{ $pCount }}/{{ $session->max_participants }}
+                                        @else
+                                            {{ $pCount }} TN
+                                        @endif
+                                    </div>
+                                    @endif
                                     <div class="flex items-center gap-3 shrink-0 text-xs">
                                         <a href="{{ route('trainer.sessions.show', $session) }}" class="text-primary hover:text-primary-dark font-medium">Details</a>
                                         <a href="{{ route('trainer.sessions.edit', $session) }}" class="text-gray-500 hover:text-gray-700">Bearbeiten</a>

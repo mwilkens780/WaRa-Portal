@@ -210,6 +210,78 @@
     </div>
     @endif
 
+    {{-- ── Gasttraining ─────────────────────────────────────────────────────── --}}
+    @if($guestSessions->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+        <div class="px-5 py-3 bg-purple-50 border-b border-purple-100 flex items-center gap-2">
+            <svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <h2 class="text-sm font-semibold text-purple-700">Gasttraining verfügbar</h2>
+            <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-semibold">{{ $guestSessions->count() }}</span>
+            <span class="text-xs text-purple-400 ml-1">– Freie Plätze in anderen Gruppen</span>
+        </div>
+        <div class="divide-y divide-gray-50">
+            @foreach($guestSessions as $g)
+            @php $s = $g->session; @endphp
+            <div class="px-4 py-3 flex items-center gap-3 flex-wrap {{ $g->booked ? 'bg-purple-50/40' : '' }}">
+                <div class="flex-shrink-0 text-center">
+                    <div class="text-xs font-bold text-gray-500">{{ $s->date->isoFormat('ddd') }}</div>
+                    <div class="text-sm font-bold text-gray-800">{{ $s->date->format('d.m.') }}</div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-sm font-medium text-gray-800">{{ $s->title }}</span>
+                        @if($s->start_time)
+                            <span class="text-xs text-gray-400">{{ substr($s->start_time,0,5) }}@if($s->end_time) – {{ substr($s->end_time,0,5) }}@endif Uhr</span>
+                        @endif
+                        @if($s->location)
+                            <span class="text-xs text-gray-400">· {{ $s->location }}</span>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                        @if($g->booked)
+                            <span class="text-xs text-purple-600 font-semibold bg-purple-100 px-2 py-0.5 rounded-full">Gebucht ✓</span>
+                        @else
+                            <span class="text-xs text-green-700 font-medium bg-green-100 px-2 py-0.5 rounded-full">
+                                {{ $g->spots }} freie {{ $g->spots === 1 ? 'Platz' : 'Plätze' }}
+                            </span>
+                        @endif
+                        @if($s->trainingGroups->isNotEmpty())
+                            <span class="text-xs text-gray-400">Hauptgruppe: {{ $s->trainingGroups->pluck('name')->join(', ') }}</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="flex-shrink-0 flex gap-2">
+                    @if($g->booked)
+                        <form method="POST" action="{{ route('swimmer.session.cancel-guest', $s) }}">
+                            @csrf @method('DELETE')
+                            <button type="submit"
+                                    class="text-xs border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                                Stornieren
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('swimmer.session.book-guest', $s) }}">
+                            @csrf
+                            <button type="submit"
+                                    class="text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-1.5 rounded-lg transition-colors">
+                                Platz buchen
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+        <div class="px-5 py-2.5 bg-purple-50/50 border-t border-purple-100">
+            <p class="text-xs text-purple-400">
+                Du erhältst automatisch eine E-Mail, wenn durch Absagen weitere Plätze frei werden. Buchungen erfolgen nach dem First-come-first-served-Prinzip.
+            </p>
+        </div>
+    </div>
+    @endif
+
     {{-- ── Bevorstehende Trainings ─────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">

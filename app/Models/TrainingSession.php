@@ -19,7 +19,7 @@ class TrainingSession extends Model
         'title', 'date', 'start_time', 'end_time', 'location', 'type', 'notes',
         'recurrence_type', 'recurrence_until', 'recurrence_group_id',
         'team_plan_path', 'individual_plan_path',
-        'max_participants', 'registration_open',
+        'max_participants', 'registration_open', 'guest_group_id',
     ];
 
     protected function casts(): array
@@ -155,6 +155,66 @@ class TrainingSession extends Model
     public function hallBookings(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(HallBooking::class, 'training_session_id');
+    }
+
+    public function guestGroup(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(TrainingGroup::class, 'guest_group_id');
+    }
+
+    public function guestBookings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\TrainingSessionSwimmer::class, 'training_session_id')
+            ->where('is_guest', true);
+    }
+
+    /**
+     * Count of expected participants: group members + individually assigned swimmers.
+     * Pass precomputed maps from the controller to avoid N+1 in list views.
+     */
+    public function expectedParticipantCount(
+        array $groupSwimmerCounts = [],
+        array $sessionIndividualCounts = [],
+        array $seriesIndividualCounts = []
+    ): int {
+        if (!empty($groupSwimmerCounts) || !empty($sessionIndividualCounts) || !empty($seriesIndividualCounts)) {
+            $count = 0;
+            foreach ($this->trainingGroups as $g) {
+                $count += $groupSwimmerCounts[$g->id] ?? 0;
+            }
+            $count += $sessionIndividualCounts[$this->id] ?? 0;
+            if ($this->recurrence_group_id) {
+                $count += $seriesIndividualCounts[$this->recurrence_group_id] ?? 0;
+            }
+            return $count;
+        }
+
+        // Precise fallback (for single-session context, avoids N+1)
+        $this->loadMissing('trainingGroups');
+        $ids = collect();
+        foreach ($this->trainingGroups as $g) {
+            $ids = $ids->merge($g->swimmers()->where('users.active', true)->pluck('users.id'));
+        }
+        $ids = $ids->merge(
+            \App\Models\TrainingSessionSwimmer::where('training_session_id', $this->id)->pluck('user_id')
+        );
+        if ($this->recurrence_group_id) {
+            $ids = $ids->merge(
+                \App\Models\TrainingSessionSwimmer::where('recurrence_group_id', $this->recurrence_group_id)->pluck('user_id')
+            );
+        }
+        return $ids->unique()->count();
+    }
+
+    /** Available spots for guest bookings: returns null if no limit set. */
+    public function availableSpotsForGuests(): ?int
+    {
+        if ($this->max_participants === null) return null;
+
+        $preAbsentCount = $this->attendances()->where('pre_absent', true)->count();
+        $baseCount      = $this->expectedParticipantCount();
+        $available      = $this->max_participants - ($baseCount - $preAbsentCount);
+        return max(0, $available);
     }
 
     public function getHasMissingTrainerAttribute(): bool

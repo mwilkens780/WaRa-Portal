@@ -340,6 +340,8 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->name('sessions');
     Route::get('/training/{session}', [SwimmerDashboard::class, 'sessionDetail'])->name('session.show');
     Route::post('/training/{session}/absage', [SwimmerDashboard::class, 'cancelSession'])->name('session.cancel');
+    Route::post('/training/{session}/gastbuchung', [SwimmerDashboard::class, 'bookGuestSlot'])->name('session.book-guest');
+    Route::delete('/training/{session}/gastbuchung', [SwimmerDashboard::class, 'cancelGuestSlot'])->name('session.cancel-guest');
 
     // Trainingsplanung: Serien ausblenden/einblenden
     Route::post('/serien/{recurrenceGroupId}/ausblenden', [SessionPlanningController::class, 'excludeSeries'])->name('series.exclude');

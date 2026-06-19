@@ -194,6 +194,26 @@ function trainingEditForm() {
                     </label>
                 </div>
 
+                {{-- Gastgruppe --}}
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Gastgruppe <span class="text-gray-400 font-normal">(optional – nur bei gesetztem Teilnehmerlimit wirksam)</span>
+                    </label>
+                    <select name="guest_group_id"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="">— Keine Gastgruppe —</option>
+                        @foreach($allGroups as $g)
+                            <option value="{{ $g->id }}"
+                                {{ old('guest_group_id', $session->guest_group_id) == $g->id ? 'selected' : '' }}>
+                                {{ $g->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Bei Absagen aus der Hauptgruppe werden Mitglieder der Gastgruppe benachrichtigt und können freie Plätze buchen (First come, first serve).
+                    </p>
+                </div>
+
             </div>
 
             <div class="flex gap-3 pt-2 border-t border-gray-100">

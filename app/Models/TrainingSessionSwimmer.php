@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class TrainingSessionSwimmer extends Model
 {
-    protected $fillable = ['user_id', 'training_session_id', 'recurrence_group_id'];
+    protected $fillable = ['user_id', 'training_session_id', 'recurrence_group_id', 'is_guest'];
+
+    protected $casts = ['is_guest' => 'boolean'];
 
     public function user()
     {

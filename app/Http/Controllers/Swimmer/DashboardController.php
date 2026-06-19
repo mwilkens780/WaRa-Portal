@@ -400,6 +400,34 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('training_session_id');
 
+        // ── Guest training opportunities ─────────────────────────────────────
+        $allGuestSessions = TrainingSession::where('date', '>', today())
+            ->whereIn('guest_group_id', $swimmerGroupIds)
+            ->whereNotNull('max_participants')
+            ->with(['trainingGroups.swimmers', 'attendances', 'trainingGroups:id,name'])
+            ->orderBy('date')->orderBy('start_time')
+            ->get();
+
+        $myGuestBookingIds = \App\Models\TrainingSessionSwimmer::where('user_id', $swimmer->id)
+            ->where('is_guest', true)
+            ->whereIn('training_session_id', $allGuestSessions->pluck('id'))
+            ->pluck('training_session_id')
+            ->toArray();
+
+        // Compute available spots per guest session
+        $guestSessions = $allGuestSessions->map(function ($s) use ($myGuestBookingIds) {
+            $expected   = $s->expectedParticipantCount();
+            $preAbsent  = $s->attendances->where('pre_absent', true)->count();
+            $effective  = $expected - $preAbsent;
+            $spots      = max(0, $s->max_participants - $effective);
+            return (object)[
+                'session'   => $s,
+                'spots'     => $spots,
+                'booked'    => in_array($s->id, $myGuestBookingIds),
+                'available' => $spots > 0,
+            ];
+        })->filter(fn($g) => $g->available || $g->booked)->values();
+
         // ── Past sessions: exclude swimmer-cancelled ones, group by month ────
         $filter    = request('filter', 'attended');
         $pastQuery = TrainingSession::where('date', '<=', today())
@@ -423,7 +451,8 @@ class DashboardController extends Controller
             'totalRelevant', 'totalAttended', 'pct', 'diaryPendingCount',
             'trainingSeries', 'excludedSeriesIds',
             'upcoming', 'preAbsenceMap', 'myRegistrations',
-            'pastSessions', 'filter'
+            'pastSessions', 'filter',
+            'guestSessions'
         ));
     }
 
@@ -451,7 +480,61 @@ class DashboardController extends Controller
             ['pre_absent' => true, 'pre_absent_note' => $data['note'] ?? null]
         );
 
+        // Notify guest group if this cancellation opens a spot
+        \App\Http\Controllers\Trainer\TrainingSessionController::notifyGuestGroupIfSpotAvailable($session);
+
         return back()->with('success', 'Absage gespeichert.');
+    }
+
+    public function bookGuestSlot(TrainingSession $session)
+    {
+        $swimmer = auth()->user();
+
+        // Verify the swimmer's group is the session's guest group
+        $isInGuestGroup = $session->guest_group_id &&
+            $swimmer->trainingGroups()->where('training_groups.id', $session->guest_group_id)->exists();
+
+        if (!$isInGuestGroup) {
+            return back()->with('error', 'Du bist nicht in der Gastgruppe dieser Einheit.');
+        }
+
+        if ($session->date->lt(today())) {
+            return back()->with('error', 'Diese Trainingseinheit liegt in der Vergangenheit.');
+        }
+
+        // Check if already booked
+        $existing = TrainingSessionSwimmer::where('training_session_id', $session->id)
+            ->where('user_id', $swimmer->id)->exists();
+
+        if ($existing) {
+            return back()->with('info', 'Du hast bereits einen Platz gebucht.');
+        }
+
+        // Atomic check: spots still available
+        $availableSpots = $session->availableSpotsForGuests();
+        if ($availableSpots !== null && $availableSpots <= 0) {
+            return back()->with('error', 'Leider sind keine freien Plätze mehr verfügbar.');
+        }
+
+        TrainingSessionSwimmer::create([
+            'training_session_id' => $session->id,
+            'user_id'             => $swimmer->id,
+            'is_guest'            => true,
+        ]);
+
+        return back()->with('success', 'Platz gebucht! Du bist jetzt für dieses Gasttraining eingetragen.');
+    }
+
+    public function cancelGuestSlot(TrainingSession $session)
+    {
+        $swimmer = auth()->user();
+
+        TrainingSessionSwimmer::where('training_session_id', $session->id)
+            ->where('user_id', $swimmer->id)
+            ->where('is_guest', true)
+            ->delete();
+
+        return back()->with('success', 'Gastbuchung storniert.');
     }
 
     public function myTimes()

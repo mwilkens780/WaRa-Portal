@@ -11,8 +11,12 @@ use App\Models\Holiday;
 use App\Models\Season;
 use App\Models\SwimmerGoal;
 use App\Models\SwimmingTime;
+use App\Models\TrainingSessionSwimmer;
 use App\Models\User;
+use App\Mail\GuestGroupSpotAvailableMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -40,16 +44,60 @@ class TrainingSessionController extends Controller
             ->orderBy('date')
             ->get();
 
-        return view('trainer.sessions.index', compact('groups', 'ungroupedSessions'));
+        // Precompute participant counts for index view (avoid N+1)
+        $allSessions = $groups->flatMap(fn($g) => $g->sessions)->merge($ungroupedSessions);
+
+        $allGroupIds = $allSessions
+            ->flatMap(fn($s) => $s->trainingGroups->pluck('id'))
+            ->unique()->values();
+
+        $groupSwimmerCounts = $allGroupIds->isNotEmpty()
+            ? DB::table('training_group_swimmer')
+                ->join('users', 'users.id', '=', 'training_group_swimmer.user_id')
+                ->whereIn('training_group_swimmer.training_group_id', $allGroupIds)
+                ->where('users.active', true)
+                ->groupBy('training_group_swimmer.training_group_id')
+                ->pluck(DB::raw('COUNT(DISTINCT users.id)'), 'training_group_id')
+                ->toArray()
+            : [];
+
+        $allSessionIds = $allSessions->pluck('id');
+        $sessionIndividualCounts = TrainingSessionSwimmer::whereNotNull('training_session_id')
+            ->whereIn('training_session_id', $allSessionIds)
+            ->groupBy('training_session_id')
+            ->pluck(DB::raw('COUNT(*)'), 'training_session_id')
+            ->toArray();
+
+        $allSeriesIds = $allSessions->pluck('recurrence_group_id')->filter()->unique()->values();
+        $seriesIndividualCounts = $allSeriesIds->isNotEmpty()
+            ? TrainingSessionSwimmer::whereNotNull('recurrence_group_id')
+                ->whereIn('recurrence_group_id', $allSeriesIds)
+                ->groupBy('recurrence_group_id')
+                ->pluck(DB::raw('COUNT(*)'), 'recurrence_group_id')
+                ->toArray()
+            : [];
+
+        // Pre-absent counts per session (to compute actual attendance for overflow check)
+        $preAbsentCounts = TrainingAttendance::whereIn('training_session_id', $allSessionIds)
+            ->where('pre_absent', true)
+            ->groupBy('training_session_id')
+            ->pluck(DB::raw('COUNT(*)'), 'training_session_id')
+            ->toArray();
+
+        return view('trainer.sessions.index', compact(
+            'groups', 'ungroupedSessions',
+            'groupSwimmerCounts', 'sessionIndividualCounts', 'seriesIndividualCounts', 'preAbsentCounts'
+        ));
     }
 
     public function create()
     {
         $groups = $this->availableGroups();
+        $allGroups = \App\Models\TrainingGroup::where('active', true)->orderBy('name')->get();
         $allTrainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
         $currentSeason = Season::current();
-        return view('trainer.sessions.create', compact('groups', 'currentSeason', 'allTrainers'));
+        return view('trainer.sessions.create', compact('groups', 'allGroups', 'currentSeason', 'allTrainers'));
     }
 
     public function store(Request $request)
@@ -81,9 +129,11 @@ class TrainingSessionController extends Controller
             'co_trainer_ids.*'  => ['exists:users,id'],
             'max_participants'  => ['nullable', 'integer', 'min:1', 'max:999'],
             'registration_open' => ['nullable', 'boolean'],
+            'guest_group_id'    => ['nullable', 'exists:training_groups,id'],
         ]);
 
         $data['registration_open'] = $request->boolean('registration_open');
+        $data['guest_group_id']    = $request->input('guest_group_id') ?: null;
 
         $groupIds     = $request->input('groups', []);
         $coTrainerIds = $request->input('co_trainer_ids', []);
@@ -99,7 +149,10 @@ class TrainingSessionController extends Controller
         }
 
         if ($data['recurrence_type'] === 'none') {
-            $session = TrainingSession::create(array_merge($data, ['team_plan_path' => $teamPlanPath]));
+            $session = TrainingSession::create(array_merge($data, [
+                'team_plan_path' => $teamPlanPath,
+                'guest_group_id' => $data['guest_group_id'] ?? null,
+            ]));
             $session->trainingGroups()->sync($groupIds);
             $session->coTrainers()->sync($coTrainerIds);
             return redirect()->route('trainer.sessions.show', $session)
@@ -150,6 +203,8 @@ class TrainingSessionController extends Controller
                     'recurrence_until'    => $until->format('Y-m-d'),
                     'recurrence_group_id' => $recurrenceGroupId,
                     'team_plan_path'      => $teamPlanPath,
+                    'max_participants'    => $data['max_participants'] ?? null,
+                    'guest_group_id'      => $data['guest_group_id'] ?? null,
                 ]);
                 $session->trainingGroups()->sync($groupIds);
                 $session->coTrainers()->sync($coTrainerIds);
@@ -178,7 +233,7 @@ class TrainingSessionController extends Controller
     public function show(TrainingSession $session)
     {
         $this->authorizeSession($session);
-        $session->load('coTrainers', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks', 'hallBookings.resource');
+        $session->load('coTrainers', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks', 'hallBookings.resource', 'guestGroup.swimmers');
 
         // Only show swimmers from the session's training groups; fall back to all if no groups assigned
         if ($session->trainingGroups->isNotEmpty()) {
@@ -257,12 +312,26 @@ class TrainingSessionController extends Controller
         // Registrations for this session
         $sessionRegistrations = $session->registrations()->with('user:id,firstname,lastname')->get();
 
+        // Guest bookings for this session
+        $guestBookings = TrainingSessionSwimmer::where('training_session_id', $session->id)
+            ->where('is_guest', true)
+            ->with('user:id,firstname,lastname')
+            ->get();
+
+        // Expected participant count for overflow check
+        $expectedCount = $session->expectedParticipantCount();
+        $isOverCapacity = $session->max_participants !== null && $expectedCount > $session->max_participants;
+
+        // All groups for guest group management
+        $allGroups = TrainingGroup::where('active', true)->orderBy('name')->get();
+
         return view('trainer.sessions.show', compact(
             'session', 'swimmers', 'attendedIds',
             'participationPct', 'presentCount', 'totalSwimmers',
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
             'siblings', 'blockTimesMap', 'allResources', 'freeResources',
-            'individualSwimmers', 'seriesIndividualSwimmers', 'allSwimmersForAssign', 'sessionRegistrations'
+            'individualSwimmers', 'seriesIndividualSwimmers', 'allSwimmersForAssign', 'sessionRegistrations',
+            'guestBookings', 'expectedCount', 'isOverCapacity', 'allGroups'
         ));
     }
 
@@ -302,13 +371,14 @@ class TrainingSessionController extends Controller
     {
         $this->authorizeSession($session);
         $groups = $this->availableGroups();
+        $allGroups = \App\Models\TrainingGroup::where('active', true)->orderBy('name')->get();
         $allTrainers = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')->get();
         $coTrainerIds = $session->coTrainers()->pluck('users.id')->toArray();
         $seriesCount  = $session->recurrence_group_id
             ? TrainingSession::where('recurrence_group_id', $session->recurrence_group_id)->count()
             : 0;
-        return view('trainer.sessions.edit', compact('session', 'groups', 'allTrainers', 'coTrainerIds', 'seriesCount'));
+        return view('trainer.sessions.edit', compact('session', 'groups', 'allGroups', 'allTrainers', 'coTrainerIds', 'seriesCount'));
     }
 
     public function update(Request $request, TrainingSession $session)
@@ -330,9 +400,11 @@ class TrainingSessionController extends Controller
             'edit_scope'       => ['nullable', 'in:single,series'],
             'max_participants'  => ['nullable', 'integer', 'min:1', 'max:999'],
             'registration_open' => ['nullable', 'boolean'],
+            'guest_group_id'    => ['nullable', 'exists:training_groups,id'],
         ]);
 
         $data['registration_open'] = $request->boolean('registration_open');
+        $data['guest_group_id']    = $request->input('guest_group_id') ?: null;
 
         $groupIds     = $request->input('groups', []);
         $coTrainerIds = $request->input('co_trainer_ids', []);
@@ -345,7 +417,7 @@ class TrainingSessionController extends Controller
 
             $seriesData = array_intersect_key($data, array_flip([
                 'title', 'start_time', 'end_time', 'location', 'type', 'notes',
-                'max_participants', 'registration_open',
+                'max_participants', 'registration_open', 'guest_group_id',
             ]));
 
             $newDate   = Carbon::parse($data['date']);
@@ -742,5 +814,39 @@ class TrainingSessionController extends Controller
             $query->whereHas('trainers', fn($q) => $q->where('users.id', auth()->id()));
         }
         return $query->get();
+    }
+
+    /** Notify unbooked guest group members when a spot opens up. */
+    public static function notifyGuestGroupIfSpotAvailable(TrainingSession $session): void
+    {
+        if (!$session->guest_group_id || !$session->max_participants) return;
+        if ($session->date->lt(today())) return;
+
+        $session->loadMissing('trainingGroups.swimmers', 'guestGroup.swimmers', 'attendances');
+
+        // Count planned (non-guest) participants minus pre-absences
+        $expectedCount  = $session->expectedParticipantCount();
+        $preAbsentCount = $session->attendances->where('pre_absent', true)->count();
+        $effective      = $expectedCount - $preAbsentCount;
+
+        if ($effective >= $session->max_participants) return; // no spot
+
+        // Find guest group members who haven't already booked
+        $alreadyBookedIds = TrainingSessionSwimmer::where('training_session_id', $session->id)
+            ->where('is_guest', true)
+            ->pluck('user_id')
+            ->toArray();
+
+        $toNotify = $session->guestGroup->swimmers()
+            ->where('users.active', true)
+            ->whereNotIn('users.id', $alreadyBookedIds)
+            ->whereNotNull('users.email')
+            ->get();
+
+        foreach ($toNotify as $swimmer) {
+            try {
+                Mail::to($swimmer->email)->send(new GuestGroupSpotAvailableMail($session, $swimmer));
+            } catch (\Throwable) {}
+        }
     }
 }
