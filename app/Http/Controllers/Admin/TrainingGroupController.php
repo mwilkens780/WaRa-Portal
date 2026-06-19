@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TrainingGroup;
+use App\Models\TrainingGroupGoal;
+use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\GroupImportService;
@@ -82,9 +84,91 @@ class TrainingGroupController extends Controller
         $recentSessions   = $trainingGroup->sessions()->orderByDesc('date')->limit(10)->get();
         $upcomingSessions = $trainingGroup->sessions()->where('date', '>=', now())->orderBy('date')->limit(5)->get();
 
+        // Goals with all evaluations for the group's swimmers
+        $goals = $trainingGroup->goals()
+            ->where('active', true)
+            ->with(['evaluations' => function ($q) use ($activeSwimmers) {
+                $q->whereIn('user_id', $activeSwimmers->pluck('id'));
+            }])
+            ->get();
+
         return view('admin.training-groups.show', compact(
-            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions'
+            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions', 'goals'
         ));
+    }
+
+    // ── Goal management ──────────────────────────────────────────────────
+
+    public function storeGoal(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+
+        $data = $request->validate([
+            'title'        => ['required', 'string', 'max:255'],
+            'description'  => ['nullable', 'string'],
+            'type'         => ['required', 'in:quantitative,qualitative'],
+            'target_value' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $data['training_group_id'] = $trainingGroup->id;
+        $data['sort_order'] = $trainingGroup->goals()->max('sort_order') + 1;
+
+        TrainingGroupGoal::create($data);
+
+        return back()->with('success', 'Ziel hinzugefügt.');
+    }
+
+    public function updateGoal(Request $request, TrainingGroup $trainingGroup, TrainingGroupGoal $goal)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_if($goal->training_group_id !== $trainingGroup->id, 404);
+
+        $data = $request->validate([
+            'title'        => ['required', 'string', 'max:255'],
+            'description'  => ['nullable', 'string'],
+            'type'         => ['required', 'in:quantitative,qualitative'],
+            'target_value' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $goal->update($data);
+
+        return back()->with('success', 'Ziel aktualisiert.');
+    }
+
+    public function destroyGoal(TrainingGroup $trainingGroup, TrainingGroupGoal $goal)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_if($goal->training_group_id !== $trainingGroup->id, 404);
+
+        $goal->delete();
+
+        return back()->with('success', 'Ziel gelöscht.');
+    }
+
+    public function storeTrainerEvaluation(Request $request, TrainingGroup $trainingGroup, TrainingGroupGoal $goal, User $user)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_if($goal->training_group_id !== $trainingGroup->id, 404);
+
+        $data = $request->validate([
+            'rating'        => ['nullable', 'integer', 'min:1', 'max:5'],
+            'current_value' => ['nullable', 'string', 'max:100'],
+            'notes'         => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        TrainingGroupGoalEvaluation::updateOrCreate(
+            [
+                'training_group_goal_id' => $goal->id,
+                'user_id'                => $user->id,
+                'evaluation_type'        => 'trainer',
+            ],
+            array_merge($data, [
+                'evaluator_id' => auth()->id(),
+                'evaluated_at' => today(),
+            ])
+        );
+
+        return back()->with('success', 'Bewertung gespeichert.');
     }
 
     // ── Remove single swimmer ──────────────────────────────────────────────

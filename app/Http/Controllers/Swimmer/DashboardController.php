@@ -10,6 +10,9 @@ use App\Models\Season;
 use App\Models\SwimmerGoal;
 use App\Models\SwimmerSeriesExclusion;
 use App\Models\TrainingAttendance;
+use App\Models\TrainingGroup;
+use App\Models\TrainingGroupGoal;
+use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionSwimmer;
 use App\Models\SwimmingTime;
@@ -780,5 +783,72 @@ class DashboardController extends Controller
         }
 
         return view('swimmer.session-detail', compact('session', 'diary', 'myAttendance', 'myBlockTimes'));
+    }
+
+    // ── Gruppenziele ─────────────────────────────────────────────────────
+
+    public function groupGoals()
+    {
+        $swimmer = auth()->user();
+
+        // All active groups with active goals + self-evaluations of this swimmer
+        $allGroups = TrainingGroup::where('active', true)
+            ->with(['goals' => function ($q) {
+                $q->where('active', true)->orderBy('sort_order')->orderBy('id');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        // Swimmer's own group IDs
+        $myGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id')->toArray();
+
+        // All goal IDs across all groups
+        $allGoalIds = $allGroups->flatMap(fn($g) => $g->goals->pluck('id'));
+
+        // Self-evaluations by this swimmer
+        $selfEvals = TrainingGroupGoalEvaluation::where('user_id', $swimmer->id)
+            ->where('evaluation_type', 'self')
+            ->whereIn('training_group_goal_id', $allGoalIds)
+            ->get()
+            ->keyBy('training_group_goal_id');
+
+        // Trainer evaluations for this swimmer
+        $trainerEvals = TrainingGroupGoalEvaluation::where('user_id', $swimmer->id)
+            ->where('evaluation_type', 'trainer')
+            ->whereIn('training_group_goal_id', $allGoalIds)
+            ->get()
+            ->keyBy('training_group_goal_id');
+
+        return view('swimmer.group-goals', compact(
+            'allGroups', 'myGroupIds', 'selfEvals', 'trainerEvals'
+        ));
+    }
+
+    public function storeGroupGoalEvaluation(Request $request, TrainingGroupGoal $goal)
+    {
+        $swimmer = auth()->user();
+
+        // Swimmer must be in a group that either owns this goal OR is looking at it for qualification
+        // (We allow all swimmers to self-evaluate on all group goals)
+
+        $data = $request->validate([
+            'rating'        => ['nullable', 'integer', 'min:1', 'max:5'],
+            'current_value' => ['nullable', 'string', 'max:100'],
+            'notes'         => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        TrainingGroupGoalEvaluation::updateOrCreate(
+            [
+                'training_group_goal_id' => $goal->id,
+                'user_id'                => $swimmer->id,
+                'evaluation_type'        => 'self',
+            ],
+            array_merge($data, [
+                'evaluator_id' => $swimmer->id,
+                'evaluated_at' => today(),
+            ])
+        );
+
+        return back()->with('success', 'Eigenbewertung gespeichert.');
     }
 }

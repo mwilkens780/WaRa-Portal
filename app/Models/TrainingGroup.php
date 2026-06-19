@@ -42,6 +42,11 @@ class TrainingGroup extends Model
         return $this->belongsToMany(TrainingSession::class, 'training_session_group');
     }
 
+    public function goals()
+    {
+        return $this->hasMany(TrainingGroupGoal::class, 'training_group_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Scope: nur Gruppen, die der User sehen darf.
      * Admins: alle | Trainer: ihre Gruppen | Schwimmer: ihre Gruppen

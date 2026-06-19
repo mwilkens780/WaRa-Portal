@@ -143,6 +143,11 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::post('/trainingsgruppen/{trainingGroup}/csv-upload', [TrainingGroupController::class, 'importCsvUpload'])->name('training-groups.csv-upload');
     Route::get('/trainingsgruppen/{trainingGroup}/csv-vorschau', [TrainingGroupController::class, 'importCsvPreview'])->name('training-groups.csv-preview');
     Route::post('/trainingsgruppen/{trainingGroup}/csv-speichern', [TrainingGroupController::class, 'importCsvExecute'])->name('training-groups.csv-execute');
+    // Gruppenziele
+    Route::post('/trainingsgruppen/{trainingGroup}/ziele', [TrainingGroupController::class, 'storeGoal'])->name('training-groups.goals.store');
+    Route::put('/trainingsgruppen/{trainingGroup}/ziele/{goal}', [TrainingGroupController::class, 'updateGoal'])->name('training-groups.goals.update');
+    Route::delete('/trainingsgruppen/{trainingGroup}/ziele/{goal}', [TrainingGroupController::class, 'destroyGoal'])->name('training-groups.goals.destroy');
+    Route::post('/trainingsgruppen/{trainingGroup}/ziele/{goal}/bewertungen/{user}', [TrainingGroupController::class, 'storeTrainerEvaluation'])->name('training-groups.goals.trainer-eval');
 });
 
 // Wettkämpfe – Ansicht & Import auch für Trainer, Vorstand, Kampfrichter zugänglich
@@ -351,6 +356,10 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::post('/training/{session}/anmelden', [SessionPlanningController::class, 'register'])->name('session.register');
     Route::delete('/training/{session}/anmelden', [SessionPlanningController::class, 'unregister'])->name('session.unregister');
     Route::post('/training/{session}/einzel-beitreten', [SessionPlanningController::class, 'punctualJoin'])->name('session.punctual.join');
+
+    // Gruppenziele (Qualifikationskriterien & Eigenbewertung)
+    Route::get('/trainingsgruppen-ziele', [SwimmerDashboard::class, 'groupGoals'])->name('group-goals.index');
+    Route::post('/gruppen-ziel/{goal}/eigenbewertung', [SwimmerDashboard::class, 'storeGroupGoalEvaluation'])->name('group-goal.self-eval');
 
     // Ziele
     Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');
