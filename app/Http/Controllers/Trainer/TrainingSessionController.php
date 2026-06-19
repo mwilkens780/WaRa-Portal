@@ -56,32 +56,36 @@ class TrainingSessionController extends Controller
                 ->join('users', 'users.id', '=', 'training_group_swimmer.user_id')
                 ->whereIn('training_group_swimmer.training_group_id', $allGroupIds)
                 ->where('users.active', true)
+                ->selectRaw('training_group_swimmer.training_group_id, COUNT(DISTINCT users.id) as cnt')
                 ->groupBy('training_group_swimmer.training_group_id')
-                ->pluck(DB::raw('COUNT(DISTINCT users.id)'), 'training_group_id')
+                ->pluck('cnt', 'training_group_id')
                 ->toArray()
             : [];
 
         $allSessionIds = $allSessions->pluck('id');
         $sessionIndividualCounts = TrainingSessionSwimmer::whereNotNull('training_session_id')
             ->whereIn('training_session_id', $allSessionIds)
+            ->selectRaw('training_session_id, COUNT(*) as cnt')
             ->groupBy('training_session_id')
-            ->pluck(DB::raw('COUNT(*)'), 'training_session_id')
+            ->pluck('cnt', 'training_session_id')
             ->toArray();
 
         $allSeriesIds = $allSessions->pluck('recurrence_group_id')->filter()->unique()->values();
         $seriesIndividualCounts = $allSeriesIds->isNotEmpty()
             ? TrainingSessionSwimmer::whereNotNull('recurrence_group_id')
                 ->whereIn('recurrence_group_id', $allSeriesIds)
+                ->selectRaw('recurrence_group_id, COUNT(*) as cnt')
                 ->groupBy('recurrence_group_id')
-                ->pluck(DB::raw('COUNT(*)'), 'recurrence_group_id')
+                ->pluck('cnt', 'recurrence_group_id')
                 ->toArray()
             : [];
 
         // Pre-absent counts per session (to compute actual attendance for overflow check)
         $preAbsentCounts = TrainingAttendance::whereIn('training_session_id', $allSessionIds)
             ->where('pre_absent', true)
+            ->selectRaw('training_session_id, COUNT(*) as cnt')
             ->groupBy('training_session_id')
-            ->pluck(DB::raw('COUNT(*)'), 'training_session_id')
+            ->pluck('cnt', 'training_session_id')
             ->toArray();
 
         return view('trainer.sessions.index', compact(
