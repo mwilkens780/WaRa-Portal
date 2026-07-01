@@ -116,7 +116,7 @@
                     </button>
 
                     <div x-show="showForm" x-transition class="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <form method="POST" action="{{ route('group-goal.self-eval', $goal) }}"
+                        <form method="POST" action="{{ route('swimmer.group-goal.self-eval', $goal) }}"
                               class="flex flex-wrap gap-2 items-end">
                             @csrf
                             <div>
