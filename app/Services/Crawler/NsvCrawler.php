@@ -44,6 +44,9 @@ class NsvCrawler implements CrawlerInterface
 
     public function getSourceId(): string { return 'nsv'; }
 
+    /** Interface requirement — not used directly; logic lives in run(). */
+    public function fetchFiles(): iterable { return []; }
+
     // ── Public entry point ──────────────────────────────────────────────────
 
     public function run(): array
