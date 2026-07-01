@@ -347,7 +347,7 @@ class DsvImportService
         string  $source     = 'manual',
         ?string $importHash = null,
         ?string $sourceUrl  = null
-    ): void {
+    ): \App\Models\Competition {
         $parsed = $this->parse($filePath);
         $meet   = $parsed['meets'][0] ?? null;
 
@@ -400,6 +400,8 @@ class DsvImportService
             'competition_id' => $competition->id,
             'message'        => 'Automatischer Import',
         ]);
+
+        return $competition;
     }
 
     private function matchAthleteToUser(array $athlete, \Illuminate\Support\Collection $swimmers): ?int
