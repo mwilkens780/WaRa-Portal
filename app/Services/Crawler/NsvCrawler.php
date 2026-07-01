@@ -23,7 +23,7 @@ class NsvCrawler implements CrawlerInterface
 {
     private const CATEGORY_URL = 'https://www.norddeutscherschwimmverband.de/category/schwimmen/';
     private const NSV_HOST     = 'www.norddeutscherschwimmverband.de';
-    private const MAX_PAGES    = 3;
+    private const MAX_PAGES    = 5;   // ~50 Posts (10 pro Seite)
 
     private const SKIP_DOMAINS = [
         'facebook.com', 'instagram.com', 'twitter.com', 'x.com',
@@ -233,6 +233,11 @@ class NsvCrawler implements CrawlerInterface
     {
         $postUrls = [];
 
+        // Only process posts from current and previous calendar year
+        // (swimming season spans Sep–Aug, so previous year is always relevant)
+        $currentYear  = (int) date('Y');
+        $relevantYears = [(string) $currentYear, (string) ($currentYear - 1)];
+
         for ($page = 1; $page <= self::MAX_PAGES; $page++) {
             $url = $page === 1
                 ? self::CATEGORY_URL
@@ -249,26 +254,47 @@ class NsvCrawler implements CrawlerInterface
                 break;
             }
 
+            $body = $response->body();
+
             // WordPress post URLs: domain/YYYY/MM/DD/slug/ or domain/YYYY/slug/
             preg_match_all(
                 '~href=["\'](' . preg_quote('https://' . self::NSV_HOST, '~') . '/\d{4}/[^"\']+)["\']~i',
-                $response->body(),
+                $body,
                 $matches
             );
-
             $found = array_unique($matches[1] ?? []);
 
             // Also try relative post URLs
-            preg_match_all('~href=["\'](/\d{4}/[^"\']+)["\']~i', $response->body(), $rel);
+            preg_match_all('~href=["\'](/\d{4}/[^"\']+)["\']~i', $body, $rel);
             foreach (array_unique($rel[1] ?? []) as $relPath) {
                 $found[] = 'https://' . self::NSV_HOST . $relPath;
             }
             $found = array_unique($found);
 
+            // Filter to relevant years; stop paging if we're past them
+            $filtered = array_values(array_filter($found, function (string $postUrl) use ($relevantYears): bool {
+                foreach ($relevantYears as $year) {
+                    if (str_contains($postUrl, '/' . $year . '/')) return true;
+                }
+                return false;
+            }));
+
+            // If this archive page has no URLs at all → no further pages exist
             if (empty($found) && $page > 1) break;
 
-            $postUrls = array_merge($postUrls, $found);
-            Log::debug("NsvCrawler: Seite {$page} → " . count($found) . ' Posts', ['url' => $url]);
+            // If all found URLs are older than relevant years, stop paging early
+            $hasRelevant = count($filtered) > 0;
+            $allOlderThanRelevant = !$hasRelevant && count($found) > 0;
+            if ($allOlderThanRelevant) {
+                Log::debug("NsvCrawler: Seite {$page} enthält nur ältere Posts – Paging beendet");
+                break;
+            }
+
+            $postUrls = array_merge($postUrls, $filtered);
+            Log::debug(
+                "NsvCrawler: Seite {$page} → {$hasRelevant} relevante Posts (von " . count($found) . ')',
+                ['url' => $url, 'years' => $relevantYears]
+            );
         }
 
         return array_unique($postUrls);
