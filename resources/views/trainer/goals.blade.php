@@ -234,47 +234,102 @@
                     $selfEvs      = $goal->evaluations->where('evaluation_type', 'self');
                     $trainerEvs   = $goal->evaluations->where('evaluation_type', 'trainer');
                     $evaluatedCnt = $selfEvs->count();
-                    $unevalCnt    = max(0, $totalSw - $evaluatedCnt);
-                    $avgRating    = $evaluatedCnt > 0 ? round($selfEvs->avg('rating'), 1) : null;
+                    $isQuant      = $goal->type === 'quantitative';
 
-                    // Build conic-gradient from rating 5→1→unbewertet
-                    $cumPct = 0;
-                    $gradParts = [];
-                    $chartSegs = [];
-                    foreach ([5,4,3,2,1] as $r) {
-                        $cnt = $selfEvs->where('rating', $r)->count();
-                        if ($cnt > 0 && $totalSw > 0) {
-                            $pct = $cnt / $totalSw * 100;
-                            $gradParts[] = $ratingHex[$r].' '.round($cumPct,2).'% '.round($cumPct+$pct,2).'%';
-                            $chartSegs[] = ['rating' => $r, 'count' => $cnt, 'pct' => round($pct)];
-                            $cumPct += $pct;
+                    $hexMap = [5=>'#22c55e', 4=>'#3b82f6', 3=>'#eab308', 2=>'#f97316', 1=>'#9ca3af', 0=>'#f3f4f6'];
+
+                    // ── Eigenbewertung ──────────────────────────────────────────
+                    $gradParts = []; $chartSegs = []; $cum = 0;
+                    $avgRating = null; $centerSelf = null; $subtextSelf = null;
+
+                    if ($isQuant) {
+                        $erfuelltCnt = $selfEvs->where('rating', 5)->count();
+                        $nichtCnt    = $selfEvs->where('rating', 1)->count();
+                        $unevalSelf  = max(0, $totalSw - $selfEvs->count());
+                        foreach ([[5,'Erfüllt','#22c55e'],   [1,'Nicht erfüllt','#ef4444']] as [$rv,$lv,$cv]) {
+                            $cnt = $rv === 5 ? $erfuelltCnt : $nichtCnt;
+                            if ($cnt > 0 && $totalSw > 0) {
+                                $p = $cnt / $totalSw * 100;
+                                $gradParts[] = $cv.' '.round($cum,2).'% '.round($cum+$p,2).'%';
+                                $chartSegs[] = ['rating'=>$rv, 'label'=>$lv, 'color'=>$cv, 'count'=>$cnt, 'pct'=>round($p)];
+                                $cum += $p;
+                            }
                         }
-                    }
-                    if ($unevalCnt > 0 && $totalSw > 0) {
-                        $pct = $unevalCnt / $totalSw * 100;
-                        $gradParts[] = $ratingHex[0].' '.round($cumPct,2).'% '.round($cumPct+$pct,2).'%';
-                        $chartSegs[] = ['rating' => 0, 'count' => $unevalCnt, 'pct' => round($pct)];
+                        if ($unevalSelf > 0 && $totalSw > 0) {
+                            $p = $unevalSelf / $totalSw * 100;
+                            $gradParts[] = '#f3f4f6 '.round($cum,2).'% '.round($cum+$p,2).'%';
+                            $chartSegs[] = ['rating'=>0, 'label'=>'Nicht bewertet', 'color'=>'#e5e7eb', 'count'=>$unevalSelf, 'pct'=>round($p)];
+                        }
+                        if ($totalSw > 0 && $selfEvs->count() > 0) {
+                            $centerSelf  = round($erfuelltCnt / $totalSw * 100).'%';
+                            $subtextSelf = $erfuelltCnt.'/'.$totalSw.' erfüllt';
+                        }
+                    } else {
+                        $unevalSelf = max(0, $totalSw - $selfEvs->count());
+                        $avgRating  = $selfEvs->count() > 0 ? round($selfEvs->avg('rating'), 1) : null;
+                        foreach ([5,4,3,2,1] as $r) {
+                            $cnt = $selfEvs->where('rating', $r)->count();
+                            if ($cnt > 0 && $totalSw > 0) {
+                                $p = $cnt / $totalSw * 100;
+                                $gradParts[] = $hexMap[$r].' '.round($cum,2).'% '.round($cum+$p,2).'%';
+                                $chartSegs[] = ['rating'=>$r, 'label'=>$r.'★ '.(\App\Models\TrainingGroupGoal::$ratingLabels[$r] ?? ''), 'color'=>$hexMap[$r], 'count'=>$cnt, 'pct'=>round($p)];
+                                $cum += $p;
+                            }
+                        }
+                        if ($unevalSelf > 0 && $totalSw > 0) {
+                            $p = $unevalSelf / $totalSw * 100;
+                            $gradParts[] = $hexMap[0].' '.round($cum,2).'% '.round($cum+$p,2).'%';
+                            $chartSegs[] = ['rating'=>0, 'label'=>'Nicht bewertet', 'color'=>$hexMap[0], 'count'=>$unevalSelf, 'pct'=>round($p)];
+                        }
+                        $centerSelf = $avgRating ? round($avgRating / 5 * 100).'%' : null;
                     }
                     $gradCss = count($gradParts) ? implode(', ', $gradParts) : '#f3f4f6 0% 100%';
 
-                    // Trainer-eval chart
-                    $tEvalCnt   = $trainerEvs->count();
-                    $tUnevalCnt = max(0, $totalSw - $tEvalCnt);
-                    $tAvgRating = $tEvalCnt > 0 ? round($trainerEvs->avg('rating'), 1) : null;
-                    $tCumPct = 0; $tGradParts = []; $tChartSegs = [];
-                    foreach ([5,4,3,2,1] as $r) {
-                        $cnt = $trainerEvs->where('rating', $r)->count();
-                        if ($cnt > 0 && $totalSw > 0) {
-                            $pct = $cnt / $totalSw * 100;
-                            $tGradParts[] = $ratingHex[$r].' '.round($tCumPct,2).'% '.round($tCumPct+$pct,2).'%';
-                            $tChartSegs[] = ['rating' => $r, 'count' => $cnt, 'pct' => round($pct)];
-                            $tCumPct += $pct;
+                    // ── Trainerbewertung ────────────────────────────────────────
+                    $tGradParts = []; $tChartSegs = []; $tCum = 0;
+                    $tAvgRating = null; $centerTrainer = null; $subtextTrainer = null;
+
+                    if ($isQuant) {
+                        $tErfuelltCnt = $trainerEvs->where('rating', 5)->count();
+                        $tNichtCnt    = $trainerEvs->where('rating', 1)->count();
+                        $tUnevalSelf  = max(0, $totalSw - $trainerEvs->count());
+                        foreach ([[5,'Erfüllt','#22c55e'],   [1,'Nicht erfüllt','#ef4444']] as [$rv,$lv,$cv]) {
+                            $cnt = $rv === 5 ? $tErfuelltCnt : $tNichtCnt;
+                            if ($cnt > 0 && $totalSw > 0) {
+                                $p = $cnt / $totalSw * 100;
+                                $tGradParts[] = $cv.' '.round($tCum,2).'% '.round($tCum+$p,2).'%';
+                                $tChartSegs[] = ['rating'=>$rv, 'label'=>$lv, 'color'=>$cv, 'count'=>$cnt, 'pct'=>round($p)];
+                                $tCum += $p;
+                            }
                         }
-                    }
-                    if ($tUnevalCnt > 0 && $totalSw > 0) {
-                        $pct = $tUnevalCnt / $totalSw * 100;
-                        $tGradParts[] = $ratingHex[0].' '.round($tCumPct,2).'% '.round($tCumPct+$pct,2).'%';
-                        $tChartSegs[] = ['rating' => 0, 'count' => $tUnevalCnt, 'pct' => round($pct)];
+                        if ($tUnevalSelf > 0 && $totalSw > 0) {
+                            $p = $tUnevalSelf / $totalSw * 100;
+                            $tGradParts[] = '#f3f4f6 '.round($tCum,2).'% '.round($tCum+$p,2).'%';
+                            $tChartSegs[] = ['rating'=>0, 'label'=>'Nicht bewertet', 'color'=>'#e5e7eb', 'count'=>$tUnevalSelf, 'pct'=>round($p)];
+                        }
+                        if ($totalSw > 0 && $trainerEvs->count() > 0) {
+                            $centerTrainer  = round($tErfuelltCnt / $totalSw * 100).'%';
+                            $subtextTrainer = $tErfuelltCnt.'/'.$totalSw.' erfüllt';
+                        }
+                    } else {
+                        $tEvalCnt    = $trainerEvs->count();
+                        $tUnevalSelf = max(0, $totalSw - $tEvalCnt);
+                        $tAvgRating  = $tEvalCnt > 0 ? round($trainerEvs->avg('rating'), 1) : null;
+                        foreach ([5,4,3,2,1] as $r) {
+                            $cnt = $trainerEvs->where('rating', $r)->count();
+                            if ($cnt > 0 && $totalSw > 0) {
+                                $p = $cnt / $totalSw * 100;
+                                $tGradParts[] = $hexMap[$r].' '.round($tCum,2).'% '.round($tCum+$p,2).'%';
+                                $tChartSegs[] = ['rating'=>$r, 'label'=>$r.'★ '.(\App\Models\TrainingGroupGoal::$ratingLabels[$r] ?? ''), 'color'=>$hexMap[$r], 'count'=>$cnt, 'pct'=>round($p)];
+                                $tCum += $p;
+                            }
+                        }
+                        if ($tUnevalSelf > 0 && $totalSw > 0) {
+                            $p = $tUnevalSelf / $totalSw * 100;
+                            $tGradParts[] = $hexMap[0].' '.round($tCum,2).'% '.round($tCum+$p,2).'%';
+                            $tChartSegs[] = ['rating'=>0, 'label'=>'Nicht bewertet', 'color'=>$hexMap[0], 'count'=>$tUnevalSelf, 'pct'=>round($p)];
+                        }
+                        $centerTrainer = $tAvgRating ? round($tAvgRating / 5 * 100).'%' : null;
                     }
                     $tGradCss = count($tGradParts) ? implode(', ', $tGradParts) : '#f3f4f6 0% 100%';
                 @endphp
@@ -322,8 +377,8 @@
                             <div class="flex items-start gap-3">
                                 <div class="relative flex-shrink-0" style="width:76px;height:76px;border-radius:50%;background:conic-gradient({{ $gradCss }})">
                                     <div class="absolute rounded-full bg-white flex flex-col items-center justify-center" style="width:44px;height:44px;top:16px;left:16px;">
-                                        @if($avgRating)
-                                            <span class="text-[11px] font-black text-gray-800 leading-none">{{ round($avgRating / 5 * 100) }}%</span>
+                                        @if($centerSelf)
+                                            <span class="text-[11px] font-black text-gray-800 leading-none">{{ $centerSelf }}</span>
                                         @else
                                             <span class="text-lg text-gray-200 leading-none">–</span>
                                         @endif
@@ -336,9 +391,9 @@
                                                 @click="filterSelf = filterSelf === {{ $seg['rating'] }} ? null : {{ $seg['rating'] }}"
                                                 :class="filterSelf === {{ $seg['rating'] }} ? 'ring-1 ring-offset-1 ring-gray-400' : 'opacity-75 hover:opacity-100'"
                                                 class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border transition-all text-left"
-                                                style="border-color:{{ $ratingHex[$seg['rating']] }};color:{{ $ratingHex[$seg['rating']] }}">
-                                            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $ratingHex[$seg['rating']] }}"></span>
-                                            <span class="flex-1">@if($seg['rating']==0)Nicht bewertet@else{{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] ?? '' }}@endif</span>
+                                                style="border-color:{{ $seg['color'] }};color:{{ $seg['color'] }}">
+                                            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $seg['color'] }}"></span>
+                                            <span class="flex-1">{{ $seg['label'] }}</span>
                                             <span class="font-bold ml-auto">{{ $seg['count'] }}</span>
                                         </button>
                                         @endforeach
@@ -348,7 +403,9 @@
                                             Filter aufheben
                                         </button>
                                     </div>
-                                    @if($avgRating && ($lbl = $avgLabel($avgRating)))
+                                    @if($isQuant && $subtextSelf)
+                                        <p class="text-[10px] text-gray-400 mt-1.5">{{ $subtextSelf }}</p>
+                                    @elseif(!$isQuant && $avgRating && ($lbl = $avgLabel($avgRating)))
                                         <p class="text-[10px] text-gray-400 mt-1.5">Ø {{ number_format($avgRating, 1) }}/5 · <span class="font-semibold {{ $lbl['cls'] }}">{{ $lbl['text'] }}</span></p>
                                     @endif
                                 </div>
@@ -361,8 +418,8 @@
                             <div class="flex items-start gap-3">
                                 <div class="relative flex-shrink-0" style="width:76px;height:76px;border-radius:50%;background:conic-gradient({{ $tGradCss }})">
                                     <div class="absolute rounded-full bg-white flex flex-col items-center justify-center" style="width:44px;height:44px;top:16px;left:16px;">
-                                        @if($tAvgRating)
-                                            <span class="text-[11px] font-black text-gray-800 leading-none">{{ round($tAvgRating / 5 * 100) }}%</span>
+                                        @if($centerTrainer)
+                                            <span class="text-[11px] font-black text-gray-800 leading-none">{{ $centerTrainer }}</span>
                                         @else
                                             <span class="text-lg text-gray-200 leading-none">–</span>
                                         @endif
@@ -375,9 +432,9 @@
                                                 @click="filterTrainer = filterTrainer === {{ $seg['rating'] }} ? null : {{ $seg['rating'] }}"
                                                 :class="filterTrainer === {{ $seg['rating'] }} ? 'ring-1 ring-offset-1 ring-gray-400' : 'opacity-75 hover:opacity-100'"
                                                 class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border transition-all text-left"
-                                                style="border-color:{{ $ratingHex[$seg['rating']] }};color:{{ $ratingHex[$seg['rating']] }}">
-                                            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $ratingHex[$seg['rating']] }}"></span>
-                                            <span class="flex-1">@if($seg['rating']==0)Nicht bewertet@else{{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] ?? '' }}@endif</span>
+                                                style="border-color:{{ $seg['color'] }};color:{{ $seg['color'] }}">
+                                            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $seg['color'] }}"></span>
+                                            <span class="flex-1">{{ $seg['label'] }}</span>
                                             <span class="font-bold ml-auto">{{ $seg['count'] }}</span>
                                         </button>
                                         @endforeach
@@ -387,7 +444,9 @@
                                             Filter aufheben
                                         </button>
                                     </div>
-                                    @if($tAvgRating && ($tLbl = $avgLabel($tAvgRating)))
+                                    @if($isQuant && $subtextTrainer)
+                                        <p class="text-[10px] text-gray-400 mt-1.5">{{ $subtextTrainer }}</p>
+                                    @elseif(!$isQuant && $tAvgRating && ($tLbl = $avgLabel($tAvgRating)))
                                         <p class="text-[10px] text-gray-400 mt-1.5">Ø {{ number_format($tAvgRating, 1) }}/5 · <span class="font-semibold {{ $tLbl['cls'] }}">{{ $tLbl['text'] }}</span></p>
                                     @endif
                                 </div>
