@@ -23,7 +23,7 @@ class ImportLogController extends Controller
         'nsv' => [
             'label'    => 'NSV',
             'class'    => NsvCrawler::class,
-            'url'      => 'https://www.nsv-schwimmen.de/wettkampfsport/ergebnisse',
+            'url'      => 'https://www.norddeutscherschwimmverband.de/category/schwimmen/',
             'schedule' => 'Mo, 06:30 Uhr',
         ],
         'dsvdata' => [
