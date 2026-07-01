@@ -337,6 +337,55 @@ class DsvImportService
     }
 
     /**
+     * Import a DSV7/Lenex definition file (Ausschreibung) that contains no result data.
+     * Creates or finds the Competition entry so the event appears in the calendar.
+     *
+     * Returns the Competition; throws \RuntimeException if the file has no meet metadata.
+     */
+    public function importDefinitionFile(
+        string  $filePath,
+        string  $source     = 'manual',
+        ?string $importHash = null,
+        ?string $sourceUrl  = null
+    ): \App\Models\Competition {
+        $parsed = $this->parseMeetDefinition($filePath);
+        $meet   = $parsed['meets'][0] ?? null;
+
+        if (!$meet) {
+            throw new \RuntimeException('Keine Wettkampfdefinition in der Datei gefunden.');
+        }
+
+        $competition = \App\Models\Competition::firstOrCreate(
+            ['name' => $meet['name'], 'date' => $meet['startdate'] ?? now()->toDateString()],
+            [
+                'location'    => $meet['city'] ?? '',
+                'type'        => 'regional',
+                'organizer'   => $meet['organizer'] ?? null,
+                'course'      => $meet['course'] ?? 'Kurzbahn',
+                'date_end'    => $meet['enddate'] ?? null,
+                'source_file' => basename($filePath),
+                'source_url'  => $sourceUrl,
+                'import_hash' => $importHash,
+            ]
+        );
+
+        if ($importHash && !$competition->import_hash) {
+            $competition->update(['import_hash' => $importHash]);
+        }
+
+        \App\Models\ImportLog::create([
+            'source'         => $source,
+            'source_url'     => $sourceUrl,
+            'filename'       => basename($filePath),
+            'status'         => 'success',
+            'competition_id' => $competition->id,
+            'message'        => 'Definitionsdatei importiert (Ausschreibung/Wettkampfreihenfolge)',
+        ]);
+
+        return $competition;
+    }
+
+    /**
      * Parse a DSV7 result file and persist results for matched own swimmers.
      * Used by BatchImporter and Crawlers.
      *

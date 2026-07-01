@@ -148,14 +148,40 @@ class NsvCrawler implements CrawlerInterface
             $tmpPath = sys_get_temp_dir() . '/' . $file['filename'];
             file_put_contents($tmpPath, $file['content']);
 
+            $competition = null;
             try {
                 $competition = $this->importService->importResultsFile(
                     $tmpPath, $this->getSourceId(), $hash, $file['url']
                 );
                 $stats['imported']++;
-
-                if (!empty($file['results_page_url'])) {
-                    $this->importDocuments($competition, $file['results_page_url'], $file['results_page_html'] ?? '');
+            } catch (\RuntimeException $e) {
+                // No athlete/result data → try as definition file (Ausschreibung/Meldung)
+                if (str_contains($e->getMessage(), 'Keine gültigen Wettkampfdaten')
+                    || str_contains($e->getMessage(), 'Keine Wettkampfdaten')) {
+                    try {
+                        $competition = $this->importService->importDefinitionFile(
+                            $tmpPath, $this->getSourceId(), $hash, $file['url']
+                        );
+                        $stats['imported']++;
+                    } catch (\Throwable $e2) {
+                        ImportLog::create([
+                            'source'     => $this->getSourceId(),
+                            'source_url' => $file['url'],
+                            'filename'   => $file['filename'],
+                            'status'     => 'error',
+                            'message'    => 'Definitions-Import: ' . $e2->getMessage(),
+                        ]);
+                        $stats['errors']++;
+                    }
+                } else {
+                    ImportLog::create([
+                        'source'     => $this->getSourceId(),
+                        'source_url' => $file['url'],
+                        'filename'   => $file['filename'],
+                        'status'     => 'error',
+                        'message'    => $e->getMessage(),
+                    ]);
+                    $stats['errors']++;
                 }
             } catch (\Throwable $e) {
                 ImportLog::create([
@@ -168,6 +194,10 @@ class NsvCrawler implements CrawlerInterface
                 $stats['errors']++;
             } finally {
                 @unlink($tmpPath);
+            }
+
+            if ($competition && !empty($file['results_page_url'])) {
+                $this->importDocuments($competition, $file['results_page_url'], $file['results_page_html'] ?? '');
             }
         }
 
