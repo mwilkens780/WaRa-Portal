@@ -251,7 +251,7 @@ class NsvCrawler implements CrawlerInterface
 
             // WordPress post URLs: domain/YYYY/MM/DD/slug/ or domain/YYYY/slug/
             preg_match_all(
-                '#href=["\'](' . preg_quote('https://' . self::NSV_HOST, '#') . '/\d{4}/[^"\'#?]+)["\']#i',
+                '~href=["\'](' . preg_quote('https://' . self::NSV_HOST, '~') . '/\d{4}/[^"\']+)["\']~i',
                 $response->body(),
                 $matches
             );
@@ -259,7 +259,7 @@ class NsvCrawler implements CrawlerInterface
             $found = array_unique($matches[1] ?? []);
 
             // Also try relative post URLs
-            preg_match_all('#href=["\'](/\d{4}/[^"\'#?]+)["\']#i', $response->body(), $rel);
+            preg_match_all('~href=["\'](/\d{4}/[^"\']+)["\']~i', $response->body(), $rel);
             foreach (array_unique($rel[1] ?? []) as $relPath) {
                 $found[] = 'https://' . self::NSV_HOST . $relPath;
             }
