@@ -8,6 +8,7 @@ use App\Models\Season;
 use App\Models\SwimmerGoal;
 use App\Models\SwimmerGoalComment;
 use App\Models\TrainingGroup;
+use App\Models\TrainingGroupGoal;
 use Illuminate\Http\Request;
 
 class GoalController extends Controller
@@ -46,8 +47,17 @@ class GoalController extends Controller
             ->get()
             ->groupBy('training_group_id');
 
+        $trainingGroupGoals = TrainingGroupGoal::whereIn('training_group_id', $groups->pluck('id'))
+            ->where('active', true)
+            ->with(['evaluations' => function ($q) use ($swimmerIds) {
+                $q->whereIn('user_id', $swimmerIds)->with('user:id,firstname,lastname');
+            }])
+            ->orderBy('training_group_id')->orderBy('sort_order')->orderBy('id')
+            ->get()
+            ->groupBy('training_group_id');
+
         return view('trainer.goals', compact(
-            'groups', 'goalsBySwimmer', 'groupGoals', 'seasons', 'activeSeason'
+            'groups', 'goalsBySwimmer', 'groupGoals', 'trainingGroupGoals', 'seasons', 'activeSeason'
         ));
     }
 

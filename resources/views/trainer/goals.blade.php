@@ -201,6 +201,366 @@
                 @endif
             </div>
 
+            {{-- ─── Zielauswertung (5-Stufen Bewertungssystem) ──────────────── --}}
+            @php
+                $tgGoals = $trainingGroupGoals[$group->id] ?? collect();
+                $ratingHex = [
+                    5 => '#22c55e', 4 => '#3b82f6', 3 => '#eab308',
+                    2 => '#f97316', 1 => '#9ca3af', 0 => '#f3f4f6',
+                ];
+                $ratingBg = [
+                    5 => 'bg-green-100 text-green-700',
+                    4 => 'bg-blue-100 text-blue-700',
+                    3 => 'bg-yellow-100 text-yellow-700',
+                    2 => 'bg-orange-100 text-orange-700',
+                    1 => 'bg-gray-100 text-gray-600',
+                    0 => 'bg-gray-50 text-gray-400',
+                ];
+            @endphp
+            @if($tgGoals->isNotEmpty())
+            <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
+                <div class="flex items-center gap-2 px-5 py-3 bg-indigo-50/60 border-b border-indigo-100">
+                    <svg class="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <h3 class="font-semibold text-indigo-800 text-sm">Zielauswertung</h3>
+                    <span class="text-xs text-indigo-400 ml-1">· {{ $tgGoals->count() }} {{ $tgGoals->count() === 1 ? 'Ziel' : 'Ziele' }} · Eigenbewertungen der Schwimmer</span>
+                </div>
+
+                <div class="divide-y divide-gray-50">
+                @foreach($tgGoals as $goal)
+                @php
+                    $totalSw      = $group->swimmers->count();
+                    $selfEvs      = $goal->evaluations->where('evaluation_type', 'self');
+                    $trainerEvs   = $goal->evaluations->where('evaluation_type', 'trainer');
+                    $evaluatedCnt = $selfEvs->count();
+                    $unevalCnt    = max(0, $totalSw - $evaluatedCnt);
+                    $avgRating    = $evaluatedCnt > 0 ? round($selfEvs->avg('rating'), 1) : null;
+
+                    // Build conic-gradient from rating 5→1→unbewertet
+                    $cumPct = 0;
+                    $gradParts = [];
+                    $chartSegs = [];
+                    foreach ([5,4,3,2,1] as $r) {
+                        $cnt = $selfEvs->where('rating', $r)->count();
+                        if ($cnt > 0 && $totalSw > 0) {
+                            $pct = $cnt / $totalSw * 100;
+                            $gradParts[] = $ratingHex[$r].' '.round($cumPct,2).'% '.round($cumPct+$pct,2).'%';
+                            $chartSegs[] = ['rating' => $r, 'count' => $cnt, 'pct' => round($pct)];
+                            $cumPct += $pct;
+                        }
+                    }
+                    if ($unevalCnt > 0 && $totalSw > 0) {
+                        $pct = $unevalCnt / $totalSw * 100;
+                        $gradParts[] = $ratingHex[0].' '.round($cumPct,2).'% '.round($cumPct+$pct,2).'%';
+                        $chartSegs[] = ['rating' => 0, 'count' => $unevalCnt, 'pct' => round($pct)];
+                    }
+                    $gradCss = count($gradParts) ? implode(', ', $gradParts) : '#f3f4f6 0% 100%';
+                @endphp
+                <div class="p-4" x-data="{ filter: null, evaluating: null, showNotes: false }">
+
+                    {{-- Goal header --}}
+                    <div class="flex items-start gap-3 mb-3">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if($goal->type === 'quantitative')
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Messbar</span>
+                                @else
+                                    <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Qualitativ</span>
+                                @endif
+                                <span class="text-sm font-bold text-gray-800">{{ $goal->title }}</span>
+                                @if($goal->target_value)
+                                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Ziel: {{ $goal->target_value }}</span>
+                                @endif
+                            </div>
+                            @if($goal->description)
+                                <p class="text-xs text-gray-400 mt-0.5">{{ $goal->description }}</p>
+                            @endif
+                        </div>
+                        <div class="text-right flex-shrink-0 text-xs text-gray-400">
+                            {{ $evaluatedCnt }}/{{ $totalSw }} bewertet
+                        </div>
+                    </div>
+
+                    {{-- Chart + Legend --}}
+                    <div class="flex items-start gap-4 flex-wrap">
+                        {{-- Donut-Chart (CSS conic-gradient) --}}
+                        <div class="relative flex-shrink-0" style="width:80px;height:80px;border-radius:50%;background:conic-gradient({{ $gradCss }})">
+                            <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
+                                 style="width:48px;height:48px;top:16px;left:16px;">
+                                @if($avgRating)
+                                    <span class="text-sm font-black text-gray-800 leading-none">{{ number_format($avgRating, 1) }}</span>
+                                    <span class="text-[9px] text-gray-400 leading-none mt-0.5">Ø</span>
+                                @else
+                                    <span class="text-base text-gray-300 leading-none">–</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- Legend (clickable = drill-down filter) --}}
+                        <div class="flex-1 min-w-[180px]">
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach($chartSegs as $seg)
+                                <button type="button"
+                                        @click="filter = filter === {{ $seg['rating'] }} ? null : {{ $seg['rating'] }}"
+                                        :class="filter === {{ $seg['rating'] }}
+                                            ? 'ring-2 ring-offset-1 ring-gray-400 opacity-100'
+                                            : 'opacity-80 hover:opacity-100'"
+                                        class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium border transition-all"
+                                        style="border-color:{{ $ratingHex[$seg['rating']] }};color:{{ $ratingHex[$seg['rating']] }}">
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $ratingHex[$seg['rating']] }}"></span>
+                                    @if($seg['rating'] === 0)
+                                        Nicht bewertet
+                                    @else
+                                        {{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] }}
+                                    @endif
+                                    <span class="font-bold">({{ $seg['count'] }})</span>
+                                    <span class="text-[10px] opacity-70">{{ $seg['pct'] }}%</span>
+                                </button>
+                                @endforeach
+                                <button type="button"
+                                        x-show="filter !== null"
+                                        @click="filter = null"
+                                        class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    Filter
+                                </button>
+                            </div>
+                            @if($avgRating)
+                            <p class="text-xs text-gray-400 mt-2">
+                                Ø {{ number_format($avgRating, 1) }} von 5 ·
+                                <span @class([
+                                    'font-semibold',
+                                    'text-green-600'  => $avgRating >= 4.5,
+                                    'text-blue-600'   => $avgRating >= 3.5 && $avgRating < 4.5,
+                                    'text-yellow-600' => $avgRating >= 2.5 && $avgRating < 3.5,
+                                    'text-orange-500' => $avgRating >= 1.5 && $avgRating < 2.5,
+                                    'text-gray-500'   => $avgRating < 1.5,
+                                ])>
+                                    @if($avgRating >= 4.5) Team hat Ziel erreicht
+                                    @elseif($avgRating >= 3.5) Gut auf dem Weg
+                                    @elseif($avgRating >= 2.5) In Arbeit
+                                    @elseif($avgRating >= 1.5) Erste Schritte
+                                    @else Noch nicht begonnen
+                                    @endif
+                                </span>
+                            </p>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Swimmer table (filter-driven) --}}
+                    <div class="mt-4 overflow-x-auto rounded-lg border border-gray-100">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 uppercase tracking-wide text-[10px]">
+                                    <th class="text-left px-3 py-2 font-semibold">Schwimmer</th>
+                                    <th class="text-left px-3 py-2 font-semibold">Eigenbewertung</th>
+                                    @if($goal->type === 'quantitative')
+                                    <th class="text-left px-3 py-2 font-semibold">Stand</th>
+                                    @endif
+                                    <th class="text-left px-3 py-2 font-semibold">Trainerbewertung</th>
+                                    <th class="px-3 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach($group->swimmers as $swimmer)
+                                @php
+                                    $se = $selfEvs->firstWhere('user_id', $swimmer->id);
+                                    $te = $trainerEvs->firstWhere('user_id', $swimmer->id);
+                                    $selfRating = $se?->rating ?? 0;
+                                @endphp
+                                <tr :class="{ 'hidden': filter !== null && filter !== {{ $selfRating }} }"
+                                    class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
+                                        {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        @if($se && $se->rating)
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $ratingBg[$se->rating] }}">
+                                                {{ $se->rating }}★ {{ \App\Models\TrainingGroupGoal::$ratingLabels[$se->rating] }}
+                                            </span>
+                                            @if($se->notes)
+                                                <p class="text-gray-400 italic mt-0.5 max-w-[200px] truncate" title="{{ $se->notes }}">{{ $se->notes }}</p>
+                                            @endif
+                                        @else
+                                            <span class="text-gray-300">–</span>
+                                        @endif
+                                    </td>
+                                    @if($goal->type === 'quantitative')
+                                    <td class="px-3 py-2 text-gray-500">
+                                        @if($se?->current_value)
+                                            <span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-mono">{{ $se->current_value }}</span>
+                                        @else
+                                            <span class="text-gray-200">–</span>
+                                        @endif
+                                    </td>
+                                    @endif
+                                    <td class="px-3 py-2">
+                                        @if($te && $te->rating)
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $ratingBg[$te->rating] }}">
+                                                {{ $te->rating }}★ {{ \App\Models\TrainingGroupGoal::$ratingLabels[$te->rating] }}
+                                            </span>
+                                            @if($te->notes)
+                                                <p class="text-gray-400 italic mt-0.5 max-w-[200px] truncate" title="{{ $te->notes }}">{{ $te->notes }}</p>
+                                            @endif
+                                        @else
+                                            <span class="text-gray-300">–</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-right">
+                                        <button type="button"
+                                                @click="evaluating = evaluating === {{ $swimmer->id }} ? null : {{ $swimmer->id }}"
+                                                :class="evaluating === {{ $swimmer->id }} ? 'bg-indigo-100 text-indigo-700' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'"
+                                                class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors whitespace-nowrap">
+                                            Bewerten
+                                        </button>
+                                    </td>
+                                </tr>
+                                {{-- Trainer-eval inline form --}}
+                                <tr x-show="evaluating === {{ $swimmer->id }}"
+                                    :class="{ 'hidden': filter !== null && filter !== {{ $selfRating }} }"
+                                    class="bg-indigo-50/40">
+                                    <td colspan="{{ $goal->type === 'quantitative' ? 5 : 4 }}" class="px-3 py-3">
+                                        <form method="POST"
+                                              action="{{ route('admin.training-groups.goals.trainer-eval', [$group, $goal, $swimmer]) }}"
+                                              class="flex flex-wrap items-end gap-2">
+                                            @csrf
+                                            <div>
+                                                <label class="block text-[10px] text-gray-500 mb-1 font-semibold">Einschätzung</label>
+                                                <select name="rating" class="px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+                                                    <option value="">– Auswählen –</option>
+                                                    @foreach(\App\Models\TrainingGroupGoal::$ratingLabels as $val => $lbl)
+                                                        <option value="{{ $val }}" {{ $te?->rating == $val ? 'selected' : '' }}>
+                                                            {{ $val }}★ {{ $lbl }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            @if($goal->type === 'quantitative')
+                                            <div>
+                                                <label class="block text-[10px] text-gray-500 mb-1 font-semibold">Aktueller Stand</label>
+                                                <input type="text" name="current_value" maxlength="100"
+                                                       value="{{ $te?->current_value }}"
+                                                       placeholder="z.B. 65%"
+                                                       class="px-2 py-1.5 border border-gray-300 rounded text-xs w-24 focus:ring-1 focus:ring-indigo-400 outline-none">
+                                            </div>
+                                            @endif
+                                            <div class="flex-1 min-w-[140px]">
+                                                <label class="block text-[10px] text-gray-500 mb-1 font-semibold">Notiz</label>
+                                                <input type="text" name="notes" maxlength="1000"
+                                                       value="{{ $te?->notes }}"
+                                                       placeholder="Trainer-Einschätzung..."
+                                                       class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+                                            </div>
+                                            <div class="flex gap-1.5">
+                                                <button type="submit"
+                                                        class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+                                                    Speichern
+                                                </button>
+                                                <button type="button" @click="evaluating = null"
+                                                        class="px-2.5 py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50 transition-colors">
+                                                    Abbrechen
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{-- Kommentare / Notizen Tabelle (collapsible) --}}
+                    @php
+                        $hasNotes = $selfEvs->filter(fn($e) => $e->notes)->isNotEmpty()
+                                 || $trainerEvs->filter(fn($e) => $e->notes)->isNotEmpty();
+                    @endphp
+                    @if($hasNotes)
+                    <div class="mt-3">
+                        <button type="button" @click="showNotes = !showNotes"
+                                class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                            <svg class="w-3.5 h-3.5 transition-transform" :class="showNotes ? 'rotate-90' : ''"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                            <span x-text="showNotes ? 'Kommentare ausblenden' : 'Alle Kommentare anzeigen'"></span>
+                        </button>
+                        <div x-show="showNotes" x-transition class="mt-2 overflow-x-auto rounded-lg border border-gray-100">
+                            <table class="w-full text-xs">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-500 uppercase tracking-wide text-[10px]">
+                                        <th class="text-left px-3 py-2 font-semibold">Schwimmer</th>
+                                        <th class="text-left px-3 py-2 font-semibold">Eigenbewertung</th>
+                                        <th class="text-left px-3 py-2 font-semibold">Notiz (Schwimmer)</th>
+                                        <th class="text-left px-3 py-2 font-semibold">Trainerbewertung</th>
+                                        <th class="text-left px-3 py-2 font-semibold">Notiz (Trainer)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    @foreach($group->swimmers as $swimmer)
+                                    @php
+                                        $se2 = $selfEvs->firstWhere('user_id', $swimmer->id);
+                                        $te2 = $trainerEvs->firstWhere('user_id', $swimmer->id);
+                                    @endphp
+                                    @if(($se2 && ($se2->notes || $se2->rating)) || ($te2 && ($te2->notes || $te2->rating)))
+                                    <tr class="hover:bg-gray-50/50">
+                                        <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
+                                            {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            @if($se2?->rating)
+                                                <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold {{ $ratingBg[$se2->rating] }} px-1.5 py-0.5 rounded-full">
+                                                    {{ $se2->rating }}★
+                                                </span>
+                                            @else
+                                                <span class="text-gray-300">–</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-500 max-w-[200px]">
+                                            @if($se2?->notes)
+                                                <span class="italic">{{ $se2->notes }}</span>
+                                                @if($se2->current_value)
+                                                    <span class="ml-1 bg-blue-50 text-blue-600 px-1 rounded font-mono text-[10px]">{{ $se2->current_value }}</span>
+                                                @endif
+                                            @else
+                                                <span class="text-gray-200">–</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            @if($te2?->rating)
+                                                <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold {{ $ratingBg[$te2->rating] }} px-1.5 py-0.5 rounded-full">
+                                                    {{ $te2->rating }}★
+                                                </span>
+                                            @else
+                                                <span class="text-gray-300">–</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-500 max-w-[200px]">
+                                            @if($te2?->notes)
+                                                <span class="italic">{{ $te2->notes }}</span>
+                                                @if($te2->current_value)
+                                                    <span class="ml-1 bg-blue-50 text-blue-600 px-1 rounded font-mono text-[10px]">{{ $te2->current_value }}</span>
+                                                @endif
+                                            @else
+                                                <span class="text-gray-200">–</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endif
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    @endif
+
+                </div>
+                @endforeach
+                </div>
+            </div>
+            @endif
+
             {{-- Swimmer goals --}}
             @if($group->swimmers->isEmpty())
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-6 text-center text-sm text-gray-400">
