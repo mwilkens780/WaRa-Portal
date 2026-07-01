@@ -123,11 +123,16 @@
                                 <label class="block text-xs text-gray-500 mb-1">Einschätzung</label>
                                 <select name="rating" class="px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none">
                                     <option value="">– Auswählen –</option>
-                                    @foreach(\App\Models\TrainingGroupGoal::$ratingLabels as $val => $label)
-                                        <option value="{{ $val }}" {{ $selfEval?->rating == $val ? 'selected' : '' }}>
-                                            {{ $val }}★ {{ $label }}
-                                        </option>
-                                    @endforeach
+                                    @if($goal->type === 'quantitative')
+                                        <option value="5" {{ $selfEval?->rating == 5 ? 'selected' : '' }}>Erfüllt</option>
+                                        <option value="1" {{ $selfEval?->rating == 1 ? 'selected' : '' }}>Nicht erfüllt</option>
+                                    @else
+                                        @foreach(\App\Models\TrainingGroupGoal::$ratingLabels as $val => $label)
+                                            <option value="{{ $val }}" {{ $selfEval?->rating == $val ? 'selected' : '' }}>
+                                                {{ $val }}★ {{ $label }}
+                                            </option>
+                                        @endforeach
+                                    @endif
                                 </select>
                             </div>
                             @if($goal->type === 'quantitative')
