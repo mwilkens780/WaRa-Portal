@@ -339,7 +339,7 @@
                                                 class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border transition-all text-left"
                                                 style="border-color:{{ $ratingHex[$seg['rating']] }};color:{{ $ratingHex[$seg['rating']] }}">
                                             <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $ratingHex[$seg['rating']] }}"></span>
-                                            <span class="flex-1">@if($seg['rating']===0)Nicht bewertet@else{{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] }}@endif</span>
+                                            <span class="flex-1">@if($seg['rating']==0)Nicht bewertet@else{{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] ?? '' }}@endif</span>
                                             <span class="font-bold ml-auto">{{ $seg['count'] }}</span>
                                         </button>
                                         @endforeach
@@ -379,7 +379,7 @@
                                                 class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border transition-all text-left"
                                                 style="border-color:{{ $ratingHex[$seg['rating']] }};color:{{ $ratingHex[$seg['rating']] }}">
                                             <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $ratingHex[$seg['rating']] }}"></span>
-                                            <span class="flex-1">@if($seg['rating']===0)Nicht bewertet@else{{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] }}@endif</span>
+                                            <span class="flex-1">@if($seg['rating']==0)Nicht bewertet@else{{ \App\Models\TrainingGroupGoal::$ratingLabels[$seg['rating']] ?? '' }}@endif</span>
                                             <span class="font-bold ml-auto">{{ $seg['count'] }}</span>
                                         </button>
                                         @endforeach
@@ -426,8 +426,8 @@
                                     </td>
                                     <td class="px-3 py-2">
                                         @if($se && $se->rating)
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $ratingBg[$se->rating] }}">
-                                                {{ $se->rating }}★ {{ \App\Models\TrainingGroupGoal::$ratingLabels[$se->rating] }}
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $ratingBg[$se->rating] ?? '' }}">
+                                                {{ $se->rating }}★ {{ \App\Models\TrainingGroupGoal::$ratingLabels[$se->rating] ?? '' }}
                                             </span>
                                             @if($se->notes)
                                                 <p class="text-gray-400 italic mt-0.5 max-w-[200px] truncate" title="{{ $se->notes }}">{{ $se->notes }}</p>
@@ -447,8 +447,8 @@
                                     @endif
                                     <td class="px-3 py-2">
                                         @if($te && $te->rating)
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $ratingBg[$te->rating] }}">
-                                                {{ $te->rating }}★ {{ \App\Models\TrainingGroupGoal::$ratingLabels[$te->rating] }}
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $ratingBg[$te->rating] ?? '' }}">
+                                                {{ $te->rating }}★ {{ \App\Models\TrainingGroupGoal::$ratingLabels[$te->rating] ?? '' }}
                                             </span>
                                             @if($te->notes)
                                                 <p class="text-gray-400 italic mt-0.5 max-w-[200px] truncate" title="{{ $te->notes }}">{{ $te->notes }}</p>
