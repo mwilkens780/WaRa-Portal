@@ -17,10 +17,7 @@ use Illuminate\Support\Facades\Storage;
  *   1. Fetch the Schwimmen category archive (norddeutscherschwimmverband.de/category/schwimmen/)
  *   2. Extract individual post links (WordPress year-based URLs)
  *   3. Fetch each post, follow external event-homepage links one level deep
- *   4. On results pages (e.g. nfft.online/ergebnisse.php):
- *      a. Download the DSV7 file and import results
- *      b. Download top-level PDFs (Protokoll, Meldeergebnis, etc.) as CompetitionDocuments
- *         – per-event files (proto_wkNNN, melde_wkNNN …) are skipped
+ *   4. On results pages: download DSV7, import results, save top-level PDFs as documents
  */
 class NsvCrawler implements CrawlerInterface
 {
@@ -32,10 +29,9 @@ class NsvCrawler implements CrawlerInterface
         'facebook.com', 'instagram.com', 'twitter.com', 'x.com',
         'youtube.com', 'google.com', 'google.de',
         'whatsapp.com', 'linkedin.com', 'xing.com',
-        'dsv.de',   // already covered by DsvDataCrawler
+        'dsv.de',
     ];
 
-    // Per-event / per-section filename patterns to skip when importing documents
     private const SKIP_DOC_PATTERNS = [
         '/melde_wk\d+/i',
         '/proto_wk\d+/i',
@@ -52,11 +48,78 @@ class NsvCrawler implements CrawlerInterface
 
     public function run(): array
     {
-        $stats     = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
-        $filesSeen = 0;
+        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
 
-        foreach ($this->fetchFiles() as $file) {
-            $filesSeen++;
+        // Step 1: collect post URLs (with diagnostic logging)
+        $postUrls = $this->collectPostUrls();
+
+        // Step 2: for each post, find DSV7 files (direct + via external results pages)
+        $diag = [
+            'posts'       => count($postUrls),
+            'ext_checked' => 0,
+            'ext_errors'  => 0,
+            'dsv7_found'  => 0,
+        ];
+
+        $files           = [];   // [ {content, filename, url, results_page_url?, results_page_html?} ]
+        $visitedExternal = [];
+
+        foreach ($postUrls as $postUrl) {
+            $response = $this->http($postUrl);
+            if (!$response) continue;
+            $html = $response->body();
+
+            // Direct DSV7 links in the post body
+            foreach ($this->downloadDsv7Links($html, $postUrl) as $f) {
+                $diag['dsv7_found']++;
+                $files[] = $f;
+            }
+
+            // External event-homepage links — follow one level deep
+            foreach ($this->extractExternalLinks($html) as $extUrl) {
+                if (isset($visitedExternal[$extUrl])) continue;
+                $visitedExternal[$extUrl] = true;
+                $diag['ext_checked']++;
+
+                $extResp = $this->http($extUrl);
+                if (!$extResp) {
+                    $diag['ext_errors']++;
+                    ImportLog::create([
+                        'source'     => $this->getSourceId(),
+                        'source_url' => $extUrl,
+                        'status'     => 'error',
+                        'message'    => 'Externe Veranstaltungsseite nicht erreichbar',
+                    ]);
+                    continue;
+                }
+
+                $extHtml    = $extResp->body();
+                $extDsv7    = $this->downloadDsv7Links($extHtml, $extUrl);
+                $diag['dsv7_found'] += count($extDsv7);
+
+                foreach ($extDsv7 as $f) {
+                    $files[] = array_merge($f, [
+                        'results_page_url'  => $extUrl,
+                        'results_page_html' => $extHtml,
+                    ]);
+                }
+            }
+        }
+
+        // Diagnostic summary in import log
+        ImportLog::create([
+            'source'     => $this->getSourceId(),
+            'source_url' => self::CATEGORY_URL,
+            'status'     => 'skipped',
+            'message'    => sprintf(
+                'Diagnose: %d Posts gefunden, %d externe Seiten geprüft (%d Fehler), %d DSV7-Dateien entdeckt',
+                $diag['posts'], $diag['ext_checked'], $diag['ext_errors'], $diag['dsv7_found']
+            ),
+        ]);
+        $stats['skipped']++;
+
+        // Step 3: process each discovered DSV7 file
+        foreach ($files as $file) {
             $hash = hash('sha256', $file['content']);
 
             if (Competition::where('import_hash', $hash)->exists()) {
@@ -69,11 +132,11 @@ class NsvCrawler implements CrawlerInterface
                 ]);
                 $stats['skipped']++;
 
-                // Even if DSV7 already imported, still try to grab missing documents
-                if (!empty($file['results_page_url']) && !empty($file['results_page_html'])) {
+                // Still try to add missing documents even if DSV7 already known
+                if (!empty($file['results_page_url'])) {
                     $competition = Competition::where('import_hash', $hash)->first();
                     if ($competition) {
-                        $this->importDocuments($competition, $file['results_page_url'], $file['results_page_html']);
+                        $this->importDocuments($competition, $file['results_page_url'], $file['results_page_html'] ?? '');
                     }
                 }
                 continue;
@@ -88,9 +151,8 @@ class NsvCrawler implements CrawlerInterface
                 );
                 $stats['imported']++;
 
-                // Import top-level documents from the results page
-                if (!empty($file['results_page_url']) && !empty($file['results_page_html'])) {
-                    $this->importDocuments($competition, $file['results_page_url'], $file['results_page_html']);
+                if (!empty($file['results_page_url'])) {
+                    $this->importDocuments($competition, $file['results_page_url'], $file['results_page_html'] ?? '');
                 }
             } catch (\Throwable $e) {
                 ImportLog::create([
@@ -106,73 +168,18 @@ class NsvCrawler implements CrawlerInterface
             }
         }
 
-        if ($filesSeen === 0) {
-            ImportLog::create([
-                'source'     => $this->getSourceId(),
-                'source_url' => self::CATEGORY_URL,
-                'filename'   => null,
-                'status'     => 'skipped',
-                'message'    => 'Keine DSV7-Ergebnisdateien in den NSV-Beiträgen gefunden',
-            ]);
-            $stats['skipped']++;
-        }
-
         return $stats;
     }
 
-    // ── File discovery ──────────────────────────────────────────────────────
+    // ── Document import ─────────────────────────────────────────────────────
 
-    public function fetchFiles(): iterable
-    {
-        $postUrls        = $this->collectPostUrls();
-        $visitedExternal = [];
-
-        Log::info('NsvCrawler: ' . count($postUrls) . ' Beiträge gefunden', ['category' => self::CATEGORY_URL]);
-
-        foreach ($postUrls as $postUrl) {
-            $response = $this->http($postUrl);
-            if (!$response) continue;
-            $html = $response->body();
-
-            // Direct DSV7 links inside the post (no results-page HTML available)
-            foreach ($this->downloadDsv7Links($html, $postUrl) as $file) {
-                yield $file;
-            }
-
-            // External event-homepage links — follow one level deep
-            foreach ($this->extractExternalLinks($html) as $extUrl) {
-                if (isset($visitedExternal[$extUrl])) continue;
-                $visitedExternal[$extUrl] = true;
-
-                $extResp = $this->http($extUrl);
-                if (!$extResp) continue;
-                $extHtml = $extResp->body();
-
-                foreach ($this->downloadDsv7Links($extHtml, $extUrl) as $file) {
-                    // Attach the results-page URL and cached HTML so run() can import documents
-                    yield array_merge($file, [
-                        'results_page_url'  => $extUrl,
-                        'results_page_html' => $extHtml,
-                    ]);
-                }
-            }
-        }
-    }
-
-    // ── Document import from a results page ─────────────────────────────────
-
-    /**
-     * Downloads top-level PDF documents from an event results page and stores
-     * them as CompetitionDocuments.  Per-event files (proto_wkNNN etc.) are skipped.
-     * Already-present documents (same original_name) are not duplicated.
-     */
     private function importDocuments(Competition $competition, string $pageUrl, string $html): void
     {
-        // Only look at the header section (before the first per-section heading)
-        $cutAt = $this->findSectionStart($html);
+        if (!$html) return;
+
+        $cutAt      = $this->findSectionStart($html);
         $headerHtml = $cutAt !== false ? substr($html, 0, $cutAt) : $html;
 
-        // Extract all PDF links with their visible link text
         preg_match_all(
             '/<a[^>]+href=["\']([^"\']*\.pdf)["\'][^>]*>(.*?)<\/a>/is',
             $headerHtml,
@@ -186,10 +193,8 @@ class NsvCrawler implements CrawlerInterface
             $absUrl   = $this->absoluteUrl($href, $pageUrl);
             $filename = basename(parse_url($absUrl, PHP_URL_PATH) ?? 'document.pdf');
 
-            // Skip per-event / per-section files
             if ($this->isPerEventFile($filename)) continue;
 
-            // Skip if this document is already attached to this competition
             if (CompetitionDocument::where('competition_id', $competition->id)
                 ->where('original_name', $filename)->exists()) {
                 continue;
@@ -198,8 +203,8 @@ class NsvCrawler implements CrawlerInterface
             $fileResp = $this->http($absUrl);
             if (!$fileResp) continue;
 
-            $content  = $fileResp->body();
-            $path     = "competition-docs/{$competition->id}/{$filename}";
+            $content = $fileResp->body();
+            $path    = "competition-docs/{$competition->id}/{$filename}";
 
             Storage::disk('local')->put($path, $content);
 
@@ -212,53 +217,14 @@ class NsvCrawler implements CrawlerInterface
                 'created_by_id'  => null,
             ]);
 
-            Log::info("NsvCrawler: Dokument gespeichert", [
+            Log::info('NsvCrawler: Dokument gespeichert', [
                 'competition' => $competition->name,
                 'file'        => $filename,
-                'url'         => $absUrl,
             ]);
         }
     }
 
-    /** Position in HTML where per-section entries begin (first <h2> with "Abschnitt" or similar). */
-    private function findSectionStart(string $html): int|false
-    {
-        if (preg_match('/<h[23][^>]*>/i', $html, $m, PREG_OFFSET_CAPTURE)) {
-            return $m[0][1];
-        }
-        return false;
-    }
-
-    /** True if a filename belongs to a per-event or per-section result file (skip these). */
-    private function isPerEventFile(string $filename): bool
-    {
-        foreach (self::SKIP_DOC_PATTERNS as $pattern) {
-            if (preg_match($pattern, $filename)) return true;
-        }
-        return false;
-    }
-
-    /** Map filename / link text to a CompetitionDocument category. */
-    private function guessCategory(string $filename, string $linkText): string
-    {
-        $f = strtolower($filename);
-        $t = strtolower($linkText);
-
-        if (str_contains($t, 'ausschreibung') || str_contains($f, 'ausschreibung')) {
-            return 'ausschreibung';
-        }
-        if (str_contains($t, 'meldeergebnis') || str_contains($t, 'meldung') || str_contains($t, 'zeitplan')
-            || str_contains($f, 'melde_')) {
-            return 'meldeergebnis';
-        }
-        if (str_contains($t, 'protokoll') || str_contains($t, 'medaillienspiegel') || str_contains($t, 'enm')
-            || str_contains($f, 'proto_')) {
-            return 'protokoll';
-        }
-        return 'sonstige';
-    }
-
-    // ── Step 1: Collect post URLs from the category archive ─────────────────
+    // ── Step 1: Collect post URLs ────────────────────────────────────────────
 
     private function collectPostUrls(): array
     {
@@ -271,50 +237,54 @@ class NsvCrawler implements CrawlerInterface
 
             $response = $this->http($url);
             if (!$response) {
-                Log::warning('NsvCrawler: Kategorie-Seite nicht erreichbar', ['url' => $url]);
                 ImportLog::create([
                     'source'     => $this->getSourceId(),
                     'source_url' => $url,
                     'status'     => 'error',
-                    'message'    => 'Kategorie-Seite nicht erreichbar',
+                    'message'    => 'Kategorie-Seite nicht erreichbar (HTTP-Fehler oder SSL)',
                 ]);
                 break;
             }
 
+            // WordPress post URLs: domain/YYYY/MM/DD/slug/ or domain/YYYY/slug/
             preg_match_all(
-                '#href=["\'](' . preg_quote('https://' . self::NSV_HOST, '#') . '/\d{4}/[^"\']+)["\']#i',
+                '#href=["\'](' . preg_quote('https://' . self::NSV_HOST, '#') . '/\d{4}/[^"\'#?]+)["\']#i',
                 $response->body(),
                 $matches
             );
 
             $found = array_unique($matches[1] ?? []);
+
+            // Also try relative post URLs
+            preg_match_all('#href=["\'](/\d{4}/[^"\'#?]+)["\']#i', $response->body(), $rel);
+            foreach (array_unique($rel[1] ?? []) as $relPath) {
+                $found[] = 'https://' . self::NSV_HOST . $relPath;
+            }
+            $found = array_unique($found);
+
             if (empty($found) && $page > 1) break;
 
             $postUrls = array_merge($postUrls, $found);
-            Log::debug("NsvCrawler: Seite {$page} → " . count($found) . ' Beitrags-Links', ['url' => $url]);
+            Log::debug("NsvCrawler: Seite {$page} → " . count($found) . ' Posts', ['url' => $url]);
         }
 
         return array_unique($postUrls);
     }
 
-    // ── Step 2: Download DSV7 files found in an HTML page ───────────────────
+    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private function downloadDsv7Links(string $html, string $baseUrl): array
     {
-        preg_match_all(
-            '/<a[^>]+href=["\']([^"\']*\.dsv7)["\'][^>]*>/i',
-            $html,
-            $matches
-        );
+        preg_match_all('/<a[^>]+href=["\']([^"\']*\.dsv7)["\'][^>]*>/i', $html, $matches);
 
         $files = [];
         foreach (array_unique($matches[1] ?? []) as $link) {
-            $url          = $this->absoluteUrl($link, $baseUrl);
-            $fileResponse = $this->http($url);
-            if (!$fileResponse) continue;
+            $url  = $this->absoluteUrl($link, $baseUrl);
+            $resp = $this->http($url);
+            if (!$resp) continue;
 
             $files[] = [
-                'content'  => $fileResponse->body(),
+                'content'  => $resp->body(),
                 'filename' => basename(parse_url($url, PHP_URL_PATH) ?? 'result.DSV7'),
                 'url'      => $url,
             ];
@@ -322,8 +292,6 @@ class NsvCrawler implements CrawlerInterface
 
         return $files;
     }
-
-    // ── Step 3: Extract external event-homepage links ────────────────────────
 
     private function extractExternalLinks(string $html): array
     {
@@ -337,10 +305,7 @@ class NsvCrawler implements CrawlerInterface
 
             $skip = false;
             foreach (self::SKIP_DOMAINS as $pattern) {
-                if (str_contains($host, $pattern) || str_contains($href, $pattern)) {
-                    $skip = true;
-                    break;
-                }
+                if (str_contains($host, $pattern)) { $skip = true; break; }
             }
             if ($skip) continue;
             $links[] = $href;
@@ -349,12 +314,40 @@ class NsvCrawler implements CrawlerInterface
         return $links;
     }
 
-    // ── HTTP helper ──────────────────────────────────────────────────────────
+    private function findSectionStart(string $html): int|false
+    {
+        if (preg_match('/<h[23][^>]*>/i', $html, $m, PREG_OFFSET_CAPTURE)) {
+            return $m[0][1];
+        }
+        return false;
+    }
+
+    private function isPerEventFile(string $filename): bool
+    {
+        foreach (self::SKIP_DOC_PATTERNS as $pattern) {
+            if (preg_match($pattern, $filename)) return true;
+        }
+        return false;
+    }
+
+    private function guessCategory(string $filename, string $linkText): string
+    {
+        $f = strtolower($filename);
+        $t = strtolower($linkText);
+
+        if (str_contains($t, 'ausschreibung') || str_contains($f, 'ausschreibung')) return 'ausschreibung';
+        if (str_contains($t, 'meldeergebnis') || str_contains($t, 'meldung') || str_contains($t, 'zeitplan')
+            || str_contains($f, 'melde_')) return 'meldeergebnis';
+        if (str_contains($t, 'protokoll') || str_contains($t, 'medaillienspiegel') || str_contains($t, 'enm')
+            || str_contains($f, 'proto_')) return 'protokoll';
+
+        return 'sonstige';
+    }
 
     private function http(string $url): ?\Illuminate\Http\Client\Response
     {
         try {
-            $response = Http::withHeaders([
+            $resp = Http::withHeaders([
                 'User-Agent'      => 'Mozilla/5.0 (compatible; WaRa-Portal-Crawler/1.0)',
                 'Accept'          => 'text/html,application/pdf,application/octet-stream,*/*',
                 'Accept-Language' => 'de-DE,de;q=0.9',
@@ -362,7 +355,7 @@ class NsvCrawler implements CrawlerInterface
                 'verify' => !env('CRAWLER_SSL_VERIFY_DISABLE', false),
             ])->timeout(30)->get($url);
 
-            return $response->successful() ? $response : null;
+            return $resp->successful() ? $resp : null;
         } catch (\Throwable $e) {
             Log::warning('NsvCrawler: HTTP-Fehler', ['url' => $url, 'error' => $e->getMessage()]);
             return null;
