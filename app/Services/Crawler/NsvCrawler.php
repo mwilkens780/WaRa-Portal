@@ -59,11 +59,20 @@ class NsvCrawler implements CrawlerInterface
 
     public function run(): array
     {
-        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        $stats     = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        $filesSeen = 0;
 
         foreach ($this->fetchFiles() as $file) {
+            $filesSeen++;
             $hash = hash('sha256', $file['content']);
             if (Competition::where('import_hash', $hash)->exists()) {
+                ImportLog::create([
+                    'source'     => $this->getSourceId(),
+                    'source_url' => $file['url'],
+                    'filename'   => $file['filename'],
+                    'status'     => 'skipped',
+                    'message'    => 'Hash-Duplikat – bereits importiert',
+                ]);
                 $stats['skipped']++;
                 continue;
             }
@@ -86,6 +95,17 @@ class NsvCrawler implements CrawlerInterface
             } finally {
                 @unlink($tmpPath);
             }
+        }
+
+        if ($filesSeen === 0) {
+            ImportLog::create([
+                'source'     => $this->getSourceId(),
+                'source_url' => self::FALLBACK_URLS[0] ?? null,
+                'filename'   => null,
+                'status'     => 'skipped',
+                'message'    => 'Keine DSV7-Ergebnisdateien auf der Index-Seite gefunden',
+            ]);
+            $stats['skipped']++;
         }
 
         return $stats;

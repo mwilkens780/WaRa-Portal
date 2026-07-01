@@ -21,7 +21,14 @@ class ShsvCrawler implements CrawlerInterface
         $response = Http::withOptions(['verify' => !env('CRAWLER_SSL_VERIFY_DISABLE', false)])->timeout(30)->get(self::INDEX_URL);
 
         if ($response->failed()) {
-            Log::warning('ShsvCrawler: Index-Seite nicht erreichbar', ['url' => self::INDEX_URL]);
+            Log::warning('ShsvCrawler: Index-Seite nicht erreichbar', ['url' => self::INDEX_URL, 'status' => $response->status()]);
+            ImportLog::create([
+                'source'     => $this->getSourceId(),
+                'source_url' => self::INDEX_URL,
+                'filename'   => null,
+                'status'     => 'error',
+                'message'    => 'Index-Seite nicht erreichbar (HTTP ' . $response->status() . ')',
+            ]);
             return;
         }
 
@@ -32,6 +39,7 @@ class ShsvCrawler implements CrawlerInterface
         );
 
         $links = array_unique($matches[1] ?? []);
+        Log::info('ShsvCrawler: Index-Seite geladen, ' . count($links) . ' DSV7-Links gefunden', ['url' => self::INDEX_URL]);
 
         foreach ($links as $link) {
             $url = $this->absoluteUrl($link);
@@ -52,18 +60,20 @@ class ShsvCrawler implements CrawlerInterface
 
     public function run(): array
     {
-        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        $stats    = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        $filesSeen = 0;
 
         foreach ($this->fetchFiles() as $file) {
+            $filesSeen++;
             $hash = hash('sha256', $file['content']);
 
             if (Competition::where('import_hash', $hash)->exists()) {
                 ImportLog::create([
-                    'source'   => $this->getSourceId(),
+                    'source'     => $this->getSourceId(),
                     'source_url' => $file['url'],
-                    'filename' => $file['filename'],
-                    'status'   => 'skipped',
-                    'message'  => 'Hash-Duplikat',
+                    'filename'   => $file['filename'],
+                    'status'     => 'skipped',
+                    'message'    => 'Hash-Duplikat – bereits importiert',
                 ]);
                 $stats['skipped']++;
                 continue;
@@ -87,6 +97,17 @@ class ShsvCrawler implements CrawlerInterface
             } finally {
                 @unlink($tmpPath);
             }
+        }
+
+        if ($filesSeen === 0) {
+            ImportLog::create([
+                'source'     => $this->getSourceId(),
+                'source_url' => self::INDEX_URL,
+                'filename'   => null,
+                'status'     => 'skipped',
+                'message'    => 'Keine DSV7-Ergebnisdateien auf der Index-Seite gefunden',
+            ]);
+            $stats['skipped']++;
         }
 
         return $stats;

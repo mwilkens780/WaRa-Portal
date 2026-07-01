@@ -187,8 +187,9 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
     Route::get('/wettkaempfe/{competition}/dokumente/{document}/download', [CompetitionDocumentController::class, 'download'])->name('competitions.documents.download');
     Route::delete('/wettkaempfe/{competition}/dokumente/{document}', [CompetitionDocumentController::class, 'destroy'])->name('competitions.documents.destroy');
 
-    // Import-Log
+    // Import-Log & Crawler
     Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');
+    Route::post('/import-log/run/{source}', [ImportLogController::class, 'run'])->name('import-log.run');
 
     // WA Punktetabellen
     Route::get('/wa-scoring',             [WaScoringController::class, 'index'])->name('wa-scoring.index');
