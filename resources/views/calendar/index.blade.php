@@ -487,6 +487,14 @@
                                     @if($evt['sub'])
                                         <span class="text-xs text-gray-400 ml-1.5">{{ $evt['sub'] }}</span>
                                     @endif
+                                    @if(isset($evt['span_start'], $evt['span_end']) && $evt['span_start'] !== $evt['span_end'])
+                                        @php
+                                            $spanFrom  = \Carbon\Carbon::parse($evt['span_start']);
+                                            $spanTo    = \Carbon\Carbon::parse($evt['span_end']);
+                                            $dateRange = $spanFrom->format('d.m.') . ' – ' . $spanTo->format('d.m.Y');
+                                        @endphp
+                                        <span class="text-xs text-gray-400 ml-1.5">{{ $dateRange }}</span>
+                                    @endif
                                 </div>
                                 {{-- Time badge (only for timed events) --}}
                                 @if($evt['time'])

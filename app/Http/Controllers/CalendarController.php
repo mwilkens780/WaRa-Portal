@@ -160,12 +160,16 @@ class CalendarController extends Controller
 
         $eventMap = $this->buildEventMap($rangeStart, $rangeEnd);
 
-        // Group days-with-events by month
+        // Group days-with-events by month.
+        // Multi-day events (competitions, calendar events spanning multiple days) are
+        // kept only on their start day so they appear as a single list row with a date range.
         $listMonths = [];
         $cursor = $rangeStart->copy();
         while ($cursor->lte($rangeEnd)) {
             $key    = $cursor->format('Y-m-d');
-            $events = $eventMap[$key] ?? [];
+            $events = array_values(array_filter($eventMap[$key] ?? [], function ($ev) use ($key) {
+                return !isset($ev['span_start']) || $ev['span_start'] === $key;
+            }));
             if (!empty($events)) {
                 $monthKey = $cursor->format('Y-m');
                 if (!isset($listMonths[$monthKey])) {
@@ -345,12 +349,14 @@ class CalendarController extends Controller
                 $key = $cur->format('Y-m-d');
                 if (isset($map[$key])) {
                     $map[$key][] = [
-                        'type'  => 'competition',
-                        'color' => 'red',
-                        'time'  => null,
-                        'title' => $c->name,
-                        'sub'   => $c->location,
-                        'url'   => $isTrainer ? route('admin.competitions.show', $c) : null,
+                        'type'       => 'competition',
+                        'color'      => 'red',
+                        'time'       => null,
+                        'title'      => $c->name,
+                        'sub'        => $c->location,
+                        'url'        => $isTrainer ? route('admin.competitions.show', $c) : null,
+                        'span_start' => $c->date->format('Y-m-d'),
+                        'span_end'   => ($c->date_end ?? $c->date)->format('Y-m-d'),
                     ];
                 }
                 $cur->addDay();
@@ -369,13 +375,15 @@ class CalendarController extends Controller
                 $key = $cur->format('Y-m-d');
                 if (isset($map[$key])) {
                     $map[$key][] = [
-                        'type'  => 'event',
-                        'color' => $e->type_color,
-                        'time'  => $e->start_time ? substr($e->start_time, 0, 5) : null,
-                        'title' => $e->title,
-                        'sub'   => $e->type_label,
-                        'url'   => null,
-                        'id'    => $e->id,
+                        'type'       => 'event',
+                        'color'      => $e->type_color,
+                        'time'       => $e->start_time ? substr($e->start_time, 0, 5) : null,
+                        'title'      => $e->title,
+                        'sub'        => $e->type_label,
+                        'url'        => null,
+                        'id'         => $e->id,
+                        'span_start' => $e->start_date->format('Y-m-d'),
+                        'span_end'   => ($e->end_date ?? $e->start_date)->format('Y-m-d'),
                     ];
                 }
                 $cur->addDay();
