@@ -448,8 +448,13 @@
                         $dayName   = $dayNames[$date->dayOfWeek];
                         $isWeekend = in_array($date->dayOfWeek, [0, 6]);
                         $isToday   = $date->isToday();
+                        $dayColors = array_values(array_unique(array_column($dayEntry['events'], 'color')));
+                        $showExpr  = count($dayColors) > 0
+                            ? "['" . implode("','", $dayColors) . "'].some(c => categories[c] !== false)"
+                            : 'true';
                     @endphp
-                    <div class="flex gap-0 {{ $isToday ? 'bg-blue-50/60' : ($isWeekend ? 'bg-gray-50/40' : '') }}">
+                    <div x-show="{{ $showExpr }}"
+                         class="flex gap-0 {{ $isToday ? 'bg-blue-50/60' : ($isWeekend ? 'bg-gray-50/40' : '') }}">
 
                         {{-- Date column --}}
                         <div class="w-28 flex-shrink-0 px-4 py-3 border-r border-gray-100">
