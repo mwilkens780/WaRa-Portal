@@ -323,8 +323,7 @@
                                 <div class="relative flex-shrink-0" style="width:76px;height:76px;border-radius:50%;background:conic-gradient({{ $gradCss }})">
                                     <div class="absolute rounded-full bg-white flex flex-col items-center justify-center" style="width:44px;height:44px;top:16px;left:16px;">
                                         @if($avgRating)
-                                            <span class="text-sm font-black text-gray-800 leading-none">{{ number_format($avgRating, 1) }}</span>
-                                            <span class="text-[9px] text-gray-400 leading-none mt-0.5">Ø</span>
+                                            <span class="text-[11px] font-black text-gray-800 leading-none">{{ round($avgRating / 5 * 100) }}%</span>
                                         @else
                                             <span class="text-lg text-gray-200 leading-none">–</span>
                                         @endif
@@ -350,7 +349,7 @@
                                         </button>
                                     </div>
                                     @if($avgRating && ($lbl = $avgLabel($avgRating)))
-                                        <p class="text-[10px] text-gray-400 mt-1.5">Ø {{ number_format($avgRating, 1) }} · <span class="font-semibold {{ $lbl['cls'] }}">{{ $lbl['text'] }}</span></p>
+                                        <p class="text-[10px] text-gray-400 mt-1.5">Ø {{ number_format($avgRating, 1) }}/5 · <span class="font-semibold {{ $lbl['cls'] }}">{{ $lbl['text'] }}</span></p>
                                     @endif
                                 </div>
                             </div>
@@ -363,8 +362,7 @@
                                 <div class="relative flex-shrink-0" style="width:76px;height:76px;border-radius:50%;background:conic-gradient({{ $tGradCss }})">
                                     <div class="absolute rounded-full bg-white flex flex-col items-center justify-center" style="width:44px;height:44px;top:16px;left:16px;">
                                         @if($tAvgRating)
-                                            <span class="text-sm font-black text-gray-800 leading-none">{{ number_format($tAvgRating, 1) }}</span>
-                                            <span class="text-[9px] text-gray-400 leading-none mt-0.5">Ø</span>
+                                            <span class="text-[11px] font-black text-gray-800 leading-none">{{ round($tAvgRating / 5 * 100) }}%</span>
                                         @else
                                             <span class="text-lg text-gray-200 leading-none">–</span>
                                         @endif
@@ -390,7 +388,7 @@
                                         </button>
                                     </div>
                                     @if($tAvgRating && ($tLbl = $avgLabel($tAvgRating)))
-                                        <p class="text-[10px] text-gray-400 mt-1.5">Ø {{ number_format($tAvgRating, 1) }} · <span class="font-semibold {{ $tLbl['cls'] }}">{{ $tLbl['text'] }}</span></p>
+                                        <p class="text-[10px] text-gray-400 mt-1.5">Ø {{ number_format($tAvgRating, 1) }}/5 · <span class="font-semibold {{ $tLbl['cls'] }}">{{ $tLbl['text'] }}</span></p>
                                     @endif
                                 </div>
                             </div>
