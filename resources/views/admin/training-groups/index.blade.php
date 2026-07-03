@@ -24,59 +24,95 @@
             @endif
         </div>
     @else
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            @foreach($groups as $group)
-                @php $colors = $group->colorDots; @endphp
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 {{ $colors['border'] }} border-l-4 hover:shadow-md transition-shadow">
-                    <div class="p-5">
-                        <div class="flex items-start justify-between gap-2 mb-3">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="w-3 h-3 rounded-full {{ $colors['dot'] }} flex-shrink-0"></span>
-                                <h3 class="font-semibold text-gray-800 truncate">{{ $group->name }}</h3>
-                                @if($group->has_missing_trainer)
-                                    @include('partials.no-trainer-badge')
-                                @endif
-                            </div>
-                            @if(!$group->active)
-                                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">Inaktiv</span>
-                            @endif
-                        </div>
+        @php $typeLabels = \App\Models\TrainingGroup::GROUP_TYPES; @endphp
 
-                        @if($group->description)
-                            <p class="text-xs text-gray-500 mb-3 line-clamp-2">{{ $group->description }}</p>
-                        @endif
+        <div class="space-y-4">
+            @foreach($grouped as $type => $typeGroups)
+                <div x-data="{ open: true }" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
-                        <div class="flex items-center gap-4 text-xs text-gray-500 mb-4">
-                            <span class="flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                                {{ $group->trainers_count }} {{ $group->trainers_count === 1 ? 'Trainer' : 'Trainer' }}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                {{ $group->swimmers_count }} Schwimmer
+                    {{-- Section header / toggle --}}
+                    <button type="button"
+                            @click="open = !open"
+                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors text-left">
+                        <div class="flex items-center gap-3">
+                            <span class="font-semibold text-gray-700 text-sm">{{ $typeLabels[$type] ?? $type }}</span>
+                            <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                {{ $typeGroups->count() }} {{ $typeGroups->count() === 1 ? 'Gruppe' : 'Gruppen' }}
                             </span>
                         </div>
+                        <svg class="w-4 h-4 text-gray-400 transition-transform duration-200"
+                             :class="open ? 'rotate-180' : ''"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
 
-                        @if($group->trainers->isNotEmpty())
-                            <div class="flex flex-wrap gap-1 mb-4">
-                                @foreach($group->trainers->take(3) as $trainer)
-                                    <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{{ $trainer->firstname }} {{ $trainer->lastname }}</span>
-                                @endforeach
-                                @if($group->trainers->count() > 3)
-                                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{{ $group->trainers->count() - 3 }}</span>
-                                @endif
-                            </div>
-                        @endif
+                    {{-- Cards --}}
+                    <div x-show="open"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 -translate-y-1"
+                         class="border-t border-gray-100 p-4">
+                        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @foreach($typeGroups as $group)
+                                @php $colors = $group->colorDots; @endphp
+                                <div class="bg-white rounded-xl border border-gray-100 {{ $colors['border'] }} border-l-4 hover:shadow-md transition-shadow shadow-sm">
+                                    <div class="p-5">
+                                        <div class="flex items-start justify-between gap-2 mb-3">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span class="w-3 h-3 rounded-full {{ $colors['dot'] }} flex-shrink-0"></span>
+                                                <h3 class="font-semibold text-gray-800 truncate">{{ $group->name }}</h3>
+                                                @if($group->has_missing_trainer)
+                                                    @include('partials.no-trainer-badge')
+                                                @endif
+                                            </div>
+                                            @if(!$group->active)
+                                                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">Inaktiv</span>
+                                            @endif
+                                        </div>
 
-                        <div class="flex items-center gap-2 pt-3 border-t border-gray-50">
-                            <a href="{{ route('admin.training-groups.show', $group) }}"
-                               class="flex-1 text-center text-xs font-medium text-primary hover:bg-primary/5 py-1.5 rounded-lg transition-colors">
-                                Details
-                            </a>
-                            <a href="{{ route('admin.training-groups.edit', $group) }}"
-                               class="flex-1 text-center text-xs font-medium text-gray-600 hover:bg-gray-50 py-1.5 rounded-lg transition-colors">
-                                Bearbeiten
-                            </a>
+                                        @if($group->description)
+                                            <p class="text-xs text-gray-500 mb-3 line-clamp-2">{{ $group->description }}</p>
+                                        @endif
+
+                                        <div class="flex items-center gap-4 text-xs text-gray-500 mb-4">
+                                            <span class="flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                {{ $group->trainers_count }} Trainer
+                                            </span>
+                                            <span class="flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                {{ $group->swimmers_count }} Schwimmer
+                                            </span>
+                                        </div>
+
+                                        @if($group->trainers->isNotEmpty())
+                                            <div class="flex flex-wrap gap-1 mb-4">
+                                                @foreach($group->trainers->take(3) as $trainer)
+                                                    <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{{ $trainer->firstname }} {{ $trainer->lastname }}</span>
+                                                @endforeach
+                                                @if($group->trainers->count() > 3)
+                                                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{{ $group->trainers->count() - 3 }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        <div class="flex items-center gap-2 pt-3 border-t border-gray-50">
+                                            <a href="{{ route('admin.training-groups.show', $group) }}"
+                                               class="flex-1 text-center text-xs font-medium text-primary hover:bg-primary/5 py-1.5 rounded-lg transition-colors">
+                                                Details
+                                            </a>
+                                            <a href="{{ route('admin.training-groups.edit', $group) }}"
+                                               class="flex-1 text-center text-xs font-medium text-gray-600 hover:bg-gray-50 py-1.5 rounded-lg transition-colors">
+                                                Bearbeiten
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>

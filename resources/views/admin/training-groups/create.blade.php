@@ -25,6 +25,17 @@
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('description') border-red-400 @enderror">{{ old('description') }}</textarea>
             </div>
 
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Gruppentyp <span class="text-red-500">*</span></label>
+                <select name="group_type"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('group_type') border-red-400 @enderror">
+                    @foreach(\App\Models\TrainingGroup::GROUP_TYPES as $key => $label)
+                        <option value="{{ $key }}" {{ old('group_type', 'breitensport') === $key ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('group_type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
+
             <div class="flex items-start gap-8">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Farbe <span class="text-red-500">*</span></label>

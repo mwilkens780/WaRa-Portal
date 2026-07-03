@@ -26,9 +26,18 @@ class TrainingGroupController extends Controller
             $query->whereHas('trainers', fn($q) => $q->where('users.id', auth()->id()));
         }
 
-        $groups = $query->get();
+        // Group by group_type in defined order
+        $all = $query->get();
+        $grouped = collect(array_keys(TrainingGroup::GROUP_TYPES))
+            ->mapWithKeys(fn($type) => [
+                $type => $all->where('group_type', $type)->values(),
+            ])
+            ->filter(fn($items) => $items->isNotEmpty());
 
-        return view('admin.training-groups.index', compact('groups'));
+        return view('admin.training-groups.index', [
+            'groups'  => $all,
+            'grouped' => $grouped,
+        ]);
     }
 
     // ── Create / Store (admin only) ──────────────────────────────────────
@@ -50,6 +59,7 @@ class TrainingGroupController extends Controller
             'name'        => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'color'       => ['required', 'in:' . implode(',', array_keys(TrainingGroup::COLORS))],
+            'group_type'  => ['required', 'in:' . implode(',', array_keys(TrainingGroup::GROUP_TYPES))],
             'active'      => ['boolean'],
             'trainers'    => ['nullable', 'array'],
             'trainers.*'  => ['exists:users,id'],
@@ -294,6 +304,7 @@ class TrainingGroupController extends Controller
             'name'        => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'color'       => ['required', 'in:' . implode(',', array_keys(TrainingGroup::COLORS))],
+            'group_type'  => ['required', 'in:' . implode(',', array_keys(TrainingGroup::GROUP_TYPES))],
             'active'      => ['boolean'],
             'trainers'    => ['nullable', 'array'],
             'trainers.*'  => ['exists:users,id'],

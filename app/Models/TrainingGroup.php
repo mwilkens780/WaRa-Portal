@@ -9,6 +9,13 @@ class TrainingGroup extends Model
 {
     use Auditable;
 
+    const GROUP_TYPES = [
+        'leistungssport'     => 'Leistungssport',
+        'breitensport'       => 'Breitensport',
+        'triathlon'          => 'Triathlon',
+        'synchronschwimmen'  => 'Synchronschwimmen',
+    ];
+
     const COLORS = [
         'blue'   => ['dot' => 'bg-blue-500',   'badge' => 'bg-blue-100 text-blue-700',   'border' => 'border-blue-400'],
         'green'  => ['dot' => 'bg-green-500',  'badge' => 'bg-green-100 text-green-700',  'border' => 'border-green-400'],
@@ -20,7 +27,7 @@ class TrainingGroup extends Model
         'indigo' => ['dot' => 'bg-indigo-500', 'badge' => 'bg-indigo-100 text-indigo-700', 'border' => 'border-indigo-400'],
     ];
 
-    protected $fillable = ['name', 'description', 'color', 'active'];
+    protected $fillable = ['name', 'description', 'color', 'group_type', 'active'];
 
     protected function casts(): array
     {
