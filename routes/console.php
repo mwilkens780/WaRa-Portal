@@ -15,56 +15,52 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // ── Scraper-Scheduler ──────────────────────────────────────────────────────
-// Cron-Eintrag auf dem Server: * * * * * php /pfad/artisan schedule:run >> /dev/null 2>&1
+// Alle Zeiten / Tage aus der DB; Standardwerte greifen, wenn noch nichts konfiguriert.
+// Cron auf dem Server: GET https://wara-portal.de/cron/run/{token} (minütlich)
 
-Schedule::call(fn() => app(ShsvCrawler::class)->run())
-    ->weeklyOn(1, '06:00')  // Montag (nach Wettkampfwochenenden)
-    ->weeklyOn(2, '06:00')  // Dienstag
-    ->weeklyOn(4, '06:00')  // Donnerstag (Masters)
-    ->name('shsv-crawler')
-    ->withoutOverlapping();
+$crawlerDefs = [
+    'shsv'    => ['class' => ShsvCrawler::class,    'days' => [1, 2, 4], 'time' => '06:00'],
+    'nsv'     => ['class' => NsvCrawler::class,     'days' => [1],       'time' => '06:30'],
+    'dsvdata' => ['class' => DsvDataCrawler::class, 'days' => [1, 3, 5], 'time' => '07:00'],
+    'dsv'     => ['class' => DsvCrawler::class,     'days' => [7],       'time' => '00:00'],
+];
 
-Schedule::call(fn() => app(NsvCrawler::class)->run())
-    ->weeklyOn(1, '06:30')
-    ->name('nsv-crawler')
-    ->withoutOverlapping();
+foreach ($crawlerDefs as $source => $def) {
+    try {
+        $enabled = Setting::getBool("crawler.{$source}.enabled", true);
+        $days    = Setting::getJson("crawler.{$source}.schedule_days", $def['days']);
+        $time    = Setting::getCached("crawler.{$source}.schedule_time", $def['time']);
 
-Schedule::call(fn() => app(DsvCrawler::class)->run())
-    ->weekly()
-    ->name('dsv-crawler')
-    ->withoutOverlapping();
+        if (!$enabled || empty($days)) continue;
 
-// DsvData-Crawler: Zeitplan aus Admin-Einstellungen lesen
-try {
-    $dsvDataEnabled = Setting::getBool('crawler.dsvdata.enabled', true);
-    $dsvDataDays    = Setting::getJson('crawler.dsvdata.schedule_days', [3]); // Default: Mittwoch
-    $dsvDataTime    = Setting::getCached('crawler.dsvdata.schedule_time', '07:00');
+        [$h, $m] = array_pad(explode(':', $time, 2), 2, '00');
+        // ISO (1=Mo…7=So) → Cron (0=So…6=Sa): 7 → 0
+        $cronDays = implode(',', array_map(fn($d) => $d === 7 ? 0 : (int) $d, $days));
+        $cronExpr = (int)$m . ' ' . (int)$h . ' * * ' . $cronDays;
 
-    if ($dsvDataEnabled && !empty($dsvDataDays)) {
-        [$h, $m]     = array_pad(explode(':', $dsvDataTime, 2), 2, '00');
-        // ISO-Tage (1=Mo…7=So) → Cron-Tage (0=So…6=Sa): 7→0, sonst unverändert
-        $cronDays    = implode(',', array_map(fn($d) => $d === 7 ? 0 : (int) $d, $dsvDataDays));
-        $cronExpr    = (int)$m . ' ' . (int)$h . ' * * ' . $cronDays;
-
-        Schedule::call(fn() => app(DsvDataCrawler::class)->run())
+        $class = $def['class'];
+        Schedule::call(fn() => app($class)->run())
             ->cron($cronExpr)
-            ->name('dsvdata-crawler')
+            ->name("{$source}-crawler")
+            ->withoutOverlapping();
+    } catch (\Throwable) {
+        // DB nicht verfügbar (z.B. vor erster Migration) → Standardwert
+        [$h, $m]  = array_pad(explode(':', $def['time'], 2), 2, '00');
+        $cronDays = implode(',', array_map(fn($d) => $d === 7 ? 0 : $d, $def['days']));
+        $class    = $def['class'];
+        Schedule::call(fn() => app($class)->run())
+            ->cron((int)$m . ' ' . (int)$h . ' * * ' . $cronDays)
+            ->name("{$source}-crawler")
             ->withoutOverlapping();
     }
-} catch (\Throwable $e) {
-    // DB nicht verfügbar (z.B. vor erster Migration) → Fallback: Mittwoch 07:00
-    Schedule::call(fn() => app(DsvDataCrawler::class)->run())
-        ->weeklyOn(3, '07:00')
-        ->name('dsvdata-crawler')
-        ->withoutOverlapping();
 }
 
 // Saison-Score-Cache wöchentlich neu berechnen
 Schedule::call(function () {
-    $year    = now()->month >= 9 ? now()->year : now()->year - 1;  // Saison beginnt September
+    $year    = now()->month >= 9 ? now()->year : now()->year - 1;
     $service = app(SaisonAuswertungService::class);
     $service->recalculate($year);
     if (now()->month >= 1 && now()->month <= 8) {
-        $service->recalculate($year - 1);  // Vorjahr auffrischen
+        $service->recalculate($year - 1);
     }
 })->weekly()->name('season-scores-recalc');

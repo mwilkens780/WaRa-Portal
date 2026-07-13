@@ -80,8 +80,10 @@
             </div>
         </div>
 
-        {{-- ── DSV-Daten Crawler ─────────────────────────────────────────── --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {{-- DSV-Crawler-Konfiguration wurde in "Crawler & Import-Log" verschoben --}}
+
+        {{-- ── (ehemals DSV-Daten Crawler) ─────────────────────────────────── --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" style="display:none">
             <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
                 <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

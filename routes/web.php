@@ -190,6 +190,7 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
     // Import-Log & Crawler
     Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');
     Route::post('/import-log/run/{source}', [ImportLogController::class, 'run'])->name('import-log.run');
+    Route::post('/import-log/config/{source}', [ImportLogController::class, 'saveConfig'])->name('import-log.config');
 
     // WA Punktetabellen
     Route::get('/wa-scoring',             [WaScoringController::class, 'index'])->name('wa-scoring.index');

@@ -6,102 +6,194 @@
 <div class="space-y-5">
 
     {{-- Flash-Nachrichten --}}
-    @if(session('crawler_result'))
-        <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-xl font-medium">
-            {{ session('crawler_result') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl font-medium">
-            {{ session('error') }}
-        </div>
-    @endif
+    @foreach(['success' => 'green', 'crawler_result' => 'green', 'error' => 'red'] as $key => $color)
+        @if(session($key))
+            <div class="bg-{{ $color }}-50 border border-{{ $color }}-200 text-{{ $color }}-800 text-sm px-4 py-3 rounded-xl font-medium">
+                {{ session($key) }}
+            </div>
+        @endif
+    @endforeach
 
-    {{-- Crawler-Status-Karten --}}
+    {{-- Crawler-Kacheln --}}
     <div>
-        <h2 class="text-sm font-bold text-gray-700 mb-2">Crawler-Status</h2>
+        <h2 class="text-sm font-bold text-gray-700 mb-2">Crawler-Status & Konfiguration</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+
             @foreach($crawlerStats as $source => $info)
             @php
-                $last   = $info['last_entry'];
-                $hasErr = $info['count_errors'] > 0;
+                $last       = $info['last_entry'];
                 $lastStatus = $last?->status;
-                $borderCls = $lastStatus === 'error' ? 'border-red-200' : ($lastStatus === 'success' ? 'border-green-200' : 'border-gray-100');
+                $borderCls  = $lastStatus === 'error' ? 'border-red-200' : ($lastStatus === 'success' ? 'border-green-200' : 'border-gray-100');
+                $cfgEnabled = $info['cfg_enabled'];
+                $cfgDays    = $info['cfg_days'];
+                $cfgTime    = $info['cfg_time'];
             @endphp
-            <div class="bg-white rounded-xl shadow-sm border {{ $borderCls }} p-4 flex flex-col gap-3">
-                {{-- Header --}}
-                <div class="flex items-start justify-between gap-2">
-                    <div>
-                        <p class="text-sm font-bold text-gray-800">{{ $info['label'] }}</p>
-                        <p class="text-[10px] text-gray-400 mt-0.5">{{ $info['schedule'] }}</p>
-                    </div>
-                    @if($last)
-                        @if($lastStatus === 'success')
-                            <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt OK</span>
-                        @elseif($lastStatus === 'error')
-                            <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt Fehler</span>
+
+            <div x-data="{ cfg: false }"
+                 class="bg-white rounded-xl shadow-sm border {{ $borderCls }} flex flex-col">
+
+                {{-- Status-Bereich --}}
+                <div class="p-4 flex flex-col gap-3 flex-1">
+
+                    {{-- Header --}}
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-bold text-gray-800">{{ $info['label'] }}</p>
+                                @if($cfgEnabled)
+                                    <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Aktiv</span>
+                                @else
+                                    <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">Inaktiv</span>
+                                @endif
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-0.5">{{ $info['schedule'] }}</p>
+                        </div>
+                        @if($last)
+                            @if($lastStatus === 'success')
+                                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt OK</span>
+                            @elseif($lastStatus === 'error')
+                                <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt Fehler</span>
+                            @else
+                                <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Übersprungen</span>
+                            @endif
                         @else
-                            <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt übersprungen</span>
-                        @endif
-                    @else
-                        <span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Noch nie gelaufen</span>
-                    @endif
-                </div>
-
-                {{-- Letzter Lauf --}}
-                @if($last)
-                    <div class="text-xs text-gray-500">
-                        <span class="font-medium text-gray-700">Letzter Eintrag:</span>
-                        {{ $last->imported_at?->format('d.m.Y H:i') ?? '–' }}
-                        @if($last->message)
-                            <br><span class="text-gray-400 italic">{{ Str::limit($last->message, 70) }}</span>
+                            <span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Nie gelaufen</span>
                         @endif
                     </div>
-                @endif
 
-                {{-- Statistik --}}
-                <div class="flex gap-3 text-xs">
-                    <span class="text-green-700 font-semibold">{{ number_format($info['count_success']) }} importiert</span>
-                    <span class="text-gray-400">{{ number_format($info['count_skipped']) }} übersprungen</span>
-                    @if($info['count_errors'] > 0)
-                        <span class="text-red-600 font-semibold">{{ $info['count_errors'] }} Fehler</span>
+                    {{-- Letzter Lauf --}}
+                    @if($last)
+                        <div class="text-xs text-gray-500">
+                            <span class="font-medium text-gray-700">Letzter Eintrag:</span>
+                            {{ $last->imported_at?->format('d.m.Y H:i') ?? '–' }}
+                            @if($last->message)
+                                <br><span class="text-gray-400 italic">{{ Str::limit($last->message, 65) }}</span>
+                            @endif
+                        </div>
+                    @endif
+
+                    {{-- Statistik --}}
+                    <div class="flex gap-3 text-xs">
+                        <span class="text-green-700 font-semibold">{{ number_format($info['count_success']) }} importiert</span>
+                        <span class="text-gray-400">{{ number_format($info['count_skipped']) }} übersprungen</span>
+                        @if($info['count_errors'] > 0)
+                            <span class="text-red-600 font-semibold">{{ $info['count_errors'] }} Fehler</span>
+                        @endif
+                    </div>
+
+                    {{-- Index-URL --}}
+                    @if($info['url'])
+                        <a href="{{ $info['url'] }}" target="_blank" class="text-[10px] text-primary hover:underline truncate">
+                            {{ $info['url'] }}
+                        </a>
+                    @endif
+
+                    {{-- Hinweis --}}
+                    @if(!empty($info['note']))
+                        <p class="text-[10px] text-amber-600 bg-amber-50 rounded px-2 py-1">{{ $info['note'] }}</p>
                     @endif
                 </div>
 
-                {{-- Index-URL --}}
-                @if($info['url'])
-                    <a href="{{ $info['url'] }}" target="_blank" class="text-[10px] text-primary hover:underline truncate">
-                        {{ $info['url'] }}
-                    </a>
-                @endif
+                {{-- Aktionen --}}
+                <div class="px-4 pb-4 flex gap-2">
+                    @if(empty($info['note']))
+                        <form method="POST" action="{{ route('admin.import-log.run', $source) }}" class="flex-1">
+                            @csrf
+                            <button type="submit"
+                                    onclick="return confirm('Crawler \"{{ $info['label'] }}\" jetzt manuell starten?')"
+                                    class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+                                Jetzt ausführen
+                            </button>
+                        </form>
+                    @endif
+                    <button type="button" @click="cfg = !cfg"
+                            :class="cfg ? 'bg-gray-100 text-gray-700' : 'text-gray-500 hover:bg-gray-50'"
+                            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 transition-colors flex items-center gap-1 flex-shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Konfig
+                    </button>
+                </div>
 
-                {{-- Hinweis --}}
-                @if(!empty($info['note']))
-                    <p class="text-[10px] text-amber-600 bg-amber-50 rounded px-2 py-1">{{ $info['note'] }}</p>
-                @endif
+                {{-- Konfigurations-Panel --}}
+                <div x-show="cfg"
+                     x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     class="border-t border-gray-100">
 
-                {{-- Manueller Start --}}
-                @if(empty($info['note']))
-                    <form method="POST" action="{{ route('admin.import-log.run', $source) }}">
+                    <form method="POST" action="{{ route('admin.import-log.config', $source) }}"
+                          class="p-4 space-y-4">
                         @csrf
+
+                        {{-- Aktiv-Toggle --}}
+                        <div x-data="{ on: {{ $cfgEnabled ? 'true' : 'false' }} }"
+                             class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-gray-700">Automatisch aktiv</span>
+                            <div class="flex items-center gap-2">
+                                <input type="hidden" name="enabled" :value="on ? '1' : '0'">
+                                <button type="button" @click="on = !on"
+                                        :class="on ? 'bg-primary' : 'bg-gray-200'"
+                                        class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none">
+                                    <span :class="on ? 'translate-x-5' : 'translate-x-1'"
+                                          class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Wochentage --}}
+                        <div>
+                            <p class="text-xs font-medium text-gray-700 mb-1.5">Wochentage</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach([1=>'Mo', 2=>'Di', 3=>'Mi', 4=>'Do', 5=>'Fr', 6=>'Sa', 7=>'So'] as $num => $label)
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" name="schedule_days[]" value="{{ $num }}"
+                                               {{ in_array($num, $cfgDays) ? 'checked' : '' }}
+                                               class="w-3.5 h-3.5 rounded text-primary border-gray-300">
+                                        <span class="text-xs text-gray-700">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Uhrzeit --}}
+                        <div>
+                            <label class="text-xs font-medium text-gray-700 block mb-1">Uhrzeit</label>
+                            <input type="time" name="schedule_time" value="{{ $cfgTime }}"
+                                   class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        {{-- Landesverbände (nur DSV-Daten) --}}
+                        @if(!empty($info['has_states']))
+                            <div>
+                                <p class="text-xs font-medium text-gray-700 mb-1.5">Landesverbände</p>
+                                <div class="space-y-1 max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2">
+                                    @foreach($dsvStates as $state)
+                                        <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                                            <input type="checkbox" name="state_ids[]" value="{{ $state['id'] }}"
+                                                   {{ in_array($state['id'], $info['cfg_state_ids']) ? 'checked' : '' }}
+                                                   class="w-3.5 h-3.5 rounded text-primary border-gray-300">
+                                            <span class="text-xs text-gray-700">{{ $state['name'] }}</span>
+                                            <span class="text-[10px] text-gray-400">{{ $state['short'] }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
                         <button type="submit"
-                                onclick="return confirm('Crawler \"{{ $info['label'] }}\" jetzt manuell starten? Dies kann einige Minuten dauern.')"
-                                class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-                            Jetzt ausführen
+                                class="w-full px-3 py-1.5 bg-gray-800 text-white text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors">
+                            Speichern
                         </button>
                     </form>
-                @endif
+                </div>
+
             </div>
             @endforeach
         </div>
-    </div>
-
-    {{-- Cron-Hinweis --}}
-    <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
-        <strong>Cron auf dem Server prüfen:</strong>
-        Damit Crawler automatisch laufen, muss folgender Cron-Eintrag aktiv sein:<br>
-        <code class="font-mono bg-amber-100 px-1.5 py-0.5 rounded mt-1 inline-block">* * * * * php /www/htdocs/w007ba65/wara-portal.de/artisan schedule:run >> /dev/null 2>&1</code><br>
-        Alternativ ist auch der HTTP-Endpunkt konfiguriert: <code class="font-mono bg-amber-100 px-1">GET /cron/{token}</code>
     </div>
 
     {{-- Filter --}}
