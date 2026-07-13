@@ -164,7 +164,7 @@ class ImportLogController extends Controller
         Setting::clearCache();
 
         $label = self::CRAWLERS[$source]['label'];
-        return back()->with('success', "Konfiguration für „{$label}" gespeichert.");
+        return back()->with('success', "Konfiguration fuer \"{$label}\" gespeichert.");
     }
 
     private function buildScheduleLabel(array $days, string $time): string
