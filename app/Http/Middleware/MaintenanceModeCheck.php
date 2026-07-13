@@ -15,8 +15,8 @@ class MaintenanceModeCheck
             return $next($request);
         }
 
-        // Login-Seite immer zugänglich lassen (damit Bypass-User sich einloggen können)
-        if ($request->routeIs('login', 'login.post', 'maintenance')) {
+        // Login und System-Routen immer zugänglich lassen
+        if ($request->routeIs('login', 'login.post', 'maintenance', 'cron.run')) {
             return $next($request);
         }
 
