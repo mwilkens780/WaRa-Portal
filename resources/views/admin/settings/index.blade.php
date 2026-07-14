@@ -243,6 +243,17 @@
                                    value="{{ old('webclub_timeout_seconds', $webclub['timeout_seconds']) }}"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Node.js-Pfad
+                                <span class="text-xs text-gray-400 font-normal ml-1">leer lassen = automatisch suchen</span>
+                            </label>
+                            <input type="text" name="webclub_node_path"
+                                   value="{{ old('webclub_node_path', $webclub['node_path']) }}"
+                                   placeholder="/usr/bin/node"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono">
+                            <p class="text-xs text-gray-400 mt-1">Pfad zur Node.js-Executable auf dem Server. Per SSH ermitteln: <code class="bg-gray-100 px-1 rounded">which node</code></p>
+                        </div>
                     </div>
                 </div>
 
