@@ -348,17 +348,14 @@ class WebClubCrawler
 
         file_put_contents($configFile, json_encode($runtimeConfig));
 
-        $nodePath  = '/opt/node22/bin/node';
         $scriptPath = base_path('scripts/webclub-crawler.js');
+        $env        = ['PLAYWRIGHT_BROWSERS_PATH' => '/opt/pw-browsers', 'HOME' => '/root'];
+        $nodePath   = $this->resolveNodePath();
 
         $process = new Process(
             [$nodePath, $scriptPath, $configFile],
             null,
-            [
-                'NODE_PATH'                => '/opt/node22/lib/node_modules',
-                'PLAYWRIGHT_BROWSERS_PATH' => '/opt/pw-browsers',
-                'HOME'                     => '/root',
-            ]
+            $env
         );
 
         $process->setTimeout(intval(Setting::getCached('crawler.webclub.timeout_seconds', 300)));
@@ -381,6 +378,43 @@ class WebClubCrawler
         }
 
         return $data;
+    }
+
+    // ── Node.js discovery ────────────────────────────────────────────────────
+
+    private function resolveNodePath(): string
+    {
+        // Allow explicit override via admin setting
+        $configured = trim(Setting::getCached('crawler.webclub.node_path', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        // Try well-known paths in order (PATH-resolved 'node' first, then absolutes)
+        $candidates = [
+            'node',
+            '/usr/bin/node',
+            '/usr/local/bin/node',
+            '/opt/node22/bin/node',
+            '/opt/node20/bin/node',
+            '/opt/node18/bin/node',
+        ];
+
+        foreach ($candidates as $candidate) {
+            $check = new Process(['which', $candidate]);
+            $check->run();
+            if ($check->isSuccessful() && trim($check->getOutput()) !== '') {
+                return $candidate;
+            }
+            // For absolute paths, also check file existence directly
+            if (str_starts_with($candidate, '/') && is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        throw new \RuntimeException(
+            'Node.js wurde nicht gefunden. Bitte den Pfad unter Einstellungen → Crawler → node_path konfigurieren.'
+        );
     }
 
     // ── Config ───────────────────────────────────────────────────────────────
