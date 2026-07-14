@@ -5,6 +5,7 @@ use App\Services\Crawler\DsvCrawler;
 use App\Services\Crawler\DsvDataCrawler;
 use App\Services\Crawler\NsvCrawler;
 use App\Services\Crawler\ShsvCrawler;
+use App\Services\Crawler\WebClubCrawler;
 use App\Services\Ranking\SaisonAuswertungService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -19,15 +20,16 @@ Artisan::command('inspire', function () {
 // Cron auf dem Server: GET https://wara-portal.de/cron/run/{token} (minütlich)
 
 $crawlerDefs = [
-    'shsv'    => ['class' => ShsvCrawler::class,    'days' => [1, 2, 4], 'time' => '06:00'],
-    'nsv'     => ['class' => NsvCrawler::class,     'days' => [1],       'time' => '06:30'],
-    'dsvdata' => ['class' => DsvDataCrawler::class, 'days' => [1, 3, 5], 'time' => '07:00'],
-    'dsv'     => ['class' => DsvCrawler::class,     'days' => [7],       'time' => '00:00'],
+    'shsv'            => ['class' => ShsvCrawler::class,    'days' => [1, 2, 4], 'time' => '06:00'],
+    'nsv'             => ['class' => NsvCrawler::class,     'days' => [1],       'time' => '06:30'],
+    'dsvdata'         => ['class' => DsvDataCrawler::class, 'days' => [1, 3, 5], 'time' => '07:00'],
+    'dsv'             => ['class' => DsvCrawler::class,     'days' => [7],       'time' => '00:00'],
+    'webclub_crawler' => ['class' => WebClubCrawler::class, 'days' => [1, 4],    'time' => '04:00', 'default_enabled' => false],
 ];
 
 foreach ($crawlerDefs as $source => $def) {
     try {
-        $enabled = Setting::getBool("crawler.{$source}.enabled", true);
+        $enabled = Setting::getBool("crawler.{$source}.enabled", $def['default_enabled'] ?? true);
         $days    = Setting::getJson("crawler.{$source}.schedule_days", $def['days']);
         $time    = Setting::getCached("crawler.{$source}.schedule_time", $def['time']);
 

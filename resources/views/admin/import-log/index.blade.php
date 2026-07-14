@@ -92,6 +92,21 @@
                     @if(!empty($info['note']))
                         <p class="text-[10px] text-amber-600 bg-amber-50 rounded px-2 py-1">{{ $info['note'] }}</p>
                     @endif
+
+                    {{-- WebClub: Konfigurations-Status --}}
+                    @if(!empty($info['is_webclub']))
+                        @if(empty($info['configured']))
+                            <p class="text-[10px] text-amber-600 bg-amber-50 rounded px-2 py-1">
+                                Zugangsdaten fehlen –
+                                <a href="{{ route('admin.settings.index') }}#webclub" class="underline font-semibold">Einstellungen</a>
+                            </p>
+                        @else
+                            <p class="text-[10px] text-gray-500">
+                                Benutzer: {{ $info['username'] ?? '–' }} ·
+                                <a href="{{ route('admin.settings.index') }}#webclub" class="text-primary hover:underline">Einstellungen</a>
+                            </p>
+                        @endif
+                    @endif
                 </div>
 
                 {{-- Aktionen --}}
@@ -101,7 +116,8 @@
                             @csrf
                             <button type="submit"
                                     onclick="return confirm('Crawler \"{{ $info['label'] }}\" jetzt manuell starten?')"
-                                    class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+                                    @if(!empty($info['is_webclub']) && empty($info['configured'])) disabled @endif
+                                    class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                                 Jetzt ausführen
                             </button>
                         </form>
@@ -203,7 +219,7 @@
                 <label class="block text-xs font-medium text-gray-500 mb-1">Quelle</label>
                 <select name="source" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Alle</option>
-                    @foreach(['shsv' => 'SHSV', 'nsv' => 'NSV', 'dsvdata' => 'DSV-Daten', 'dsv' => 'DSV National', 'webclub_batch' => 'WebClub-Batch', 'manual' => 'Manuell'] as $v => $l)
+                    @foreach(['shsv' => 'SHSV', 'nsv' => 'NSV', 'dsvdata' => 'DSV-Daten', 'dsv' => 'DSV National', 'webclub_crawler' => 'WebClub Crawler', 'webclub_batch' => 'WebClub-Batch', 'manual' => 'Manuell'] as $v => $l)
                         <option value="{{ $v }}" {{ ($filters['source'] ?? '') === $v ? 'selected' : '' }}>{{ $l }}</option>
                     @endforeach
                 </select>

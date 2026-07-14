@@ -311,6 +311,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/admin/einstellungen', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/einstellungen', [SettingsController::class, 'update'])->name('admin.settings.update');
+    Route::put('/admin/einstellungen/webclub', [SettingsController::class, 'updateWebClub'])->name('admin.settings.webclub');
 });
 
 // Benutzerverwaltung Lite (Trainer + Vorstand)

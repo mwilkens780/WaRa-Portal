@@ -24,7 +24,7 @@ class Competition extends Model
         'organizer', 'course', 'season_id', 'organisation_notes',
         'ausrichter', 'venue_details', 'kampfgericht', 'contact_info',
         'announcement_pdf_path', 'announcement_data',
-        'source_file', 'source_url', 'import_hash', 'level', 'federation_id',
+        'source_file', 'source_url', 'import_hash', 'webclub_event_id', 'level', 'federation_id',
         'analysis_text', 'dsv_header_data',
     ];
 
