@@ -8,15 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Table may already exist (partially) from a failed earlier run — drop it first
+        Schema::dropIfExists('best_list_entries');
+
         Schema::create('best_list_entries', function (Blueprint $table) {
             $table->id();
             $table->enum('list_type', ['eternal', 'annual']);
             $table->enum('discipline', ['F', 'B', 'R', 'S', 'L']);
             $table->unsignedSmallInteger('distance');
             $table->enum('gender', ['M', 'F']);
-            $table->unsignedSmallInteger('birth_year')->nullable(); // null = open class (not used yet)
+            $table->unsignedSmallInteger('birth_year')->nullable();
             $table->enum('course', ['Langbahn', 'Kurzbahn'])->default('Langbahn');
-            $table->unsignedSmallInteger('set_year')->nullable(); // only for annual
+            $table->unsignedSmallInteger('set_year')->nullable();
             $table->string('swimmer_name');
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('time_ms');
@@ -27,7 +30,11 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['list_type', 'discipline', 'distance', 'gender', 'birth_year', 'course', 'set_year']);
+            // Explicit short name — MySQL limits index names to 64 chars
+            $table->index(
+                ['list_type', 'discipline', 'distance', 'gender', 'birth_year', 'course', 'set_year'],
+                'bl_entries_lookup_idx'
+            );
         });
     }
 
