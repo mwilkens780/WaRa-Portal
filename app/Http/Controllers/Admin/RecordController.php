@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BestListEntry;
 use App\Models\Record;
 use App\Services\RecordCheckService;
 use App\Services\RecordImportService;
@@ -16,31 +17,39 @@ class RecordController extends Controller
         private RecordImportService $importService,
     ) {}
 
-    // ── Index (tabbed VR / LR) ───────────────────────────────────────────────
+    // ── Index (tabbed VR / Ewige BL / Jahres BL / LR) ──────────────────────
 
     public function index()
     {
         $vereinsrekorde = Record::where('type', 'vereinsrekord')
-            ->orderBy('discipline')->orderBy('distance')
-            ->orderBy('gender')->orderBy('age_group')->orderBy('course')
+            ->whereNull('age_group')
+            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
             ->get();
 
         $landesrekorde = Record::where('type', 'landesrekord')
-            ->orderBy('discipline')->orderBy('distance')
-            ->orderBy('gender')->orderBy('age_group')->orderBy('course')
+            ->whereNull('age_group')
+            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
             ->get();
 
-        $buildKlassen = fn($records) => $records->map(fn($r) => [
-            'key'   => $r->gender . '|' . $r->course . '|' . ($r->age_group ?? ''),
-            'label' => ($r->gender === 'F' ? 'Weiblich' : 'Männlich') . ', ' .
-                       ($r->course === 'Kurzbahn' ? 'Kurzbahn' : 'Langbahn') . ', ' .
-                       ($r->age_group ?: 'Offen'),
-        ])->unique('key')->sortBy('label')->values();
+        // Ewige Bestenlisten: grouped by discipline+distance+gender+course → sorted by birth_year → top 10 per group
+        $eternalEntries = BestListEntry::where('list_type', 'eternal')
+            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
+            ->orderBy('birth_year')->orderBy('time_ms')
+            ->get();
 
-        $vrKlassen = $buildKlassen($vereinsrekorde);
-        $lrKlassen = $buildKlassen($landesrekorde);
+        // Jahresbestenlisten: grouped by set_year → discipline+distance+gender+course → sorted by birth_year
+        $annualEntries = BestListEntry::where('list_type', 'annual')
+            ->orderBy('set_year', 'desc')
+            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
+            ->orderBy('birth_year')->orderBy('time_ms')
+            ->get();
 
-        return view('admin.records.index', compact('vereinsrekorde', 'landesrekorde', 'vrKlassen', 'lrKlassen'));
+        $availableYears = $annualEntries->pluck('set_year')->filter()->unique()->sortDesc()->values();
+
+        return view('admin.records.index', compact(
+            'vereinsrekorde', 'landesrekorde',
+            'eternalEntries', 'annualEntries', 'availableYears'
+        ));
     }
 
     // ── Manual create/store ──────────────────────────────────────────────────
@@ -252,5 +261,61 @@ class RecordController extends Controller
     {
         $this->checkService->recheckAll();
         return back()->with('success', 'Alle Wettkampfergebnisse wurden gegen die Rekordlisten geprüft.');
+    }
+
+    // ── BestListEntry: manual store ───────────────────────────────────────────
+
+    public function storeBestListEntry(Request $request)
+    {
+        $data = $request->validate([
+            'list_type'    => ['required', 'in:eternal,annual'],
+            'discipline'   => ['required', 'in:F,B,R,S,L'],
+            'distance'     => ['required', 'integer', 'min:25'],
+            'gender'       => ['required', 'in:M,F'],
+            'birth_year'   => ['required', 'integer', 'min:1900', 'max:2030'],
+            'course'       => ['required', 'in:Kurzbahn,Langbahn'],
+            'set_year'     => ['nullable', 'integer', 'min:1900', 'max:2030'],
+            'swimmer_name' => ['required', 'string', 'max:255'],
+            'time_minutes' => ['nullable', 'integer', 'min:0'],
+            'time_seconds' => ['required', 'integer', 'min:0', 'max:59'],
+            'time_cs'      => ['required', 'integer', 'min:0', 'max:99'],
+            'set_date'     => ['nullable', 'date'],
+            'location'     => ['nullable', 'string', 'max:255'],
+            'notes'        => ['nullable', 'string'],
+        ]);
+
+        $timeMs  = (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10;
+        $setYear = $data['list_type'] === 'annual'
+            ? ($data['set_year'] ?: ($data['set_date'] ? (int) substr($data['set_date'], 0, 4) : null))
+            : null;
+
+        BestListEntry::create([
+            'list_type'    => $data['list_type'],
+            'discipline'   => $data['discipline'],
+            'distance'     => $data['distance'],
+            'gender'       => $data['gender'],
+            'birth_year'   => $data['birth_year'],
+            'course'       => $data['course'],
+            'set_year'     => $setYear,
+            'swimmer_name' => $data['swimmer_name'],
+            'user_id'      => null,
+            'time_ms'      => $timeMs,
+            'set_date'     => $data['set_date'] ?: null,
+            'location'     => $data['location'] ?: null,
+            'notes'        => $data['notes'] ?: null,
+        ]);
+
+        return redirect()->route('admin.records.index', ['tab' => $data['list_type'] === 'eternal' ? 'eternal' : 'annual'])
+            ->with('success', 'Eintrag gespeichert.');
+    }
+
+    // ── BestListEntry: destroy ────────────────────────────────────────────────
+
+    public function destroyBestListEntry(BestListEntry $bestListEntry)
+    {
+        $tab = $bestListEntry->list_type === 'eternal' ? 'eternal' : 'annual';
+        $bestListEntry->delete();
+        return redirect()->route('admin.records.index', ['tab' => $tab])
+            ->with('success', 'Eintrag gelöscht.');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Swimmer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
+use App\Models\CompetitionResult;
 use App\Models\CompetitionSignupRequest;
 use App\Models\Record;
 use App\Models\Season;
@@ -16,7 +17,6 @@ use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionSwimmer;
 use App\Models\SwimmingTime;
-use App\Models\CompetitionResult;
 use App\Services\CompetitionResultGrouper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -200,13 +200,39 @@ class DashboardController extends Controller
             ->with(['competition', 'responses' => fn($q) => $q->where('user_id', $swimmer->id)])
             ->get();
 
+        $new_records = $this->loadNewRecords();
+
         return view('swimmer.dashboard', compact(
             'stats', 'allBests', 'yearBests', 'seasonBests',
             'recent_sessions', 'recent_results',
             'next_competition', 'upcoming_sessions', 'my_pre_absences',
             'goalsTotal', 'goalsAchieved', 'goalsUnnotified',
-            'pendingSignups', 'busSignups'
+            'pendingSignups', 'busSignups', 'new_records'
         ));
+    }
+
+    private function loadNewRecords(): \Illuminate\Support\Collection
+    {
+        [$seasonStart, $seasonEnd] = $this->currentSeasonRange();
+        return CompetitionResult::with(['user', 'competition'])
+            ->where(fn($q) => $q->where('breaks_vereinsrekord', true)->orWhere('breaks_landesrekord', true))
+            ->whereNull('age_group')
+            ->whereHas('competition', fn($q) => $q->whereBetween('date', [$seasonStart, $seasonEnd]))
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get();
+    }
+
+    private function currentSeasonRange(): array
+    {
+        $month = now()->month;
+        $year  = now()->year;
+        if ($month >= 4 && $month <= 9) {
+            return ["{$year}-04-01", "{$year}-09-30"];
+        }
+        $start = $month >= 10 ? "{$year}-10-01" : ($year - 1) . "-10-01";
+        $end   = $month >= 10 ? ($year + 1) . "-03-31" : "{$year}-03-31";
+        return [$start, $end];
     }
 
     /**

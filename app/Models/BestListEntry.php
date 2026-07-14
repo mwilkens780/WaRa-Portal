@@ -4,12 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Record extends Model
+class BestListEntry extends Model
 {
     protected $fillable = [
-        'type', 'discipline', 'distance', 'gender', 'age_group', 'birth_year', 'course',
-        'swimmer_name', 'user_id', 'time_ms', 'set_date', 'location',
-        'competition_result_id', 'notes',
+        'list_type', 'discipline', 'distance', 'gender', 'birth_year',
+        'course', 'set_year', 'swimmer_name', 'user_id', 'time_ms',
+        'set_date', 'location', 'competition_result_id', 'notes',
     ];
 
     protected function casts(): array
@@ -18,6 +18,8 @@ class Record extends Model
             'set_date'   => 'date',
             'time_ms'    => 'integer',
             'distance'   => 'integer',
+            'birth_year' => 'integer',
+            'set_year'   => 'integer',
         ];
     }
 
@@ -46,20 +48,5 @@ class Record extends Model
             'L' => 'Lagen',
             default => $this->discipline,
         };
-    }
-
-    public function getGenderLabelAttribute(): string
-    {
-        return $this->gender === 'M' ? 'Männlich' : 'Weiblich';
-    }
-
-    public function getTypeLabel(): string
-    {
-        return $this->type === 'vereinsrekord' ? 'VR' : 'LR';
-    }
-
-    public function getAgeGroupLabelAttribute(): string
-    {
-        return $this->age_group ?: 'Offene Klasse';
     }
 }

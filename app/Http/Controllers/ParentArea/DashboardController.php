@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\ParentArea;
 
 use App\Http\Controllers\Controller;
-use App\Models\CompetitionSignupRequest;
-use App\Models\TrainingAttendance;
-use App\Models\SwimmingTime;
 use App\Models\CompetitionResult;
+use App\Models\CompetitionSignupRequest;
+use App\Models\SwimmingTime;
+use App\Models\TrainingAttendance;
 use App\Services\CompetitionResultGrouper;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -44,7 +44,28 @@ class DashboardController extends Controller
             ];
         }
 
-        return view('parent.dashboard', compact('children', 'childData'));
+        $new_records = $this->loadNewRecords();
+
+        return view('parent.dashboard', compact('children', 'childData', 'new_records'));
+    }
+
+    private function loadNewRecords(): \Illuminate\Support\Collection
+    {
+        $month = now()->month;
+        $year  = now()->year;
+        if ($month >= 4 && $month <= 9) {
+            [$seasonStart, $seasonEnd] = ["{$year}-04-01", "{$year}-09-30"];
+        } else {
+            $seasonStart = $month >= 10 ? "{$year}-10-01" : ($year - 1) . "-10-01";
+            $seasonEnd   = $month >= 10 ? ($year + 1) . "-03-31" : "{$year}-03-31";
+        }
+        return CompetitionResult::with(['user', 'competition'])
+            ->where(fn($q) => $q->where('breaks_vereinsrekord', true)->orWhere('breaks_landesrekord', true))
+            ->whereNull('age_group')
+            ->whereHas('competition', fn($q) => $q->whereBetween('date', [$seasonStart, $seasonEnd]))
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get();
     }
 
     public function childTimes(int $childId)
