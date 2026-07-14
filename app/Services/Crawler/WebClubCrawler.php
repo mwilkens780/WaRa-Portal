@@ -34,7 +34,7 @@ class WebClubCrawler
 
         $config = $this->buildConfig();
 
-        if (!$config['base_url'] || !$config['username'] || !$config['password']) {
+        if (!$config['base_url'] || !$config['username'] || !$config['password_encrypted']) {
             $msg = 'WebClub-Crawler: Zugangsdaten unvollständig (base_url, username, password).';
             Log::warning($msg);
             ImportLog::create(['source' => self::SOURCE, 'status' => 'error', 'message' => $msg]);
