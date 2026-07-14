@@ -150,10 +150,10 @@
 
                 {{-- Benutzername --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Benutzername / E-Mail</label>
-                    <input type="email" name="webclub_username"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Benutzername oder E-Mail</label>
+                    <input type="text" name="webclub_username"
                            value="{{ old('webclub_username', $webclub['username']) }}"
-                           placeholder="name@example.de"
+                           placeholder="benutzername oder name@example.de"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
 
