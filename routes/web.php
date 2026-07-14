@@ -100,9 +100,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/rekorde/import/vorschau', [RecordController::class, 'importPreview'])->name('records.import.preview');
     Route::post('/rekorde/import/speichern', [RecordController::class, 'importExecute'])->name('records.import.execute');
     Route::post('/rekorde/recheck', [RecordController::class, 'recheckAll'])->name('records.recheck');
-    // Bestenlisten – manuelle Einträge (Admin only)
+    // Bestenlisten – manuelle Einträge, Import, Export (Admin only)
     Route::post('/bestenliste', [RecordController::class, 'storeBestListEntry'])->name('bestlist.store');
     Route::delete('/bestenliste/{bestListEntry}', [RecordController::class, 'destroyBestListEntry'])->name('bestlist.destroy');
+    Route::post('/bestenliste/import/upload', [RecordController::class, 'importBestListUpload'])->name('bestlist.import.upload');
+    Route::get('/bestenliste/import/vorschau', [RecordController::class, 'importBestListPreview'])->name('bestlist.import.preview');
+    Route::post('/bestenliste/import/speichern', [RecordController::class, 'importBestListExecute'])->name('bestlist.import.execute');
+    // Export (Admin only – GET with query params)
+    Route::get('/rekorde/export', [RecordController::class, 'export'])->name('records.export');
+    Route::get('/bestenliste/export', [RecordController::class, 'exportBestList'])->name('bestlist.export');
 
     // Protokoll (Transaction Log + Traces + Settings)
     Route::get('/protokoll', [LogController::class, 'index'])->name('logs.index');

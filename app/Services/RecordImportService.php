@@ -545,4 +545,195 @@ class RecordImportService
             ? (int)$parts[0] * 60000 + (int)round(floatval($parts[1]) * 1000)
             : (int)round(floatval($parts[0]) * 1000);
     }
+
+    // ── Best-list import (Excel / CSV with column headers) ──────────────────
+
+    /**
+     * Parses a best-list Excel/CSV file.
+     *
+     * Expected columns (order flexible, headers auto-detected):
+     *   Disziplin | Distanz | Geschlecht | Jahrgang | Name | Zeit [| Datum | Ort]
+     *
+     * Returns array of row arrays with keys:
+     *   discipline, distance, gender, birth_year, swimmer_name,
+     *   time_ms, time_str, set_date, location, raw_line
+     */
+    public function parseBestList(string $path, string $course = 'Langbahn'): array
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        $rawRows = match($ext) {
+            'xlsx'       => $this->parseXlsx($path),
+            'csv', 'txt' => $this->parseCsvGeneric($path),
+            'xls'        => $this->parseLegacyOffice($path, $ext),
+            default      => throw new \RuntimeException(
+                "Format .$ext wird für Bestenlisten nicht unterstützt. Bitte als .xlsx oder .csv speichern."
+            ),
+        };
+
+        return $this->detectBestListRows($rawRows, $course);
+    }
+
+    private function parseCsvGeneric(string $path): array
+    {
+        $raw = file_get_contents($path);
+        if (!mb_check_encoding($raw, 'UTF-8')) {
+            $raw = mb_convert_encoding($raw, 'UTF-8', 'Windows-1252') ?: $raw;
+        }
+
+        // Detect delimiter from first non-empty line
+        $firstLine = trim(strtok($raw, "\n"));
+        $counts    = [';' => substr_count($firstLine, ';'), ',' => substr_count($firstLine, ','), "\t" => substr_count($firstLine, "\t")];
+        arsort($counts);
+        $delimiter = array_key_first($counts) ?: ';';
+
+        $lines  = [];
+        $handle = fopen('data://text/plain;base64,' . base64_encode($raw), 'r');
+        if ($handle) {
+            while (($fields = fgetcsv($handle, 0, $delimiter)) !== false) {
+                $lines[] = implode("\t", array_map('trim', $fields));
+            }
+            fclose($handle);
+        }
+        return $lines;
+    }
+
+    private function detectBestListRows(array $rawLines, string $course): array
+    {
+        $results = [];
+        $colMap  = false; // false = not yet determined
+
+        foreach ($rawLines as $rawLine) {
+            $cells = explode("\t", $rawLine);
+
+            if (count(array_filter(array_map('trim', $cells))) === 0) continue;
+
+            if ($colMap === false) {
+                $detected = $this->detectBestListColumns($cells);
+                if ($detected !== null) {
+                    $colMap = $detected;
+                    continue; // skip header row
+                }
+                // No header — use positional mapping and parse this row too
+                $colMap = ['discipline' => 0, 'distance' => 1, 'gender' => 2, 'birth_year' => 3, 'swimmer_name' => 4, 'time' => 5, 'set_date' => 6, 'location' => 7];
+            }
+
+            $row = $this->parseBestListRow($cells, $colMap, $course);
+            if ($row !== null) {
+                $results[] = $row;
+            }
+        }
+
+        return $results;
+    }
+
+    private function detectBestListColumns(array $headers): ?array
+    {
+        $groups = [
+            'discipline'   => ['disziplin', 'discipline', 'schwimmstil', 'stil'],
+            'distance'     => ['distanz', 'distance', 'strecke'],
+            'gender'       => ['geschlecht', 'gender', 'sex'],
+            'birth_year'   => ['jahrgang', 'jg', 'geburts', 'birth'],
+            'swimmer_name' => ['name', 'schwimmer', 'swimmer', 'sportler', 'athlet'],
+            'time'         => ['zeit', 'time', 'leistung', 'ergebnis'],
+            'set_date'     => ['datum', 'date'],
+            'location'     => ['ort', 'location', 'veranstaltung'],
+        ];
+
+        $map     = [];
+        $matched = 0;
+        foreach ($headers as $i => $header) {
+            $h = mb_strtolower(trim($header));
+            if ($h === '') continue;
+            foreach ($groups as $key => $keywords) {
+                if (isset($map[$key])) continue;
+                foreach ($keywords as $kw) {
+                    if (str_contains($h, $kw)) { $map[$key] = $i; $matched++; break; }
+                }
+            }
+        }
+
+        return $matched >= 3 ? $map : null;
+    }
+
+    private function parseBestListRow(array $cells, array $colMap, string $course): ?array
+    {
+        $get = fn(string $key) => trim($cells[$colMap[$key] ?? -1] ?? '');
+
+        $discipline  = $this->normalizeBLDiscipline($get('discipline'));
+        if (!$discipline) return null;
+
+        $distance = (int) preg_replace('/[^0-9]/', '', $get('distance'));
+        if (!in_array($distance, [25, 50, 100, 200, 400, 800, 1500])) return null;
+
+        $gender = $this->normalizeBLGender($get('gender'));
+        if (!$gender) return null;
+
+        $birthYear = (int) preg_replace('/[^0-9]/', '', $get('birth_year'));
+        if ($birthYear < 1900 || $birthYear > (int) date('Y')) return null;
+
+        $swimmerName = $get('swimmer_name');
+        if ($swimmerName === '') return null;
+
+        $timeRaw = $get('time');
+        $timeMs  = $this->parseTimeStr($timeRaw);
+        if ($timeMs <= 0) return null;
+
+        $date    = null;
+        $dateRaw = $get('set_date');
+        if ($dateRaw) {
+            if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $dateRaw, $dm)) {
+                $date = "{$dm[3]}-{$dm[2]}-{$dm[1]}";
+            } elseif (preg_match('/^(\d{4})-\d{2}-\d{2}$/', $dateRaw)) {
+                $date = $dateRaw;
+            }
+        }
+
+        return [
+            'discipline'   => $discipline,
+            'distance'     => $distance,
+            'gender'       => $gender,
+            'birth_year'   => $birthYear,
+            'course'       => $course,
+            'swimmer_name' => $swimmerName,
+            'time_ms'      => $timeMs,
+            'time_str'     => $timeRaw,
+            'set_date'     => $date,
+            'location'     => $get('location') ?: null,
+            'raw_line'     => implode("\t", $cells),
+        ];
+    }
+
+    private function normalizeBLDiscipline(string $raw): ?string
+    {
+        $r = strtoupper(trim($raw));
+        if (in_array($r, ['F', 'B', 'R', 'S', 'L'])) return $r;
+
+        $lower = mb_strtolower($r);
+        $map   = [
+            'F' => ['frei', 'crawl', 'free'],
+            'B' => ['brust', 'breast'],
+            'R' => ['rück', 'rueck', 'back'],
+            'S' => ['schmetterling', 'butterfly', 'fly', 'delphin', 'delfin'],
+            'L' => ['lagen', 'medley'],
+        ];
+        foreach ($map as $disc => $keywords) {
+            foreach ($keywords as $kw) {
+                if (str_contains($lower, $kw)) return $disc;
+            }
+        }
+        return null;
+    }
+
+    private function normalizeBLGender(string $raw): ?string
+    {
+        $r = strtoupper(trim($raw));
+        if ($r === 'M') return 'M';
+        if (in_array($r, ['F', 'W'])) return 'F';
+
+        $lower = mb_strtolower($raw);
+        if (preg_match('/männl|männer|herren|male|men\b/u', $lower)) return 'M';
+        if (preg_match('/weibl|frauen|damen|female|women\b/u', $lower)) return 'F';
+        return null;
+    }
 }

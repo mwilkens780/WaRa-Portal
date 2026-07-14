@@ -33,19 +33,48 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap gap-2">
             @if($userIsAdmin)
+            {{-- Add buttons (always visible, highlighting current tab) --}}
             <button @click="showAddVrLr = !showAddVrLr; showAddBestList = false; addType = (activeTab === 'lr' ? 'landesrekord' : 'vereinsrekord')"
                     x-show="activeTab === 'vr' || activeTab === 'lr'"
-                    class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors flex items-center gap-1.5">
+                    :class="showAddVrLr ? 'bg-primary-dark' : 'bg-primary'"
+                    class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Rekord eintragen
             </button>
             <button @click="showAddBestList = !showAddBestList; showAddVrLr = false; addListType = (activeTab === 'annual' ? 'annual' : 'eternal')"
                     x-show="activeTab === 'eternal' || activeTab === 'annual'"
-                    class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors flex items-center gap-1.5">
+                    :class="showAddBestList ? 'bg-primary-dark' : 'bg-primary'"
+                    class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Eintrag hinzufügen
             </button>
             @endif
+
+            {{-- Export buttons --}}
+            <a x-show="activeTab === 'vr'"
+               :href="'{{ route('admin.records.export') }}?type=vereinsrekord&course=' + activeCourse"
+               class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+            </a>
+            <a x-show="activeTab === 'lr'"
+               :href="'{{ route('admin.records.export') }}?type=landesrekord&course=' + activeCourse"
+               class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+            </a>
+            <a x-show="activeTab === 'eternal'"
+               :href="'{{ route('admin.bestlist.export') }}?list_type=eternal&course=' + activeCourse"
+               class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+            </a>
+            <a x-show="activeTab === 'annual'"
+               :href="'{{ route('admin.bestlist.export') }}?list_type=annual&course=' + activeCourse + '&year=' + annualYear"
+               class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+            </a>
         </div>
         @if($userIsAdmin)
         <form method="POST" action="{{ route('admin.records.recheck') }}">
@@ -261,7 +290,7 @@
         </form>
     </div>
 
-    {{-- Import Form (VR/LR only) --}}
+    {{-- Import Form: VR / LR --}}
     <div x-show="activeTab === 'vr' || activeTab === 'lr'" x-cloak
          class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 class="font-semibold text-gray-800 mb-1">Rekordliste importieren</h3>
@@ -287,6 +316,52 @@
             </button>
         </form>
         @error('record_file')
+            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
+        @enderror
+    </div>
+
+    {{-- Import Form: Ewige / Jahres Bestenliste --}}
+    <div x-show="activeTab === 'eternal' || activeTab === 'annual'" x-cloak
+         class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-800 mb-1">Bestenliste aus Excel importieren</h3>
+        <p class="text-sm text-gray-500 mb-4">
+            Excel-Datei mit Spalten: <span class="font-mono text-xs bg-gray-100 px-1 rounded">Disziplin | Distanz | Geschlecht | Jahrgang | Name | Zeit</span> — Überschriften werden automatisch erkannt.
+        </p>
+        <form method="POST" action="{{ route('admin.bestlist.import.upload') }}" enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+            @csrf
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Liste</label>
+                <select name="bestlist_type" x-model="activeTab === 'annual' ? 'annual' : 'eternal'"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="eternal" :selected="activeTab === 'eternal'">Ewige Bestenliste</option>
+                    <option value="annual" :selected="activeTab === 'annual'">Jahresbestenliste</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
+                <select name="bestlist_course"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="Langbahn" :selected="activeCourse === 'Langbahn'">Langbahn (50 m)</option>
+                    <option value="Kurzbahn" :selected="activeCourse === 'Kurzbahn'">Kurzbahn (25 m)</option>
+                </select>
+            </div>
+            <div x-show="activeTab === 'annual'">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Jahr (für Jahresbestenliste)</label>
+                <input type="number" name="bestlist_year" :value="annualYear"
+                       min="1900" :max="{{ now()->year }}" placeholder="{{ now()->year }}"
+                       class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Datei (.xlsx, .csv)</label>
+                <input type="file" name="bestlist_file" accept=".xlsx,.xls,.csv,.txt" required
+                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
+            </div>
+            <button type="submit"
+                    class="px-4 py-2 bg-accent text-white font-semibold rounded-lg text-sm hover:bg-accent-dark transition-colors">
+                Einlesen → Vorschau
+            </button>
+        </form>
+        @error('bestlist_file')
             <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
         @enderror
     </div>
