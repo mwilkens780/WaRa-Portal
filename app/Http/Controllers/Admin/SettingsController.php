@@ -31,6 +31,7 @@ class SettingsController extends Controller
             'headless'             => Setting::getBool('crawler.webclub.headless', true),
             'timeout_ms'           => (int) Setting::getCached('crawler.webclub.timeout_ms', 15000),
             'timeout_seconds'      => (int) Setting::getCached('crawler.webclub.timeout_seconds', 300),
+            'node_path'            => Setting::getCached('crawler.webclub.node_path', ''),
         ];
 
         $users = User::where('role', '!=', 'admin')
@@ -106,6 +107,8 @@ class SettingsController extends Controller
             (string) ($data['webclub_timeout_ms'] ?? 15000));
         Setting::set('crawler.webclub.timeout_seconds',
             (string) ($data['webclub_timeout_seconds'] ?? 300));
+        Setting::set('crawler.webclub.node_path',
+            $data['webclub_node_path'] ?? '');
 
         Setting::clearCache();
 

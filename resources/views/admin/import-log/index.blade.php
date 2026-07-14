@@ -67,7 +67,7 @@
                             <span class="font-medium text-gray-700">Letzter Eintrag:</span>
                             {{ $last->imported_at?->format('d.m.Y H:i') ?? '–' }}
                             @if($last->message)
-                                <br><span class="text-gray-400 italic">{{ Str::limit($last->message, 65) }}</span>
+                                <br><span class="text-gray-400 italic">{{ Str::limit($last->message, 120) }}</span>
                             @endif
                         </div>
                     @endif
@@ -313,8 +313,8 @@
                                         <span class="text-gray-400">–</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2.5 text-xs text-gray-500 max-w-xs" title="{{ $log->message }}">
-                                    {{ Str::limit($log->message ?? '', 100) }}
+                                <td class="px-4 py-2.5 text-xs text-gray-500 max-w-xs whitespace-pre-wrap break-words">
+                                    {{ $log->message ?? '' }}
                                 </td>
                             </tr>
                         @endforeach
