@@ -89,6 +89,7 @@ class DashboardController extends Controller
 
         $new_records = CompetitionResult::with(['user', 'competition'])
             ->where(fn($q) => $q->where('breaks_vereinsrekord', true)->orWhere('breaks_landesrekord', true))
+            ->whereNull('age_group')
             ->whereHas('competition', fn($q) => $q->whereBetween('date', [$seasonStart, $seasonEnd]))
             ->orderByDesc('updated_at')
             ->limit(5)

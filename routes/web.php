@@ -100,6 +100,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/rekorde/import/vorschau', [RecordController::class, 'importPreview'])->name('records.import.preview');
     Route::post('/rekorde/import/speichern', [RecordController::class, 'importExecute'])->name('records.import.execute');
     Route::post('/rekorde/recheck', [RecordController::class, 'recheckAll'])->name('records.recheck');
+    // Bestenlisten – manuelle Einträge (Admin only)
+    Route::post('/bestenliste', [RecordController::class, 'storeBestListEntry'])->name('bestlist.store');
+    Route::delete('/bestenliste/{bestListEntry}', [RecordController::class, 'destroyBestListEntry'])->name('bestlist.destroy');
 
     // Protokoll (Transaction Log + Traces + Settings)
     Route::get('/protokoll', [LogController::class, 'index'])->name('logs.index');
