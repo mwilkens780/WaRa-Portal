@@ -9,7 +9,9 @@ use App\Services\Crawler\DsvCrawler;
 use App\Services\Crawler\DsvDataCrawler;
 use App\Services\Crawler\NsvCrawler;
 use App\Services\Crawler\ShsvCrawler;
+use App\Services\Crawler\WebClubCrawler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 
 class ImportLogController extends Controller
@@ -56,6 +58,14 @@ class ImportLogController extends Controller
             'default_time' => '00:00',
             'note'         => 'DSV nutzt JS-Rendering – tut derzeit nichts.',
         ],
+        'webclub_crawler' => [
+            'label'            => 'WebClub Crawler',
+            'class'            => WebClubCrawler::class,
+            'url'              => null,
+            'default_days'     => [1, 4],
+            'default_time'     => '04:00',
+            'is_webclub'       => true,
+        ],
     ];
 
     public function index(Request $request)
@@ -91,14 +101,13 @@ class ImportLogController extends Controller
             $days = Setting::getJson("crawler.{$source}.schedule_days", $info['default_days']);
             $time = Setting::getCached("crawler.{$source}.schedule_time", $info['default_time']);
 
-            $crawlerStats[$source] = [
+            $crawlerStat = [
                 ...$info,
                 'last_entry'    => $last,
                 'count_success' => (int)($counts['success'] ?? 0),
                 'count_skipped' => (int)($counts['skipped'] ?? 0),
                 'count_errors'  => (int)($counts['error']   ?? 0),
-                // Live config
-                'cfg_enabled'   => Setting::getBool("crawler.{$source}.enabled", true),
+                'cfg_enabled'   => Setting::getBool("crawler.{$source}.enabled", $source !== 'webclub_crawler'),
                 'cfg_days'      => $days,
                 'cfg_time'      => $time,
                 'cfg_state_ids' => ($info['has_states'] ?? false)
@@ -106,6 +115,15 @@ class ImportLogController extends Controller
                     : [],
                 'schedule'      => $this->buildScheduleLabel($days, $time),
             ];
+
+            if (!empty($info['is_webclub'])) {
+                $baseUrl = Setting::getCached('crawler.webclub.base_url', '');
+                $crawlerStat['url']      = $baseUrl ?: null;
+                $crawlerStat['username'] = Setting::getCached('crawler.webclub.username', '');
+                $crawlerStat['configured'] = (bool) $baseUrl;
+            }
+
+            $crawlerStats[$source] = $crawlerStat;
         }
 
         $dsvStates = self::DSV_STATES;
@@ -126,7 +144,9 @@ class ImportLogController extends Controller
             $msg   = "Crawler \"{$info['label']}\" abgeschlossen: "
                    . "{$stats['imported']} importiert, "
                    . "{$stats['skipped']} übersprungen, "
-                   . "{$stats['errors']} Fehler.";
+                   . "{$stats['errors']} Fehler"
+                   . (isset($stats['persons_synced']) ? ", {$stats['persons_synced']} Personen synchronisiert" : '')
+                   . '.';
             return back()->with('crawler_result', $msg);
         } catch (\Throwable $e) {
             Log::error("Manueller Crawler-Aufruf fehlgeschlagen: {$source}", ['error' => $e->getMessage()]);
@@ -160,6 +180,8 @@ class ImportLogController extends Controller
             Setting::set('crawler.dsvdata.state_ids',
                 json_encode(array_map('intval', $data['state_ids'] ?? [14])));
         }
+
+        // WebClub-spezifische Felder werden über /admin/einstellungen gespeichert.
 
         Setting::clearCache();
 
