@@ -41,6 +41,10 @@ use App\Http\Controllers\Trainer\SessionSwimmerController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Admin\DsgvoController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Health\HealthDataController;
+use App\Http\Controllers\Nutrition\NutritionController;
+use App\Http\Controllers\TeamDoctor\TeamDoctorController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 // Startseite -> Login
@@ -58,6 +62,33 @@ Route::middleware('auth')->group(function () {
     // Passwort ändern (alle Rollen)
     Route::get('/passwort-aendern', [PasswordController::class, 'showChangeForm'])->name('password.change');
     Route::put('/passwort-aendern', [PasswordController::class, 'update'])->name('password.update');
+
+    // Mein Profil (alle Rollen)
+    Route::get('/profil', [ProfileController::class, 'index'])->name('profile.index');
+    Route::put('/profil', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Gesundheitsdaten (alle Rollen – Zugriff je nach Rolle im Controller geregelt)
+    Route::prefix('gesundheit')->name('health.')->group(function () {
+        Route::get('/', [HealthDataController::class, 'index'])->name('index');
+        Route::get('/schwimmer/{user}', [HealthDataController::class, 'showForUser'])->name('user');
+        Route::get('/download/{doc}', [HealthDataController::class, 'download'])->name('download');
+    });
+});
+
+// Ernährungsberatung (Ernährungsberater + Admin)
+Route::middleware(['auth', 'role:ernaehrungsberater,admin'])->prefix('ernaehrung')->name('nutrition.')->group(function () {
+    Route::get('/', [NutritionController::class, 'index'])->name('index');
+    Route::get('/{user}', [NutritionController::class, 'show'])->name('show');
+    Route::post('/{user}/upload', [NutritionController::class, 'upload'])->name('upload');
+    Route::delete('/dokument/{doc}', [NutritionController::class, 'destroy'])->name('destroy');
+});
+
+// Teamarzt (Teamarzt + Admin)
+Route::middleware(['auth', 'role:teamarzt,admin'])->prefix('teamarzt')->name('teamdoctor.')->group(function () {
+    Route::get('/', [TeamDoctorController::class, 'index'])->name('index');
+    Route::get('/{user}', [TeamDoctorController::class, 'show'])->name('show');
+    Route::post('/{user}/upload', [TeamDoctorController::class, 'upload'])->name('upload');
+    Route::delete('/dokument/{doc}', [TeamDoctorController::class, 'destroy'])->name('destroy');
 });
 
 // Admin-only Bereich
