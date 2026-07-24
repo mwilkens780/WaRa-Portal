@@ -37,8 +37,10 @@ class MenuPermission extends Model
         'trainer'      => ['dashboard','calendar','users_lite','training','training_groups','competitions','records','goals','hall'],
         'vorstand'     => ['dashboard','calendar','users_lite','competitions','records'],
         'kampfrichter' => ['dashboard','calendar','competitions'],
-        'schwimmer'    => ['dashboard','calendar','swimmer_times','swimmer_comps','swimmer_goals'],
-        'elternteil'   => ['dashboard','calendar','parent_area'],
+        'schwimmer'           => ['dashboard','calendar','swimmer_times','swimmer_comps','swimmer_goals'],
+        'elternteil'          => ['dashboard','calendar','parent_area'],
+        'ernaehrungsberater'  => ['dashboard','calendar'],
+        'teamarzt'            => ['dashboard','calendar'],
     ];
 
     public static function getForRole(string $role): array

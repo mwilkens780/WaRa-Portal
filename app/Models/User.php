@@ -13,15 +13,17 @@ class User extends Authenticatable
 
     protected array $auditHidden = ['password', 'remember_token', 'initial_password'];
 
-    const ROLES = ['admin', 'trainer', 'schwimmer', 'elternteil', 'kampfrichter', 'vorstand'];
+    const ROLES = ['admin', 'trainer', 'schwimmer', 'elternteil', 'kampfrichter', 'vorstand', 'ernaehrungsberater', 'teamarzt'];
 
     const ROLE_LABELS = [
-        'admin'        => 'Administrator',
-        'trainer'      => 'Trainer',
-        'schwimmer'    => 'Schwimmer',
-        'elternteil'   => 'Elternteil',
-        'kampfrichter' => 'Kampfrichter',
-        'vorstand'     => 'Vorstand',
+        'admin'               => 'Administrator',
+        'trainer'             => 'Trainer',
+        'schwimmer'           => 'Schwimmer',
+        'elternteil'          => 'Elternteil',
+        'kampfrichter'        => 'Kampfrichter',
+        'vorstand'            => 'Vorstand',
+        'ernaehrungsberater'  => 'Ernährungsberater',
+        'teamarzt'            => 'Teamarzt',
     ];
 
     protected $fillable = [
@@ -35,6 +37,7 @@ class User extends Authenticatable
         'police_clearance_date',
         'kampfrichter_license_nr', 'kampfrichter_license_issued', 'kampfrichter_license_valid_until',
         'notes',
+        'opt_nutrition', 'opt_sports_medicine',
     ];
 
     protected $hidden = [
@@ -55,6 +58,8 @@ class User extends Authenticatable
             'police_clearance_date'            => 'date',
             'kampfrichter_license_issued'      => 'date',
             'kampfrichter_license_valid_until'  => 'date',
+            'opt_nutrition'                     => 'boolean',
+            'opt_sports_medicine'               => 'boolean',
         ];
     }
 
@@ -70,12 +75,14 @@ class User extends Authenticatable
     }
 
     // Role checks — primary role
-    public function isAdmin(): bool        { return $this->role === 'admin'; }
-    public function isTrainer(): bool      { return $this->role === 'trainer'; }
-    public function isSchwimmer(): bool    { return $this->role === 'schwimmer'; }
-    public function isElternteil(): bool   { return $this->role === 'elternteil'; }
-    public function isKampfrichter(): bool { return $this->role === 'kampfrichter'; }
-    public function isVorstand(): bool     { return $this->role === 'vorstand'; }
+    public function isAdmin(): bool               { return $this->role === 'admin'; }
+    public function isTrainer(): bool             { return $this->role === 'trainer'; }
+    public function isSchwimmer(): bool           { return $this->role === 'schwimmer'; }
+    public function isElternteil(): bool          { return $this->role === 'elternteil'; }
+    public function isKampfrichter(): bool        { return $this->role === 'kampfrichter'; }
+    public function isVorstand(): bool            { return $this->role === 'vorstand'; }
+    public function isErnaehrungsberater(): bool  { return $this->role === 'ernaehrungsberater'; }
+    public function isTeamarzt(): bool            { return $this->role === 'teamarzt'; }
 
     public function hasInitialPassword(): bool
     {
@@ -137,6 +144,21 @@ class User extends Authenticatable
     public function trainingGroups()
     {
         return $this->belongsToMany(TrainingGroup::class, 'training_group_swimmer');
+    }
+
+    public function trainerGroups()
+    {
+        return $this->belongsToMany(TrainingGroup::class, 'training_group_trainer');
+    }
+
+    public function healthDocuments()
+    {
+        return $this->hasMany(HealthDocument::class);
+    }
+
+    public function uploadedHealthDocuments()
+    {
+        return $this->hasMany(HealthDocument::class, 'uploaded_by');
     }
 
     public function individualSessions(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
