@@ -141,6 +141,7 @@ class HallBooking extends Model
             'trainer_name'         => $this->trainer?->name,
             'training_session_id'  => $this->training_session_id,
             'session_title'        => $this->trainingSession?->title,
+            'recurrence_group_id'  => $this->trainingSession?->recurrence_group_id,
             'notes'                => $this->notes,
             'display_color'        => $this->display_color,
             'start_slot'           => $this->start_slot,

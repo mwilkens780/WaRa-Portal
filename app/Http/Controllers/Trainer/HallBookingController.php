@@ -25,6 +25,23 @@ class HallBookingController extends Controller
         // Group by day_of_week for easy Blade access
         $bookingsByDay = $bookings->groupBy('day_of_week');
 
+        // Compute expired series IDs (series whose all sessions are in the past)
+        $sessionIds = $bookings->pluck('training_session_id')->filter()->unique();
+        $expiredGroupIds = collect();
+        if ($sessionIds->isNotEmpty()) {
+            $groupIds = TrainingSession::whereIn('id', $sessionIds)
+                ->whereNotNull('recurrence_group_id')
+                ->pluck('recurrence_group_id')
+                ->unique();
+            if ($groupIds->isNotEmpty()) {
+                $activeGroupIds = TrainingSession::whereIn('recurrence_group_id', $groupIds)
+                    ->where('date', '>=', now()->toDateString())
+                    ->pluck('recurrence_group_id')
+                    ->unique();
+                $expiredGroupIds = $groupIds->diff($activeGroupIds)->values();
+            }
+        }
+
         // Serialize all bookings for Alpine.js
         $bookingsJson = $bookings->map->toGridArray()->values();
 
@@ -37,7 +54,7 @@ class HallBookingController extends Controller
             ->get(['id', 'firstname', 'lastname']);
 
         return view('trainer.hall.index', compact(
-            'resources', 'bookings', 'bookingsByDay', 'bookingsJson', 'groups', 'trainers'
+            'resources', 'bookings', 'bookingsByDay', 'bookingsJson', 'groups', 'trainers', 'expiredGroupIds'
         ));
     }
 

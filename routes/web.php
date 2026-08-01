@@ -263,6 +263,13 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::get('/training', [TrainingSessionController::class, 'index'])->name('sessions.index');
     Route::get('/training/neu', [TrainingSessionController::class, 'create'])->name('sessions.create');
     Route::post('/training', [TrainingSessionController::class, 'store'])->name('sessions.store');
+
+    // Trainingsserien (Gruppenrouten vor {session}-Wildcard)
+    Route::get('/training/serie/{group}/bearbeiten', [TrainingSessionController::class, 'editSeries'])->name('sessions.series.edit');
+    Route::put('/training/serie/{group}', [TrainingSessionController::class, 'updateSeries'])->name('sessions.series.update');
+    Route::get('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'generateSeason'])->name('sessions.series.generate');
+    Route::post('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'storeSeason'])->name('sessions.series.store-season');
+
     Route::get('/training/{session}', [TrainingSessionController::class, 'show'])->name('sessions.show');
     Route::get('/training/{session}/bearbeiten', [TrainingSessionController::class, 'edit'])->name('sessions.edit');
     Route::put('/training/{session}', [TrainingSessionController::class, 'update'])->name('sessions.update');

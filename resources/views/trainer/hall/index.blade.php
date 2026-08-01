@@ -70,6 +70,7 @@ const _hallResources     = {!! $resourcesJson !!};
 const _hallGroups        = {!! $groupsForJs !!};
 const _hallTrainers      = {!! $trainersJson !!};
 const _hallBookings      = {!! $bookingsJson->toJson() !!};
+const _expiredSeriesIds  = {!! $expiredGroupIds->toJson() !!};
 const _daySlotPx         = {{ $daySlotPx }};
 const _weekSlotPx        = {{ $weekSlotPx }};
 const _scheduleStartMin  = {{ $scheduleStartMin }}; // 05:30
@@ -87,7 +88,8 @@ function hallApp() {
         resources:   _hallResources,
         groups:      _hallGroups,
         trainers:    _hallTrainers,
-        bookings:    _hallBookings,
+        bookings:        _hallBookings,
+        expiredSeriesIds: _expiredSeriesIds,
         daySlotPx:   _daySlotPx,
         weekSlotPx:  _weekSlotPx,
 
@@ -167,6 +169,12 @@ function hallApp() {
             return Math.max(vis, 0);
         },
 
+        // ── Expired series detection ──────────────────────────────────
+        isExpiredSeries(b) {
+            return !!(b.recurrence_group_id && this.expiredSeriesIds.includes(b.recurrence_group_id));
+        },
+        _hatchStyle: 'background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.14) 0,rgba(0,0,0,0.14) 2px,transparent 0,transparent 50%);background-size:8px 8px;',
+
         // ── Booking block styles (handles drag repositioning + overlap) ───
         weekBookingStyle(b) {
             const rawSlot    = (this.drag?.bookingId === b.id) ? this.drag.currentSlot : b.start_slot;
@@ -176,9 +184,11 @@ function hallApp() {
             const zi         = (this.drag?.bookingId === b.id) ? 10 : 1;
             const { i, n }   = this.overlapLayout(b.id, b.hall_resource_id, b.day_of_week);
             const pct        = 100 / n;
-            return `position:absolute; top:${slot*this.weekSlotPx}px; height:${h}px; `
-                 + `left:calc(${i*pct}% + 1px); width:calc(${pct}% - 2px); `
-                 + `border-radius:3px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+            let style = `position:absolute; top:${slot*this.weekSlotPx}px; height:${h}px; `
+                      + `left:calc(${i*pct}% + 1px); width:calc(${pct}% - 2px); `
+                      + `border-radius:3px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+            if (this.isExpiredSeries(b)) style += this._hatchStyle;
+            return style;
         },
         dayBookingStyle(b) {
             const rawSlot    = (this.drag?.bookingId === b.id) ? this.drag.currentSlot : b.start_slot;
@@ -188,9 +198,11 @@ function hallApp() {
             const zi         = (this.drag?.bookingId === b.id) ? 10 : 2;
             const { i, n }   = this.overlapLayout(b.id, b.hall_resource_id, b.day_of_week);
             const pct        = 100 / n;
-            return `position:absolute; top:${slot*this.daySlotPx+1}px; height:${h}px; `
-                 + `left:calc(${i*pct}% + 2px); width:calc(${pct}% - 4px); `
-                 + `border-radius:6px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+            let style = `position:absolute; top:${slot*this.daySlotPx+1}px; height:${h}px; `
+                      + `left:calc(${i*pct}% + 2px); width:calc(${pct}% - 4px); `
+                      + `border-radius:6px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+            if (this.isExpiredSeries(b)) style += this._hatchStyle;
+            return style;
         },
 
         // ── Drag & Drop ───────────────────────────────────────────────
@@ -451,6 +463,14 @@ function hallApp() {
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
         Neue Belegung
     </button>
+</div>
+
+{{-- Legende ausgelaufene Serien --}}
+<div x-show="expiredSeriesIds.length > 0" x-transition
+     class="flex items-center gap-2.5 px-4 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 mb-1">
+    <span class="inline-block w-8 h-4 rounded flex-shrink-0"
+          style="background-color:#F97316; background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.14) 0,rgba(0,0,0,0.14) 2px,transparent 0,transparent 50%); background-size:8px 8px;"></span>
+    <span>Schraffierte Belegungen gehoeren zu ausgelaufenen Trainingsserien (keine zukuenftigen Termine). Bitte Serie bearbeiten &amp; Saison neu generieren.</span>
 </div>
 
 {{-- ════════════════════════════════════════════════════════════════════════════

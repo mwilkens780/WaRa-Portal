@@ -780,6 +780,164 @@ class TrainingSessionController extends Controller
      * starting from $start with the given frequency until $until,
      * automatically skipping school/holiday periods.
      */
+    // ── Trainingsserien-Verwaltung ───────────────────────────────────────────
+
+    public function editSeries(string $group)
+    {
+        $sessions = TrainingSession::where('recurrence_group_id', $group)
+            ->with(['coTrainers', 'trainingGroups'])
+            ->orderBy('date')
+            ->get();
+
+        if ($sessions->isEmpty()) abort(404);
+
+        $this->authorizeSeriesAccess($sessions->first());
+
+        $rep          = $sessions->first();
+        $last         = $sessions->last();
+        $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
+        $isExpired    = $futureSessions->isEmpty();
+        $groups       = $this->availableGroups();
+        $allGroups    = \App\Models\TrainingGroup::where('active', true)->orderBy('name')->get();
+        $allTrainers  = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
+                            ->orderBy('lastname')->orderBy('firstname')->get();
+        $coTrainerIds = $rep->coTrainers->pluck('id')->toArray();
+        $groupIds     = $rep->trainingGroups->pluck('id')->toArray();
+
+        return view('trainer.sessions.edit-series', compact(
+            'rep', 'last', 'sessions', 'futureSessions', 'isExpired',
+            'group', 'groups', 'allGroups', 'allTrainers', 'coTrainerIds', 'groupIds'
+        ));
+    }
+
+    public function updateSeries(Request $request, string $group)
+    {
+        $sessions = TrainingSession::where('recurrence_group_id', $group)
+            ->orderBy('date')->get();
+
+        if ($sessions->isEmpty()) abort(404);
+        $this->authorizeSeriesAccess($sessions->first());
+
+        $data = $request->validate([
+            'title'            => ['required', 'string', 'max:255'],
+            'start_time'       => ['required', 'date_format:H:i'],
+            'end_time'         => ['nullable', 'date_format:H:i', 'after:start_time'],
+            'location'         => ['required', 'string', 'max:255'],
+            'type'             => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
+            'notes'            => ['nullable', 'string'],
+            'groups'           => ['nullable', 'array'],
+            'groups.*'         => ['exists:training_groups,id'],
+            'co_trainer_ids'   => ['nullable', 'array'],
+            'co_trainer_ids.*' => ['exists:users,id'],
+        ]);
+
+        $groupIds     = $request->input('groups', []);
+        $coTrainerIds = $request->input('co_trainer_ids', []);
+        $seriesData   = array_intersect_key($data, array_flip(
+            ['title', 'start_time', 'end_time', 'location', 'type', 'notes']
+        ));
+
+        $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
+        $count = 0;
+        foreach ($futureSessions as $s) {
+            $s->update($seriesData);
+            $s->trainingGroups()->sync($groupIds);
+            $s->coTrainers()->sync($coTrainerIds);
+            $s->hallBookings()->update([
+                'start_time' => $data['start_time'],
+                'end_time'   => $data['end_time'] ?? null,
+                'label'      => $data['title'],
+            ]);
+            $count++;
+        }
+
+        return redirect()->route('trainer.sessions.show', $sessions->first())
+            ->with('success', "{$count} zukuenftige Einheiten der Serie aktualisiert.");
+    }
+
+    public function generateSeason(string $group)
+    {
+        $sessions = TrainingSession::where('recurrence_group_id', $group)
+            ->with(['coTrainers', 'trainingGroups'])
+            ->orderBy('date')
+            ->get();
+
+        if ($sessions->isEmpty()) abort(404);
+        $this->authorizeSeriesAccess($sessions->first());
+
+        $rep          = $sessions->first();
+        $hasFuture    = $sessions->some(fn($s) => $s->date->gte(today()));
+        $currentSeason = Season::current();
+
+        return view('trainer.sessions.generate-season', compact(
+            'rep', 'sessions', 'group', 'hasFuture', 'currentSeason'
+        ));
+    }
+
+    public function storeSeason(Request $request, string $group)
+    {
+        $existingSessions = TrainingSession::where('recurrence_group_id', $group)
+            ->with(['coTrainers', 'trainingGroups'])
+            ->orderBy('date')
+            ->get();
+
+        if ($existingSessions->isEmpty()) abort(404);
+        $this->authorizeSeriesAccess($existingSessions->first());
+
+        $data = $request->validate([
+            'start_date'      => ['required', 'date', 'after_or_equal:today'],
+            'end_date'        => ['required', 'date', 'after:start_date'],
+            'recurrence_type' => ['required', 'in:weekly,biweekly,monthly'],
+        ]);
+
+        $rep          = $existingSessions->first();
+        $groupIds     = $rep->trainingGroups->pluck('id')->toArray();
+        $coTrainerIds = $rep->coTrainers->pluck('id')->toArray();
+
+        $current = Carbon::parse($data['start_date']);
+        $until   = Carbon::parse($data['end_date']);
+
+        $newDates = $this->generateSeriesDates($current, $data['recurrence_type'], $until);
+
+        if (empty($newDates)) {
+            return back()->withInput()
+                ->with('warning', 'Alle Termine im gewaehlten Zeitraum liegen in den Ferien. Bitte anderen Zeitraum waehlen.');
+        }
+
+        $count        = 0;
+        $firstSession = null;
+        foreach ($newDates as $date) {
+            $session = TrainingSession::create([
+                'title'               => $rep->title,
+                'date'                => $date->format('Y-m-d'),
+                'start_time'          => $rep->start_time,
+                'end_time'            => $rep->end_time,
+                'location'            => $rep->location,
+                'type'                => $rep->type,
+                'notes'               => $rep->notes,
+                'recurrence_type'     => $data['recurrence_type'],
+                'recurrence_until'    => $until->format('Y-m-d'),
+                'recurrence_group_id' => $group,
+                'max_participants'    => $rep->max_participants,
+            ]);
+            $session->trainingGroups()->sync($groupIds);
+            $session->coTrainers()->sync($coTrainerIds);
+            if (!$firstSession) $firstSession = $session;
+            $count++;
+        }
+
+        return redirect()->route('trainer.sessions.show', $firstSession)
+            ->with('success', "{$count} neue Einheiten fuer die Serie generiert.");
+    }
+
+    private function authorizeSeriesAccess(TrainingSession $anySession): void
+    {
+        if (auth()->user()->isAdmin()) return;
+        if (!$anySession->coTrainers()->where('user_id', auth()->id())->exists()) {
+            abort(403);
+        }
+    }
+
     private function generateSeriesDates(Carbon $start, string $recurrenceType, Carbon $until): array
     {
         $holidays  = Holiday::intersecting($start, $until);

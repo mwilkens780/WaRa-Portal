@@ -36,12 +36,16 @@
             return $sessions
                 ->groupBy(fn($s) => $s->recurrence_group_id ?? ('__single__' . $s->id))
                 ->map(function ($group) {
-                    $rep = $group->sortBy('date')->first();
+                    $rep     = $group->sortBy('date')->first();
+                    $sorted  = $group->sortBy('date');
+                    $today   = \Carbon\Carbon::today();
                     return [
-                        'rep'       => $rep,
-                        'sessions'  => $group->sortBy('date'),
-                        'dow'       => (int) $rep->date->dayOfWeekIso,   // 1=Mo … 7=So
-                        'is_series' => $group->count() > 1,
+                        'rep'        => $rep,
+                        'sessions'   => $sorted,
+                        'dow'        => (int) $rep->date->dayOfWeekIso,   // 1=Mo … 7=So
+                        'is_series'  => $group->count() > 1,
+                        'is_expired' => $rep->recurrence_group_id
+                            && !$sorted->some(fn($s) => $s->date->gte($today)),
                     ];
                 })
                 ->sortBy([['dow', 'asc'], [fn($a) => $a['rep']->start_time, 'asc']]);
@@ -103,6 +107,23 @@
                             @php $trainerNames = $rep->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', '); @endphp
                             @if($trainerNames)
                                 <span class="text-xs text-gray-400 hidden lg:block shrink-0">{{ $trainerNames }}</span>
+                            @endif
+
+                            {{-- Serien-Aktionen --}}
+                            @if($isSeries && $rep->recurrence_group_id)
+                                <span class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
+                                    @if($s['is_expired'])
+                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Abgelaufen</span>
+                                        <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
+                                           class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-0.5 rounded-full font-semibold transition-colors">
+                                            + Neue Saison
+                                        </a>
+                                    @endif
+                                    <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
+                                       class="text-xs text-gray-500 hover:text-primary underline transition-colors">
+                                        Serie bearbeiten
+                                    </a>
+                                </span>
                             @endif
 
                             {{-- Expand-Icon --}}
@@ -216,6 +237,21 @@
                                     @endif
                                 </div>
                             </div>
+                            @if($isSeries && $rep->recurrence_group_id)
+                                <span class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
+                                    @if($s['is_expired'])
+                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Abgelaufen</span>
+                                        <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
+                                           class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-0.5 rounded-full font-semibold transition-colors">
+                                            + Neue Saison
+                                        </a>
+                                    @endif
+                                    <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
+                                       class="text-xs text-gray-500 hover:text-primary underline transition-colors">
+                                        Serie bearbeiten
+                                    </a>
+                                </span>
+                            @endif
                             <svg class="w-4 h-4 text-gray-400 shrink-0 group-open/series:rotate-180 transition-transform"
                                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
