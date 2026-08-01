@@ -342,9 +342,18 @@
                 </button>
                 <h1 class="text-lg font-semibold text-gray-800">@yield('page-title', 'WaRa-Portal')</h1>
             </div>
-            <div class="flex items-center gap-2 text-sm text-gray-500">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                {{ now()->isoFormat('dddd, D. MMMM YYYY') }}
+            <div class="flex items-center gap-3 text-sm text-gray-500">
+                @if(!empty($appCurrentSeason))
+                    <span class="hidden sm:inline-flex items-center gap-1.5 text-xs bg-blue-50 text-primary px-2.5 py-1 rounded-full border border-blue-100 font-semibold">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        {{ $appCurrentSeason->label }}
+                    </span>
+                @endif
+                <span class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span class="hidden md:inline">{{ now()->isoFormat('dddd, D. MMMM YYYY') }}</span>
+                    <span class="md:hidden">{{ now()->isoFormat('D. MMM YYYY') }}</span>
+                </span>
             </div>
         </header>
 

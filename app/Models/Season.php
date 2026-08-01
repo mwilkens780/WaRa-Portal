@@ -33,6 +33,14 @@ class Season extends Model
             ->first();
     }
 
+    /** Season immediately following the given one (by start_date). */
+    public static function after(self $season): ?self
+    {
+        return static::where('start_date', '>', $season->end_date)
+            ->orderBy('start_date')
+            ->first();
+    }
+
     /** Months of this season as Carbon instances (first day of each month). */
     public function months(): array
     {

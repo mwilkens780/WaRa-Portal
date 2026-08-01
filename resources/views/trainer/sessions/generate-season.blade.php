@@ -56,7 +56,17 @@
 
     {{-- Saison-Formular --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 class="text-sm font-semibold text-gray-700 mb-4">Neue Einheiten generieren</h3>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-700">Neue Einheiten generieren</h3>
+            @if($suggestedSeason)
+                <span class="text-xs bg-blue-50 text-primary px-2.5 py-1 rounded-full border border-blue-100 font-medium">
+                    Vorschlag: Saison {{ $suggestedSeason->name }}
+                    @if($seriesSeason && $seriesSeason->id !== $suggestedSeason->id)
+                        <span class="text-gray-400 font-normal">(Folgesaison nach {{ $seriesSeason->name }})</span>
+                    @endif
+                </span>
+            @endif
+        </div>
         <form method="POST" action="{{ route('trainer.sessions.series.store-season', $group) }}" class="space-y-5">
             @csrf
 
@@ -64,7 +74,7 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Startdatum</label>
                 <input type="date" name="start_date"
-                       value="{{ old('start_date', $currentSeason ? $currentSeason->start_date?->format('Y-m-d') : '') }}"
+                       value="{{ old('start_date', $suggestedSeason?->start_date?->format('Y-m-d') ?? '') }}"
                        min="{{ today()->format('Y-m-d') }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>
@@ -75,7 +85,7 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Enddatum</label>
                 <input type="date" name="end_date"
-                       value="{{ old('end_date', $currentSeason ? $currentSeason->end_date?->format('Y-m-d') : '') }}"
+                       value="{{ old('end_date', $suggestedSeason?->end_date?->format('Y-m-d') ?? '') }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>
                 @error('end_date') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror

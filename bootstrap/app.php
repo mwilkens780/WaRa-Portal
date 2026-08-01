@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\MaintenanceModeCheck::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\EnsurePasswordChanged::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\ShareCurrentSeason::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->report(function (\Throwable $e) {

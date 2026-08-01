@@ -865,12 +865,17 @@ class TrainingSessionController extends Controller
         if ($sessions->isEmpty()) abort(404);
         $this->authorizeSeriesAccess($sessions->first());
 
-        $rep          = $sessions->first();
-        $hasFuture    = $sessions->some(fn($s) => $s->date->gte(today()));
-        $currentSeason = Season::current();
+        $rep       = $sessions->first();
+        $hasFuture = $sessions->some(fn($s) => $s->date->gte(today()));
+
+        // Suggest the season that follows the one the series ran in
+        $lastDate        = $sessions->last()->date;
+        $seriesSeason    = Season::forDate($lastDate);
+        $suggestedSeason = $seriesSeason ? Season::after($seriesSeason) : null;
+        $suggestedSeason = $suggestedSeason ?? Season::current();
 
         return view('trainer.sessions.generate-season', compact(
-            'rep', 'sessions', 'group', 'hasFuture', 'currentSeason'
+            'rep', 'sessions', 'group', 'hasFuture', 'suggestedSeason', 'seriesSeason'
         ));
     }
 
