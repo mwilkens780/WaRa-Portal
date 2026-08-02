@@ -229,6 +229,32 @@ async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
     }
 }
 
+// ── AJAX-Wartefunktion ────────────────────────────────────────────────────────
+// Wartet bis Lade-Spinner verschwunden und echte Tabelleninhalte vorhanden sind.
+
+async function waitForAjaxContent(page, timeoutMs = 15000) {
+    const deadline = Date.now() + timeoutMs;
+    try {
+        // Warten bis kein Spinner mehr sichtbar ist
+        await page.waitForFunction(() => {
+            const spinners = document.querySelectorAll('img[src*="spinner"], .loading, .spinner, [class*="loading"]');
+            if (spinners.length === 0) return true;
+            return Array.from(spinners).every(el => {
+                const style = window.getComputedStyle(el);
+                return style.display === 'none' || style.visibility === 'hidden' || !el.offsetParent;
+            });
+        }, { timeout: Math.min(timeoutMs, deadline - Date.now()) }).catch(() => {});
+
+        // Zusätzlich warten bis mindestens eine Zeile mit >1 Zelle vorhanden ist
+        await page.waitForFunction(() => {
+            const rows = document.querySelectorAll('table tr');
+            return Array.from(rows).some(tr => tr.querySelectorAll('td').length > 1);
+        }, { timeout: Math.min(timeoutMs, deadline - Date.now()) }).catch(() => {});
+    } catch (_) {}
+    // Kurze Pause nach dem Laden für DOM-Stabilisierung
+    await page.waitForTimeout(400);
+}
+
 // ── Veranstaltungen (Competitions) ───────────────────────────────────────────
 
 async function scrapeCompetitions(page) {
@@ -253,8 +279,7 @@ async function scrapeCompetitions(page) {
     for (const url of candidates) {
         try {
             await page.goto(url, { waitUntil: 'load', timeout: 12000 });
-            await page.waitForTimeout(800);
-            // Prüfe sowohl tbody-Rows als auch direkte tr (ohne explizites tbody)
+            await waitForAjaxContent(page);
             const rowCount = await page.locator('table tr').count();
             const currentUrl = page.url();
             log(`Kandidat ${url} → ${rowCount} table-rows, aktuelle URL: ${currentUrl}`);
@@ -269,6 +294,7 @@ async function scrapeCompetitions(page) {
         log('Direkte URL-Kandidaten erfolglos – versuche Dropdown-Menü');
         navigated = await navigateViaDropdownMenu(page, /veranstaltung/i, /veranstaltung/i);
         if (navigated) {
+            await waitForAjaxContent(page);
             const rowCount = await page.locator('table tr').count();
             log(`Nach Dropdown-Navigation: ${rowCount} table-rows, URL: ${page.url()}`);
         }
@@ -630,9 +656,9 @@ async function scrapePersons(page) {
     for (const url of candidates) {
         try {
             await page.goto(url, { waitUntil: 'load', timeout: 10000 });
-            await page.waitForTimeout(500);
-            const rowCount = await page.locator('table tbody tr').count();
-            if (rowCount > 0) { navigated = true; log('Personenseite: ' + url); break; }
+            await waitForAjaxContent(page);
+            const rowCount = await page.locator('table tr').count();
+            if (rowCount > 1) { navigated = true; log('Personenseite: ' + url); break; }
         } catch (_) {}
     }
 
