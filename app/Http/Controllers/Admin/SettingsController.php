@@ -19,28 +19,12 @@ class SettingsController extends Controller
             'maintenance_bypass_users' => Setting::getBypassUserIds(),
         ];
 
-        $webclub = [
-            'enabled'              => Setting::getBool('crawler.webclub.enabled', false),
-            'base_url'             => Setting::getCached('crawler.webclub.base_url', ''),
-            'username'             => Setting::getCached('crawler.webclub.username', ''),
-            'password_set'         => Setting::getCached('crawler.webclub.password', '') !== '',
-            'scrape_competitions'  => Setting::getBool('crawler.webclub.scrape_competitions', true),
-            'scrape_persons'       => Setting::getBool('crawler.webclub.scrape_persons', true),
-            'lookback_days'        => (int) Setting::getCached('crawler.webclub.lookback_days', 90),
-            'lookahead_days'       => (int) Setting::getCached('crawler.webclub.lookahead_days', 365),
-            'headless'             => Setting::getBool('crawler.webclub.headless', true),
-            'timeout_ms'           => (int) Setting::getCached('crawler.webclub.timeout_ms', 15000),
-            'timeout_seconds'      => (int) Setting::getCached('crawler.webclub.timeout_seconds', 300),
-            'node_path'            => Setting::getCached('crawler.webclub.node_path', ''),
-            'import_token'         => Setting::getCached('crawler.webclub.import_token', ''),
-        ];
-
         $users = User::where('role', '!=', 'admin')
             ->where('active', true)
             ->orderBy('lastname')->orderBy('firstname')
             ->get();
 
-        return view('admin.settings.index', compact('settings', 'webclub', 'users'));
+        return view('admin.settings.index', compact('settings', 'users'));
     }
 
     public function update(Request $request)

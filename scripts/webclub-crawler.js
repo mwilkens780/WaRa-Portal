@@ -118,14 +118,21 @@ async function login(page) {
     log('Öffne Login-Seite: ' + BASE_URL);
     await page.goto(BASE_URL, { waitUntil: 'networkidle' });
 
-    // Login-Formular finden – versuche gängige Selektoren
-    const usernameField =
-        page.getByLabel(/e-?mail|benutzername|username/i).first()
-        || page.locator('input[type="email"], input[name*="email"], input[name*="user"]').first();
+    // Login-Formular finden – Playwright-Locators sind immer truthy, || funktioniert nicht.
+    // Daher: einzelner CSS-Selector mit allen Alternativen (Priorität: links → rechts).
+    const usernameField = page.locator([
+        'input[name="username"]',
+        'input[name="login"]',
+        'input[name="email"]',
+        'input[type="email"]',
+        'input[type="text"][name*="user"]',
+        'input[type="text"][name*="login"]',
+        'input[type="text"][name*="name"]',
+        'input[type="text"][name*="email"]',
+        'form input[type="text"]',
+    ].join(', ')).first();
 
-    const passwordField =
-        page.getByLabel(/passwort|password/i).first()
-        || page.locator('input[type="password"]').first();
+    const passwordField = page.locator('input[type="password"]').first();
 
     try {
         await usernameField.waitFor({ state: 'visible', timeout: TIMEOUT_MS });
@@ -143,10 +150,11 @@ async function login(page) {
     await usernameField.fill(USERNAME);
     await passwordField.fill(PASSWORD);
 
-    // Submit: suche Button oder Enter
-    const submitBtn =
-        page.getByRole('button', { name: /anmelden|einloggen|login|sign in/i }).first()
-        || page.locator('button[type="submit"], input[type="submit"]').first();
+    // Submit: breiter Selector, kein || (wäre immer truthy)
+    const submitBtn = page.locator(
+        'button[type="submit"], input[type="submit"], ' +
+        'button:has-text("Anmelden"), button:has-text("Einloggen"), button:has-text("Login")'
+    ).first();
 
     try {
         await submitBtn.click({ timeout: TIMEOUT_MS });

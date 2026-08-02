@@ -167,7 +167,17 @@ class ImportLogController extends Controller
             'schedule_time'   => ['nullable', 'regex:/^\d{2}:\d{2}$/'],
             'state_ids'       => ['nullable', 'array'],
             'state_ids.*'     => ['integer'],
+            'import_token'    => ['nullable', 'string', 'max:255'],
         ]);
+
+        // WebClub läuft via GitHub Actions – kein Zeitplan im Portal, nur Import-Token
+        if ($source === 'webclub_crawler') {
+            if (!empty($data['import_token'])) {
+                Setting::set('crawler.webclub.import_token', $data['import_token']);
+            }
+            Setting::clearCache();
+            return back()->with('success', 'WebClub Import-Token gespeichert.');
+        }
 
         Setting::set("crawler.{$source}.enabled",
             $request->boolean('enabled') ? '1' : '0');
@@ -180,8 +190,6 @@ class ImportLogController extends Controller
             Setting::set('crawler.dsvdata.state_ids',
                 json_encode(array_map('intval', $data['state_ids'] ?? [14])));
         }
-
-        // WebClub-spezifische Felder werden über /admin/einstellungen gespeichert.
 
         Setting::clearCache();
 

@@ -93,17 +93,16 @@
                         <p class="text-[10px] text-amber-600 bg-amber-50 rounded px-2 py-1">{{ $info['note'] }}</p>
                     @endif
 
-                    {{-- WebClub: Konfigurations-Status --}}
+                    {{-- WebClub: GitHub-Actions-Hinweis --}}
                     @if(!empty($info['is_webclub']))
-                        @if(empty($info['configured']))
+                        @php $wcToken = \App\Models\Setting::getCached('crawler.webclub.import_token', ''); @endphp
+                        @if(!$wcToken)
                             <p class="text-[10px] text-amber-600 bg-amber-50 rounded px-2 py-1">
-                                Zugangsdaten fehlen –
-                                <a href="{{ route('admin.settings.index') }}#webclub" class="underline font-semibold">Einstellungen</a>
+                                Import-Token fehlt – bitte in der Konfig eintragen und als GitHub Secret <code class="font-mono">WEBCLUB_IMPORT_TOKEN</code> hinterlegen.
                             </p>
                         @else
-                            <p class="text-[10px] text-gray-500">
-                                Benutzer: {{ $info['username'] ?? '–' }} ·
-                                <a href="{{ route('admin.settings.index') }}#webclub" class="text-primary hover:underline">Einstellungen</a>
+                            <p class="text-[10px] text-green-700 bg-green-50 rounded px-2 py-1">
+                                Import-Token konfiguriert · Daten kommen via GitHub Actions
                             </p>
                         @endif
                     @endif
@@ -112,15 +111,24 @@
                 {{-- Aktionen --}}
                 <div class="px-4 pb-4 flex gap-2">
                     @if(empty($info['note']))
-                        <form method="POST" action="{{ route('admin.import-log.run', $source) }}" class="flex-1">
-                            @csrf
-                            <button type="submit"
-                                    onclick="return confirm('Crawler \"{{ $info['label'] }}\" jetzt manuell starten?')"
-                                    @if(!empty($info['is_webclub']) && empty($info['configured'])) disabled @endif
-                                    class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                Jetzt ausführen
-                            </button>
-                        </form>
+                        @if(!empty($info['is_webclub']))
+                            {{-- WebClub läuft via GitHub Actions --}}
+                            <a href="https://github.com/mwilkens780/WaRa-Portal/actions/workflows/webclub-crawler.yml"
+                               target="_blank"
+                               class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-800 text-white text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                                Auf GitHub starten
+                            </a>
+                        @else
+                            <form method="POST" action="{{ route('admin.import-log.run', $source) }}" class="flex-1">
+                                @csrf
+                                <button type="submit"
+                                        onclick="return confirm('Crawler \"{{ $info['label'] }}\" jetzt manuell starten?')"
+                                        class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+                                    Jetzt ausführen
+                                </button>
+                            </form>
+                        @endif
                     @endif
                     <button type="button" @click="cfg = !cfg"
                             :class="cfg ? 'bg-gray-100 text-gray-700' : 'text-gray-500 hover:bg-gray-50'"
@@ -141,6 +149,48 @@
                      x-transition:enter-end="opacity-100"
                      class="border-t border-gray-100">
 
+                    @if(!empty($info['is_webclub']))
+                    {{-- WebClub: nur Import-Token, alles andere via GitHub Secrets --}}
+                    <form method="POST" action="{{ route('admin.import-log.config', $source) }}"
+                          class="p-4 space-y-4">
+                        @csrf
+
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+                            <p class="text-xs font-medium text-blue-800">Zeitplan &amp; Zugangsdaten werden via GitHub Secrets verwaltet</p>
+                            <p class="text-[10px] text-blue-600 mt-1">
+                                Secrets: <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_BASE_URL</code>
+                                <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_USERNAME</code>
+                                <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_PASSWORD</code>
+                                <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_IMPORT_TOKEN</code>
+                                <code class="bg-blue-100 px-0.5 rounded">PORTAL_URL</code>
+                            </p>
+                        </div>
+
+                        <div x-data="{ tok: '{{ \App\Models\Setting::getCached('crawler.webclub.import_token', '') }}' }">
+                            <label class="text-xs font-medium text-gray-700 block mb-1">
+                                Import-Token
+                                <span class="text-[10px] font-normal text-gray-400">→ identisch als GitHub Secret WEBCLUB_IMPORT_TOKEN eintragen</span>
+                            </label>
+                            <div class="flex gap-2">
+                                <input type="text" name="import_token" x-model="tok"
+                                       placeholder="Langes zufälliges Token"
+                                       class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500">
+                                <button type="button"
+                                        @click="const c='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; let t=''; for(let i=0;i<48;i++) t+=c[Math.floor(Math.random()*c.length)]; tok=t"
+                                        class="shrink-0 px-2 py-1.5 border border-gray-300 text-xs text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+                                    Gen.
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                                class="w-full px-3 py-1.5 bg-gray-800 text-white text-xs font-semibold rounded-lg hover:bg-gray-700 transition-colors">
+                            Speichern
+                        </button>
+                    </form>
+
+                    @else
+                    {{-- Standard-Crawler: Zeitplan konfigurieren --}}
                     <form method="POST" action="{{ route('admin.import-log.config', $source) }}"
                           class="p-4 space-y-4">
                         @csrf
@@ -205,6 +255,7 @@
                             Speichern
                         </button>
                     </form>
+                    @endif
                 </div>
 
             </div>
