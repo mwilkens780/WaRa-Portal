@@ -230,31 +230,34 @@ async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
 }
 
 // ── AJAX-Wartefunktion ────────────────────────────────────────────────────────
-// WebClub-Seiten laden Tabellendaten per AJAX nach dem page-load.
-// Der Spinner startet versteckt → wird sichtbar wenn XHR startet → verschwindet wenn Daten da.
-// Wir warten auf diesen Zyklus: erscheinen → verschwinden.
+// WebClub hat mehrere Spinner auf der Seite. Der Tabellen-Spinner steckt in
+// einem <td colspan="N"> – das ist der eindeutige Marker für den Datentabellen-AJAX.
+// Wir warten bis KEIN solcher Spinner mehr sichtbar ist.
 
-async function waitForAjaxContent(page, timeoutMs = 15000) {
-    const spinner = page.locator('img[src*="spinner"]').first();
+async function waitForAjaxContent(page, timeoutMs = 20000) {
+    // Warte bis alle td[colspan]-Spinner verschwunden sind
+    const disappeared = await page.waitForFunction(() => {
+        const cells = document.querySelectorAll('td[colspan]');
+        for (const cell of cells) {
+            if (parseInt(cell.getAttribute('colspan') || '0') >= 4 &&
+                cell.querySelector('img[src*="spinner"]')) {
+                // Spinner-Zelle noch vorhanden – Daten noch nicht geladen
+                return false;
+            }
+        }
+        return true;
+    }, { timeout: timeoutMs }).then(() => true).catch(() => false);
 
-    // Schritt 1: Warte bis Spinner erscheint (= XHR gestartet).
-    // Kurzes Timeout (6 s) – wenn er nie erscheint, lief AJAX entweder schneller
-    // oder ist nicht nötig.
-    const appeared = await spinner.waitFor({ state: 'visible', timeout: 6000 })
-        .then(() => true).catch(() => false);
-
-    if (appeared) {
-        log('Spinner erschienen – warte auf AJAX-Abschluss…');
-        // Schritt 2: Warte bis Spinner wieder verschwindet (= Daten gerendert)
-        await spinner.waitFor({ state: 'hidden', timeout: timeoutMs })
-            .catch(() => log('WARNUNG: Spinner nach ' + timeoutMs + ' ms noch sichtbar.'));
-    } else {
-        // Spinner nie aufgetaucht – evtl. war AJAX schon fertig oder wird durch
-        // Interaktion getriggert. Kurz networkidle abwarten als Fallback.
-        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+    if (!disappeared) {
+        log('WARNUNG: Tabellen-AJAX nach ' + timeoutMs + ' ms noch nicht fertig.');
     }
 
-    await page.waitForTimeout(600);
+    // Zusätzlich generischer Spinner-Check als Fallback
+    await page.locator('img[src*="spinner"]')
+        .waitFor({ state: 'hidden', timeout: 5000 })
+        .catch(() => {});
+
+    await page.waitForTimeout(500);
 }
 
 // ── Veranstaltungen (Competitions) ───────────────────────────────────────────
@@ -282,10 +285,15 @@ async function scrapeCompetitions(page) {
         try {
             await page.goto(url, { waitUntil: 'load', timeout: 12000 });
             await waitForAjaxContent(page);
-            // Zähle Zeilen mit echten Daten (>1 Spalte) - Spinner hat nur colspan=6
+            // Zähle Zeilen mit echten Daten: >1 Spalte UND kein Spinner drin
             const realRows = await page.evaluate(() =>
                 Array.from(document.querySelectorAll('table tr'))
-                    .filter(tr => tr.querySelectorAll('td').length > 1).length
+                    .filter(tr => {
+                        const tds = tr.querySelectorAll('td');
+                        if (tds.length < 2) return false;
+                        if (tr.querySelector('img[src*="spinner"]')) return false;
+                        return true;
+                    }).length
             );
             const currentUrl = page.url();
             log(`Kandidat ${url} → ${realRows} Datenzeilen (ohne Spinner/Header), URL: ${currentUrl}`);
