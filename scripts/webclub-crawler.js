@@ -230,29 +230,39 @@ async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
 }
 
 // ── AJAX-Wartefunktion ────────────────────────────────────────────────────────
-// Wartet bis Lade-Spinner verschwunden und echte Tabelleninhalte vorhanden sind.
+// Wartet bis AJAX-Inhalte geladen sind. Strategie:
+// 1. networkidle abwarten (alle XHR/fetch abgeschlossen)
+// 2. Falls Spinner noch sichtbar: explizit auf dessen Verschwinden warten
+// 3. Falls immer noch kein echter Inhalt: Maus bewegen (Anti-Bot-Trigger)
 
-async function waitForAjaxContent(page, timeoutMs = 15000) {
-    const deadline = Date.now() + timeoutMs;
-    try {
-        // Warten bis kein Spinner mehr sichtbar ist
-        await page.waitForFunction(() => {
-            const spinners = document.querySelectorAll('img[src*="spinner"], .loading, .spinner, [class*="loading"]');
-            if (spinners.length === 0) return true;
-            return Array.from(spinners).every(el => {
-                const style = window.getComputedStyle(el);
-                return style.display === 'none' || style.visibility === 'hidden' || !el.offsetParent;
-            });
-        }, { timeout: Math.min(timeoutMs, deadline - Date.now()) }).catch(() => {});
+async function waitForAjaxContent(page, timeoutMs = 12000) {
+    // Strategie 1: networkidle – fängt alle AJAX-Requests ab
+    // Kurzer Timeout (8 s), damit der Crawler nicht ewig hängt falls long-polling aktiv ist
+    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
 
-        // Zusätzlich warten bis mindestens eine Zeile mit >1 Zelle vorhanden ist
-        await page.waitForFunction(() => {
-            const rows = document.querySelectorAll('table tr');
-            return Array.from(rows).some(tr => tr.querySelectorAll('td').length > 1);
-        }, { timeout: Math.min(timeoutMs, deadline - Date.now()) }).catch(() => {});
-    } catch (_) {}
-    // Kurze Pause nach dem Laden für DOM-Stabilisierung
-    await page.waitForTimeout(400);
+    // Strategie 2: Warte explizit auf Spinner-Verschwinden
+    const spinnerVisible = await page.locator('img[src*="spinner"]').isVisible().catch(() => false);
+    if (spinnerVisible) {
+        log('Spinner sichtbar – warte auf AJAX-Abschluss…');
+        await page.locator('img[src*="spinner"]')
+            .waitFor({ state: 'hidden', timeout: timeoutMs })
+            .catch(() => { log('Spinner hat sich nicht innerhalb des Timeouts geleert.'); });
+    }
+
+    // Strategie 3: Simuliere kurze Mausbewegung (manche PHP-Apps triggern AJAX erst bei Interaktion)
+    const hasRealRow = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('table tr'))
+            .some(tr => tr.querySelectorAll('td').length > 1)
+    ).catch(() => false);
+
+    if (!hasRealRow) {
+        log('Kein echter Tabelleninhalt nach Warten – simuliere Mausbewegung');
+        await page.mouse.move(400, 300);
+        await page.waitForTimeout(2000);
+        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+    }
+
+    await page.waitForTimeout(500);
 }
 
 // ── Veranstaltungen (Competitions) ───────────────────────────────────────────
@@ -280,10 +290,14 @@ async function scrapeCompetitions(page) {
         try {
             await page.goto(url, { waitUntil: 'load', timeout: 12000 });
             await waitForAjaxContent(page);
-            const rowCount = await page.locator('table tr').count();
+            // Zähle Zeilen mit echten Daten (>1 Spalte) - Spinner hat nur colspan=6
+            const realRows = await page.evaluate(() =>
+                Array.from(document.querySelectorAll('table tr'))
+                    .filter(tr => tr.querySelectorAll('td').length > 1).length
+            );
             const currentUrl = page.url();
-            log(`Kandidat ${url} → ${rowCount} table-rows, aktuelle URL: ${currentUrl}`);
-            if (rowCount > 0) { navigated = true; log('Veranstaltungsseite gefunden: ' + url); break; }
+            log(`Kandidat ${url} → ${realRows} Datenzeilen (ohne Spinner/Header), URL: ${currentUrl}`);
+            if (realRows > 0) { navigated = true; log('Veranstaltungsseite gefunden: ' + url); break; }
         } catch (e) {
             log(`Kandidat ${url} fehlgeschlagen: ${e.message}`);
         }
