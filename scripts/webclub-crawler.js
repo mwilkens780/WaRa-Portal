@@ -194,6 +194,41 @@ async function login(page) {
     log('Login erfolgreich. URL: ' + page.url());
 }
 
+// ── Hilfsfunktion: relative URL auflösen ─────────────────────────────────────
+
+function resolveUrl(href) {
+    if (!href) return null;
+    try { return new URL(href, BASE_URL + '/').href; } catch (_) { return null; }
+}
+
+// ── Hilfsfunktion: Navigation über Dropdown-Menü ─────────────────────────────
+
+async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
+    try {
+        // Oberstes Menü-Element finden und hovern
+        const topItem = page.locator('a, span, li')
+            .filter({ hasText: topLabelRegex }).first();
+        if (await topItem.count() === 0) return false;
+
+        await topItem.hover();
+        await page.waitForTimeout(600);
+
+        // Untermenü-Eintrag klicken
+        const subItem = page.locator('a').filter({ hasText: subLabelRegex }).first();
+        if (await subItem.count() === 0) {
+            await topItem.click();
+            await page.waitForTimeout(600);
+        }
+        await page.locator('a').filter({ hasText: subLabelRegex }).first().click({ timeout: TIMEOUT_MS });
+        await page.waitForLoadState('load');
+        await page.waitForTimeout(800);
+        log('Navigiert via Dropdown-Menü: ' + page.url());
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
 // ── Veranstaltungen (Competitions) ───────────────────────────────────────────
 
 async function scrapeCompetitions(page) {
@@ -202,44 +237,53 @@ async function scrapeCompetitions(page) {
     const competitions = [];
     const errors       = [];
 
-    // Navigation zu Veranstaltungen
-    try {
-        // Versuche direkten Seitenaufruf via typische URL-Muster
-        const candidates = [
-            BASE_URL + '/veranstaltungen',
-            BASE_URL + '/events',
-            BASE_URL + '/competition',
-            BASE_URL + '/competitions',
-            BASE_URL + '/wettkampf',
-        ];
+    // 1. Direkte URLs probieren – klassische PHP-Apps nutzen .php-Dateinamen
+    const candidates = [
+        BASE_URL + '/verc.php',          // WebClub klassisch (aus Screenshot bekannt)
+        BASE_URL + '/veranstaltungen',
+        BASE_URL + '/events',
+        BASE_URL + '/competition',
+        BASE_URL + '/competitions',
+        BASE_URL + '/wettkampf',
+        BASE_URL + '/vc.php',
+        BASE_URL + '/meet.php',
+    ];
 
-        let navigated = false;
-        for (const url of candidates) {
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 10000 }).catch(() => {});
-            // Prüfe ob Seite Veranstaltungs-Inhalte hat
-            const hasContent = await page.locator('table, .event-list, .competition-list, [class*="veranstaltung"], [class*="event"]').count();
-            if (hasContent > 0) { navigated = true; log('Veranstaltungsseite: ' + url); break; }
-        }
+    let navigated = false;
+    for (const url of candidates) {
+        try {
+            await page.goto(url, { waitUntil: 'load', timeout: 10000 });
+            await page.waitForTimeout(500);
+            const rowCount = await page.locator('table tbody tr').count();
+            if (rowCount > 0) { navigated = true; log('Veranstaltungsseite: ' + url); break; }
+        } catch (_) {}
+    }
 
+    // 2. Fallback: Menü "Veranstaltungen" → "Veranstaltungen"
+    if (!navigated) {
+        navigated = await navigateViaDropdownMenu(
+            page,
+            /^veranstaltungen$/i,
+            /^veranstaltungen$/i
+        );
         if (!navigated) {
-            // Versuche Navigation über Menü
-            const navLink = page.getByRole('link', { name: /veranstaltung|wettkampf|event|competition/i }).first();
-            await navLink.click({ timeout: TIMEOUT_MS });
-            await page.waitForLoadState('networkidle');
-            log('Navigiert via Menü: ' + page.url());
+            // Noch ein Versuch mit breiteren Regex
+            navigated = await navigateViaDropdownMenu(page, /veranstaltung/i, /veranstaltung/i);
         }
-    } catch (e) {
-        errors.push({ type: 'navigation', message: 'Veranstaltungsseite nicht gefunden: ' + e.message });
-        log('WARNUNG: ' + errors[errors.length - 1].message);
+    }
+
+    if (!navigated) {
+        const msg = 'Veranstaltungsseite nicht gefunden (alle Kandidaten und Menü-Navigation fehlgeschlagen)';
+        errors.push({ type: 'navigation', message: msg });
+        log('WARNUNG: ' + msg);
         return { competitions, errors };
     }
 
     // Datumsbereich
-    const today     = new Date();
-    const dateFrom  = new Date(today); dateFrom.setDate(today.getDate() - LOOKBACK_DAYS);
-    const dateTo    = new Date(today); dateTo.setDate(today.getDate() + LOOKAHEAD_DAYS);
+    const today    = new Date();
+    const dateFrom = new Date(today); dateFrom.setDate(today.getDate() - LOOKBACK_DAYS);
+    const dateTo   = new Date(today); dateTo.setDate(today.getDate() + LOOKAHEAD_DAYS);
 
-    // Eventliste scrapen – suche Zeilen in Tabellen oder Listen
     const eventLinks = await collectEventLinks(page, dateFrom, dateTo);
     log(`${eventLinks.length} Veranstaltungslinks gefunden.`);
 
@@ -260,17 +304,24 @@ async function collectEventLinks(page, dateFrom, dateTo) {
     const links = [];
     const seen  = new Set();
 
-    // Suche Tabellen-Zeilen oder Listen-Einträge mit Links
-    const rows = page.locator('table tbody tr, .event-item, .competition-item, [class*="event-row"], [class*="veranstaltung-row"]');
+    const rows = page.locator('table tbody tr');
     const count = await rows.count();
 
     for (let i = 0; i < count; i++) {
         const row = rows.nth(i);
+        const cells = row.locator('td');
+        const cellCount = await cells.count();
+        if (cellCount === 0) continue;
 
-        // Datum aus Zeile extrahieren
-        const dateText = await safeText(row.locator('[class*="date"], [class*="datum"], td:first-child').first())
-            || await safeText(row.locator('td').nth(0));
+        // Datum: prüfe alle Zellen auf ein Datumsmuster (nicht nur die erste,
+        // da Spalte 0 oft ein Icon/Bild ist)
+        let dateText = null;
+        for (let c = 0; c < Math.min(cellCount, 4); c++) {
+            const txt = await safeText(cells.nth(c));
+            if (txt && /\d{1,2}\.\d{1,2}\.\d{4}/.test(txt)) { dateText = txt; break; }
+        }
 
+        // Datumsfilter
         if (dateText) {
             const { date } = parseDateRange(dateText);
             if (date) {
@@ -279,29 +330,39 @@ async function collectEventLinks(page, dateFrom, dateTo) {
             }
         }
 
-        // Link aus Zeile extrahieren
-        const anchor = row.locator('a').first();
-        const href   = await safeAttr(anchor, 'href');
-        if (!href || seen.has(href)) continue;
-        seen.add(href);
+        // Link aus Zeile (alle Links in der Zeile prüfen)
+        const anchors = row.locator('a');
+        const aCount  = await anchors.count();
+        for (let a = 0; a < aCount; a++) {
+            const href = await safeAttr(anchors.nth(a), 'href');
+            if (!href || seen.has(href)) continue;
+            // Navigation-Links und Anker überspringen
+            if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
+            seen.add(href);
 
-        const url = href.startsWith('http') ? href : BASE_URL + href;
-        const name = await safeText(anchor);
-        const { date, date_end } = parseDateRange(dateText || '');
-
-        links.push({ url, name, date, date_end });
+            const url  = resolveUrl(href);
+            if (!url) continue;
+            const name = await safeText(anchors.nth(a));
+            const { date, date_end } = parseDateRange(dateText || '');
+            links.push({ url, name, date, date_end });
+            break; // erster sinnvoller Link pro Zeile reicht
+        }
     }
 
-    // Falls keine Tabellen-Zeilen: suche alle Links auf der Seite, die nach Events aussehen
+    // Fallback: alle Links der Seite die zu Detailseiten führen könnten
     if (links.length === 0) {
-        const allLinks = page.locator('a[href*="veranstaltung"], a[href*="event"], a[href*="competition"]');
-        const allCount = await allLinks.count();
-        for (let i = 0; i < allCount; i++) {
-            const href = await safeAttr(allLinks.nth(i), 'href');
+        log('Keine Tabellen-Zeilen-Links gefunden – versuche generischen Link-Scan');
+        const allAnchors = page.locator('a[href]');
+        const total = await allAnchors.count();
+        for (let i = 0; i < total; i++) {
+            const href = await safeAttr(allAnchors.nth(i), 'href');
             if (!href || seen.has(href)) continue;
+            if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
+            // Nur Links, die nach Detail-Seiten aussehen (haben eine ID oder Pfad-Segment)
+            if (!/[?&]id=|\d{3,}|detail|show|view/i.test(href)) continue;
             seen.add(href);
-            const url = href.startsWith('http') ? href : BASE_URL + href;
-            links.push({ url, name: null, date: null, date_end: null });
+            const url = resolveUrl(href);
+            if (url) links.push({ url, name: null, date: null, date_end: null });
         }
     }
 
@@ -310,7 +371,8 @@ async function collectEventLinks(page, dateFrom, dateTo) {
 
 async function scrapeCompetitionDetail(page, link) {
     log('Lade Veranstaltung: ' + link.url);
-    await page.goto(link.url, { waitUntil: 'networkidle' });
+    await page.goto(link.url, { waitUntil: 'load' });
+    await page.waitForTimeout(500);
 
     const comp = {
         webclub_id: extractIdFromUrl(link.url),
@@ -386,7 +448,8 @@ async function activateTab(page, labelRegex) {
 
     try {
         await tab.click({ timeout: 5000 });
-        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(500);
+        await page.waitForLoadState('load');
         return true;
     } catch (_) {
         return false;
@@ -502,53 +565,56 @@ async function scrapePersons(page) {
     const persons = [];
     const errors  = [];
 
-    // Navigation zu Personen
-    try {
-        const candidates = [
-            BASE_URL + '/personen',
-            BASE_URL + '/mitglieder',
-            BASE_URL + '/members',
-            BASE_URL + '/persons',
-            BASE_URL + '/athletes',
-            BASE_URL + '/schwimmer',
-        ];
+    // 1. Direkte PHP-URLs probieren
+    const candidates = [
+        BASE_URL + '/pers.php',          // WebClub klassisch (häufig)
+        BASE_URL + '/person.php',
+        BASE_URL + '/mitglieder.php',
+        BASE_URL + '/personen',
+        BASE_URL + '/mitglieder',
+        BASE_URL + '/members',
+        BASE_URL + '/persons',
+        BASE_URL + '/athletes',
+        BASE_URL + '/schwimmer',
+    ];
 
-        let navigated = false;
-        for (const url of candidates) {
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 10000 }).catch(() => {});
-            const hasContent = await page.locator('table tbody tr, .person-list, .member-list').count();
-            if (hasContent > 0) { navigated = true; log('Personenseite: ' + url); break; }
-        }
+    let navigated = false;
+    for (const url of candidates) {
+        try {
+            await page.goto(url, { waitUntil: 'load', timeout: 10000 });
+            await page.waitForTimeout(500);
+            const rowCount = await page.locator('table tbody tr').count();
+            if (rowCount > 0) { navigated = true; log('Personenseite: ' + url); break; }
+        } catch (_) {}
+    }
 
-        if (!navigated) {
-            const navLink = page.getByRole('link', { name: /personen|mitglieder|members|athletes|schwimmer/i }).first();
-            await navLink.click({ timeout: TIMEOUT_MS });
-            await page.waitForLoadState('networkidle');
-            log('Navigiert via Menü: ' + page.url());
-        }
-    } catch (e) {
-        errors.push({ type: 'navigation', message: 'Personenseite nicht gefunden: ' + e.message });
-        log('WARNUNG: ' + errors[errors.length - 1].message);
+    // 2. Fallback: Menü-Navigation
+    if (!navigated) {
+        navigated = await navigateViaDropdownMenu(page, /personen|mitglieder|members/i, /personen|mitglieder|members/i);
+    }
+
+    if (!navigated) {
+        const msg = 'Personenseite nicht gefunden (alle Kandidaten und Menü fehlgeschlagen)';
+        errors.push({ type: 'navigation', message: msg });
+        log('WARNUNG: ' + msg);
         return { persons, errors };
     }
 
-    // Alle Personen-Links sammeln (paginiert)
+    // Alle Personen-Links sammeln (paginiert) — keine URL-Muster-Filterung,
+    // da PHP-Apps query-parameter-basierte Links nutzen (z.B. pers.php?id=42)
     const personLinks = [];
     const seen = new Set();
 
     do {
-        const anchors = page.locator('table tbody tr a, .person-item a, .member-item a').first().locator('xpath=../ancestor::tr//a').or(
-            page.locator('table tbody tr a, a[href*="person"], a[href*="mitglied"], a[href*="member"]')
-        );
+        const anchors = page.locator('table tbody tr a');
         const cnt = await anchors.count();
         for (let i = 0; i < cnt; i++) {
             const href = await safeAttr(anchors.nth(i), 'href');
             if (!href || seen.has(href)) continue;
-            // Nur Detailseiten (nicht Listen-Filter)
-            if (!href.includes('/person') && !href.includes('/mitglied') && !href.includes('/member') &&
-                !href.includes('/athlete') && !href.includes('/schwimmer') && !/\/\d+/.test(href)) continue;
+            if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
             seen.add(href);
-            personLinks.push(href.startsWith('http') ? href : BASE_URL + href);
+            const url = resolveUrl(href);
+            if (url) personLinks.push(url);
         }
     } while (await navigateToNextPage(page));
 
@@ -622,7 +688,8 @@ async function scrapePersons(page) {
 }
 
 async function scrapePersonDetail(page, url) {
-    await page.goto(url, { waitUntil: 'networkidle' });
+    await page.goto(url, { waitUntil: 'load' });
+    await page.waitForTimeout(500);
 
     const person = {
         webclub_person_id: extractIdFromUrl(url),
@@ -669,7 +736,8 @@ async function navigateToNextPage(page) {
         const enabled = exists && !(await next.isDisabled().catch(() => true));
         if (!enabled) return false;
         await next.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('load');
+        await page.waitForTimeout(500);
         return true;
     } catch (_) {
         return false;
