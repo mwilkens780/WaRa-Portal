@@ -257,6 +257,39 @@
                     </div>
                 </div>
 
+                {{-- GitHub Actions Import-Token --}}
+                <div class="border border-blue-100 bg-blue-50 rounded-xl p-4">
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-blue-800">GitHub Actions Import-Token</p>
+                            <p class="text-xs text-blue-600 mt-0.5">
+                                Der Crawler läuft als GitHub Actions Workflow und sendet die Ergebnisse per API an dieses Portal.
+                                Das Token muss in GitHub als Secret <code class="bg-blue-100 px-1 rounded">WEBCLUB_IMPORT_TOKEN</code> hinterlegt werden.
+                            </p>
+                            <div class="mt-3 flex gap-2 items-end">
+                                <div class="flex-1">
+                                    <input type="text" name="webclub_import_token"
+                                           value="{{ old('webclub_import_token', $webclub['import_token'] ?? '') }}"
+                                           placeholder="Langes zufälliges Token, z.B. aus: openssl rand -hex 32"
+                                           class="w-full px-4 py-2.5 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono bg-white">
+                                </div>
+                                <button type="button" onclick="
+                                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                                    let token = '';
+                                    for (let i = 0; i < 48; i++) token += chars[Math.floor(Math.random() * chars.length)];
+                                    this.closest('.flex').querySelector('input').value = token;
+                                " class="shrink-0 px-3 py-2.5 border border-blue-200 bg-white text-xs text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                                    Generieren
+                                </button>
+                            </div>
+                            <p class="text-xs text-blue-500 mt-1.5">
+                                GitHub Secrets: <strong>WEBCLUB_BASE_URL</strong>, <strong>WEBCLUB_USERNAME</strong>, <strong>WEBCLUB_PASSWORD</strong>, <strong>WEBCLUB_IMPORT_TOKEN</strong>, <strong>PORTAL_URL</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 

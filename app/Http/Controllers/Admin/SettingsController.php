@@ -32,6 +32,7 @@ class SettingsController extends Controller
             'timeout_ms'           => (int) Setting::getCached('crawler.webclub.timeout_ms', 15000),
             'timeout_seconds'      => (int) Setting::getCached('crawler.webclub.timeout_seconds', 300),
             'node_path'            => Setting::getCached('crawler.webclub.node_path', ''),
+            'import_token'         => Setting::getCached('crawler.webclub.import_token', ''),
         ];
 
         $users = User::where('role', '!=', 'admin')
@@ -78,6 +79,7 @@ class SettingsController extends Controller
             'webclub_headless'             => ['boolean'],
             'webclub_timeout_ms'           => ['nullable', 'integer', 'min:5000', 'max:60000'],
             'webclub_timeout_seconds'      => ['nullable', 'integer', 'min:60', 'max:1800'],
+            'webclub_import_token'         => ['nullable', 'string', 'max:255'],
         ]);
 
         Setting::set('crawler.webclub.enabled',
@@ -109,6 +111,10 @@ class SettingsController extends Controller
             (string) ($data['webclub_timeout_seconds'] ?? 300));
         Setting::set('crawler.webclub.node_path',
             $data['webclub_node_path'] ?? '');
+
+        if (!empty($data['webclub_import_token'])) {
+            Setting::set('crawler.webclub.import_token', $data['webclub_import_token']);
+        }
 
         Setting::clearCache();
 

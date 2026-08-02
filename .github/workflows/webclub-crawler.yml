@@ -1,0 +1,81 @@
+name: WebClub Crawler
+
+on:
+  schedule:
+    # Täglich um 03:00 UTC (05:00 CEST / 04:00 CET)
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Manuell auslösbar über GitHub → Actions → "Run workflow"
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Playwright-Browser-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}
+
+      - name: Playwright installieren
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
+
+      - name: Crawler-Config erstellen
+        env:
+          WEBCLUB_BASE_URL: ${{ secrets.WEBCLUB_BASE_URL }}
+          WEBCLUB_USERNAME: ${{ secrets.WEBCLUB_USERNAME }}
+          WEBCLUB_PASSWORD: ${{ secrets.WEBCLUB_PASSWORD }}
+        run: |
+          jq -n \
+            --arg base_url  "$WEBCLUB_BASE_URL" \
+            --arg username  "$WEBCLUB_USERNAME" \
+            --arg password  "$WEBCLUB_PASSWORD" \
+            '{
+              base_url:            $base_url,
+              username:            $username,
+              password:            $password,
+              lookback_days:       90,
+              lookahead_days:      365,
+              scrape_competitions: true,
+              scrape_persons:      true,
+              headless:            true,
+              timeout_ms:          20000
+            }' > /tmp/webclub-config.json
+
+      - name: Crawler ausführen
+        run: |
+          node scripts/webclub-crawler.js /tmp/webclub-config.json > /tmp/webclub-output.json
+          echo "Crawler-Output Größe: $(wc -c < /tmp/webclub-output.json) Bytes"
+
+      - name: Ergebnisse ans Portal senden
+        env:
+          PORTAL_URL: ${{ secrets.PORTAL_URL }}
+          WEBCLUB_IMPORT_TOKEN: ${{ secrets.WEBCLUB_IMPORT_TOKEN }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/portal-response.json -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $WEBCLUB_IMPORT_TOKEN" \
+            --data @/tmp/webclub-output.json \
+            --max-time 60 \
+            "$PORTAL_URL/api/webclub-import")
+
+          echo "Portal-Antwort (HTTP $HTTP_STATUS):"
+          cat /tmp/portal-response.json
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Fehler: Portal hat HTTP $HTTP_STATUS geantwortet."
+            exit 1
+          fi

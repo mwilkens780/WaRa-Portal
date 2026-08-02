@@ -52,6 +52,18 @@ class WebClubCrawler
             return $stats;
         }
 
+        return $this->processPayload($output);
+    }
+
+    /**
+     * Verarbeitet den JSON-Output des Playwright-Crawlers und speichert ihn in der DB.
+     * Wird von run() und vom GitHub-Actions-API-Endpoint genutzt.
+     */
+    public function processPayload(array $output): array
+    {
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0];
+        $config = $this->buildConfig();
+
         DB::transaction(function () use ($output, $config, &$stats) {
             foreach ($output['competitions'] ?? [] as $raw) {
                 try {
