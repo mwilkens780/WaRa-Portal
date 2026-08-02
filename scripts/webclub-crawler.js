@@ -252,25 +252,30 @@ async function scrapeCompetitions(page) {
     let navigated = false;
     for (const url of candidates) {
         try {
-            await page.goto(url, { waitUntil: 'load', timeout: 10000 });
-            await page.waitForTimeout(500);
-            const rowCount = await page.locator('table tbody tr').count();
-            if (rowCount > 0) { navigated = true; log('Veranstaltungsseite: ' + url); break; }
-        } catch (_) {}
+            await page.goto(url, { waitUntil: 'load', timeout: 12000 });
+            await page.waitForTimeout(800);
+            // Prüfe sowohl tbody-Rows als auch direkte tr (ohne explizites tbody)
+            const rowCount = await page.locator('table tr').count();
+            const currentUrl = page.url();
+            log(`Kandidat ${url} → ${rowCount} table-rows, aktuelle URL: ${currentUrl}`);
+            if (rowCount > 0) { navigated = true; log('Veranstaltungsseite gefunden: ' + url); break; }
+        } catch (e) {
+            log(`Kandidat ${url} fehlgeschlagen: ${e.message}`);
+        }
     }
 
     // 2. Fallback: Menü "Veranstaltungen" → "Veranstaltungen"
     if (!navigated) {
-        navigated = await navigateViaDropdownMenu(
-            page,
-            /^veranstaltungen$/i,
-            /^veranstaltungen$/i
-        );
-        if (!navigated) {
-            // Noch ein Versuch mit breiteren Regex
-            navigated = await navigateViaDropdownMenu(page, /veranstaltung/i, /veranstaltung/i);
+        log('Direkte URL-Kandidaten erfolglos – versuche Dropdown-Menü');
+        navigated = await navigateViaDropdownMenu(page, /veranstaltung/i, /veranstaltung/i);
+        if (navigated) {
+            const rowCount = await page.locator('table tr').count();
+            log(`Nach Dropdown-Navigation: ${rowCount} table-rows, URL: ${page.url()}`);
         }
     }
+
+    // Screenshot der Listenseite – immer, für Debugging
+    await screenshot(page, 'competitions_list');
 
     if (!navigated) {
         const msg = 'Veranstaltungsseite nicht gefunden (alle Kandidaten und Menü-Navigation fehlgeschlagen)';
@@ -304,24 +309,28 @@ async function collectEventLinks(page, dateFrom, dateTo) {
     const links = [];
     const seen  = new Set();
 
-    const rows = page.locator('table tbody tr');
+    // Alle table-Rows (mit oder ohne explizites <tbody>)
+    const rows  = page.locator('table tr');
     const count = await rows.count();
+    log(`collectEventLinks: ${count} table-rows auf ${page.url()}`);
 
     for (let i = 0; i < count; i++) {
         const row = rows.nth(i);
-        const cells = row.locator('td');
-        const cellCount = await cells.count();
-        if (cellCount === 0) continue;
 
-        // Datum: prüfe alle Zellen auf ein Datumsmuster (nicht nur die erste,
-        // da Spalte 0 oft ein Icon/Bild ist)
+        // Header-Zeilen überspringen (nur th-Zellen)
+        const tdCount = await row.locator('td').count();
+        if (tdCount === 0) continue;
+
+        const cells = row.locator('td');
+
+        // Datum: prüfe alle Zellen auf ein Datumsmuster
         let dateText = null;
-        for (let c = 0; c < Math.min(cellCount, 4); c++) {
+        for (let c = 0; c < Math.min(tdCount, 5); c++) {
             const txt = await safeText(cells.nth(c));
             if (txt && /\d{1,2}\.\d{1,2}\.\d{4}/.test(txt)) { dateText = txt; break; }
         }
 
-        // Datumsfilter
+        // Datumsfilter – nur anwenden wenn Datum gefunden und gültig
         if (dateText) {
             const { date } = parseDateRange(dateText);
             if (date) {
@@ -330,40 +339,52 @@ async function collectEventLinks(page, dateFrom, dateTo) {
             }
         }
 
-        // Link aus Zeile (alle Links in der Zeile prüfen)
+        // Alle Links in der Zeile durchsuchen
         const anchors = row.locator('a');
         const aCount  = await anchors.count();
         for (let a = 0; a < aCount; a++) {
             const href = await safeAttr(anchors.nth(a), 'href');
-            if (!href || seen.has(href)) continue;
-            // Navigation-Links und Anker überspringen
+            if (!href) continue;
             if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
-            seen.add(href);
 
-            const url  = resolveUrl(href);
+            const url = resolveUrl(href);
             if (!url) continue;
+
+            // Gleiche URL kann aus mehreren Zeilen kommen (z.B. mehrere Spalten verlinken auf ver.php?nr=X)
+            // aber wir wollen keine doppelten Detailseiten
+            if (seen.has(url)) continue;
+            seen.add(url);
+
             const name = await safeText(anchors.nth(a));
             const { date, date_end } = parseDateRange(dateText || '');
             links.push({ url, name, date, date_end });
-            break; // erster sinnvoller Link pro Zeile reicht
+            break; // erster Link pro Zeile reicht
         }
     }
 
-    // Fallback: alle Links der Seite die zu Detailseiten führen könnten
+    log(`collectEventLinks: ${links.length} Links nach Tabellen-Scan`);
+
+    // Fallback: alle Links der Seite die zu .php-Dateien zeigen (gleiche Domain)
     if (links.length === 0) {
-        log('Keine Tabellen-Zeilen-Links gefunden – versuche generischen Link-Scan');
+        log('Kein Tabellen-Link gefunden – generischer Scan aller internen .php-Links');
+        const baseHost = new URL(BASE_URL).hostname;
         const allAnchors = page.locator('a[href]');
         const total = await allAnchors.count();
         for (let i = 0; i < total; i++) {
             const href = await safeAttr(allAnchors.nth(i), 'href');
-            if (!href || seen.has(href)) continue;
+            if (!href) continue;
             if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
-            // Nur Links, die nach Detail-Seiten aussehen (haben eine ID oder Pfad-Segment)
-            if (!/[?&]id=|\d{3,}|detail|show|view/i.test(href)) continue;
-            seen.add(href);
-            const url = resolveUrl(href);
-            if (url) links.push({ url, name: null, date: null, date_end: null });
+            // Nur interne Links (gleiche Domain oder relativer Pfad)
+            let url;
+            try { url = new URL(href, BASE_URL + '/').href; } catch (_) { continue; }
+            if (new URL(url).hostname !== baseHost) continue;
+            // Navigations-/Listenlinks herausfiltern (die gehen oft zurück auf verc.php selbst)
+            if (url === page.url()) continue;
+            if (seen.has(url)) continue;
+            seen.add(url);
+            links.push({ url, name: null, date: null, date_end: null });
         }
+        log(`collectEventLinks: ${links.length} Links nach generischem Scan`);
     }
 
     return links;
@@ -748,9 +769,16 @@ async function navigateToNextPage(page) {
 
 function extractIdFromUrl(url) {
     if (!url) return null;
-    // /path/123, /path/123/, /path?id=123
-    const m = url.match(/\/(\d+)\/?(?:[?#].*)?$/) || url.match(/[?&]id=(\d+)/);
-    return m ? m[1] : null;
+    // ?id=123, ?nr=123, ?vid=123, ?verid=123, etc.
+    const qParam = url.match(/[?&](?:id|nr|vid|verid|no|num|f)=(\d+)/i);
+    if (qParam) return qParam[1];
+    // /path/123 am Ende
+    const pathNum = url.match(/\/(\d+)\/?(?:[?#].*)?$/);
+    if (pathNum) return pathNum[1];
+    // Kein ID gefunden – URL-Hash als Fallback-Schlüssel
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) { hash = (hash * 31 + url.charCodeAt(i)) >>> 0; }
+    return 'url-' + hash.toString(16);
 }
 
 function normalizeGender(val) {
