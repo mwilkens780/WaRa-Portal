@@ -361,6 +361,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/einstellungen/webclub', [SettingsController::class, 'updateWebClub'])->name('admin.settings.webclub');
 });
 
+// Webhook-Endpunkt für GitHub Actions WebClub-Crawler (kein CSRF, Bearer-Token-Auth)
+Route::post('/api/webclub-import', [\App\Http\Controllers\Api\WebClubImportController::class, 'store'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->middleware([\App\Http\Middleware\VerifyWebClubToken::class]);
+
 // Benutzerverwaltung Lite (Trainer + Vorstand)
 Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('benutzer')->name('users-lite.')->group(function () {
     Route::get('/',                    [UserLiteController::class, 'index'])->name('index');
