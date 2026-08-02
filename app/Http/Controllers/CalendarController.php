@@ -269,11 +269,8 @@ class CalendarController extends Controller
             // Admin: all sessions
             $sessionDetailRoute = 'trainer';
         } elseif ($isTrainer) {
-            // Trainer: sessions where they are trainer or co-trainer
-            $sessionQuery->where(function ($q) use ($user) {
-                $q->where('trainer_id', $user->id)
-                  ->orWhereHas('coTrainers', fn($q2) => $q2->where('users.id', $user->id));
-            });
+            // Trainer: sessions where they are a co-trainer (trainer_id column was removed)
+            $sessionQuery->whereHas('coTrainers', fn($q2) => $q2->where('users.id', $user->id));
             $sessionDetailRoute = 'trainer';
         } elseif ($role === 'schwimmer') {
             // Swimmer: sessions from their training groups or individual assignments
@@ -282,6 +279,8 @@ class CalendarController extends Controller
             $seriesIds     = TrainingSessionSwimmer::where('user_id', $user->id)->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
 
             $sessionQuery->where(function ($q) use ($groupIds, $individualIds, $seriesIds) {
+                // Sessions without group assignments are visible to all swimmers
+                $q->whereDoesntHave('trainingGroups');
                 if ($groupIds->isNotEmpty()) {
                     $q->orWhereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
                 }
@@ -290,9 +289,6 @@ class CalendarController extends Controller
                 }
                 if ($seriesIds->isNotEmpty()) {
                     $q->orWhereIn('recurrence_group_id', $seriesIds);
-                }
-                if ($groupIds->isEmpty() && $individualIds->isEmpty() && $seriesIds->isEmpty()) {
-                    $q->whereRaw('0=1');
                 }
             });
             $sessionDetailRoute = 'swimmer';

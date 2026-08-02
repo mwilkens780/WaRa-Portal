@@ -148,7 +148,7 @@ class HolidayService
             // ══ 2026 HH ═══════════════════════════════════════════════════
             ['name' => 'Winterferien',       'start' => '2026-01-26', 'end' => '2026-01-30', 'state' => 'hh'],
             ['name' => 'Frühjahrsferien',    'start' => '2026-03-16', 'end' => '2026-03-27', 'state' => 'hh'],
-            ['name' => 'Sommerferien',       'start' => '2026-07-16', 'end' => '2026-08-26', 'state' => 'hh'],
+            ['name' => 'Sommerferien',       'start' => '2026-07-09', 'end' => '2026-08-19', 'state' => 'hh'],
             ['name' => 'Herbstferien',       'start' => '2026-10-05', 'end' => '2026-10-16', 'state' => 'hh'],
             ['name' => 'Weihnachtsferien',   'start' => '2026-12-23', 'end' => '2027-01-01', 'state' => 'hh'],
 
