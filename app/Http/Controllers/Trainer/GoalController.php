@@ -20,7 +20,7 @@ class GoalController extends Controller
 
         $activeSeason = $request->filled('season_id')
             ? $seasons->firstWhere('id', $request->get('season_id'))
-            : (Season::current() ?? $seasons->first());
+            : (view()->shared('appCurrentSeason') ?? Season::current() ?? $seasons->first());
 
         $groups = $trainer->isAdmin()
             ? TrainingGroup::with(['swimmers' => fn($q) => $q->where('active', true)->orderBy('lastname')->orderBy('firstname')])

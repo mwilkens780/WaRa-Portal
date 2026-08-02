@@ -343,11 +343,31 @@
                 <h1 class="text-lg font-semibold text-gray-800">@yield('page-title', 'WaRa-Portal')</h1>
             </div>
             <div class="flex items-center gap-3 text-sm text-gray-500">
-                @if(!empty($appCurrentSeason))
-                    <span class="hidden sm:inline-flex items-center gap-1.5 text-xs bg-blue-50 text-primary px-2.5 py-1 rounded-full border border-blue-100 font-semibold">
+                {{-- Saison-Switcher: ändert die aktive Saison session-weit --}}
+                @if(!empty($appAllSeasons) && $appAllSeasons->count() > 0)
+                <div x-data="{ open: false }" class="relative hidden sm:block">
+                    <button @click="open = !open" @click.outside="open = false"
+                            class="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-primary px-2.5 py-1 rounded-full border border-blue-100 font-semibold hover:bg-blue-100 transition-colors cursor-pointer select-none">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        {{ $appCurrentSeason->label }}
-                    </span>
+                        {{ $appCurrentSeason?->label ?? 'Saison' }}
+                        <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" x-transition x-cloak
+                         class="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[9rem]">
+                        @foreach($appAllSeasons as $s)
+                        <form method="GET" action="{{ request()->url() }}" class="block">
+                            <input type="hidden" name="season_id" value="{{ $s->id }}">
+                            <button type="submit"
+                                    class="w-full text-left px-4 py-2 text-xs transition-colors
+                                           {{ $appCurrentSeason?->id === $s->id
+                                               ? 'bg-primary text-white font-semibold'
+                                               : 'text-gray-700 hover:bg-gray-50' }}">
+                                {{ $s->label }}
+                            </button>
+                        </form>
+                        @endforeach
+                    </div>
+                </div>
                 @endif
                 <span class="flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>

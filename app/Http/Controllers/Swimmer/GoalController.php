@@ -18,7 +18,7 @@ class GoalController extends Controller
 
         $activeSeason = $request->filled('season_id')
             ? $seasons->firstWhere('id', $request->get('season_id'))
-            : (Season::current() ?? $seasons->first());
+            : (view()->shared('appCurrentSeason') ?? Season::current() ?? $seasons->first());
 
         $goals = SwimmerGoal::where('user_id', $swimmer->id)
             ->where('season_id', $activeSeason?->id)

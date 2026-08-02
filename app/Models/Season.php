@@ -20,10 +20,22 @@ class Season extends Model
 
     public static function current(): ?self
     {
-        return static::where('is_current', true)->first()
-            ?? static::where('start_date', '<=', now())
-                ->where('end_date', '>=', now())
-                ->first();
+        // 1. Exact date match: today falls within a season
+        $exact = static::where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->orderByDesc('start_date')
+            ->first();
+        if ($exact) return $exact;
+
+        // 2. Gap between seasons (e.g. summer holidays): return the next upcoming season.
+        //    This ensures the new season is already "current" as soon as the previous one ends.
+        $next = static::where('start_date', '>', now())
+            ->orderBy('start_date')
+            ->first();
+        if ($next) return $next;
+
+        // 3. Last resort: the explicitly flagged season (e.g. before any season exists)
+        return static::where('is_current', true)->first();
     }
 
     public static function forDate(Carbon $date): ?self
