@@ -463,39 +463,45 @@ async function collectEventLinks(page, dateFrom, dateTo) {
 async function scrapeCompetitionDetail(page, link) {
     log('Lade Veranstaltung: ' + link.url);
     await page.goto(link.url, { waitUntil: 'load' });
-    await page.waitForTimeout(500);
+    await waitForAjaxContent(page);
+
+    // Debug: alle sichtbaren Tabs loggen
+    const tabTexts = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[role="tab"], .nav-link, .tab-link, a[class*="tab"], li[class*="tab"] a'))
+            .map(el => el.textContent.trim()).filter(t => t.length > 0)
+    );
+    if (tabTexts.length > 0) log('Tabs gefunden: ' + tabTexts.join(' | '));
+
+    await screenshot(page, 'competition_detail');
 
     const comp = {
-        webclub_id: extractIdFromUrl(link.url),
-        webclub_url: link.url,
-        name: link.name,
-        date: link.date,
-        date_end: link.date_end,
-        location: null,
-        course: null,
-        organizer: null,
+        webclub_id:   extractIdFromUrl(link.url),
+        webclub_url:  link.url,
+        name:         link.name,
+        date:         link.date,
+        date_end:     link.date_end,
+        location:     null,
+        course:       null,
+        organizer:    null,
         meldeschluss: null,
-        description: null,
-        type: null,
-        entries: [],
-        results: [],
+        description:  null,
+        type:         null,
+        entries:      [],
+        results:      [],
     };
 
-    // ── Tab: Organisation ────────────────────────────────────────────────────
-    await activateTab(page, /organisation|allgemein|info|übersicht/i);
+    // ── Tab: Allgemeines / Ausschreibung / Organisation ──────────────────────
+    await activateTab(page, /ausschreibung|organisation|allgemein|info|übersicht|detail/i);
 
-    // Name aus Seitenüberschrift falls noch nicht bekannt
     if (!comp.name) {
-        comp.name = await safeText(page.locator('h1, h2, .page-title, .competition-name').first());
+        comp.name = await safeText(page.locator('h1, h2, .page-title').first());
     }
 
-    // Felder per Label/Wert-Paare auslesen
     const fields = await extractLabelValuePairs(page);
-
-    comp.location     = comp.location     || pickField(fields, /ort|location|veranstaltungsort|austragungsort/i);
-    comp.organizer    = comp.organizer    || pickField(fields, /veranstalter|organizer|ausrichter|organisator/i);
-    comp.meldeschluss = comp.meldeschluss || isoDate(pickField(fields, /meldeschluss|anmeldeschluss|deadline|einsendeschluss/i));
-    comp.description  = comp.description  || pickField(fields, /beschreibung|description|bemerkung|hinweis/i);
+    comp.location     = pickField(fields, /ort|location|veranstaltungsort|austragungsort/i);
+    comp.organizer    = pickField(fields, /veranstalter|organizer|ausrichter/i);
+    comp.meldeschluss = isoDate(pickField(fields, /meldeschluss|anmeldeschluss|deadline/i));
+    comp.description  = pickField(fields, /beschreibung|description|bemerkung|hinweis/i);
 
     const courseRaw = pickField(fields, /bahn|course|strecke|pool/i);
     if (courseRaw) {
@@ -512,7 +518,7 @@ async function scrapeCompetitionDetail(page, link) {
     }
 
     // ── Tab: Meldungen ───────────────────────────────────────────────────────
-    const hasMeldungen = await activateTab(page, /meldung|anmeldung|entry|einzel/i);
+    const hasMeldungen = await activateTab(page, /meldung|anmeldung|einzel|entry/i);
     if (hasMeldungen) {
         comp.entries = await scrapeEntries(page);
         log(`  ${comp.entries.length} Meldungen gelesen`);
@@ -529,18 +535,25 @@ async function scrapeCompetitionDetail(page, link) {
 }
 
 async function activateTab(page, labelRegex) {
-    const tab = page.getByRole('tab', { name: labelRegex }).or(
-        page.locator('[role="tab"], .tab, .nav-tab, .nav-link, [class*="tab"]')
-            .filter({ hasText: labelRegex })
-    ).first();
+    // Suche nach Tab-ähnlichen Elementen: echte ARIA-Tabs, Nav-Links, Anker in Tab-Leisten
+    const candidates = [
+        page.getByRole('tab', { name: labelRegex }),
+        page.locator('[role="tab"]').filter({ hasText: labelRegex }),
+        page.locator('.nav-link, .tab-link, .nav-item a').filter({ hasText: labelRegex }),
+        page.locator('a[class*="tab"], li[class*="tab"] a').filter({ hasText: labelRegex }),
+        page.locator('a').filter({ hasText: labelRegex }),
+    ];
 
-    const exists = await tab.count() > 0;
-    if (!exists) return false;
+    let tab = null;
+    for (const candidate of candidates) {
+        if (await candidate.count() > 0) { tab = candidate.first(); break; }
+    }
+    if (!tab) return false;
 
     try {
         await tab.click({ timeout: 5000 });
-        await page.waitForTimeout(500);
-        await page.waitForLoadState('load');
+        // Tab-Inhalte werden in WebClub per AJAX geladen
+        await waitForAjaxContent(page);
         return true;
     } catch (_) {
         return false;
