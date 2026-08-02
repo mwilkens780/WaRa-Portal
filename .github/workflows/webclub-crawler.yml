@@ -74,13 +74,19 @@ jobs:
           PORTAL_URL: ${{ secrets.PORTAL_URL }}
           WEBCLUB_IMPORT_TOKEN: ${{ secrets.WEBCLUB_IMPORT_TOKEN }}
         run: |
+          # Trailing Slash entfernen, falls vorhanden
+          BASE="${PORTAL_URL%/}"
+          IMPORT_URL="${BASE}/api/webclub-import"
+
+          echo "Sende an: ${IMPORT_URL}"
+
           HTTP_STATUS=$(curl -s -o /tmp/portal-response.json -w "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $WEBCLUB_IMPORT_TOKEN" \
             --data @/tmp/webclub-output.json \
             --max-time 60 \
-            "$PORTAL_URL/api/webclub-import")
+            "$IMPORT_URL")
 
           echo "Portal-Antwort (HTTP $HTTP_STATUS):"
           cat /tmp/portal-response.json
