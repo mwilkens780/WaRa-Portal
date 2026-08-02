@@ -305,6 +305,17 @@ async function scrapeCompetitions(page) {
     return { competitions, errors };
 }
 
+// Extrahiert eine URL aus einem onclick-Attribut-String
+// Erkennt: location.href='...', document.location='...', window.location='...',
+//           openUrl('...'), go('...'), navigate('...')
+function extractUrlFromOnclick(onclick) {
+    if (!onclick) return null;
+    const m = onclick.match(
+        /(?:(?:window\.|document\.)?location(?:\.href)?\s*=|openUrl|go|navigate|showPage|gotoPage|openPage)\s*\(?\s*['"]([^'"]+)['"]/i
+    );
+    return m ? m[1] : null;
+}
+
 async function collectEventLinks(page, dateFrom, dateTo) {
     const links = [];
     const seen  = new Set();
@@ -314,10 +325,20 @@ async function collectEventLinks(page, dateFrom, dateTo) {
     const count = await rows.count();
     log(`collectEventLinks: ${count} table-rows auf ${page.url()}`);
 
+    // Debug: erste Daten-Zeile als HTML loggen
+    for (let i = 0; i < count; i++) {
+        const tdCount = await rows.nth(i).locator('td').count();
+        if (tdCount > 0) {
+            const sample = await rows.nth(i).innerHTML().catch(() => '');
+            log(`DEBUG erste Datenzeile (${tdCount} td): ${sample.slice(0, 400)}`);
+            break;
+        }
+    }
+
     for (let i = 0; i < count; i++) {
         const row = rows.nth(i);
 
-        // Header-Zeilen überspringen (nur th-Zellen)
+        // Header-Zeilen überspringen
         const tdCount = await row.locator('td').count();
         if (tdCount === 0) continue;
 
@@ -330,7 +351,7 @@ async function collectEventLinks(page, dateFrom, dateTo) {
             if (txt && /\d{1,2}\.\d{1,2}\.\d{4}/.test(txt)) { dateText = txt; break; }
         }
 
-        // Datumsfilter – nur anwenden wenn Datum gefunden und gültig
+        // Datumsfilter
         if (dateText) {
             const { date } = parseDateRange(dateText);
             if (date) {
@@ -339,54 +360,60 @@ async function collectEventLinks(page, dateFrom, dateTo) {
             }
         }
 
-        // Alle Links in der Zeile durchsuchen
+        // 1. Versuch: <a href="..."> in der Zeile (ohne javascript: / #)
+        let foundUrl  = null;
+        let foundName = null;
+
         const anchors = row.locator('a');
         const aCount  = await anchors.count();
         for (let a = 0; a < aCount; a++) {
             const href = await safeAttr(anchors.nth(a), 'href');
-            if (!href) continue;
-            if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
-
-            const url = resolveUrl(href);
-            if (!url) continue;
-
-            // Gleiche URL kann aus mehreren Zeilen kommen (z.B. mehrere Spalten verlinken auf ver.php?nr=X)
-            // aber wir wollen keine doppelten Detailseiten
-            if (seen.has(url)) continue;
-            seen.add(url);
-
-            const name = await safeText(anchors.nth(a));
-            const { date, date_end } = parseDateRange(dateText || '');
-            links.push({ url, name, date, date_end });
-            break; // erster Link pro Zeile reicht
+            if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+                foundUrl  = resolveUrl(href);
+                foundName = await safeText(anchors.nth(a));
+                break;
+            }
+            // 2. Versuch: onclick auf dem Anker-Tag
+            const aOnclick = await safeAttr(anchors.nth(a), 'onclick');
+            const fromAnchorOnclick = extractUrlFromOnclick(aOnclick);
+            if (fromAnchorOnclick) {
+                foundUrl  = resolveUrl(fromAnchorOnclick);
+                foundName = await safeText(anchors.nth(a));
+                break;
+            }
         }
+
+        // 3. Versuch: onclick auf der <tr> selbst
+        if (!foundUrl) {
+            const trOnclick = await safeAttr(row, 'onclick');
+            const fromTrOnclick = extractUrlFromOnclick(trOnclick);
+            if (fromTrOnclick) {
+                foundUrl = resolveUrl(fromTrOnclick);
+                // Name aus erster nicht-leerer Zelle mit Text
+                for (let c = 0; c < tdCount; c++) {
+                    const t = await safeText(cells.nth(c));
+                    if (t && t.length > 3 && !/^\d{1,2}\.\d{1,2}/.test(t)) { foundName = t; break; }
+                }
+            }
+        }
+
+        // 4. Versuch: data-href / data-url auf tr oder td
+        if (!foundUrl) {
+            for (const attr of ['data-href', 'data-url', 'data-link', 'data-target']) {
+                const val = await safeAttr(row, attr) || await safeAttr(cells.first(), attr);
+                if (val) { foundUrl = resolveUrl(val); break; }
+            }
+        }
+
+        if (!foundUrl) continue;
+        if (seen.has(foundUrl)) continue;
+        seen.add(foundUrl);
+
+        const { date, date_end } = parseDateRange(dateText || '');
+        links.push({ url: foundUrl, name: foundName, date, date_end });
     }
 
     log(`collectEventLinks: ${links.length} Links nach Tabellen-Scan`);
-
-    // Fallback: alle Links der Seite die zu .php-Dateien zeigen (gleiche Domain)
-    if (links.length === 0) {
-        log('Kein Tabellen-Link gefunden – generischer Scan aller internen .php-Links');
-        const baseHost = new URL(BASE_URL).hostname;
-        const allAnchors = page.locator('a[href]');
-        const total = await allAnchors.count();
-        for (let i = 0; i < total; i++) {
-            const href = await safeAttr(allAnchors.nth(i), 'href');
-            if (!href) continue;
-            if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
-            // Nur interne Links (gleiche Domain oder relativer Pfad)
-            let url;
-            try { url = new URL(href, BASE_URL + '/').href; } catch (_) { continue; }
-            if (new URL(url).hostname !== baseHost) continue;
-            // Navigations-/Listenlinks herausfiltern (die gehen oft zurück auf verc.php selbst)
-            if (url === page.url()) continue;
-            if (seen.has(url)) continue;
-            seen.add(url);
-            links.push({ url, name: null, date: null, date_end: null });
-        }
-        log(`collectEventLinks: ${links.length} Links nach generischem Scan`);
-    }
-
     return links;
 }
 
@@ -621,31 +648,50 @@ async function scrapePersons(page) {
         return { persons, errors };
     }
 
-    // Alle Personen-Links sammeln (paginiert) — keine URL-Muster-Filterung,
-    // da PHP-Apps query-parameter-basierte Links nutzen (z.B. pers.php?id=42)
+    // Alle Personen-Links sammeln (paginiert) — onclick und data-href eingeschlossen
     const personLinks = [];
     const seen = new Set();
 
     do {
-        const anchors = page.locator('table tbody tr a');
-        const cnt = await anchors.count();
-        for (let i = 0; i < cnt; i++) {
-            const href = await safeAttr(anchors.nth(i), 'href');
-            if (!href || seen.has(href)) continue;
-            if (href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
-            seen.add(href);
-            const url = resolveUrl(href);
-            if (url) personLinks.push(url);
+        const tableRows = page.locator('table tr');
+        const trCnt = await tableRows.count();
+        for (let i = 0; i < trCnt; i++) {
+            const row = tableRows.nth(i);
+            if (await row.locator('td').count() === 0) continue; // Skip header rows
+
+            let personUrl = null;
+
+            // href auf Anker
+            const anchors = row.locator('a');
+            const aCnt = await anchors.count();
+            for (let a = 0; a < aCnt; a++) {
+                const href = await safeAttr(anchors.nth(a), 'href');
+                if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+                    personUrl = resolveUrl(href); break;
+                }
+                const aOnclick = extractUrlFromOnclick(await safeAttr(anchors.nth(a), 'onclick'));
+                if (aOnclick) { personUrl = resolveUrl(aOnclick); break; }
+            }
+            // onclick auf tr
+            if (!personUrl) {
+                const trUrl = extractUrlFromOnclick(await safeAttr(row, 'onclick'));
+                if (trUrl) personUrl = resolveUrl(trUrl);
+            }
+
+            if (personUrl && !seen.has(personUrl)) {
+                seen.add(personUrl);
+                personLinks.push(personUrl);
+            }
         }
     } while (await navigateToNextPage(page));
 
     log(`${personLinks.length} Personen-Links gefunden.`);
 
     // Personen aus der Listen-Tabelle direkt extrahieren (effizienter als jede Detailseite)
-    const rows = page.locator('table tbody tr');
+    const rows = page.locator('table tr');
     const rowCount = await rows.count();
     if (rowCount > 0) {
-        // Header-Spalten ermitteln
+        // Header-Spalten ermitteln (erste Zeile mit th-Zellen)
         const headers = [];
         const thCells = page.locator('table thead th, table thead td');
         const thCount = await thCells.count();
