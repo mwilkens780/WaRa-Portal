@@ -16,7 +16,7 @@ class MaintenanceModeCheck
         }
 
         // Login und System-Routen immer zugänglich lassen
-        if ($request->routeIs('login', 'login.post', 'maintenance', 'cron.run')) {
+        if ($request->routeIs('login', 'login.post', 'maintenance', 'cron.run', 'api.webclub-import')) {
             return $next($request);
         }
 

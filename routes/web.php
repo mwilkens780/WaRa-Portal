@@ -364,7 +364,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 // Webhook-Endpunkt für GitHub Actions WebClub-Crawler (kein CSRF, Bearer-Token-Auth)
 Route::post('/api/webclub-import', [\App\Http\Controllers\Api\WebClubImportController::class, 'store'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
-    ->middleware([\App\Http\Middleware\VerifyWebClubToken::class]);
+    ->middleware([\App\Http\Middleware\VerifyWebClubToken::class])
+    ->name('api.webclub-import');
 
 // Benutzerverwaltung Lite (Trainer + Vorstand)
 Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('benutzer')->name('users-lite.')->group(function () {
