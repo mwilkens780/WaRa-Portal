@@ -43,21 +43,31 @@ jobs:
             --arg username  "$WEBCLUB_USERNAME" \
             --arg password  "$WEBCLUB_PASSWORD" \
             '{
-              base_url:            $base_url,
-              username:            $username,
-              password:            $password,
-              lookback_days:       90,
-              lookahead_days:      365,
-              scrape_competitions: true,
-              scrape_persons:      true,
-              headless:            true,
-              timeout_ms:          20000
+              base_url:              $base_url,
+              username:              $username,
+              password:              $password,
+              lookback_days:         90,
+              lookahead_days:        365,
+              scrape_competitions:   true,
+              scrape_persons:        true,
+              headless:              true,
+              timeout_ms:            20000,
+              screenshot_on_error:   "/tmp/webclub-screenshot"
             }' > /tmp/webclub-config.json
 
       - name: Crawler ausführen
         run: |
           node scripts/webclub-crawler.js /tmp/webclub-config.json > /tmp/webclub-output.json
           echo "Crawler-Output Größe: $(wc -c < /tmp/webclub-output.json) Bytes"
+
+      - name: Debug-Screenshots hochladen (nur bei Fehler)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webclub-debug-screenshots
+          path: /tmp/webclub-screenshot_*.png
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Ergebnisse ans Portal senden
         env:
