@@ -115,74 +115,64 @@ async function safeAttr(locator, attr) {
 // ── Login ────────────────────────────────────────────────────────────────────
 
 async function login(page) {
-    log('Öffne Login-Seite: ' + BASE_URL);
-
-    // 'load' statt 'networkidle': SPAs mit WebSockets/long-polling blockieren networkidle dauerhaft
+    log('Öffne Startseite: ' + BASE_URL);
     await page.goto(BASE_URL, { waitUntil: 'load' });
-
-    // SPA braucht Zeit zum Rendern nach dem initialen Load
     await page.waitForTimeout(2000);
 
-    // Breiter Selector: deckt alle gängigen Login-Form-Varianten ab,
-    // inkl. SPAs ohne <form>-Tag (z.B. Vue/React mit div-Containern)
-    const INPUT_SEL = [
+    // Login-Trigger-Button suchen und klicken (öffnet das Login-Modal/Popup)
+    const loginTrigger = page.locator([
+        'button:has-text("Anmelden")',
+        'button:has-text("Login")',
+        'button:has-text("Einloggen")',
+        'button:has-text("Sign in")',
+        'a:has-text("Anmelden")',
+        'a:has-text("Login")',
+        'a:has-text("Einloggen")',
+        '[data-action*="login"]',
+        '[class*="login"]',
+        '[href*="login"]',
+    ].join(', ')).first();
+
+    const triggerVisible = await loginTrigger.isVisible().catch(() => false);
+    if (triggerVisible) {
+        log('Login-Button gefunden – klicke zum Öffnen des Modals');
+        await loginTrigger.click();
+        await page.waitForTimeout(1000);
+    } else {
+        log('Kein expliziter Login-Button gefunden – Passwortfeld wird direkt erwartet');
+    }
+
+    // Auf Passwortfeld warten (im Modal oder auf der Seite)
+    try {
+        await page.locator('input[type="password"]').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+    } catch (e) {
+        await screenshot(page, 'login_modal_not_found');
+        const bodyText = await page.locator('body').innerText().catch(() => '(nicht lesbar)');
+        log('Seiteninhalt (erste 500 Zeichen): ' + bodyText.slice(0, 500));
+        die('Login-Formular/Modal nicht gefunden. URL: ' + page.url());
+    }
+
+    // Felder befüllen
+    const usernameField = page.locator([
         'input[name="username"]',
         'input[name="login"]',
         'input[name="email"]',
         'input[autocomplete="username"]',
         'input[autocomplete="email"]',
         'input[type="email"]',
-        'input[type="text"][name*="user"]',
-        'input[type="text"][name*="login"]',
-        'input[type="text"][name*="name"]',
-        'input[type="text"][name*="email"]',
-        'input[type="text"][id*="user"]',
-        'input[type="text"][id*="login"]',
-        'input[type="text"][id*="email"]',
-        'input[type="text"][placeholder*="user" i]',
-        'input[type="text"][placeholder*="name" i]',
-        'input[type="text"][placeholder*="mail" i]',
-        'input[type="text"][placeholder*="login" i]',
-        'form input[type="text"]',
-        'input[type="text"]',   // letzter Fallback: erster sichtbarer text-input
-    ].join(', ');
+        'input[type="text"]',
+    ].join(', ')).first();
 
-    const usernameField = page.locator(INPUT_SEL).first();
     const passwordField = page.locator('input[type="password"]').first();
 
-    // Warte auf Passwortfeld als Indikator dass die Login-Seite geladen ist
-    // (robuster als Warten auf Username-Feld, da password-type universell ist)
-    const waitForLoginPage = async () => {
-        await page.locator('input[type="password"]').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
-    };
-
-    try {
-        await waitForLoginPage();
-    } catch (e) {
-        // Direkt zur /login URL navigieren (falls Redirect noch aussteht)
-        log('Kein Passwortfeld auf ' + page.url() + ' – navigiere zu /login');
-        await page.goto(BASE_URL + '/login', { waitUntil: 'load' });
-        await page.waitForTimeout(2000);
-        try {
-            await waitForLoginPage();
-        } catch (e2) {
-            await screenshot(page, 'login_not_found');
-            // DOM-Inhalt für Debugging ausgeben
-            const bodyText = await page.locator('body').innerText().catch(() => '(nicht lesbar)');
-            log('Seiteninhalt (erste 500 Zeichen): ' + bodyText.slice(0, 500));
-            die('Login-Formular nicht gefunden. URL: ' + page.url());
-        }
-    }
-
-    // Jetzt Username eintragen – Passwortfeld ist da, also ist die Seite gerendert
     await usernameField.fill(USERNAME);
     await passwordField.fill(PASSWORD);
 
-    // Submit: breiter Selector
+    // Submit
     const submitBtn = page.locator(
         'button[type="submit"], input[type="submit"], ' +
-        'button:has-text("Anmelden"), button:has-text("Einloggen"), button:has-text("Login"), ' +
-        'button:has-text("Sign in"), button:has-text("Weiter")'
+        'button:has-text("Anmelden"), button:has-text("Einloggen"), ' +
+        'button:has-text("Login"), button:has-text("Sign in")'
     ).first();
 
     try {
@@ -192,7 +182,7 @@ async function login(page) {
     }
 
     await page.waitForLoadState('load');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
     // Login prüfen: kein Passwortfeld mehr sichtbar?
     const stillLoginPage = await page.locator('input[type="password"]').isVisible().catch(() => false);
