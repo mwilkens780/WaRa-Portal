@@ -266,10 +266,12 @@ function parseCompetitionListJson(body, dateFrom, dateTo) {
             const d = new Date(date);
             if (d < dateFrom || d > dateTo) continue;
             links.push({
-                url:      BASE_URL + '/ver.php?id=' + item.id,
-                name:     item.n  || null,
+                url:          BASE_URL + '/ver.php?id=' + item.id,
+                name:         item.n  || null,
                 date,
-                date_end: date_end || null,
+                date_end:     date_end || null,
+                location:     item.o  || null,
+                meldeschluss: item.md ? isoDate(item.md) : null,
             });
         }
         return links;
@@ -622,8 +624,25 @@ async function collectEventLinks(page, dateFrom, dateTo, capturedHtml = null) {
 
 async function scrapeCompetitionDetail(page, link) {
     log('Lade Veranstaltung: ' + link.url);
+
+    // XHR-Responses auf der Detailseite abfangen
+    const detailBodies = [];
+    const captureDetail = async (res) => {
+        try {
+            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+            if (res.status() < 200 || res.status() >= 300) return;
+            const body = await res.text();
+            if (body.length < 10) return;
+            detailBodies.push(body);
+            log(`XHR-Detail (${body.length}B): ${body.slice(0, 250).replace(/[\r\n]+/g, ' ')}`);
+        } catch (_) {}
+    };
+    page.on('response', captureDetail);
+
     await page.goto(link.url, { waitUntil: 'load' });
     await waitForAjaxContent(page);
+
+    page.off('response', captureDetail);
 
     // Debug: alle sichtbaren Tabs loggen
     const tabTexts = await page.evaluate(() =>
@@ -634,16 +653,17 @@ async function scrapeCompetitionDetail(page, link) {
 
     await screenshot(page, 'competition_detail');
 
+    // Basisfelder: aus dem Listen-JSON vorbelegt, Detail-Scraping kann überschreiben
     const comp = {
         webclub_id:   extractIdFromUrl(link.url),
         webclub_url:  link.url,
         name:         link.name,
         date:         link.date,
         date_end:     link.date_end,
-        location:     null,
+        location:     link.location     || null,
         course:       null,
         organizer:    null,
-        meldeschluss: null,
+        meldeschluss: link.meldeschluss || null,
         description:  null,
         type:         null,
         entries:      [],
