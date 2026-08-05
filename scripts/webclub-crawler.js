@@ -377,8 +377,10 @@ async function scrapeCompetitions(page) {
                         const id = String(parsed.data.verID);
                         if (!detailMap.has(id)) {
                             detailMap.set(id, parsed.data);
-                            log(`XHR: Detail id=${id} erfasst (${body.length}B)`);
+                            log(`XHR: Detail id=${id} NEU erfasst (${body.length}B)`);
                             log(`Detail-Daten: ${body.slice(0, 1800)}`);
+                        } else {
+                            log(`XHR: Detail id=${id} erneut gesehen – bereits vorhanden`);
                         }
                     }
                 } catch (_) {}
@@ -486,32 +488,56 @@ async function scrapeCompetitions(page) {
     log(`${eventLinks.length} Veranstaltungslinks gefunden.`);
 
     // ── Detail-Daten laden ────────────────────────────────────────────────────
-    // Die 1789B-Response für idx:1 (erste Veranstaltung) wurde bereits während
-    // des Suchen-Klicks von captureXhr erfasst.
-    // Für die restlichen: verc_choose(id) setzt den Session-Kontext, danach
-    // triggert ver.php die vollständige Detail-AJAX-Chain.
-    // captureXhr bleibt bis nach der Schleife aktiv.
+    // ver.php zeigt automatisch die Session-aktuelle Veranstaltung (idx:1 aus Suche).
+    // Dann per verc_choose_cb(idx) durch die Ergebnisliste navigieren.
 
-    for (const link of eventLinks) {
-        const id = extractIdFromUrl(link.url);
+    log('Navigiere zu ver.php für idx:1 (Session-Kontext aus Suche)…');
+    await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
+    await page.waitForTimeout(3000);
+
+    // Diagnose: JS-Funktionen und onclick-Handler auf ver.php
+    const verPhpInfo = await page.evaluate(() => {
+        const fns = Object.keys(window)
+            .filter(k => typeof window[k] === 'function' && /verc|ver_|choose|nav|next|idx/i.test(k));
+        const onclicks = Array.from(document.querySelectorAll('[onclick]'))
+            .filter(el => /verc|choose|nav|next/i.test(el.getAttribute('onclick') || ''))
+            .map(el => el.getAttribute('onclick').slice(0, 120));
+        const imgs = Array.from(document.querySelectorAll('img'))
+            .map(i => i.src).filter(s => /ico24|nav|arrow|next|prev/i.test(s));
+        return { fns, onclicks, imgs };
+    });
+    log(`ver.php JS-Fns: ${verPhpInfo.fns.join(', ') || '(keine)'}`);
+    if (verPhpInfo.onclicks.length > 0) log(`ver.php Navigations-onclick: ${verPhpInfo.onclicks.join(' | ')}`);
+    if (verPhpInfo.imgs.length > 0) log(`ver.php Nav-Imgs: ${verPhpInfo.imgs.join(', ')}`);
+
+    for (let i = 0; i < eventLinks.length; i++) {
+        const link = eventLinks[i];
+        const id   = extractIdFromUrl(link.url);
+        const idx  = i + 1;
+
         if (detailMap.has(id)) {
-            log(`Detail id=${id} bereits erfasst – überspringe`);
+            log(`Detail id=${id} (idx:${idx}) bereits erfasst`);
             continue;
         }
-        log(`Lade Detail id=${id}: verc_choose + ver.php…`);
-        await page.evaluate((numId) => {
-            try {
-                if (typeof verc_choose === 'function') { verc_choose(numId); return; }
-                if (typeof verc_get   === 'function') { verc_get(numId); }
-            } catch (_) {}
-        }, parseInt(id, 10)).catch(() => {});
-        await page.waitForTimeout(800);
-        await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
-        await page.waitForTimeout(5000);
+
+        log(`Detail id=${id} (idx:${idx}) – versuche Navigation…`);
+        const navResult = await page.evaluate((targetIdx) => {
+            // verc_choose_cb ist die idx-basierte Navigation in der Suchergebnisliste
+            if (typeof verc_choose_cb === 'function') {
+                try { verc_choose_cb(targetIdx); return 'verc_choose_cb(' + targetIdx + ')'; }
+                catch (e) { return 'verc_choose_cb Fehler: ' + e.message; }
+            }
+            // Fallback: ajax_request direkt aufrufen
+            if (typeof ajax_request === 'function') {
+                try { ajax_request('verc_choose', { idx: targetIdx }, function() {}); return 'ajax_request(verc_choose,idx=' + targetIdx + ')'; }
+                catch (_) {}
+            }
+            return 'kein Navigationsmechanismus gefunden';
+        }, idx).catch(() => 'evaluate-Fehler');
+
+        log(`Navigation: ${navResult}`);
+        await page.waitForTimeout(3000);
         log(`Detail id=${id}: ${detailMap.has(id) ? 'erfasst ✓' : 'NICHT erhalten'}`);
-        // Zurück zu verc.php für die nächste Iteration
-        await page.goto(BASE_URL + '/verc.php', { waitUntil: 'load' });
-        await page.waitForTimeout(500);
     }
 
     page.off('response', captureXhr);
@@ -529,9 +555,9 @@ async function scrapeCompetitions(page) {
             date_end:     isoDate(d?.verBIS)          || link.date_end,
             location:     d?.verORT        || link.location     || null,
             organizer:    d?.verAUSRICHTER || null,
-            meldeschluss: isoDate(d?.verMELDD || d?.verMELD) || link.meldeschluss || null,
-            description:  d?.verBESCH      || d?.verBEM        || null,
-            course:       null,
+            meldeschluss: isoDate(d?.verMELDESCHLUSS) || link.meldeschluss || null,
+            description:  d?.verAUSSCHREIBUNG || d?.verBESONDERES || null,
+            course:       d?.verBAHN === '1' ? 'Kurzbahn' : d?.verBAHN === '2' ? 'Langbahn' : null,
             type:         null,
             entries:      [],
             results:      [],
