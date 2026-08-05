@@ -252,6 +252,33 @@ async function waitForAjaxContent(page, timeoutMs = 20000) {
     await page.waitForTimeout(300);
 }
 
+// Parst die WebClub-JSON-Veranstaltungsliste: {"list":[{"id":"...","d":"...","n":"...","o":"..."}]}
+function parseCompetitionListJson(body, dateFrom, dateTo) {
+    try {
+        const data = JSON.parse(body);
+        if (!data || data.error || !Array.isArray(data.list)) return null;
+
+        const links = [];
+        for (const item of data.list) {
+            if (!item.id || !item.d) continue;
+            const { date, date_end } = parseDateRange(item.d);
+            if (!date) continue;
+            const d = new Date(date);
+            if (d < dateFrom || d > dateTo) continue;
+            links.push({
+                url:      BASE_URL + '/ver.php?id=' + item.id,
+                name:     item.n  || null,
+                date,
+                date_end: date_end || null,
+            });
+        }
+        return links;
+    } catch (e) {
+        log('JSON-Parse-Fehler: ' + e.message);
+        return null;
+    }
+}
+
 // Parst Veranstaltungs-Links direkt aus erfasstem HTML (XHR-Response-Body)
 async function parseEventLinksFromHtml(page, html, dateFrom, dateTo) {
     const fromMs  = dateFrom.getTime();
@@ -332,14 +359,12 @@ async function scrapeCompetitions(page) {
             log(`XHR < ${status} ${res.url().replace(BASE_URL, '***')}`);
             if (status < 200 || status >= 300) return;
             const body = await res.text();
-            // Immer die ersten 400 Zeichen loggen – zeigt Format (HTML vs JSON)
-            log(`XHR body (${body.length}B): ${body.slice(0, 400).replace(/[\r\n]+/g, ' ')}`);
-            // Veranstaltungsdaten erkennen: HTML-Zeilen ODER JSON mit Datum-Feldern
-            const hasRows  = body.includes('<tr');
-            const hasDate  = /\d{1,2}\.\d{1,2}\.\d{4}/.test(body) || /\d{4}-\d{2}-\d{2}/.test(body);
-            const hasJson  = body.includes('"date"') || body.includes('"datum"') || body.includes('"rows"') || body.includes('"data"');
-            if ((hasRows && hasDate) || (hasJson && hasDate)) {
-                log(`XHR: Veranstaltungsdaten erfasst (${body.length} bytes)`);
+            // WebClub-spezifisches JSON-Format: {"list":[{"id":"...","d":"...","n":"..."}]}
+            const isWebClubList = body.includes('"list"') && body.includes('"id"') && body.includes('"d"') && body.includes('"n"');
+            // Alternativ: HTML mit Datumszeilen
+            const hasHtmlRows = body.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(body);
+            if (isWebClubList || hasHtmlRows) {
+                log(`XHR: Veranstaltungsdaten erfasst (${body.length} bytes, ${isWebClubList ? 'JSON' : 'HTML'})`);
                 capturedCompHtml = body;
             }
         } catch (_) {}
@@ -385,7 +410,7 @@ async function scrapeCompetitions(page) {
                 }
             }
 
-            await waitForAjaxContent(page, 45000);
+            await waitForAjaxContent(page, 20000);
 
             // "Echte" Competition-Zeilen = Datumsmuster + mind. 3 Spalten (kein Nav-Tabellen-Match)
             const realRows = await page.evaluate(() => {
@@ -473,15 +498,26 @@ async function collectEventLinks(page, dateFrom, dateTo, capturedHtml = null) {
     const links = [];
     const seen  = new Set();
 
-    // Primärstrategie: direkt aus XHR-erfasstem HTML parsen
     if (capturedHtml) {
-        log('collectEventLinks: verwende XHR-erfasste Daten…');
+        // Primärstrategie 1: WebClub JSON-Veranstaltungsliste {"list":[{id,d,n,...}]}
+        if (capturedHtml.trimStart().startsWith('{') && capturedHtml.includes('"list"')) {
+            log('collectEventLinks: verarbeite WebClub-JSON-Veranstaltungsliste…');
+            const jsonLinks = parseCompetitionListJson(capturedHtml, dateFrom, dateTo);
+            if (jsonLinks && jsonLinks.length > 0) {
+                log(`collectEventLinks: ${jsonLinks.length} Veranstaltungen aus JSON extrahiert`);
+                return jsonLinks;
+            }
+            log('collectEventLinks: JSON geparst – keine Treffer im Datumsbereich');
+        }
+
+        // Primärstrategie 2: HTML mit <tr>-Datenzeilen
+        log('collectEventLinks: verarbeite XHR-HTML-Response…');
         const xhrLinks = await parseEventLinksFromHtml(page, capturedHtml, dateFrom, dateTo);
         if (xhrLinks.length > 0) {
             log(`collectEventLinks: ${xhrLinks.length} Links aus XHR-HTML extrahiert`);
             return xhrLinks;
         }
-        log('collectEventLinks: XHR-HTML enthielt keine verwertbaren Links – weiter mit DOM');
+        log('collectEventLinks: XHR-Daten enthielten keine verwertbaren Links – weiter mit DOM');
     }
 
     // Fallback: DOM-Scraping (wartet auf AJAX-Spinner)
