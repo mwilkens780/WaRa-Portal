@@ -322,8 +322,7 @@ async function scrapeCompetitions(page) {
     const competitions = [];
     const errors       = [];
 
-    // XHR-Responses abfangen: WebClub lädt die Tabelle per AJAX nach.
-    // Falls das DOM nicht aktualisiert wird (headless-Bug), haben wir die Daten trotzdem.
+    // XHR-Responses abfangen und vollständig loggen
     let capturedCompHtml = null;
     const captureXhr = async (res) => {
         try {
@@ -332,11 +331,15 @@ async function scrapeCompetitions(page) {
             const status = res.status();
             log(`XHR < ${status} ${res.url().replace(BASE_URL, '***')}`);
             if (status < 200 || status >= 300) return;
-            const ct = res.headers()['content-type'] || '';
-            if (!ct.includes('text/html') && !ct.includes('text/plain')) return;
             const body = await res.text();
-            if (body.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(body)) {
-                log(`XHR: Veranstaltungsdaten erfasst – ${res.url().replace(BASE_URL, '***')} (${body.length} bytes)`);
+            // Immer die ersten 400 Zeichen loggen – zeigt Format (HTML vs JSON)
+            log(`XHR body (${body.length}B): ${body.slice(0, 400).replace(/[\r\n]+/g, ' ')}`);
+            // Veranstaltungsdaten erkennen: HTML-Zeilen ODER JSON mit Datum-Feldern
+            const hasRows  = body.includes('<tr');
+            const hasDate  = /\d{1,2}\.\d{1,2}\.\d{4}/.test(body) || /\d{4}-\d{2}-\d{2}/.test(body);
+            const hasJson  = body.includes('"date"') || body.includes('"datum"') || body.includes('"rows"') || body.includes('"data"');
+            if ((hasRows && hasDate) || (hasJson && hasDate)) {
+                log(`XHR: Veranstaltungsdaten erfasst (${body.length} bytes)`);
                 capturedCompHtml = body;
             }
         } catch (_) {}
@@ -359,10 +362,32 @@ async function scrapeCompetitions(page) {
     for (const url of candidates) {
         try {
             await page.goto(url, { waitUntil: 'load', timeout: 15000 });
-            await waitForAjaxContent(page, 25000);
 
-            // "Echte" Competition-Zeilen = haben Datumsmuster + mindestens 3 Spalten
-            // (Nav-Tabellen-Zeilen werden NICHT gezählt)
+            // Seite geladen – globale JS-Funktionen introspektieren (einmalig bei verc.php)
+            if (url.includes('verc.php')) {
+                const jsFns = await page.evaluate(() =>
+                    Object.keys(window).filter(k =>
+                        typeof window[k] === 'function' &&
+                        /load|init|list|verc|search|filter|ajax/i.test(k)
+                    )
+                );
+                if (jsFns.length > 0) log('JS-Funktionen auf Seite: ' + jsFns.join(', '));
+
+                // Falls es eine Suchen/Filtern-Schaltfläche gibt: klicken (manche WebClub-Instanzen)
+                const searchBtn = page.locator(
+                    'input[type="submit"], button[type="submit"], ' +
+                    'button, input[type="button"]'
+                ).filter({ hasText: /suchen|laden|anzeigen|filter|start|go/i }).first();
+                if (await searchBtn.count() > 0) {
+                    log('Suchen-Button gefunden – klicke zum Auslösen des AJAX');
+                    await searchBtn.click({ timeout: 3000 }).catch(() => {});
+                    await page.waitForTimeout(2000);
+                }
+            }
+
+            await waitForAjaxContent(page, 45000);
+
+            // "Echte" Competition-Zeilen = Datumsmuster + mind. 3 Spalten (kein Nav-Tabellen-Match)
             const realRows = await page.evaluate(() => {
                 if (document.querySelector('td[colspan] img[src*="spinner"]')) return 0;
                 return Array.from(document.querySelectorAll('table tr'))
@@ -378,7 +403,6 @@ async function scrapeCompetitions(page) {
             const xhrNote = capturedCompHtml ? ' [XHR-Daten erfasst]' : '';
             log(`Kandidat ${url} → ${realRows} Competition-Zeilen im DOM, URL: ${currentUrl}${xhrNote}`);
 
-            // Seite gefunden wenn: DOM-Daten vorhanden ODER XHR-Daten erfasst
             if (realRows > 0 || capturedCompHtml) {
                 navigated = true;
                 log('Veranstaltungsseite gefunden: ' + url);
