@@ -521,22 +521,22 @@ async function scrapeCompetitions(page) {
         }
 
         log(`Detail id=${id} (idx:${idx}) – versuche Navigation…`);
-        const navResult = await page.evaluate((targetIdx) => {
-            // verc_choose_cb ist die idx-basierte Navigation in der Suchergebnisliste
-            if (typeof verc_choose_cb === 'function') {
-                try { verc_choose_cb(targetIdx); return 'verc_choose_cb(' + targetIdx + ')'; }
-                catch (e) { return 'verc_choose_cb Fehler: ' + e.message; }
+        const navResult = await page.evaluate((targetIdx, targetId) => {
+            // ver_choose(idx) navigiert zwischen den Suchergebnissen auf ver.php (idx-basiert)
+            if (typeof ver_choose === 'function') {
+                try { ver_choose(targetIdx); return 'ver_choose(' + targetIdx + ')'; }
+                catch (e) { return 'ver_choose Fehler: ' + e.message; }
             }
-            // Fallback: ajax_request direkt aufrufen
-            if (typeof ajax_request === 'function') {
-                try { ajax_request('verc_choose', { idx: targetIdx }, function() {}); return 'ajax_request(verc_choose,idx=' + targetIdx + ')'; }
-                catch (_) {}
+            // Fallback: ver_getid(verID) direkt laden
+            if (typeof ver_getid === 'function') {
+                try { ver_getid(targetId); return 'ver_getid(' + targetId + ')'; }
+                catch (e) { return 'ver_getid Fehler: ' + e.message; }
             }
             return 'kein Navigationsmechanismus gefunden';
-        }, idx).catch(() => 'evaluate-Fehler');
+        }, idx, parseInt(id, 10)).catch(() => 'evaluate-Fehler');
 
         log(`Navigation: ${navResult}`);
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(5000);
         log(`Detail id=${id}: ${detailMap.has(id) ? 'erfasst ✓' : 'NICHT erhalten'}`);
     }
 
