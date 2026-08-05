@@ -235,13 +235,11 @@ async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
 // Wir warten bis KEIN solcher Spinner mehr sichtbar ist.
 
 async function waitForAjaxContent(page, timeoutMs = 20000) {
-    // Warte bis alle td[colspan]-Spinner verschwunden sind
     const disappeared = await page.waitForFunction(() => {
         const cells = document.querySelectorAll('td[colspan]');
         for (const cell of cells) {
             if (parseInt(cell.getAttribute('colspan') || '0') >= 4 &&
                 cell.querySelector('img[src*="spinner"]')) {
-                // Spinner-Zelle noch vorhanden – Daten noch nicht geladen
                 return false;
             }
         }
@@ -251,13 +249,69 @@ async function waitForAjaxContent(page, timeoutMs = 20000) {
     if (!disappeared) {
         log('WARNUNG: Tabellen-AJAX nach ' + timeoutMs + ' ms noch nicht fertig.');
     }
+    await page.waitForTimeout(300);
+}
 
-    // Zusätzlich generischer Spinner-Check als Fallback
-    await page.locator('img[src*="spinner"]')
-        .waitFor({ state: 'hidden', timeout: 5000 })
-        .catch(() => {});
+// Parst Veranstaltungs-Links direkt aus erfasstem HTML (XHR-Response-Body)
+async function parseEventLinksFromHtml(page, html, dateFrom, dateTo) {
+    const fromMs  = dateFrom.getTime();
+    const toMs    = dateTo.getTime();
+    const baseUrl = BASE_URL;
 
-    await page.waitForTimeout(500);
+    return await page.evaluate(({ html, fromMs, toMs, baseUrl }) => {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+
+        const links = [];
+        const seen  = new Set();
+
+        for (const row of div.querySelectorAll('tr')) {
+            const tds = Array.from(row.querySelectorAll('td'));
+            if (tds.length < 2) continue;
+            if (row.querySelector('img[src*="spinner"]')) continue;
+
+            // Datum suchen
+            let dateStr = null, dateMs = null;
+            for (const td of tds) {
+                const m = td.textContent.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+                if (m) {
+                    dateStr = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+                    dateMs  = new Date(dateStr).getTime();
+                    break;
+                }
+            }
+            if (!dateStr) continue; // Nur Zeilen mit Datum sind Competition-Zeilen
+            if (dateMs < fromMs || dateMs > toMs) continue;
+
+            // URL aus <a href>
+            let url = null, name = null;
+            for (const a of row.querySelectorAll('a[href]')) {
+                const href = a.getAttribute('href');
+                if (!href || href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:')) continue;
+                try { url = new URL(href, baseUrl + '/').href; } catch (_) {}
+                if (url) { name = a.textContent.trim() || null; break; }
+            }
+
+            // URL aus onclick auf <tr>
+            if (!url) {
+                const onclick = row.getAttribute('onclick') || '';
+                const m = onclick.match(/['"]([^'"]+)['"]/);
+                if (m) try { url = new URL(m[1], baseUrl + '/').href; } catch (_) {}
+            }
+
+            if (!url || seen.has(url)) continue;
+            seen.add(url);
+
+            if (!name) {
+                for (const td of tds) {
+                    const t = td.textContent.trim();
+                    if (t.length > 5 && !/^\d{1,2}\.\d{1,2}/.test(t)) { name = t; break; }
+                }
+            }
+            links.push({ url, name, date: dateStr, date_end: null });
+        }
+        return links;
+    }, { html, fromMs, toMs, baseUrl });
 }
 
 // ── Veranstaltungen (Competitions) ───────────────────────────────────────────
@@ -267,6 +321,27 @@ async function scrapeCompetitions(page) {
 
     const competitions = [];
     const errors       = [];
+
+    // XHR-Responses abfangen: WebClub lädt die Tabelle per AJAX nach.
+    // Falls das DOM nicht aktualisiert wird (headless-Bug), haben wir die Daten trotzdem.
+    let capturedCompHtml = null;
+    const captureXhr = async (res) => {
+        try {
+            const rt = res.request().resourceType();
+            if (!['xhr', 'fetch'].includes(rt)) return;
+            const status = res.status();
+            log(`XHR < ${status} ${res.url().replace(BASE_URL, '***')}`);
+            if (status < 200 || status >= 300) return;
+            const ct = res.headers()['content-type'] || '';
+            if (!ct.includes('text/html') && !ct.includes('text/plain')) return;
+            const body = await res.text();
+            if (body.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(body)) {
+                log(`XHR: Veranstaltungsdaten erfasst – ${res.url().replace(BASE_URL, '***')} (${body.length} bytes)`);
+                capturedCompHtml = body;
+            }
+        } catch (_) {}
+    };
+    page.on('response', captureXhr);
 
     // 1. Direkte URLs probieren – klassische PHP-Apps nutzen .php-Dateinamen
     const candidates = [
@@ -283,21 +358,32 @@ async function scrapeCompetitions(page) {
     let navigated = false;
     for (const url of candidates) {
         try {
-            await page.goto(url, { waitUntil: 'load', timeout: 12000 });
-            await waitForAjaxContent(page);
-            // Zähle Zeilen mit echten Daten: >1 Spalte UND kein Spinner drin
-            const realRows = await page.evaluate(() =>
-                Array.from(document.querySelectorAll('table tr'))
+            await page.goto(url, { waitUntil: 'load', timeout: 15000 });
+            await waitForAjaxContent(page, 25000);
+
+            // "Echte" Competition-Zeilen = haben Datumsmuster + mindestens 3 Spalten
+            // (Nav-Tabellen-Zeilen werden NICHT gezählt)
+            const realRows = await page.evaluate(() => {
+                if (document.querySelector('td[colspan] img[src*="spinner"]')) return 0;
+                return Array.from(document.querySelectorAll('table tr'))
                     .filter(tr => {
                         const tds = tr.querySelectorAll('td');
-                        if (tds.length < 2) return false;
+                        if (tds.length < 3) return false;
                         if (tr.querySelector('img[src*="spinner"]')) return false;
-                        return true;
-                    }).length
-            );
+                        return /\d{1,2}\.\d{1,2}\.\d{4}/.test(tr.textContent);
+                    }).length;
+            });
+
             const currentUrl = page.url();
-            log(`Kandidat ${url} → ${realRows} Datenzeilen (ohne Spinner/Header), URL: ${currentUrl}`);
-            if (realRows > 0) { navigated = true; log('Veranstaltungsseite gefunden: ' + url); break; }
+            const xhrNote = capturedCompHtml ? ' [XHR-Daten erfasst]' : '';
+            log(`Kandidat ${url} → ${realRows} Competition-Zeilen im DOM, URL: ${currentUrl}${xhrNote}`);
+
+            // Seite gefunden wenn: DOM-Daten vorhanden ODER XHR-Daten erfasst
+            if (realRows > 0 || capturedCompHtml) {
+                navigated = true;
+                log('Veranstaltungsseite gefunden: ' + url);
+                break;
+            }
         } catch (e) {
             log(`Kandidat ${url} fehlgeschlagen: ${e.message}`);
         }
@@ -308,16 +394,19 @@ async function scrapeCompetitions(page) {
         log('Direkte URL-Kandidaten erfolglos – versuche Dropdown-Menü');
         navigated = await navigateViaDropdownMenu(page, /veranstaltung/i, /veranstaltung/i);
         if (navigated) {
-            await waitForAjaxContent(page);
+            await waitForAjaxContent(page, 25000);
             const rowCount = await page.locator('table tr').count();
-            log(`Nach Dropdown-Navigation: ${rowCount} table-rows, URL: ${page.url()}`);
+            const xhrNote = capturedCompHtml ? ' [XHR-Daten erfasst]' : '';
+            log(`Nach Dropdown-Navigation: ${rowCount} table-rows, URL: ${page.url()}${xhrNote}`);
         }
     }
+
+    page.off('response', captureXhr);
 
     // Screenshot der Listenseite – immer, für Debugging
     await screenshot(page, 'competitions_list');
 
-    if (!navigated) {
+    if (!navigated && !capturedCompHtml) {
         const msg = 'Veranstaltungsseite nicht gefunden (alle Kandidaten und Menü-Navigation fehlgeschlagen)';
         errors.push({ type: 'navigation', message: msg });
         log('WARNUNG: ' + msg);
@@ -329,7 +418,7 @@ async function scrapeCompetitions(page) {
     const dateFrom = new Date(today); dateFrom.setDate(today.getDate() - LOOKBACK_DAYS);
     const dateTo   = new Date(today); dateTo.setDate(today.getDate() + LOOKAHEAD_DAYS);
 
-    const eventLinks = await collectEventLinks(page, dateFrom, dateTo);
+    const eventLinks = await collectEventLinks(page, dateFrom, dateTo, capturedCompHtml);
     log(`${eventLinks.length} Veranstaltungslinks gefunden.`);
 
     for (const link of eventLinks) {
@@ -356,11 +445,22 @@ function extractUrlFromOnclick(onclick) {
     return m ? m[1] : null;
 }
 
-async function collectEventLinks(page, dateFrom, dateTo) {
+async function collectEventLinks(page, dateFrom, dateTo, capturedHtml = null) {
     const links = [];
     const seen  = new Set();
 
-    // Sicherstellen dass AJAX-Inhalt geladen ist (Spinner-Zyklus abwarten)
+    // Primärstrategie: direkt aus XHR-erfasstem HTML parsen
+    if (capturedHtml) {
+        log('collectEventLinks: verwende XHR-erfasste Daten…');
+        const xhrLinks = await parseEventLinksFromHtml(page, capturedHtml, dateFrom, dateTo);
+        if (xhrLinks.length > 0) {
+            log(`collectEventLinks: ${xhrLinks.length} Links aus XHR-HTML extrahiert`);
+            return xhrLinks;
+        }
+        log('collectEventLinks: XHR-HTML enthielt keine verwertbaren Links – weiter mit DOM');
+    }
+
+    // Fallback: DOM-Scraping (wartet auf AJAX-Spinner)
     await waitForAjaxContent(page);
 
     // Alle table-Rows (mit oder ohne explizites <tbody>)
@@ -926,6 +1026,22 @@ function parseTimeMs(str) {
 
         const page = await browser.newPage();
         page.setDefaultTimeout(TIMEOUT_MS);
+
+        // Diagnose: XHR-Requests, JS-Fehler, fehlgeschlagene Requests
+        page.on('request', req => {
+            if (['xhr', 'fetch'].includes(req.resourceType())) {
+                log(`XHR > ${req.method()} ${req.url().replace(BASE_URL, '***')}`);
+            }
+        });
+        page.on('requestfailed', req => {
+            log(`Request FAILED: [${req.resourceType()}] ${req.url().replace(BASE_URL, '***')} – ${req.failure()?.errorText || 'unknown'}`);
+        });
+        page.on('console', msg => {
+            if (msg.type() === 'error') log(`JS-Fehler: ${msg.text()}`);
+        });
+        page.on('pageerror', err => {
+            log(`Page-Error: ${err.message}`);
+        });
 
         await login(page);
 
