@@ -472,14 +472,74 @@ async function scrapeCompetitions(page) {
     const eventLinks = await collectEventLinks(page, dateFrom, dateTo, capturedCompHtml);
     log(`${eventLinks.length} Veranstaltungslinks gefunden.`);
 
-    for (const link of eventLinks) {
+    // ── Detail-Daten via verc_choose laden (bleibt auf verc.php) ─────────────
+    // WebClub ist session-basiert: ver.php?id=X ignoriert den Parameter und zeigt
+    // immer die zuletzt im Session-Kontext gewählte Veranstaltung. Daher rufen wir
+    // verc_choose(id) auf der Listenseite auf, um die richtige AJAX-Antwort zu triggern.
+
+    const detailMap = new Map(); // verID (string) → data-Objekt aus 1789B-Response
+
+    const captureDetailXhr = async (res) => {
         try {
-            const comp = await scrapeCompetitionDetail(page, link);
-            if (comp) competitions.push(comp);
-        } catch (e) {
-            errors.push({ type: 'competition', url: link.url, message: e.message });
-            log('FEHLER bei ' + link.url + ': ' + e.message);
+            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+            if (res.status() < 200 || res.status() >= 300) return;
+            const body = await res.text();
+            if (!body.includes('"verID"') || !body.includes('"verNAME"')) return;
+            let parsed;
+            try { parsed = JSON.parse(body); } catch (_) { return; }
+            if (parsed?.data?.verID) {
+                const id = String(parsed.data.verID);
+                if (!detailMap.has(id)) {
+                    detailMap.set(id, parsed.data);
+                    // Erste Begegnung vollständig loggen (für Feldname-Analyse)
+                    log(`Detail erfasst id=${id} (${body.length}B): ${body.slice(0, 1800)}`);
+                }
+            }
+        } catch (_) {}
+    };
+    page.on('response', captureDetailXhr);
+
+    for (const link of eventLinks) {
+        const id = extractIdFromUrl(link.url);
+        if (!detailMap.has(id)) {
+            log(`Lade Detail via verc_choose(${id})…`);
+            await page.evaluate((numId) => {
+                try {
+                    if (typeof verc_choose === 'function') { verc_choose(numId); return; }
+                    if (typeof verc_get   === 'function') { verc_get(numId);    return; }
+                } catch (_) {}
+            }, parseInt(id, 10)).catch(() => {});
+            await page.waitForTimeout(3000);
         }
+        if (detailMap.has(id)) {
+            log(`Detail für id=${id} vorhanden`);
+        } else {
+            log(`Detail für id=${id} nicht erhalten`);
+        }
+    }
+
+    page.off('response', captureDetailXhr);
+    log(`Details: ${detailMap.size} von ${eventLinks.length} geladen`);
+
+    // ── Competition-Objekte bauen ─────────────────────────────────────────────
+    for (const link of eventLinks) {
+        const id = extractIdFromUrl(link.url);
+        const d  = detailMap.get(id);
+        competitions.push({
+            webclub_id:   id,
+            webclub_url:  link.url,
+            name:         d?.verNAME       || link.name,
+            date:         isoDate(d?.verVON)          || link.date,
+            date_end:     isoDate(d?.verBIS)          || link.date_end,
+            location:     d?.verORT        || link.location     || null,
+            organizer:    d?.verAUSRICHTER || null,
+            meldeschluss: isoDate(d?.verMELDD || d?.verMELD) || link.meldeschluss || null,
+            description:  d?.verBESCH      || d?.verBEM        || null,
+            course:       null,
+            type:         null,
+            entries:      [],
+            results:      [],
+        });
     }
 
     return { competitions, errors };
