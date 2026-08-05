@@ -351,8 +351,9 @@ async function scrapeCompetitions(page) {
     const competitions = [];
     const errors       = [];
 
-    // XHR-Responses abfangen und vollständig loggen
+    // XHR-Responses abfangen – Veranstaltungsliste UND Detaildaten
     let capturedCompHtml = null;
+    const detailMap = new Map(); // verID (string) → data-Objekt aus 1789B-Response
     const captureXhr = async (res) => {
         try {
             const rt = res.request().resourceType();
@@ -361,13 +362,26 @@ async function scrapeCompetitions(page) {
             log(`XHR < ${status} ${res.url().replace(BASE_URL, '***')}`);
             if (status < 200 || status >= 300) return;
             const body = await res.text();
-            // WebClub-spezifisches JSON-Format: {"list":[{"id":"...","d":"...","n":"..."}]}
+            // 1. Veranstaltungsliste: {"list":[{"id":"...","d":"...","n":"..."}]}
             const isWebClubList = body.includes('"list"') && body.includes('"id"') && body.includes('"d"') && body.includes('"n"');
-            // Alternativ: HTML mit Datumszeilen
-            const hasHtmlRows = body.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(body);
+            const hasHtmlRows   = body.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(body);
             if (isWebClubList || hasHtmlRows) {
-                log(`XHR: Veranstaltungsdaten erfasst (${body.length} bytes, ${isWebClubList ? 'JSON' : 'HTML'})`);
-                capturedCompHtml = body;
+                log(`XHR: Liste erfasst (${body.length}B, ${isWebClubList ? 'JSON' : 'HTML'})`);
+                if (!capturedCompHtml) capturedCompHtml = body;
+            }
+            // 2. Veranstaltungsdetail: {"data":{"verID":"432","verNAME":"...","verORT":"...",...}}
+            if (body.includes('"verID"') && body.includes('"verNAME"')) {
+                try {
+                    const parsed = JSON.parse(body);
+                    if (parsed?.data?.verID) {
+                        const id = String(parsed.data.verID);
+                        if (!detailMap.has(id)) {
+                            detailMap.set(id, parsed.data);
+                            log(`XHR: Detail id=${id} erfasst (${body.length}B)`);
+                            log(`Detail-Daten: ${body.slice(0, 1800)}`);
+                        }
+                    }
+                } catch (_) {}
             }
         } catch (_) {}
     };
@@ -452,12 +466,11 @@ async function scrapeCompetitions(page) {
         }
     }
 
-    page.off('response', captureXhr);
-
     // Screenshot der Listenseite – immer, für Debugging
     await screenshot(page, 'competitions_list');
 
     if (!navigated && !capturedCompHtml) {
+        page.off('response', captureXhr);
         const msg = 'Veranstaltungsseite nicht gefunden (alle Kandidaten und Menü-Navigation fehlgeschlagen)';
         errors.push({ type: 'navigation', message: msg });
         log('WARNUNG: ' + msg);
@@ -472,54 +485,37 @@ async function scrapeCompetitions(page) {
     const eventLinks = await collectEventLinks(page, dateFrom, dateTo, capturedCompHtml);
     log(`${eventLinks.length} Veranstaltungslinks gefunden.`);
 
-    // ── Detail-Daten via verc_choose laden (bleibt auf verc.php) ─────────────
-    // WebClub ist session-basiert: ver.php?id=X ignoriert den Parameter und zeigt
-    // immer die zuletzt im Session-Kontext gewählte Veranstaltung. Daher rufen wir
-    // verc_choose(id) auf der Listenseite auf, um die richtige AJAX-Antwort zu triggern.
-
-    const detailMap = new Map(); // verID (string) → data-Objekt aus 1789B-Response
-
-    const captureDetailXhr = async (res) => {
-        try {
-            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
-            if (res.status() < 200 || res.status() >= 300) return;
-            const body = await res.text();
-            if (!body.includes('"verID"') || !body.includes('"verNAME"')) return;
-            let parsed;
-            try { parsed = JSON.parse(body); } catch (_) { return; }
-            if (parsed?.data?.verID) {
-                const id = String(parsed.data.verID);
-                if (!detailMap.has(id)) {
-                    detailMap.set(id, parsed.data);
-                    // Erste Begegnung vollständig loggen (für Feldname-Analyse)
-                    log(`Detail erfasst id=${id} (${body.length}B): ${body.slice(0, 1800)}`);
-                }
-            }
-        } catch (_) {}
-    };
-    page.on('response', captureDetailXhr);
+    // ── Detail-Daten laden ────────────────────────────────────────────────────
+    // Die 1789B-Response für idx:1 (erste Veranstaltung) wurde bereits während
+    // des Suchen-Klicks von captureXhr erfasst.
+    // Für die restlichen: verc_choose(id) setzt den Session-Kontext, danach
+    // triggert ver.php die vollständige Detail-AJAX-Chain.
+    // captureXhr bleibt bis nach der Schleife aktiv.
 
     for (const link of eventLinks) {
         const id = extractIdFromUrl(link.url);
-        if (!detailMap.has(id)) {
-            log(`Lade Detail via verc_choose(${id})…`);
-            await page.evaluate((numId) => {
-                try {
-                    if (typeof verc_choose === 'function') { verc_choose(numId); return; }
-                    if (typeof verc_get   === 'function') { verc_get(numId);    return; }
-                } catch (_) {}
-            }, parseInt(id, 10)).catch(() => {});
-            await page.waitForTimeout(3000);
-        }
         if (detailMap.has(id)) {
-            log(`Detail für id=${id} vorhanden`);
-        } else {
-            log(`Detail für id=${id} nicht erhalten`);
+            log(`Detail id=${id} bereits erfasst – überspringe`);
+            continue;
         }
+        log(`Lade Detail id=${id}: verc_choose + ver.php…`);
+        await page.evaluate((numId) => {
+            try {
+                if (typeof verc_choose === 'function') { verc_choose(numId); return; }
+                if (typeof verc_get   === 'function') { verc_get(numId); }
+            } catch (_) {}
+        }, parseInt(id, 10)).catch(() => {});
+        await page.waitForTimeout(800);
+        await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
+        await page.waitForTimeout(5000);
+        log(`Detail id=${id}: ${detailMap.has(id) ? 'erfasst ✓' : 'NICHT erhalten'}`);
+        // Zurück zu verc.php für die nächste Iteration
+        await page.goto(BASE_URL + '/verc.php', { waitUntil: 'load' });
+        await page.waitForTimeout(500);
     }
 
-    page.off('response', captureDetailXhr);
-    log(`Details: ${detailMap.size} von ${eventLinks.length} geladen`);
+    page.off('response', captureXhr);
+    log(`Details: ${detailMap.size} von ${eventLinks.length} erfasst`);
 
     // ── Competition-Objekte bauen ─────────────────────────────────────────────
     for (const link of eventLinks) {
