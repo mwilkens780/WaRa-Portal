@@ -495,21 +495,6 @@ async function scrapeCompetitions(page) {
     await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
     await page.waitForTimeout(3000);
 
-    // Diagnose: JS-Funktionen und onclick-Handler auf ver.php
-    const verPhpInfo = await page.evaluate(() => {
-        const fns = Object.keys(window)
-            .filter(k => typeof window[k] === 'function' && /verc|ver_|choose|nav|next|idx/i.test(k));
-        const onclicks = Array.from(document.querySelectorAll('[onclick]'))
-            .filter(el => /verc|choose|nav|next/i.test(el.getAttribute('onclick') || ''))
-            .map(el => el.getAttribute('onclick').slice(0, 120));
-        const imgs = Array.from(document.querySelectorAll('img'))
-            .map(i => i.src).filter(s => /ico24|nav|arrow|next|prev/i.test(s));
-        return { fns, onclicks, imgs };
-    });
-    log(`ver.php JS-Fns: ${verPhpInfo.fns.join(', ') || '(keine)'}`);
-    if (verPhpInfo.onclicks.length > 0) log(`ver.php Navigations-onclick: ${verPhpInfo.onclicks.join(' | ')}`);
-    if (verPhpInfo.imgs.length > 0) log(`ver.php Nav-Imgs: ${verPhpInfo.imgs.join(', ')}`);
-
     for (let i = 0; i < eventLinks.length; i++) {
         const link = eventLinks[i];
         const id   = extractIdFromUrl(link.url);
@@ -520,23 +505,34 @@ async function scrapeCompetitions(page) {
             continue;
         }
 
-        log(`Detail id=${id} (idx:${idx}) – versuche Navigation…`);
-        const navResult = await page.evaluate((targetIdx, targetId) => {
-            // ver_choose(idx) navigiert zwischen den Suchergebnissen auf ver.php (idx-basiert)
-            if (typeof ver_choose === 'function') {
-                try { ver_choose(targetIdx); return 'ver_choose(' + targetIdx + ')'; }
-                catch (e) { return 'ver_choose Fehler: ' + e.message; }
+        log(`Detail id=${id} (idx:${idx}) – klicke next-Button…`);
+
+        // next.png direkt anklicken statt evaluate (evaluate-Fehler wenn ver.php navigiert)
+        let navResult = 'next.png nicht gefunden';
+        try {
+            const nextImg = page.locator('img[src*="ico24/next.png"]').first();
+            if (await nextImg.count() > 0) {
+                await nextImg.click({ timeout: 3000, force: true });
+                navResult = 'next.png geklickt';
+            } else {
+                // Fallback: ver_getid(verID) per evaluate
+                navResult = await page.evaluate((tId) => {
+                    if (typeof ver_getid === 'function') {
+                        try { ver_getid(tId); return 'ver_getid(' + tId + ')'; } catch (e) { return 'ver_getid Fehler: ' + e.message; }
+                    }
+                    if (typeof ver_choose === 'function') {
+                        try { ver_choose(tId); return 'ver_choose(verID=' + tId + ')'; } catch (e) { return 'ver_choose Fehler: ' + e.message; }
+                    }
+                    return 'kein Fallback';
+                }, parseInt(id, 10)).catch(() => 'evaluate-Fehler (fallback)');
             }
-            // Fallback: ver_getid(verID) direkt laden
-            if (typeof ver_getid === 'function') {
-                try { ver_getid(targetId); return 'ver_getid(' + targetId + ')'; }
-                catch (e) { return 'ver_getid Fehler: ' + e.message; }
-            }
-            return 'kein Navigationsmechanismus gefunden';
-        }, idx, parseInt(id, 10)).catch(() => 'evaluate-Fehler');
+        } catch (e) {
+            navResult = 'click-Fehler: ' + e.message.slice(0, 80);
+        }
 
         log(`Navigation: ${navResult}`);
         await page.waitForTimeout(5000);
+        log(`URL: ${page.url().replace(/https?:\/\/[^/]+/, '***')}`);
         log(`Detail id=${id}: ${detailMap.has(id) ? 'erfasst ✓' : 'NICHT erhalten'}`);
     }
 
