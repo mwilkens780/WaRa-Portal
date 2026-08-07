@@ -1185,17 +1185,120 @@
         </div>
 
         {{-- Tab: Organisation --}}
-        <div x-show="activeTab === 'organisation'" x-cloak class="p-5">
-            <p class="text-sm text-gray-500 mb-4">Interne Notizen zur Organisation: Anreise, Unterkunft, Zeitplan, Kontakte etc.</p>
-            <form method="POST" action="{{ route('admin.competitions.organisation.save', $competition) }}" class="space-y-4">
-                @csrf
-                <textarea name="notes" rows="10"
-                          placeholder="z.B. Anreise: Abfahrt 7:00 Uhr ab Vereinsheim&#10;Unterkunft: Hotel Musterstadt, Zimmer für 8 Personen&#10;Kontakt Ausrichter: Max Mustermann, 0123-456789"
-                          class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none resize-y font-sans leading-relaxed">{{ $competition->organisation_notes['text'] ?? '' }}</textarea>
-                <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
-                    Speichern
-                </button>
-            </form>
+        <div x-show="activeTab === 'organisation'" x-cloak class="p-5 space-y-5">
+
+            {{-- WebClub-Daten (Basisdaten + Meldedaten) --}}
+            @if($competition->venue_details || $competition->contact_info)
+            <div class="grid md:grid-cols-2 gap-4">
+
+                {{-- Veranstaltungsort (Basisdaten) --}}
+                @if($competition->venue_details)
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">WebClub</span>
+                        <h4 class="text-sm font-semibold text-gray-700">Veranstaltungsort</h4>
+                    </div>
+                    <dl class="space-y-2 text-sm">
+                        @if($competition->venue_details['name'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-24 shrink-0">Halle</dt>
+                            <dd class="text-gray-700 font-medium">{{ $competition->venue_details['name'] }}</dd>
+                        </div>
+                        @endif
+                        @if(($competition->venue_details['street'] ?? null) || ($competition->venue_details['city'] ?? null))
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-24 shrink-0">Adresse</dt>
+                            <dd class="text-gray-700">
+                                @if($competition->venue_details['street'] ?? null){{ $competition->venue_details['street'] }}<br>@endif
+                                {{ ($competition->venue_details['postal_code'] ?? '') }} {{ ($competition->venue_details['city'] ?? '') }}
+                            </dd>
+                        </div>
+                        @endif
+                        @if($competition->venue_details['zeitnahme'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-24 shrink-0">Zeitnahme</dt>
+                            <dd class="text-gray-600">{{ $competition->venue_details['zeitnahme'] }}</dd>
+                        </div>
+                        @endif
+                    </dl>
+                </div>
+                @endif
+
+                {{-- Meldedaten (Kontakte) --}}
+                @if($competition->contact_info)
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">WebClub</span>
+                        <h4 class="text-sm font-semibold text-gray-700">Meldedaten</h4>
+                    </div>
+                    <dl class="space-y-2 text-sm">
+                        @if($competition->contact_info['veranstalter'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-28 shrink-0">Veranstalter</dt>
+                            <dd class="text-gray-700 font-medium">{{ $competition->contact_info['veranstalter'] }}</dd>
+                        </div>
+                        @endif
+                        @if($competition->contact_info['name'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-28 shrink-0">Ausrichter</dt>
+                            <dd class="text-gray-700">{{ $competition->contact_info['name'] }}</dd>
+                        </div>
+                        @endif
+                        @if($competition->contact_info['email'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-28 shrink-0">E-Mail</dt>
+                            <dd><a href="mailto:{{ $competition->contact_info['email'] }}" class="text-primary hover:underline">{{ $competition->contact_info['email'] }}</a></dd>
+                        </div>
+                        @endif
+                        @if($competition->contact_info['melde_name'] ?? null)
+                        <div class="flex gap-2 pt-2 border-t border-gray-200 mt-0.5">
+                            <dt class="text-gray-400 w-28 shrink-0">Melde-Kontakt</dt>
+                            <dd class="text-gray-700">{{ $competition->contact_info['melde_name'] }}</dd>
+                        </div>
+                        @endif
+                        @if($competition->contact_info['melde_email'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-28 shrink-0">Melde-Mail</dt>
+                            <dd><a href="mailto:{{ $competition->contact_info['melde_email'] }}" class="text-primary hover:underline">{{ $competition->contact_info['melde_email'] }}</a></dd>
+                        </div>
+                        @endif
+                        @if($competition->contact_info['melde_phone'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-28 shrink-0">Melde-Tel.</dt>
+                            <dd class="text-gray-600">{{ $competition->contact_info['melde_phone'] }}</dd>
+                        </div>
+                        @endif
+                        @if($competition->contact_info['meldeschluss_time'] ?? null)
+                        <div class="flex gap-2">
+                            <dt class="text-gray-400 w-28 shrink-0">Meldeschluss</dt>
+                            <dd class="text-gray-700">
+                                @if($competition->meldeschluss){{ $competition->meldeschluss->format('d.m.Y') }} @endif
+                                {{ $competition->contact_info['meldeschluss_time'] }} Uhr
+                            </dd>
+                        </div>
+                        @endif
+                    </dl>
+                </div>
+                @endif
+            </div>
+            @endif
+
+            {{-- Interne Notizen --}}
+            <div>
+                @if(session('success'))
+                    <div class="mb-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-2.5">{{ session('success') }}</div>
+                @endif
+                <p class="text-sm text-gray-500 mb-3">Interne Notizen zur Organisation: Anreise, Unterkunft, Zeitplan, Kontakte etc.</p>
+                <form method="POST" action="{{ route('admin.competitions.organisation.save', $competition) }}" class="space-y-4">
+                    @csrf
+                    <textarea name="notes" rows="6"
+                              placeholder="z.B. Anreise: Abfahrt 7:00 Uhr ab Vereinsheim&#10;Unterkunft: Hotel Musterstadt, Zimmer für 8 Personen&#10;Kontakt Ausrichter: Max Mustermann, 0123-456789"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none resize-y font-sans leading-relaxed">{{ $competition->organisation_notes['text'] ?? '' }}</textarea>
+                    <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+                        Speichern
+                    </button>
+                </form>
+            </div>
         </div>
 
         {{-- Tab: Qualifikation --}}

@@ -119,16 +119,18 @@ class WebClubCrawler
             $competition = Competition::create(array_filter([
                 'name'             => $name,
                 'date'             => $date,
-                'date_end'         => $raw['date_end'] ?? null,
-                'location'         => $raw['location'] ?? null,
+                'date_end'         => $raw['date_end']    ?? null,
+                'location'         => $raw['location']    ?? null,
                 'course'           => $this->normalizeCourse($raw['course'] ?? null),
-                'organizer'        => $raw['organizer'] ?? null,
-                'meldeschluss'     => $raw['meldeschluss'] ?? null,
+                'organizer'        => $raw['organizer']   ?? null,
+                'meldeschluss'     => $raw['meldeschluss']?? null,
                 'description'      => $raw['description'] ?? null,
                 'source_url'       => $raw['webclub_url'] ?? null,
                 'webclub_event_id' => $webclubId,
                 'season_id'        => $season?->id,
                 'type'             => 'regional',
+                'venue_details'    => $this->buildVenueDetails($raw),
+                'contact_info'     => $this->buildContactInfo($raw),
             ], fn($v) => $v !== null && $v !== ''));
 
             ImportLog::create([
@@ -161,6 +163,14 @@ class WebClubCrawler
         if (empty($competition->date_end)    && !empty($raw['date_end']))    $updates['date_end']    = $raw['date_end'];
         if (empty($competition->season_id)   && $season)                     $updates['season_id']   = $season->id;
         if (empty($competition->source_url)  && !empty($raw['webclub_url'])) $updates['source_url']  = $raw['webclub_url'];
+        if (empty($competition->venue_details)) {
+            $vd = $this->buildVenueDetails($raw);
+            if ($vd) $updates['venue_details'] = $vd;
+        }
+        if (empty($competition->contact_info)) {
+            $ci = $this->buildContactInfo($raw);
+            if ($ci) $updates['contact_info'] = $ci;
+        }
 
         if ($updates) {
             $competition->update($updates);
@@ -472,6 +482,32 @@ class WebClubCrawler
         if ($birthYear) $query->whereYear('birth_date', $birthYear);
 
         return $query->first();
+    }
+
+    private function buildVenueDetails(array $raw): ?array
+    {
+        $details = array_filter([
+            'name'        => $raw['venue_name']   ?? null,
+            'street'      => $raw['venue_street'] ?? null,
+            'postal_code' => $raw['venue_postal'] ?? null,
+            'city'        => $raw['venue_city']   ?? null,
+            'zeitnahme'   => $raw['zeitnahme']    ?? null,
+        ]);
+        return $details ?: null;
+    }
+
+    private function buildContactInfo(array $raw): ?array
+    {
+        $info = array_filter([
+            'veranstalter'      => $raw['veranstalter']      ?? null,
+            'name'              => $raw['contact_name']      ?? null,
+            'email'             => $raw['contact_email']     ?? null,
+            'melde_name'        => $raw['melde_name']        ?? null,
+            'melde_email'       => $raw['melde_email']       ?? null,
+            'melde_phone'       => $raw['melde_phone']       ?? null,
+            'meldeschluss_time' => $raw['meldeschluss_time'] ?? null,
+        ]);
+        return $info ?: null;
     }
 
     private function normalizeCourse(?string $course): ?string
