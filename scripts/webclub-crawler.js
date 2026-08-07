@@ -1233,37 +1233,21 @@ async function scrapePersons(page) {
         return { persons, errors };
     }
 
-    // JS-Navigationsfunktion auf Seite suchen (analog zu verc_getakt / verc_choose)
-    const jsFns = await page.evaluate(() =>
-        Object.keys(window).filter(k => typeof window[k] === 'function' && /^pers_/i.test(k))
-    ).catch(() => []);
-    if (jsFns.length) log(`Personen-JS-Fns: ${jsFns.join(', ')}`);
-    const navFn = jsFns.find(n => /^pers_(getakt|choose|goto|nav|get)$/i.test(n));
-
+    // next.png-Klick-Navigation (gleiche Strategie wie Wettkampf-Details auf ver.php).
+    // pers_choose(idx) via page.evaluate() löst wie ver_choose() Seitennavigation aus
+    // und zerstört den Playwright-Kontext – daher immer next.png verwenden.
     if (totalCount > 1) {
-        if (navFn) {
-            // Schneller Pfad: JS-Funktion direkt aufrufen (kein DOM-Klick nötig)
-            log(`Navigiere via ${navFn}() für idx 2..${totalCount}`);
-            for (let i = 2; i <= totalCount; i++) {
-                await page.evaluate((fn, idx) => window[fn](idx), navFn, i).catch(() => {});
-                await page.waitForTimeout(200);
+        log(`Navigiere via next.png für ${totalCount - 1} weitere Personen (~${Math.ceil((totalCount - 1) * 0.35)}s)`);
+        const nextBtn = page.locator('img[src*="ico24/next.png"]');
+        for (let i = 2; i <= totalCount; i++) {
+            try {
+                if (await nextBtn.count() === 0) { log('next.png nicht vorhanden, breche ab'); break; }
+                await nextBtn.click({ timeout: 3000 });
+                await page.waitForTimeout(350);
                 if (i % 50 === 0) log(`Personen: ${i}/${totalCount} – ${detailBodies.length} XHRs erfasst`);
-            }
-            await page.waitForTimeout(800);
-        } else {
-            // Langsamer Pfad: next.png klicken (gleiche Strategie wie Wettkämpfe)
-            log(`Kein JS-Navfn – navigiere via next.png für ${totalCount - 1} weitere Personen`);
-            const nextBtn = page.locator('img[src*="ico24/next.png"]');
-            for (let i = 2; i <= totalCount; i++) {
-                try {
-                    if (await nextBtn.count() === 0) { log('next.png nicht mehr vorhanden'); break; }
-                    await nextBtn.click({ timeout: 3000 });
-                    await page.waitForTimeout(400);
-                    if (i % 50 === 0) log(`Personen: ${i}/${totalCount} – ${detailBodies.length} XHRs erfasst`);
-                } catch (e) {
-                    log(`Person idx:${i} – Navigation: ${e.message}`);
-                    break;
-                }
+            } catch (e) {
+                log(`Person idx:${i} Navigation: ${e.message}`);
+                break;
             }
         }
     }
