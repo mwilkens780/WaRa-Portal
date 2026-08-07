@@ -9,6 +9,7 @@ use App\Models\CompetitionResult;
 use App\Models\ImportLog;
 use App\Models\Season;
 use App\Models\Setting;
+use App\Models\TrainingGroup;
 use App\Models\User;
 use App\Services\TraceService;
 use Carbon\Carbon;
@@ -25,7 +26,7 @@ class WebClubCrawler
 
     public function run(): array
     {
-        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0];
+        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
 
         if (!Setting::getBool('crawler.webclub.enabled', false)) {
             Log::info('WebClubCrawler: deaktiviert – übersprungen.');
@@ -61,7 +62,7 @@ class WebClubCrawler
      */
     public function processPayload(array $output): array
     {
-        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0];
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
         $config = $this->buildConfig();
 
         DB::transaction(function () use ($output, $config, &$stats) {
@@ -77,8 +78,10 @@ class WebClubCrawler
             }
 
             $personStats = $this->syncPersons($output['persons'] ?? []);
-            $stats['persons_synced'] = $personStats['synced'];
-            $stats['errors']        += $personStats['errors'];
+            $stats['persons_synced']      = $personStats['synced'];
+            $stats['persons_created']     = $personStats['created'] ?? 0;
+            $stats['persons_deactivated'] = $personStats['deactivated'] ?? 0;
+            $stats['errors']             += $personStats['errors'];
         });
 
         foreach ($output['errors'] ?? [] as $err) {
@@ -328,40 +331,56 @@ class WebClubCrawler
 
     private function syncPersons(array $persons): array
     {
-        $synced = 0;
-        $errors = 0;
+        $synced      = 0;
+        $created     = 0;
+        $errors      = 0;
+        $webclubIds  = [];
 
         foreach ($persons as $raw) {
             try {
                 $result = $this->syncPerson($raw);
-                if ($result) $synced++;
+                if ($result === 'created') { $created++; $synced++; }
+                elseif ($result === 'synced') $synced++;
+
+                $wcId = $raw['webclub_person_id'] ?? null;
+                if ($wcId) $webclubIds[] = (string) $wcId;
             } catch (\Throwable $e) {
                 $errors++;
                 Log::error('WebClubCrawler Personen-Sync: ' . $e->getMessage(), $raw);
             }
         }
 
-        if ($synced > 0 || $errors > 0) {
+        // Schwimmer deaktivieren, die nicht mehr in WebClub vorhanden sind.
+        // Mindestanzahl 5 als Schutz gegen versehentliche Massendeaktivierung bei leerem Crawl.
+        $deactivated = 0;
+        if (count($webclubIds) >= 5) {
+            $deactivated = $this->deactivateAbsentPersons($webclubIds);
+            if ($deactivated > 0) {
+                Log::info("WebClubCrawler: {$deactivated} Schwimmer deaktiviert (nicht mehr in WebClub).");
+            }
+        }
+
+        if ($synced > 0 || $errors > 0 || $deactivated > 0) {
             ImportLog::create([
                 'source'  => self::SOURCE,
                 'status'  => $errors > 0 ? 'error' : 'success',
-                'message' => "Personen-Sync: {$synced} ergänzt, {$errors} Fehler.",
+                'message' => "Personen-Sync: {$synced} bearbeitet ({$created} neu angelegt), {$deactivated} deaktiviert, {$errors} Fehler.",
             ]);
         }
 
-        return compact('synced', 'errors');
+        return compact('synced', 'created', 'errors', 'deactivated');
     }
 
-    private function syncPerson(array $raw): bool
+    private function syncPerson(array $raw): string
     {
         $webclubId = $raw['webclub_person_id'] ?? null;
         $lastname  = trim($raw['lastname']  ?? '');
         $firstname = trim($raw['firstname'] ?? '');
         $birthDate = $raw['birth_date'] ?? null;
 
-        if (!$lastname && !$firstname) return false;
+        if (!$lastname && !$firstname) return 'skipped';
 
-        // Vorhandenen User finden
+        // Vorhandenen User finden: erst per webclub_id, dann Name+Geburtsdatum, dann nur Name
         $user = null;
         if ($webclubId) {
             $user = User::where('webclub_person_id', $webclubId)->first();
@@ -372,17 +391,40 @@ class WebClubCrawler
                 ->where('birth_date', $birthDate)
                 ->first();
         }
-
-        if (!$user) {
-            // Unbekannte Person: im WebClub-Crawler werden keine neuen User angelegt
-            // (das ist Aufgabe des manuellen CSV-Imports via WebClubImportService)
-            return false;
+        if (!$user && $lastname && $firstname) {
+            $user = User::where('lastname', $lastname)
+                ->where('firstname', $firstname)
+                ->whereNull('birth_date')
+                ->first();
         }
 
-        // Nur NULL-Felder befüllen
+        if (!$user) {
+            // Neuen Schwimmer anlegen (active=true, kein Passwort → kann sich nicht einloggen)
+            $email = !empty($raw['email']) ? $raw['email'] : null;
+            $user = User::create(array_filter([
+                'lastname'          => $lastname,
+                'firstname'         => $firstname,
+                'email'             => $email,
+                'birth_date'        => $birthDate,
+                'gender'            => $this->normalizeGender($raw['gender'] ?? null),
+                'role'              => 'schwimmer',
+                'active'            => true,
+                'webclub_person_id' => $webclubId,
+                'membership_number' => !empty($raw['membership_number']) ? $raw['membership_number'] : null,
+                'dsv_id'            => !empty($raw['dsv_id']) ? $raw['dsv_id'] : null,
+            ], fn($v) => $v !== null && $v !== ''));
+
+            $this->syncGroupMembership($user, $raw['training_group'] ?? null);
+
+            Log::info("WebClubCrawler: Neuer Schwimmer angelegt – {$firstname} {$lastname}");
+            return 'created';
+        }
+
+        // Vorhandenen User ergänzen (nur NULL-Felder befüllen, nie überschreiben)
         $updates = [];
         if (!$user->webclub_person_id && $webclubId)                                $updates['webclub_person_id'] = $webclubId;
-        if (empty($user->gender)            && !empty($raw['gender']))              $updates['gender']            = $raw['gender'];
+        $mappedGender = $this->normalizeGender($raw['gender'] ?? null);
+        if (empty($user->gender)            && $mappedGender)                       $updates['gender']            = $mappedGender;
         if (empty($user->dsv_id)            && !empty($raw['dsv_id']))              $updates['dsv_id']            = $raw['dsv_id'];
         if (empty($user->membership_number) && !empty($raw['membership_number']))   $updates['membership_number'] = $raw['membership_number'];
         if (empty($user->member_since)      && !empty($raw['member_since']))        $updates['member_since']      = $raw['member_since'];
@@ -392,13 +434,62 @@ class WebClubCrawler
         if (empty($user->street)            && !empty($raw['street']))              $updates['street']            = $raw['street'];
         if (empty($user->postal_code)       && !empty($raw['postal_code']))         $updates['postal_code']       = $raw['postal_code'];
         if (empty($user->city)              && !empty($raw['city']))                $updates['city']              = $raw['city'];
+        // Reaktivieren, falls der User wieder in WebClub auftaucht
+        if (!$user->active)                                                         $updates['active']            = true;
 
-        if ($updates) {
-            $user->update($updates);
-            return true;
+        if ($updates) $user->update($updates);
+
+        // Gruppenzuordnung immer synchronisieren (non-destruktiv: nur hinzufügen)
+        $this->syncGroupMembership($user, $raw['training_group'] ?? null);
+
+        return $updates ? 'synced' : 'skipped';
+    }
+
+    private function syncGroupMembership(User $user, ?string $groupName): void
+    {
+        if (!$groupName) return;
+
+        // Unterstütze kommaseparierte Mehrfachgruppen ("Gruppe A, Gruppe B")
+        $names = array_filter(array_map('trim', explode(',', $groupName)));
+
+        foreach ($names as $name) {
+            if ($name === '') continue;
+
+            $group = TrainingGroup::firstOrCreate(
+                ['name' => $name],
+                ['color' => 'blue', 'active' => true]
+            );
+
+            // Nur hinzufügen, nicht entfernen (non-destruktiv)
+            if (!$user->trainingGroups()->where('training_groups.id', $group->id)->exists()) {
+                $user->trainingGroups()->attach($group->id);
+            }
         }
+    }
 
-        return false;
+    private function deactivateAbsentPersons(array $webclubIds): int
+    {
+        if (empty($webclubIds)) return 0;
+
+        // Nur Schwimmer deaktivieren, die:
+        // 1. Rolle 'schwimmer' haben
+        // 2. Eine webclub_person_id gesetzt haben (d.h. aus WebClub stammen)
+        // 3. In der aktuellen WebClub-Liste NICHT vorkommen
+        // 4. Aktuell aktiv sind
+        return User::where('role', 'schwimmer')
+            ->whereNotNull('webclub_person_id')
+            ->whereNotIn('webclub_person_id', $webclubIds)
+            ->where('active', true)
+            ->update(['active' => false]);
+    }
+
+    private function normalizeGender(?string $gender): ?string
+    {
+        if (!$gender) return null;
+        $g = strtoupper(trim($gender));
+        if ($g === 'W') return 'F';
+        if (in_array($g, ['M', 'F', 'X'])) return $g;
+        return null;
     }
 
     // ── Playwright-Aufruf ────────────────────────────────────────────────────

@@ -1116,91 +1116,177 @@ async function scrapeResults(page) {
 
 // ── Personen ─────────────────────────────────────────────────────────────────
 
+function parsePersonListJson(body) {
+    try {
+        const data = JSON.parse(body);
+        // Liste in bekannten Schlüsseln suchen
+        const list = data.list ?? data.data ?? data.persons ?? data.personen ??
+                     (Array.isArray(data) ? data : null);
+        if (!Array.isArray(list) || list.length === 0) {
+            log(`parsePersonListJson: kein Array. Schlüssel: ${Object.keys(data ?? {}).join(', ')}`);
+            return [];
+        }
+
+        const persons = [];
+        for (const item of list) {
+            const pers = {};
+
+            // WebClub-ID
+            pers.webclub_person_id = String(
+                item.persID ?? item.persid ?? item.pID ?? item.id ?? item.nr ?? ''
+            ) || null;
+
+            // Name – verschiedene Formate
+            pers.lastname  = item.persFAM   ?? item.persNACHNAME ?? item.FAM   ?? item.fam   ??
+                             item.nachname  ?? item.last_name    ?? null;
+            pers.firstname = item.persVOR   ?? item.persVORNAME  ?? item.VOR   ?? item.vor   ??
+                             item.vorname  ?? item.first_name   ?? null;
+
+            // Falls nur "name" / "persNAME" vorhanden (Vollname im Format "Vorname Nachname")
+            if (!pers.lastname && !pers.firstname) {
+                const full = String(item.persNAME ?? item.name ?? item.n ?? '').trim();
+                if (full) {
+                    const parts = full.split(/\s+/);
+                    pers.lastname  = parts[parts.length - 1] || null;
+                    pers.firstname = parts.slice(0, -1).join(' ') || null;
+                }
+            }
+
+            if (!pers.lastname && !pers.firstname) continue; // kein Name → überspringen
+
+            // Geburtsdatum
+            pers.birth_date = isoDate(
+                item.persBD ?? item.persGEB ?? item.persDATUM ?? item.bd ??
+                item.geb   ?? item.datum   ?? item.born      ?? null
+            );
+
+            // Geschlecht (WebClub: M / W → normalizeGender mappt W→F)
+            pers.gender = normalizeGender(String(
+                item.persGES ?? item.ges ?? item.gender ?? item.geschlecht ?? ''
+            ));
+
+            // Trainingsgruppe (ggf. kommasepariert für Mehrfachzuordnung)
+            pers.training_group = item.persGRUPPE ?? item.GRUPPE ?? item.gruppe ??
+                                  item.group      ?? item.training_group ?? null;
+
+            // Weitere Felder
+            pers.dsv_id            = item.persDSV   ?? item.dsv   ?? item.dsv_id           ?? null;
+            pers.membership_number = item.persMNR   ?? item.mnr   ?? item.membership_number ?? null;
+            pers.email             = item.persMAIL  ?? item.mail  ?? item.email             ?? null;
+            pers.phone             = item.persTEL   ?? item.tel   ?? item.phone             ?? null;
+            pers.mobile            = item.persMOBIL ?? item.mobil ?? item.mobile            ?? null;
+
+            // Leerzeichen trimmen
+            if (pers.lastname)  pers.lastname  = pers.lastname.trim();
+            if (pers.firstname) pers.firstname = pers.firstname.trim();
+
+            persons.push(pers);
+        }
+
+        log(`parsePersonListJson: ${persons.length} Personen geparst`);
+        return persons;
+    } catch (e) {
+        log(`parsePersonListJson Fehler: ${e.message}`);
+        return [];
+    }
+}
+
 async function scrapePersons(page) {
     log('Navigiere zu Personen/Mitgliedern…');
 
     const persons = [];
     const errors  = [];
 
-    // 1. Direkte PHP-URLs probieren
+    // XHR-Capture (gleiche Strategie wie Veranstaltungsliste):
+    // pers.php liefert die Personenliste per AJAX; der DOM-Spinner verschwindet
+    // in headless-Mode nie → direkt den JSON-XHR abgreifen.
+    let capturedPersonJson = null;
+    const capturePersonXhr = async (res) => {
+        try {
+            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+            const status = res.status();
+            log(`Personen-XHR < ${status} ${res.url().replace(BASE_URL, '***')}`);
+            if (status < 200 || status >= 300) return;
+            const body = await res.text();
+            if (!body.trim().startsWith('{') && !body.trim().startsWith('[')) return;
+            // Alle JSON-Antworten loggen; erste als Kandidat merken
+            log(`Personen-XHR JSON (${body.length}B): ${body.slice(0, 400).replace(/[\r\n]+/g, ' ')}`);
+            if (!capturedPersonJson) capturedPersonJson = body;
+        } catch (_) {}
+    };
+    page.on('response', capturePersonXhr);
+
     const candidates = [
-        BASE_URL + '/pers.php',          // WebClub klassisch (häufig)
+        BASE_URL + '/pers.php',
         BASE_URL + '/person.php',
         BASE_URL + '/mitglieder.php',
         BASE_URL + '/personen',
         BASE_URL + '/mitglieder',
         BASE_URL + '/members',
-        BASE_URL + '/persons',
-        BASE_URL + '/athletes',
-        BASE_URL + '/schwimmer',
     ];
 
     let navigated = false;
     for (const url of candidates) {
         try {
-            await page.goto(url, { waitUntil: 'load', timeout: 10000 });
-            await waitForAjaxContent(page);
+            await page.goto(url, { waitUntil: 'load', timeout: 15000 });
+
+            // Suchen-Button klicken (manche WebClub-Instanzen haben expliziten Filter)
+            if (url.includes('pers.php')) {
+                const searchBtn = page.locator(
+                    'input[type="submit"], button[type="submit"], button, input[type="button"]'
+                ).filter({ hasText: /suchen|laden|anzeigen|filter|start|go/i }).first();
+                if (await searchBtn.count() > 0) {
+                    log('Personen-Seite: Suchen-Button gefunden – klicke');
+                    await searchBtn.click({ timeout: 3000 }).catch(() => {});
+                }
+            }
+
+            await page.waitForTimeout(3000); // XHR-Antwort abwarten
+
+            if (capturedPersonJson) {
+                navigated = true;
+                log('Personenseite gefunden (XHR-Capture): ' + url);
+                break;
+            }
+
+            // DOM-Fallback: falls Seite Tabellendaten direkt rendert
             const rowCount = await page.locator('table tr').count();
-            if (rowCount > 1) { navigated = true; log('Personenseite: ' + url); break; }
-        } catch (_) {}
+            if (rowCount > 1) {
+                navigated = true;
+                log('Personenseite gefunden (DOM): ' + url);
+                break;
+            }
+        } catch (e) {
+            log(`Personen-Kandidat ${url} fehlgeschlagen: ${e.message}`);
+        }
     }
 
-    // 2. Fallback: Menü-Navigation
-    if (!navigated) {
+    // Menü-Navigation als letzter Fallback
+    if (!navigated && !capturedPersonJson) {
         navigated = await navigateViaDropdownMenu(page, /personen|mitglieder|members/i, /personen|mitglieder|members/i);
+        if (navigated) await page.waitForTimeout(3000);
     }
 
-    if (!navigated) {
+    page.off('response', capturePersonXhr);
+    await screenshot(page, 'persons_list');
+
+    if (!navigated && !capturedPersonJson) {
         const msg = 'Personenseite nicht gefunden (alle Kandidaten und Menü fehlgeschlagen)';
         errors.push({ type: 'navigation', message: msg });
         log('WARNUNG: ' + msg);
         return { persons, errors };
     }
 
-    // Alle Personen-Links sammeln (paginiert) — onclick und data-href eingeschlossen
-    const personLinks = [];
-    const seen = new Set();
+    // XHR-JSON-Antwort parsen
+    if (capturedPersonJson) {
+        const parsed = parsePersonListJson(capturedPersonJson);
+        log(`XHR-Parse: ${parsed.length} Personen`);
+        persons.push(...parsed);
+    }
 
-    do {
-        const tableRows = page.locator('table tr');
-        const trCnt = await tableRows.count();
-        for (let i = 0; i < trCnt; i++) {
-            const row = tableRows.nth(i);
-            if (await row.locator('td').count() === 0) continue; // Skip header rows
-
-            let personUrl = null;
-
-            // href auf Anker
-            const anchors = row.locator('a');
-            const aCnt = await anchors.count();
-            for (let a = 0; a < aCnt; a++) {
-                const href = await safeAttr(anchors.nth(a), 'href');
-                if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
-                    personUrl = resolveUrl(href); break;
-                }
-                const aOnclick = extractUrlFromOnclick(await safeAttr(anchors.nth(a), 'onclick'));
-                if (aOnclick) { personUrl = resolveUrl(aOnclick); break; }
-            }
-            // onclick auf tr
-            if (!personUrl) {
-                const trUrl = extractUrlFromOnclick(await safeAttr(row, 'onclick'));
-                if (trUrl) personUrl = resolveUrl(trUrl);
-            }
-
-            if (personUrl && !seen.has(personUrl)) {
-                seen.add(personUrl);
-                personLinks.push(personUrl);
-            }
-        }
-    } while (await navigateToNextPage(page));
-
-    log(`${personLinks.length} Personen-Links gefunden.`);
-
-    // Personen aus der Listen-Tabelle direkt extrahieren (effizienter als jede Detailseite)
-    const rows = page.locator('table tr');
-    const rowCount = await rows.count();
-    if (rowCount > 0) {
-        // Header-Spalten ermitteln (erste Zeile mit th-Zellen)
+    // DOM-Fallback: Header-basiertes Spalten-Mapping (falls XHR leer oder nicht erkannt)
+    if (persons.length === 0) {
+        log('XHR-Parse leer – versuche DOM-Extraktion');
         const headers = [];
         const thCells = page.locator('table thead th, table thead td');
         const thCount = await thCells.count();
@@ -1208,6 +1294,8 @@ async function scrapePersons(page) {
             headers.push(((await safeText(thCells.nth(i))) || '').toLowerCase());
         }
 
+        const rows = page.locator('table tr');
+        const rowCount = await rows.count();
         for (let i = 0; i < rowCount; i++) {
             const row   = rows.nth(i);
             const cells = row.locator('td');
@@ -1215,51 +1303,36 @@ async function scrapePersons(page) {
             if (cnt < 2) continue;
 
             const person = { webclub_person_id: null };
-
-            // ID aus Link
             const anchor = row.locator('a').first();
             const href   = await safeAttr(anchor, 'href');
             if (href) person.webclub_person_id = extractIdFromUrl(href);
 
-            // Werte aus Zellen in bekannte Felder mappen
             for (let j = 0; j < Math.min(cnt, headers.length); j++) {
                 const h = headers[j];
                 const v = (await safeText(cells.nth(j))) || null;
                 if (!v) continue;
-
-                if (/^name$|nachname|last.?name/i.test(h))   person.lastname  = v;
-                else if (/vorname|first.?name/i.test(h))      person.firstname = v;
+                if (/nachname|last.?name/i.test(h))              person.lastname         = v;
+                else if (/vorname|first.?name/i.test(h))         person.firstname        = v;
                 else if (/^name$/.test(h) && !person.lastname) {
-                    // "Name" = "Vorname Nachname"
                     const parts = v.split(' ');
                     person.firstname = parts.slice(0, -1).join(' ') || null;
                     person.lastname  = parts[parts.length - 1] || v;
                 }
-                else if (/geburt|birthday|born/i.test(h)) person.birth_date = isoDate(v);
-                else if (/geschlecht|gender|sex/i.test(h)) person.gender = normalizeGender(v);
-                else if (/dsv.?id|dsv/i.test(h))           person.dsv_id = v;
+                else if (/geburt|birthday|born/i.test(h))        person.birth_date       = isoDate(v);
+                else if (/geschlecht|gender|sex/i.test(h))       person.gender           = normalizeGender(v);
+                else if (/dsv.?id|dsv/i.test(h))                 person.dsv_id           = v;
                 else if (/mitglied|member.?nr|membership/i.test(h)) person.membership_number = v;
-                else if (/mail|email/i.test(h))             person.email = v;
-                else if (/telefon|phone|mobil/i.test(h))    person.phone = v;
-                else if (/gruppe|group|training/i.test(h))  person.training_group = v;
+                else if (/mail|email/i.test(h))                  person.email            = v;
+                else if (/telefon|phone|mobil/i.test(h))         person.phone            = v;
+                else if (/gruppe|group|training/i.test(h))       person.training_group   = v;
             }
 
             if (person.lastname || person.firstname) persons.push(person);
         }
+        log(`DOM-Extraktion: ${persons.length} Personen`);
     }
 
-    // Falls Listentabelle zu wenig Daten liefert: Detailseiten besuchen (max. 200)
-    if (persons.length === 0 && personLinks.length > 0) {
-        for (const url of personLinks.slice(0, 200)) {
-            try {
-                const p = await scrapePersonDetail(page, url);
-                if (p) persons.push(p);
-            } catch (e) {
-                errors.push({ type: 'person', url, message: e.message });
-            }
-        }
-    }
-
+    log(`Personen gesamt: ${persons.length}`);
     return { persons, errors };
 }
 
