@@ -911,13 +911,15 @@ function parseAbschnitte(bodies) {
             if (!Array.isArray(list) || list.length === 0) continue;
             const mapped = [];
             for (const item of list) {
-                const nr = parseInt(item.absID ?? item.absNR ?? item.nr ?? item.id ?? '', 10);
+                // WebClub: item.n = Abschnitt-Nr (1,2,...); item.id = DB-ID (1499,...); item.d = Datum; item.s = Startzeit
+                const nr = parseInt(item.n ?? item.nr ?? item.absNR ?? '', 10);
                 if (!nr) continue;
+                const name = (item.m && item.m !== '') ? item.m : (item.absBEZ ?? item.absNAME ?? null);
                 mapped.push({
                     number: nr,
-                    name:   item.absBEZ ?? item.absNAME ?? item.name ?? item.bez ?? ('Abschnitt ' + nr),
-                    date:   isoDate(item.absDATUM ?? item.datum ?? item.date ?? null),
-                    time:   item.absVON ?? item.absZEIT_VON ?? item.zeit ?? item.time ?? null,
+                    name:   name || ('Abschnitt ' + nr),
+                    date:   isoDate(item.d ?? item.absDATUM ?? item.datum ?? null),
+                    time:   item.s ?? item.e ?? item.absVON ?? item.zeit ?? null,
                 });
             }
             if (mapped.length > 0) {
@@ -937,19 +939,28 @@ function parseWettkampffolge(bodies) {
             if (!Array.isArray(list) || list.length === 0) continue;
             const events = [];
             for (const item of list) {
-                const discipline = mapDiscipline(item.wkDIS ?? item.dis ?? item.disziplin ?? item.discipline ?? null);
-                const distance   = parseInt(item.wkSTR ?? item.str ?? item.strecke ?? item.distance ?? '0', 10);
+                // WebClub: wkfLAGE = Disziplin (1=S,2=R,3=B,4=L,5=F), wkfLAENGE = Distanz
+                //          wkfNUMMER = Event-Nr, wkfABS = Abschnitt-Nr, wkfGESCHLECHT = M/W
+                const discipline = mapDiscipline(item.wkfLAGE ?? item.wkDIS ?? item.dis ?? item.disziplin ?? null);
+                const distance   = parseInt(item.wkfLAENGE ?? item.wkSTR ?? item.str ?? item.strecke ?? '0', 10);
                 if (!discipline || !distance) continue;
-                const gRaw   = String(item.wkGES ?? item.ges ?? item.geschlecht ?? item.gender ?? 'X').toUpperCase();
+                const gRaw   = String(item.wkfGESCHLECHT ?? item.wkGES ?? item.ges ?? item.geschlecht ?? 'X').toUpperCase();
                 const gender = gRaw === 'W' ? 'F' : (['M', 'F', 'X'].includes(gRaw) ? gRaw : 'X');
-                const pzMs   = parseTimeToMs(item.wkPZ ?? item.pz ?? item.pflichtzeit ?? item.pzzeit ?? '');
+                const pzMs   = parseTimeToMs(item.wkPZ ?? item.pz ?? item.pflichtzeit ?? '');
+                // Altersgruppe aus Geburtsjahr-Spanne (wkfJUNG = jüngster Jg., wkfALT = ältester; '0' = kein Limit)
+                const jg = String(item.wkfJUNG ?? item.wkJUNG ?? '').trim();
+                const ag = String(item.wkfALT  ?? item.wkALT  ?? '').trim();
+                let ageGroup = item.wkWERT ?? item.wert ?? null;
+                if (!ageGroup && jg && jg !== '0') {
+                    ageGroup = ag === '0' ? `Jg. ${jg} u.j.` : `Jg. ${jg}–${ag}`;
+                }
                 events.push({
-                    number:             parseInt(item.wkNR ?? item.nr ?? item.wkID ?? '0', 10),
-                    session:            parseInt(item.wkABS ?? item.abs ?? item.abschnitt ?? item.session ?? '1', 10),
+                    number:             parseInt(item.wkfNUMMER ?? item.wkNR ?? item.nr ?? '0', 10),
+                    session:            parseInt(item.wkfABS    ?? item.wkABS ?? item.abs ?? '1', 10),
                     discipline,
                     distance,
                     gender,
-                    age_group:          item.wkWERT ?? item.wert ?? item.wertung ?? item.age_group ?? null,
+                    age_group:          ageGroup,
                     qualifying_time_ms: pzMs || null,
                 });
             }
@@ -1001,46 +1012,35 @@ async function scrapeCompetitionTabs(page, eventLinks) {
     };
     page.on('response', captureTabXhr);
 
+    // ver.php lädt alle Tab-Daten (Abschnitte, Wettkampffolge, etc.) automatisch beim Seitenaufruf
+    // → kein separates activateTab nötig; XHR-Bucket nach dem Seitenaufruf direkt auswerten.
     await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000); // Alle Auto-XHRs für idx:1 abwarten
 
     for (let i = 0; i < eventLinks.length; i++) {
         const id = extractIdFromUrl(eventLinks[i].url);
         log(`Tab-Pass: id=${id} (idx:${i + 1})`);
 
-        // Abschnitte-Tab
-        xhrBucket.length = 0;
-        await activateTab(page, /abschnitt/i);
-        await page.waitForTimeout(1500);
+        // Alle Tab-Daten liegen bereits im xhrBucket (auto-geladen durch Seitenaufruf / next.png)
         const sessions = parseAbschnitte([...xhrBucket]);
         log(`  Abschnitte: ${sessions.length}`);
 
-        // Wettkampffolge-Tab
-        xhrBucket.length = 0;
-        await activateTab(page, /wettkampffolge|ablauf|programm/i);
-        await page.waitForTimeout(1500);
         const events = parseWettkampffolge([...xhrBucket]);
         log(`  Wettkampffolge: ${events.length} Events`);
 
-        // Pflichtzeiten-Tab (optional – PZ können auch in Wettkampffolge enthalten sein)
-        xhrBucket.length = 0;
-        const hasPZ = await activateTab(page, /pflichtzeit|mindestzeit/i);
-        if (hasPZ) {
-            await page.waitForTimeout(1500);
-            mergePflichtzeiten([...xhrBucket], events);
-            log(`  Pflichtzeiten-Tab vorhanden`);
-        }
+        mergePflichtzeiten([...xhrBucket], events);
 
         result.set(id, { sessions, events });
 
         if (i < eventLinks.length - 1) {
-            xhrBucket.length = 0;
+            xhrBucket.length = 0; // Bucket leeren BEVOR next-Competition geladen wird
             const nextImg = page.locator('img[src*="ico24/next.png"]').first();
             if (await nextImg.count() > 0) {
                 await nextImg.click({ timeout: 3000, force: true });
-                await page.waitForTimeout(3000);
+                await page.waitForTimeout(3000); // Alle Auto-XHRs für idx:i+2 abwarten
             } else {
                 log(`  Tab-Pass: next.png nicht gefunden für idx:${i + 2}`);
+                break;
             }
         }
     }
@@ -1116,264 +1116,170 @@ async function scrapeResults(page) {
 
 // ── Personen ─────────────────────────────────────────────────────────────────
 
-function parsePersonListJson(body) {
+// pers.php verwendet das gleiche Detail-Format wie ver.php:
+// {"error":false,"rtc":0,"count":"421","idx":1,"data":{"persID":"...","persNACHNAME":"...","persVORNAME":"...","persGEBTAG":"...","persGESCHLECHT":"...","adrMAIL1":"...",...},"grp":[...]}
+// Kein separater Listen-XHR; man navigiert idx:1..N per next.png (analog zu Wettkämpfen).
+
+function parsePersonDetail(body) {
     try {
-        const data = JSON.parse(body);
-        // Liste in bekannten Schlüsseln suchen
-        const list = data.list ?? data.data ?? data.persons ?? data.personen ??
-                     (Array.isArray(data) ? data : null);
-        if (!Array.isArray(list) || list.length === 0) {
-            log(`parsePersonListJson: kein Array. Schlüssel: ${Object.keys(data ?? {}).join(', ')}`);
-            return [];
+        const detail = JSON.parse(body);
+        const d = detail.data;
+        if (!d) return null;
+
+        const lastname  = (d.persNACHNAME ?? '').trim() || null;
+        const firstname = (d.persVORNAME  ?? '').trim() || null;
+        if (!lastname && !firstname) return null;
+
+        // Gruppe: top-level grp-Array (analog zu competitions) oder Feld in data
+        let trainingGroup = null;
+        const grpArr = detail.grp ?? detail.groups ?? d.grp;
+        if (Array.isArray(grpArr) && grpArr.length > 0) {
+            trainingGroup = grpArr
+                .map(g => g.name ?? g.grpNAME ?? g.GRPNAME ?? g.bezeichnung ?? null)
+                .filter(Boolean).join(', ') || null;
+        }
+        if (!trainingGroup) {
+            trainingGroup = d.swrGRUPPE ?? d.swrGRP ?? d.grpNAME ?? d.GRPNAME ?? d.gruppe ?? null;
         }
 
-        const persons = [];
-        for (const item of list) {
-            const pers = {};
-
-            // WebClub-ID
-            pers.webclub_person_id = String(
-                item.persID ?? item.persid ?? item.pID ?? item.id ?? item.nr ?? ''
-            ) || null;
-
-            // Name – verschiedene Formate
-            pers.lastname  = item.persFAM   ?? item.persNACHNAME ?? item.FAM   ?? item.fam   ??
-                             item.nachname  ?? item.last_name    ?? null;
-            pers.firstname = item.persVOR   ?? item.persVORNAME  ?? item.VOR   ?? item.vor   ??
-                             item.vorname  ?? item.first_name   ?? null;
-
-            // Falls nur "name" / "persNAME" vorhanden (Vollname im Format "Vorname Nachname")
-            if (!pers.lastname && !pers.firstname) {
-                const full = String(item.persNAME ?? item.name ?? item.n ?? '').trim();
-                if (full) {
-                    const parts = full.split(/\s+/);
-                    pers.lastname  = parts[parts.length - 1] || null;
-                    pers.firstname = parts.slice(0, -1).join(' ') || null;
-                }
-            }
-
-            if (!pers.lastname && !pers.firstname) continue; // kein Name → überspringen
-
-            // Geburtsdatum
-            pers.birth_date = isoDate(
-                item.persBD ?? item.persGEB ?? item.persDATUM ?? item.bd ??
-                item.geb   ?? item.datum   ?? item.born      ?? null
-            );
-
-            // Geschlecht (WebClub: M / W → normalizeGender mappt W→F)
-            pers.gender = normalizeGender(String(
-                item.persGES ?? item.ges ?? item.gender ?? item.geschlecht ?? ''
-            ));
-
-            // Trainingsgruppe (ggf. kommasepariert für Mehrfachzuordnung)
-            pers.training_group = item.persGRUPPE ?? item.GRUPPE ?? item.gruppe ??
-                                  item.group      ?? item.training_group ?? null;
-
-            // Weitere Felder
-            pers.dsv_id            = item.persDSV   ?? item.dsv   ?? item.dsv_id           ?? null;
-            pers.membership_number = item.persMNR   ?? item.mnr   ?? item.membership_number ?? null;
-            pers.email             = item.persMAIL  ?? item.mail  ?? item.email             ?? null;
-            pers.phone             = item.persTEL   ?? item.tel   ?? item.phone             ?? null;
-            pers.mobile            = item.persMOBIL ?? item.mobil ?? item.mobile            ?? null;
-
-            // Leerzeichen trimmen
-            if (pers.lastname)  pers.lastname  = pers.lastname.trim();
-            if (pers.firstname) pers.firstname = pers.firstname.trim();
-
-            persons.push(pers);
-        }
-
-        log(`parsePersonListJson: ${persons.length} Personen geparst`);
-        return persons;
-    } catch (e) {
-        log(`parsePersonListJson Fehler: ${e.message}`);
-        return [];
+        return {
+            webclub_person_id: d.persID ? String(d.persID) : null,
+            lastname,
+            firstname,
+            birth_date:        isoDate(d.persGEBTAG ?? d.persGEB ?? null),
+            gender:            normalizeGender(d.persGESCHLECHT ?? ''),
+            email:             d.adrMAIL1  ?? d.adrMAIL2  ?? null,
+            phone:             d.adrFON1   ?? d.adrFON2   ?? null,
+            mobile:            d.adrMOBIL  ?? null,
+            street:            d.adrSTRASSE ?? null,
+            postal_code:       d.adrPLZ    ?? null,
+            city:              d.adrORT    ?? null,
+            dsv_id:            d.swrDSVID  ?? d.persDSVID ?? null,
+            membership_number: d.swrMNR    ?? d.persMNR   ?? d.swrMITGLIEDNR ?? null,
+            training_group:    trainingGroup,
+        };
+    } catch (_) {
+        return null;
     }
 }
 
 async function scrapePersons(page) {
     log('Navigiere zu Personen/Mitgliedern…');
-
     const persons = [];
     const errors  = [];
 
-    // XHR-Capture (gleiche Strategie wie Veranstaltungsliste):
-    // pers.php liefert die Personenliste per AJAX; der DOM-Spinner verschwindet
-    // in headless-Mode nie → direkt den JSON-XHR abgreifen.
-    let capturedPersonJson = null;
+    // XHR-Capture: Detailresponses mit persNACHNAME sammeln (wie competition-Details mit verNAME)
+    const detailBodies = [];
     const capturePersonXhr = async (res) => {
         try {
             if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
-            const status = res.status();
-            log(`Personen-XHR < ${status} ${res.url().replace(BASE_URL, '***')}`);
-            if (status < 200 || status >= 300) return;
+            if (res.status() < 200 || res.status() >= 300) return;
             const body = await res.text();
-            if (!body.trim().startsWith('{') && !body.trim().startsWith('[')) return;
-            // Alle JSON-Antworten loggen; erste als Kandidat merken
-            log(`Personen-XHR JSON (${body.length}B): ${body.slice(0, 400).replace(/[\r\n]+/g, ' ')}`);
-            if (!capturedPersonJson) capturedPersonJson = body;
+            if (body.includes('"persNACHNAME"')) {
+                detailBodies.push(body);
+                try {
+                    const d = JSON.parse(body);
+                    log(`Pers-XHR: idx=${d.idx}/${d.count} id=${d.data?.persID} ${d.data?.persNACHNAME}, ${d.data?.persVORNAME} grp=${JSON.stringify(d.grp ?? null)}`);
+                } catch (_) { log(`Pers-XHR Detail (${body.length}B) erfasst`); }
+            } else if (body.trim().startsWith('{') || body.trim().startsWith('[')) {
+                log(`Pers-XHR JSON (${body.length}B): ${body.slice(0, 150).replace(/[\r\n]+/g, ' ')}`);
+            }
         } catch (_) {}
     };
     page.on('response', capturePersonXhr);
 
-    const candidates = [
-        BASE_URL + '/pers.php',
-        BASE_URL + '/person.php',
-        BASE_URL + '/mitglieder.php',
-        BASE_URL + '/personen',
-        BASE_URL + '/mitglieder',
-        BASE_URL + '/members',
-    ];
-
+    // Navigieren zu pers.php
     let navigated = false;
-    for (const url of candidates) {
-        try {
-            await page.goto(url, { waitUntil: 'load', timeout: 15000 });
-
-            // Suchen-Button klicken (manche WebClub-Instanzen haben expliziten Filter)
-            if (url.includes('pers.php')) {
-                const searchBtn = page.locator(
-                    'input[type="submit"], button[type="submit"], button, input[type="button"]'
-                ).filter({ hasText: /suchen|laden|anzeigen|filter|start|go/i }).first();
-                if (await searchBtn.count() > 0) {
-                    log('Personen-Seite: Suchen-Button gefunden – klicke');
-                    await searchBtn.click({ timeout: 3000 }).catch(() => {});
-                }
-            }
-
-            await page.waitForTimeout(3000); // XHR-Antwort abwarten
-
-            if (capturedPersonJson) {
-                navigated = true;
-                log('Personenseite gefunden (XHR-Capture): ' + url);
-                break;
-            }
-
-            // DOM-Fallback: falls Seite Tabellendaten direkt rendert
-            const rowCount = await page.locator('table tr').count();
-            if (rowCount > 1) {
-                navigated = true;
-                log('Personenseite gefunden (DOM): ' + url);
-                break;
-            }
-        } catch (e) {
-            log(`Personen-Kandidat ${url} fehlgeschlagen: ${e.message}`);
-        }
+    try {
+        await page.goto(BASE_URL + '/pers.php', { waitUntil: 'load', timeout: 15000 });
+        navigated = true;
+    } catch (e) {
+        log(`pers.php Navigation fehlgeschlagen: ${e.message}`);
     }
 
-    // Menü-Navigation als letzter Fallback
-    if (!navigated && !capturedPersonJson) {
-        navigated = await navigateViaDropdownMenu(page, /personen|mitglieder|members/i, /personen|mitglieder|members/i);
-        if (navigated) await page.waitForTimeout(3000);
+    if (!navigated) {
+        page.off('response', capturePersonXhr);
+        errors.push({ type: 'navigation', message: 'pers.php nicht erreichbar' });
+        return { persons, errors };
+    }
+
+    // Suchen-Button klicken → löst Person idx:1 XHR aus
+    const searchBtn = page.locator(
+        'input[type="submit"], button[type="submit"], button, input[type="button"]'
+    ).filter({ hasText: /suchen|laden|anzeigen|filter|start|go/i }).first();
+    if (await searchBtn.count() > 0) {
+        log('Personen-Seite: Suchen-Button gefunden – klicke');
+        await searchBtn.click({ timeout: 3000 }).catch(() => {});
+    }
+
+    await page.waitForTimeout(3000); // warten bis idx:1 geladen
+
+    // Gesamtzahl aus erster Detail-Response lesen
+    let totalCount = 0;
+    if (detailBodies.length > 0) {
+        try {
+            const first = JSON.parse(detailBodies[0]);
+            totalCount = parseInt(first.count ?? '0', 10);
+            log(`Personen laut WebClub: ${totalCount}`);
+            // Ersten Person-Detail für Feldname-Entdeckung loggen
+            log(`Erste Person raw (600B): ${detailBodies[0].slice(0, 600)}`);
+        } catch (_) {}
+    }
+
+    if (totalCount === 0) {
+        log('WARNUNG: Keine Personen in pers.php (count=0 oder kein Detail-XHR empfangen)');
+        page.off('response', capturePersonXhr);
+        await screenshot(page, 'persons_list');
+        return { persons, errors };
+    }
+
+    // JS-Navigationsfunktion auf Seite suchen (analog zu verc_getakt / verc_choose)
+    const jsFns = await page.evaluate(() =>
+        Object.keys(window).filter(k => typeof window[k] === 'function' && /^pers_/i.test(k))
+    ).catch(() => []);
+    if (jsFns.length) log(`Personen-JS-Fns: ${jsFns.join(', ')}`);
+    const navFn = jsFns.find(n => /^pers_(getakt|choose|goto|nav|get)$/i.test(n));
+
+    if (totalCount > 1) {
+        if (navFn) {
+            // Schneller Pfad: JS-Funktion direkt aufrufen (kein DOM-Klick nötig)
+            log(`Navigiere via ${navFn}() für idx 2..${totalCount}`);
+            for (let i = 2; i <= totalCount; i++) {
+                await page.evaluate((fn, idx) => window[fn](idx), navFn, i).catch(() => {});
+                await page.waitForTimeout(200);
+                if (i % 50 === 0) log(`Personen: ${i}/${totalCount} – ${detailBodies.length} XHRs erfasst`);
+            }
+            await page.waitForTimeout(800);
+        } else {
+            // Langsamer Pfad: next.png klicken (gleiche Strategie wie Wettkämpfe)
+            log(`Kein JS-Navfn – navigiere via next.png für ${totalCount - 1} weitere Personen`);
+            const nextBtn = page.locator('img[src*="ico24/next.png"]');
+            for (let i = 2; i <= totalCount; i++) {
+                try {
+                    if (await nextBtn.count() === 0) { log('next.png nicht mehr vorhanden'); break; }
+                    await nextBtn.click({ timeout: 3000 });
+                    await page.waitForTimeout(400);
+                    if (i % 50 === 0) log(`Personen: ${i}/${totalCount} – ${detailBodies.length} XHRs erfasst`);
+                } catch (e) {
+                    log(`Person idx:${i} – Navigation: ${e.message}`);
+                    break;
+                }
+            }
+        }
     }
 
     page.off('response', capturePersonXhr);
     await screenshot(page, 'persons_list');
 
-    if (!navigated && !capturedPersonJson) {
-        const msg = 'Personenseite nicht gefunden (alle Kandidaten und Menü fehlgeschlagen)';
-        errors.push({ type: 'navigation', message: msg });
-        log('WARNUNG: ' + msg);
-        return { persons, errors };
-    }
+    log(`Pers-XHR: ${detailBodies.length} Details erfasst (erwartet: ${totalCount})`);
 
-    // XHR-JSON-Antwort parsen
-    if (capturedPersonJson) {
-        const parsed = parsePersonListJson(capturedPersonJson);
-        log(`XHR-Parse: ${parsed.length} Personen`);
-        persons.push(...parsed);
-    }
-
-    // DOM-Fallback: Header-basiertes Spalten-Mapping (falls XHR leer oder nicht erkannt)
-    if (persons.length === 0) {
-        log('XHR-Parse leer – versuche DOM-Extraktion');
-        const headers = [];
-        const thCells = page.locator('table thead th, table thead td');
-        const thCount = await thCells.count();
-        for (let i = 0; i < thCount; i++) {
-            headers.push(((await safeText(thCells.nth(i))) || '').toLowerCase());
-        }
-
-        const rows = page.locator('table tr');
-        const rowCount = await rows.count();
-        for (let i = 0; i < rowCount; i++) {
-            const row   = rows.nth(i);
-            const cells = row.locator('td');
-            const cnt   = await cells.count();
-            if (cnt < 2) continue;
-
-            const person = { webclub_person_id: null };
-            const anchor = row.locator('a').first();
-            const href   = await safeAttr(anchor, 'href');
-            if (href) person.webclub_person_id = extractIdFromUrl(href);
-
-            for (let j = 0; j < Math.min(cnt, headers.length); j++) {
-                const h = headers[j];
-                const v = (await safeText(cells.nth(j))) || null;
-                if (!v) continue;
-                if (/nachname|last.?name/i.test(h))              person.lastname         = v;
-                else if (/vorname|first.?name/i.test(h))         person.firstname        = v;
-                else if (/^name$/.test(h) && !person.lastname) {
-                    const parts = v.split(' ');
-                    person.firstname = parts.slice(0, -1).join(' ') || null;
-                    person.lastname  = parts[parts.length - 1] || v;
-                }
-                else if (/geburt|birthday|born/i.test(h))        person.birth_date       = isoDate(v);
-                else if (/geschlecht|gender|sex/i.test(h))       person.gender           = normalizeGender(v);
-                else if (/dsv.?id|dsv/i.test(h))                 person.dsv_id           = v;
-                else if (/mitglied|member.?nr|membership/i.test(h)) person.membership_number = v;
-                else if (/mail|email/i.test(h))                  person.email            = v;
-                else if (/telefon|phone|mobil/i.test(h))         person.phone            = v;
-                else if (/gruppe|group|training/i.test(h))       person.training_group   = v;
-            }
-
-            if (person.lastname || person.firstname) persons.push(person);
-        }
-        log(`DOM-Extraktion: ${persons.length} Personen`);
+    for (const body of detailBodies) {
+        const p = parsePersonDetail(body);
+        if (p) persons.push(p);
     }
 
     log(`Personen gesamt: ${persons.length}`);
     return { persons, errors };
-}
-
-async function scrapePersonDetail(page, url) {
-    await page.goto(url, { waitUntil: 'load' });
-    await page.waitForTimeout(500);
-
-    const person = {
-        webclub_person_id: extractIdFromUrl(url),
-        webclub_url: url,
-    };
-
-    const fields = await extractLabelValuePairs(page);
-
-    person.lastname          = pickField(fields, /nachname|last.?name/i);
-    person.firstname         = pickField(fields, /vorname|first.?name/i);
-    person.birth_date        = isoDate(pickField(fields, /geburt|birthday|born/i));
-    person.gender            = normalizeGender(pickField(fields, /geschlecht|gender|sex/i) || '');
-    person.dsv_id            = pickField(fields, /dsv.?id/i);
-    person.membership_number = pickField(fields, /mitglied|membership/i);
-    person.email             = pickField(fields, /^e-?mail|^mail/i);
-    person.phone             = pickField(fields, /telefon|phone|festnetz/i);
-    person.mobile            = pickField(fields, /mobil|handy|mobile/i);
-    person.street            = pickField(fields, /strasse|straße|street|adresse/i);
-    person.postal_code       = pickField(fields, /plz|postleitzahl|zip/i);
-    person.city              = pickField(fields, /^ort$|^stadt|^city/i);
-    person.country           = pickField(fields, /land|country/i);
-    person.training_group    = pickField(fields, /gruppe|group|training/i);
-    person.active            = true; // Default; Austreten würde separate Logik erfordern
-
-    // Falls Name noch nicht aus Formular: aus Seitenüberschrift
-    if (!person.lastname) {
-        const heading = await safeText(page.locator('h1, h2, .page-title').first());
-        if (heading) {
-            const parts = heading.split(/\s+/);
-            person.firstname = parts.slice(0, -1).join(' ') || null;
-            person.lastname  = parts[parts.length - 1] || heading;
-        }
-    }
-
-    return (person.lastname || person.firstname) ? person : null;
 }
 
 async function navigateToNextPage(page) {
