@@ -1237,17 +1237,47 @@ async function scrapePersons(page) {
     // pers_choose(idx) via page.evaluate() löst wie ver_choose() Seitennavigation aus
     // und zerstört den Playwright-Kontext – daher immer next.png verwenden.
     if (totalCount > 1) {
-        log(`Navigiere via next.png für ${totalCount - 1} weitere Personen (~${Math.ceil((totalCount - 1) * 0.35)}s)`);
+        log(`Navigiere via next.png für ${totalCount - 1} weitere Personen (~${Math.ceil((totalCount - 1) * 0.42)}s)`);
+
+        // fileupload_dialog öffnet sich für jede Person ohne Profilbild und blockiert Klicks.
+        // Als No-Op patchen und das bereits offene Modal für idx:1 sofort schließen.
+        await page.evaluate(() => {
+            if (typeof window.fileupload_dialog === 'function') window.fileupload_dialog = () => {};
+            if (typeof window.mail_dialog_fileupload === 'function') window.mail_dialog_fileupload = () => {};
+            document.querySelectorAll('.modal.in, .modal.show').forEach(m => {
+                m.classList.remove('in', 'show');
+                m.style.display = 'none';
+            });
+            document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }).catch(() => {});
+        await page.waitForTimeout(100);
+
         const nextBtn = page.locator('img[src*="ico24/next.png"]');
+        let consecutiveFails = 0;
         for (let i = 2; i <= totalCount; i++) {
             try {
                 if (await nextBtn.count() === 0) { log('next.png nicht vorhanden, breche ab'); break; }
                 await nextBtn.click({ timeout: 3000 });
-                await page.waitForTimeout(350);
+                await page.waitForTimeout(400);
+                consecutiveFails = 0;
                 if (i % 50 === 0) log(`Personen: ${i}/${totalCount} – ${detailBodies.length} XHRs erfasst`);
             } catch (e) {
-                log(`Person idx:${i} Navigation: ${e.message}`);
-                break;
+                consecutiveFails++;
+                log(`Person idx:${i}: ${e.message.split('\n')[0]} (Fehler ${consecutiveFails})`);
+                if (consecutiveFails >= 5) { log('Zu viele aufeinanderfolgende Fehler – breche ab'); break; }
+                // Modal schließen und weitermachen
+                await page.evaluate(() => {
+                    document.querySelectorAll('.modal.in, .modal.show').forEach(m => {
+                        m.classList.remove('in', 'show'); m.style.display = 'none';
+                    });
+                    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('padding-right');
+                }).catch(() => {});
             }
         }
     }
