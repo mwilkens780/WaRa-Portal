@@ -95,6 +95,34 @@ function parseDateRange(str) {
     return { date: null, date_end: null };
 }
 
+function mapZeitnahme(code) {
+    if (code == null || code === '') return null;
+    const map = { '1': 'Handzeitnahme', '2': 'Vollautomatik', '3': 'Halbautomatisch' };
+    return map[String(code)] || String(code);
+}
+
+function parseTimeToMs(str) {
+    if (!str || str === '0' || str === '0:00,00' || str === '0:00.00') return 0;
+    const m = String(str).match(/^(\d+):(\d{2})[.,](\d{1,2})$/);
+    if (!m) return 0;
+    const cs = m[3].length === 1 ? parseInt(m[3]) * 10 : parseInt(m[3]);
+    return parseInt(m[1]) * 60000 + parseInt(m[2]) * 1000 + cs * 10;
+}
+
+const WEBCLUB_DISCIPLINE = {
+    '1': 'S', '2': 'R', '3': 'B', '4': 'L', '5': 'F',
+    'SCH': 'S', 'SCHM': 'S', 'SM': 'S', 'FLY': 'S', 'BUTTERFLY': 'S',
+    'RÜ': 'R', 'RUE': 'R', 'BACK': 'R', 'RÜCKEN': 'R',
+    'BR': 'B', 'BRUST': 'B', 'BREAST': 'B',
+    'LA': 'L', 'LAG': 'L', 'LAGEN': 'L', 'MEDLEY': 'L', 'IM': 'L',
+    'FR': 'F', 'FREI': 'F', 'FREE': 'F', 'FREISTIL': 'F', 'CRAWL': 'F',
+};
+
+function mapDiscipline(code) {
+    if (code == null) return null;
+    return WEBCLUB_DISCIPLINE[String(code).toUpperCase().trim()] || null;
+}
+
 async function screenshot(page, label) {
     if (!SCREENSHOT_PREFIX) return;
     try {
@@ -539,10 +567,14 @@ async function scrapeCompetitions(page) {
     page.off('response', captureXhr);
     log(`Details: ${detailMap.size} von ${eventLinks.length} erfasst`);
 
+    // ── Tab-Pass: Abschnitte / Wettkampffolge / Pflichtzeiten ────────────────
+    const eventsMap = await scrapeCompetitionTabs(page, eventLinks);
+
     // ── Competition-Objekte bauen ─────────────────────────────────────────────
     for (const link of eventLinks) {
         const id = extractIdFromUrl(link.url);
         const d  = detailMap.get(id);
+        const ev = eventsMap.get(id) || { sessions: [], events: [] };
         competitions.push({
             webclub_id:        id,
             webclub_url:       link.url,
@@ -560,7 +592,7 @@ async function scrapeCompetitions(page) {
             venue_street:      d?.verBADSTRASSE          || null,
             venue_postal:      d?.verBADPLZ              || null,
             venue_city:        d?.verBADORT              || null,
-            zeitnahme:         d?.verZEITNAHME           || null,
+            zeitnahme:         mapZeitnahme(d?.verZEITNAHME),
             contact_name:      d?.verAUSNAME             || null,
             contact_email:     d?.verAUSMAIL             || null,
             melde_name:        ((d?.verMELDEVORNAME || '') + ' ' + (d?.verMELDENACHNAME || '')).trim() || null,
@@ -569,6 +601,8 @@ async function scrapeCompetitions(page) {
             type:              null,
             entries:           [],
             results:           [],
+            sessions:          ev.sessions,
+            events:            ev.events,
         });
     }
 
@@ -865,6 +899,155 @@ function pickField(fields, regex) {
         if (regex.test(key)) return fields[key] || null;
     }
     return null;
+}
+
+// ── WebClub Tab-Daten: Abschnitte / Wettkampffolge / Pflichtzeiten ────────────
+
+function parseAbschnitte(bodies) {
+    for (const body of bodies) {
+        try {
+            const data = JSON.parse(body);
+            const list = data.list ?? data.data ?? data.abschnitte ?? data.sessions;
+            if (!Array.isArray(list) || list.length === 0) continue;
+            const mapped = [];
+            for (const item of list) {
+                const nr = parseInt(item.absID ?? item.absNR ?? item.nr ?? item.id ?? '', 10);
+                if (!nr) continue;
+                mapped.push({
+                    number: nr,
+                    name:   item.absBEZ ?? item.absNAME ?? item.name ?? item.bez ?? ('Abschnitt ' + nr),
+                    date:   isoDate(item.absDATUM ?? item.datum ?? item.date ?? null),
+                    time:   item.absVON ?? item.absZEIT_VON ?? item.zeit ?? item.time ?? null,
+                });
+            }
+            if (mapped.length > 0) {
+                log(`parseAbschnitte: ${mapped.length} Abschnitte erkannt`);
+                return mapped;
+            }
+        } catch (_) {}
+    }
+    return [];
+}
+
+function parseWettkampffolge(bodies) {
+    for (const body of bodies) {
+        try {
+            const data = JSON.parse(body);
+            const list = data.list ?? data.data ?? data.wettkampf ?? data.events ?? data.wettkaempfe;
+            if (!Array.isArray(list) || list.length === 0) continue;
+            const events = [];
+            for (const item of list) {
+                const discipline = mapDiscipline(item.wkDIS ?? item.dis ?? item.disziplin ?? item.discipline ?? null);
+                const distance   = parseInt(item.wkSTR ?? item.str ?? item.strecke ?? item.distance ?? '0', 10);
+                if (!discipline || !distance) continue;
+                const gRaw   = String(item.wkGES ?? item.ges ?? item.geschlecht ?? item.gender ?? 'X').toUpperCase();
+                const gender = gRaw === 'W' ? 'F' : (['M', 'F', 'X'].includes(gRaw) ? gRaw : 'X');
+                const pzMs   = parseTimeToMs(item.wkPZ ?? item.pz ?? item.pflichtzeit ?? item.pzzeit ?? '');
+                events.push({
+                    number:             parseInt(item.wkNR ?? item.nr ?? item.wkID ?? '0', 10),
+                    session:            parseInt(item.wkABS ?? item.abs ?? item.abschnitt ?? item.session ?? '1', 10),
+                    discipline,
+                    distance,
+                    gender,
+                    age_group:          item.wkWERT ?? item.wert ?? item.wertung ?? item.age_group ?? null,
+                    qualifying_time_ms: pzMs || null,
+                });
+            }
+            if (events.length > 0) {
+                log(`parseWettkampffolge: ${events.length} Events erkannt`);
+                return events;
+            }
+        } catch (_) {}
+    }
+    return [];
+}
+
+function mergePflichtzeiten(bodies, events) {
+    for (const body of bodies) {
+        try {
+            const data = JSON.parse(body);
+            const list = data.list ?? data.data ?? data.pflichtzeiten;
+            if (!Array.isArray(list)) continue;
+            for (const item of list) {
+                const nr  = parseInt(item.wkNR ?? item.nr ?? '0', 10);
+                const pzMs = parseTimeToMs(item.wkPZ ?? item.pz ?? item.pflichtzeit ?? '');
+                if (!nr || !pzMs) continue;
+                const ev = events.find(e => e.number === nr);
+                if (ev && !ev.qualifying_time_ms) ev.qualifying_time_ms = pzMs;
+            }
+        } catch (_) {}
+    }
+}
+
+async function scrapeCompetitionTabs(page, eventLinks) {
+    if (eventLinks.length === 0) return new Map();
+    log('Tab-Pass: Abschnitte / Wettkampffolge / Pflichtzeiten…');
+
+    const result = new Map(); // verID → { sessions: [], events: [] }
+    const xhrBucket = [];
+
+    const captureTabXhr = async (res) => {
+        try {
+            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+            if (res.status() < 200 || res.status() >= 300) return;
+            const body = await res.text();
+            if (body.length < 20) return;
+            const t = body.trimStart();
+            if (t.startsWith('{') || t.startsWith('[')) {
+                log(`Tab-XHR (${body.length}B) ${res.url().replace(BASE_URL, '***')}: ${body.slice(0, 400)}`);
+                xhrBucket.push(body);
+            }
+        } catch (_) {}
+    };
+    page.on('response', captureTabXhr);
+
+    await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
+    await page.waitForTimeout(2000);
+
+    for (let i = 0; i < eventLinks.length; i++) {
+        const id = extractIdFromUrl(eventLinks[i].url);
+        log(`Tab-Pass: id=${id} (idx:${i + 1})`);
+
+        // Abschnitte-Tab
+        xhrBucket.length = 0;
+        await activateTab(page, /abschnitt/i);
+        await page.waitForTimeout(1500);
+        const sessions = parseAbschnitte([...xhrBucket]);
+        log(`  Abschnitte: ${sessions.length}`);
+
+        // Wettkampffolge-Tab
+        xhrBucket.length = 0;
+        await activateTab(page, /wettkampffolge|ablauf|programm/i);
+        await page.waitForTimeout(1500);
+        const events = parseWettkampffolge([...xhrBucket]);
+        log(`  Wettkampffolge: ${events.length} Events`);
+
+        // Pflichtzeiten-Tab (optional – PZ können auch in Wettkampffolge enthalten sein)
+        xhrBucket.length = 0;
+        const hasPZ = await activateTab(page, /pflichtzeit|mindestzeit/i);
+        if (hasPZ) {
+            await page.waitForTimeout(1500);
+            mergePflichtzeiten([...xhrBucket], events);
+            log(`  Pflichtzeiten-Tab vorhanden`);
+        }
+
+        result.set(id, { sessions, events });
+
+        if (i < eventLinks.length - 1) {
+            xhrBucket.length = 0;
+            const nextImg = page.locator('img[src*="ico24/next.png"]').first();
+            if (await nextImg.count() > 0) {
+                await nextImg.click({ timeout: 3000, force: true });
+                await page.waitForTimeout(3000);
+            } else {
+                log(`  Tab-Pass: next.png nicht gefunden für idx:${i + 2}`);
+            }
+        }
+    }
+
+    page.off('response', captureTabXhr);
+    log(`Tab-Pass abgeschlossen: ${result.size} Veranstaltungen`);
+    return result;
 }
 
 async function scrapeEntries(page) {

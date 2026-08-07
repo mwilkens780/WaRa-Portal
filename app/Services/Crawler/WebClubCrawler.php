@@ -144,6 +144,7 @@ class WebClubCrawler
 
             $this->syncEntries($competition, $raw['entries'] ?? []);
             $this->syncResults($competition, $raw['results'] ?? []);
+            $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
 
             TraceService::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
             return 'created';
@@ -193,6 +194,7 @@ class WebClubCrawler
 
         $this->syncEntries($competition, $raw['entries'] ?? []);
         $this->syncResults($competition, $raw['results'] ?? []);
+        $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
 
         return $updates ? 'updated' : 'skipped';
     }
@@ -255,6 +257,53 @@ class WebClubCrawler
                 'time_ms'        => $result['time_ms'],
                 'placement'      => $result['placement'] ?? null,
             ]));
+        }
+    }
+
+    private function syncCompetitionEvents(Competition $competition, array $events, array $sessions): void
+    {
+        if (empty($events)) return;
+
+        // DSV7-Import hat Vorrang: wenn bereits Events existieren, überspringen
+        if ($competition->events()->exists()) return;
+
+        // Session-Nr → date/name Index
+        $sessionMeta = [];
+        foreach ($sessions as $s) {
+            $nr = (int) ($s['number'] ?? 0);
+            if ($nr > 0) {
+                $sessionMeta[$nr] = [
+                    'date' => $s['date'] ?? null,
+                    'name' => $s['name'] ?? null,
+                    'time' => $s['time'] ?? null,
+                ];
+            }
+        }
+
+        foreach ($events as $ev) {
+            if (empty($ev['discipline']) || empty($ev['distance'])) continue;
+
+            $sessionNr = max(1, (int) ($ev['session'] ?? 1));
+            $meta      = $sessionMeta[$sessionNr] ?? [];
+
+            $evNr = (int) ($ev['number'] ?? 0);
+            if (CompetitionEvent::where('competition_id', $competition->id)
+                    ->where('event_number', $evNr)->exists()) {
+                continue;
+            }
+
+            CompetitionEvent::create([
+                'competition_id'     => $competition->id,
+                'event_number'       => $evNr,
+                'session_number'     => $sessionNr,
+                'session_date'       => $meta['date'] ?? null,
+                'session_name'       => $meta['name'] ?? null,
+                'discipline'         => $ev['discipline'],
+                'distance'           => (int) $ev['distance'],
+                'gender'             => $ev['gender'] ?? 'X',
+                'age_group'          => $ev['age_group'] ?? null,
+                'qualifying_time_ms' => $ev['qualifying_time_ms'] ?? null,
+            ]);
         }
     }
 
