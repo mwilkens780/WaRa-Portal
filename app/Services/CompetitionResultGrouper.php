@@ -68,6 +68,11 @@ class CompetitionResultGrouper
                     ->where('placement', '>', 0)
                     ->min('placement');
 
+                $webclubRek = $sameTimeGroup
+                    ->pluck('webclub_rek')
+                    ->filter(fn($v) => $v !== null && $v !== '')
+                    ->first() ?? '';
+
                 return (object)[
                     'id'                   => $first->id,
                     'result_ids'           => $sameTimeGroup->pluck('id')->toArray(),
@@ -89,6 +94,7 @@ class CompetitionResultGrouper
                     'best_placement'       => $bestPlacement,
                     'placements'           => $placements,
                     'is_dns'               => $first->time_ms <= 0,
+                    'webclub_rek'          => $webclubRek,
                 ];
             });
     }
