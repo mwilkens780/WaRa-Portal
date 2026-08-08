@@ -1179,10 +1179,11 @@ async function scrapePersons(page) {
                 try {
                     const d = JSON.parse(body);
                     const grpswr = d.data?.grpswr;
-                    const grpLog = Array.isArray(grpswr) && grpswr.length > 0
-                        ? grpswr.map(g => g.grpNAME ?? g.name ?? g.grpID).join(', ')
+                    const hasGrp = Array.isArray(grpswr) && grpswr.length > 0;
+                    const grpLog = hasGrp
+                        ? JSON.stringify(grpswr)
                         : (grpswr !== undefined ? '[]' : 'n/a');
-                    log(`Pers-XHR: idx=${d.idx}/${d.count} id=${d.data?.persID} aktiv=${d.data?.swrAKTIV} ${d.data?.persNACHNAME}, ${d.data?.persVORNAME} grpswr=[${grpLog}]`);
+                    log(`Pers-XHR: idx=${d.idx}/${d.count} id=${d.data?.persID} aktiv=${d.data?.swrAKTIV} ${d.data?.persNACHNAME}, ${d.data?.persVORNAME} grpswr=${grpLog}`);
                 } catch (_) { log(`Pers-XHR Detail (${body.length}B) erfasst`); }
             } else if (body.trim().startsWith('{') || body.trim().startsWith('[')) {
                 log(`Pers-XHR JSON (${body.length}B): ${body.slice(0, 150).replace(/[\r\n]+/g, ' ')}`);
