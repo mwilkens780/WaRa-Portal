@@ -405,6 +405,7 @@ class WebClubCrawler
             $email      = !empty($raw['email']) ? $raw['email'] : null;
             $initialPwd = Str::random(12);
             $user = User::create(array_filter([
+                'name'              => trim("$firstname $lastname"),  // NOT NULL in DB
                 'lastname'          => $lastname,
                 'firstname'         => $firstname,
                 'email'             => $email,
