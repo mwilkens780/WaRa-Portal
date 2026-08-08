@@ -1305,21 +1305,29 @@ async function scrapeGroups(page) {
     const groups = [];
     const errors = [];
 
-    const groupBodies = [];
+    // XHR-Capture: gleiche Strategie wie bei Personen (idx/count/data-Format)
+    let totalCount = 0;
     const captureGrpXhr = async (res) => {
         try {
             if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
             if (res.status() < 200 || res.status() >= 300) return;
             const body = await res.text();
-            if (body.includes('"grpNAME"') || body.includes('"grpID"') || body.includes('"grpBEZEICHNUNG"')) {
-                groupBodies.push(body);
-                log(`Gruppen-XHR (${body.length}B): ${body.slice(0, 600).replace(/[\r\n]+/g, ' ')}`);
-            }
+            if (!body.includes('"grpNAME"') && !body.includes('"grpID"')) return;
+            try {
+                const d = JSON.parse(body);
+                if (!d.data?.grpID) return;
+                if (!totalCount && d.count) totalCount = parseInt(d.count, 10) || 0;
+                const id   = String(d.data.grpID).trim();
+                const name = (d.data.grpNAME ?? d.data.grpBEZEICHNUNG ?? '').trim();
+                if (id && name && !groups.find(g => g.webclub_id === id)) {
+                    groups.push({ webclub_id: id, name });
+                    log(`Gruppe: id=${id} name="${name}"`);
+                }
+            } catch (_) {}
         } catch (_) {}
     };
     page.on('response', captureGrpXhr);
 
-    // Versuche zuerst direkte URL, dann Dropdown-Navigation
     let navigated = false;
     try {
         await page.goto(BASE_URL + '/grp.php', { waitUntil: 'load', timeout: 15000 });
@@ -1331,33 +1339,31 @@ async function scrapeGroups(page) {
         navigated = await navigateViaDropdownMenu(page, /stammdaten/i, /gruppen/i).catch(() => false);
         if (!navigated) {
             errors.push({ type: 'navigation', message: 'Gruppen-Seite (grp.php) nicht erreichbar' });
+            page.off('response', captureGrpXhr);
+            return { groups, errors };
         }
     }
 
-    // XHR-Antworten abwarten
-    await page.waitForTimeout(2000);
-    page.off('response', captureGrpXhr);
+    // Erste XHR abwarten
+    await page.waitForTimeout(800);
 
-    // Responses parsen – WebClub liefert Gruppen entweder als Liste oder einzeln
-    for (const body of groupBodies) {
-        try {
-            const d = JSON.parse(body);
-            // Format 1: { list: [{grpID, grpNAME, ...}] }
-            // Format 2: { data: {grpID, grpNAME, ...} }
-            // Format 3: direkt [{grpID, grpNAME}]
-            const items = d.list ?? (Array.isArray(d) ? d : null) ?? (d.data ? [d.data] : []);
-            for (const item of (items || [])) {
-                const id   = String(item.grpID   ?? item.id   ?? '').trim();
-                const name = (item.grpNAME ?? item.grpBEZEICHNUNG ?? item.bezeichnung ?? item.name ?? '').trim();
-                if (id && name && !groups.find(g => g.webclub_id === id)) {
-                    groups.push({ webclub_id: id, name });
-                    log(`Gruppe: id=${id} name="${name}"`);
-                }
-            }
-        } catch (_) {}
+    // Durch alle Gruppen navigieren (gleiche next.png-Strategie wie bei Personen)
+    if (totalCount > 1) {
+        log(`${totalCount} Gruppen – navigiere via next.png…`);
+        const nextBtn = page.locator('img[src*="ico24/next.png"]');
+        for (let i = 2; i <= totalCount; i++) {
+            try {
+                if (await nextBtn.count() === 0) break;
+                await nextBtn.click({ timeout: 3000 });
+                await page.waitForTimeout(400);
+            } catch (_) { break; }
+        }
     }
 
-    log(`Gruppen gesamt: ${groups.length}`);
+    await page.waitForTimeout(300);
+    page.off('response', captureGrpXhr);
+
+    log(`Gruppen gesamt: ${groups.length} (erwartet: ${totalCount})`);
     return { groups, errors };
 }
 
