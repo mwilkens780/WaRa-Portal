@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\TraceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
@@ -399,12 +400,16 @@ class WebClubCrawler
         }
 
         if (!$user) {
-            // Neuen Schwimmer anlegen (active=true, kein Passwort → kann sich nicht einloggen)
-            $email = !empty($raw['email']) ? $raw['email'] : null;
+            // Neuen Schwimmer anlegen. password NOT NULL → zufälliges Initialpasswort setzen.
+            // initial_password speichert es im Klartext für Admin-Übergabe.
+            $email      = !empty($raw['email']) ? $raw['email'] : null;
+            $initialPwd = Str::random(12);
             $user = User::create(array_filter([
                 'lastname'          => $lastname,
                 'firstname'         => $firstname,
                 'email'             => $email,
+                'password'          => $initialPwd,
+                'initial_password'  => $initialPwd,
                 'birth_date'        => $birthDate,
                 'gender'            => $this->normalizeGender($raw['gender'] ?? null),
                 'role'              => 'schwimmer',
