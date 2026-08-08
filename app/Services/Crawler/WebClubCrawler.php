@@ -335,14 +335,30 @@ class WebClubCrawler
 
     private function syncPersons(array $persons): array
     {
-        $synced      = 0;
-        $created     = 0;
-        $errors      = 0;
-        $webclubIds  = [];
+        $synced     = 0;
+        $created    = 0;
+        $errors     = 0;
+        $webclubIds = [];
+
+        // Bulk-Preloads: 1 Query statt N Queries pro Person.
+        $usersByWcId = User::whereNotNull('webclub_person_id')
+            ->get()
+            ->keyBy(fn($u) => (string) $u->webclub_person_id);
+
+        $groupsByWcId = TrainingGroup::whereNotNull('webclub_id')
+            ->get()
+            ->keyBy(fn($g) => (string) $g->webclub_id);
+
+        // Bestehende Gruppienzuordnungen: user_id → [group_id, ...]
+        $existingMemberships = DB::table('training_group_swimmer')
+            ->select('user_id', 'training_group_id')
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn($rows) => $rows->pluck('training_group_id')->all());
 
         foreach ($persons as $raw) {
             try {
-                $result = $this->syncPerson($raw);
+                $result = $this->syncPerson($raw, $usersByWcId, $groupsByWcId, $existingMemberships);
                 if ($result === 'created') { $created++; $synced++; }
                 elseif ($result === 'synced') $synced++;
 
@@ -375,7 +391,7 @@ class WebClubCrawler
         return compact('synced', 'created', 'errors', 'deactivated');
     }
 
-    private function syncPerson(array $raw): string
+    private function syncPerson(array $raw, \Illuminate\Support\Collection $usersByWcId, \Illuminate\Support\Collection $groupsByWcId, \Illuminate\Support\Collection &$existingMemberships): string
     {
         $webclubId = $raw['webclub_person_id'] ?? null;
         $lastname  = trim($raw['lastname']  ?? '');
@@ -384,11 +400,10 @@ class WebClubCrawler
 
         if (!$lastname && !$firstname) return 'skipped';
 
-        // Vorhandenen User finden: erst per webclub_id, dann Name+Geburtsdatum, dann nur Name
-        $user = null;
-        if ($webclubId) {
-            $user = User::where('webclub_person_id', $webclubId)->first();
-        }
+        // Erst per webclub_id aus dem Preload-Map (kein DB-Query)
+        $user = $webclubId ? $usersByWcId->get((string) $webclubId) : null;
+
+        // Fallback: Name+Geburtsdatum (weiterhin per DB, da kein sinnvoller Bulk-Preload möglich)
         if (!$user && $lastname && $birthDate) {
             $user = User::where('lastname', $lastname)
                 ->where('firstname', $firstname)
@@ -403,12 +418,10 @@ class WebClubCrawler
         }
 
         if (!$user) {
-            // Neuen Schwimmer anlegen. password NOT NULL → zufälliges Initialpasswort setzen.
-            // initial_password speichert es im Klartext für Admin-Übergabe.
             $email      = !empty($raw['email']) ? $raw['email'] : null;
             $initialPwd = Str::random(12);
             $user = User::create(array_filter([
-                'name'              => trim("$firstname $lastname"),  // NOT NULL in DB
+                'name'              => trim("$firstname $lastname"),
                 'lastname'          => $lastname,
                 'firstname'         => $firstname,
                 'email'             => $email,
@@ -423,13 +436,12 @@ class WebClubCrawler
                 'dsv_id'            => !empty($raw['dsv_id']) ? $raw['dsv_id'] : null,
             ], fn($v) => $v !== null && $v !== ''));
 
-            $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? []);
+            $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? [], $groupsByWcId, $existingMemberships);
 
             Log::info("WebClubCrawler: Neuer Schwimmer angelegt – {$firstname} {$lastname}");
             return 'created';
         }
 
-        // Vorhandenen User ergänzen (nur NULL-Felder befüllen, nie überschreiben)
         $updates = [];
         if (!$user->webclub_person_id && $webclubId)                                $updates['webclub_person_id'] = $webclubId;
         $mappedGender = $this->normalizeGender($raw['gender'] ?? null);
@@ -437,19 +449,16 @@ class WebClubCrawler
         if (empty($user->dsv_id)            && !empty($raw['dsv_id']))              $updates['dsv_id']            = $raw['dsv_id'];
         if (empty($user->membership_number) && !empty($raw['membership_number']))   $updates['membership_number'] = $raw['membership_number'];
         if (empty($user->member_since)      && !empty($raw['member_since']))        $updates['member_since']      = $raw['member_since'];
-        if (empty($user->training_group)    && !empty($raw['training_group']))      $updates['training_group']    = $raw['training_group'];
         if (empty($user->phone)             && !empty($raw['phone']))               $updates['phone']             = $raw['phone'];
         if (empty($user->mobile)            && !empty($raw['mobile']))              $updates['mobile']            = $raw['mobile'];
         if (empty($user->street)            && !empty($raw['street']))              $updates['street']            = $raw['street'];
         if (empty($user->postal_code)       && !empty($raw['postal_code']))         $updates['postal_code']       = $raw['postal_code'];
         if (empty($user->city)              && !empty($raw['city']))                $updates['city']              = $raw['city'];
-        // Reaktivieren, falls der User wieder in WebClub auftaucht
         if (!$user->active)                                                         $updates['active']            = true;
 
         if ($updates) $user->update($updates);
 
-        // Gruppenzuordnung immer synchronisieren (non-destruktiv: nur hinzufügen)
-        $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? []);
+        $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? [], $groupsByWcId, $existingMemberships);
 
         return $updates ? 'synced' : 'skipped';
     }
@@ -481,7 +490,7 @@ class WebClubCrawler
         return $synced;
     }
 
-    private function syncGroupMembership(User $user, array $webclubGroupIds): void
+    private function syncGroupMembership(User $user, array $webclubGroupIds, \Illuminate\Support\Collection $groupsByWcId, \Illuminate\Support\Collection &$existingMemberships): void
     {
         if (empty($webclubGroupIds)) return;
 
@@ -489,15 +498,19 @@ class WebClubCrawler
             $wcId = (string) $wcId;
             if ($wcId === '') continue;
 
-            // Lookup per webclub_id (numerische ID aus WebClub grpswr-Feld).
-            $group = TrainingGroup::where('webclub_id', $wcId)->first();
+            // Lookup aus Preload-Map (kein DB-Query)
+            $group = $groupsByWcId->get($wcId);
             if (!$group) {
                 Log::warning("WebClubCrawler: Keine Trainingsgruppe für WebClub-ID {$wcId} – webclub_id in Trainingsgruppen pflegen.");
                 continue;
             }
 
-            if (!$user->trainingGroups()->where('training_groups.id', $group->id)->exists()) {
+            // Membership-Check aus In-Memory-Cache (kein DB-Query)
+            $userGroups = $existingMemberships->get($user->id, []);
+            if (!in_array($group->id, $userGroups)) {
                 $user->trainingGroups()->attach($group->id);
+                // Cache aktualisieren damit Doppelanlagen vermieden werden
+                $existingMemberships->put($user->id, array_merge($userGroups, [$group->id]));
             }
         }
     }

@@ -12,6 +12,9 @@ class WebClubImportController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
+        // Shared Hosting: PHP-Timeout für große Imports hochsetzen.
+        set_time_limit(300);
+
         $payload = $request->json()->all();
 
         if (empty($payload) || !is_array($payload)) {
