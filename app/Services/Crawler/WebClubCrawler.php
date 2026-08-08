@@ -257,6 +257,7 @@ class WebClubCrawler
 
             if ($exists) continue;
 
+            $wcRek = trim((string) ($result['webclub_rek'] ?? ''));
             CompetitionResult::create(array_filter([
                 'competition_id' => $competition->id,
                 'user_id'        => $user->id,
@@ -266,6 +267,7 @@ class WebClubCrawler
                 'time_ms'        => (int) $result['time_ms'],
                 'placement'      => $result['placement'] ?? null,
                 'age_group'      => $event->age_group ?? null,
+                'webclub_rek'    => $wcRek ?: null,
             ]));
             $synced++;
         }

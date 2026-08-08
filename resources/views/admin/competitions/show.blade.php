@@ -653,6 +653,14 @@
                                                     @if($swim->breaks_landesrekord)
                                                         <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">LR</span>
                                                     @endif
+                                                    @if($swim->webclub_rek)
+                                                        @php $wc_codes = ['PBZ' => 'Persönliche Bestzeit', 'SBZ' => 'Saison-Bestzeit', 'VR' => 'Vereinsrekord', 'LR' => 'Landesrekord']; @endphp
+                                                        @foreach($wc_codes as $wc_code => $wc_title)
+                                                            @if(str_contains($swim->webclub_rek, $wc_code))
+                                                                <span class="text-xs border border-gray-300 text-gray-400 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
+                                                            @endif
+                                                        @endforeach
+                                                    @endif
                                                 </div>
                                             </td>
                                             @if(auth()->user()->role === 'admin')
@@ -746,6 +754,14 @@
                                                     @if($swim->breaks_landesrekord)
                                                         <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">LR</span>
                                                     @endif
+                                                    @if($swim->webclub_rek)
+                                                        @php $wc_codes = ['PBZ' => 'Persönliche Bestzeit', 'SBZ' => 'Saison-Bestzeit', 'VR' => 'Vereinsrekord', 'LR' => 'Landesrekord']; @endphp
+                                                        @foreach($wc_codes as $wc_code => $wc_title)
+                                                            @if(str_contains($swim->webclub_rek, $wc_code))
+                                                                <span class="text-xs border border-gray-300 text-gray-400 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
+                                                            @endif
+                                                        @endforeach
+                                                    @endif
                                                 </div>
                                             </td>
                                             @if(!empty($swim->wertungen))
@@ -834,6 +850,14 @@
                                             @endif
                                             @if($swim->breaks_landesrekord)
                                                 <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">LR</span>
+                                            @endif
+                                            @if($swim->webclub_rek)
+                                                @php $wc_codes = ['PBZ' => 'Persönliche Bestzeit', 'SBZ' => 'Saison-Bestzeit', 'VR' => 'Vereinsrekord', 'LR' => 'Landesrekord']; @endphp
+                                                @foreach($wc_codes as $wc_code => $wc_title)
+                                                    @if(str_contains($swim->webclub_rek, $wc_code))
+                                                        <span class="text-xs border border-gray-300 text-gray-400 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
+                                                    @endif
+                                                @endforeach
                                             @endif
                                         </div>
                                     </td>

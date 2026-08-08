@@ -1037,6 +1037,7 @@ function parseResultsFromXhr(bodies) {
                     webclub_person_id: item.pid && String(item.pid) !== '0'
                         ? String(item.pid) : null,
                     event_number:      parseInt(item.n ?? '0', 10) || null,
+                    webclub_rek:       String(item.rek ?? '').trim(),
                 });
             }
         } catch (_) {}
