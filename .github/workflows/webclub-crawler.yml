@@ -6,6 +6,13 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch:
     # Manuell auslösbar über GitHub → Actions → "Run workflow"
+    # lookback_days: leer lassen für Standard (90), oder z.B. 1825 für 5 Jahre historische Daten
+    inputs:
+      lookback_days:
+        description: 'Wie viele Tage in die Vergangenheit (Standard: 90, für Historien-Import z.B. 1825)'
+        required: false
+        default: '90'
+        type: string
 
 jobs:
   crawl:
@@ -37,16 +44,18 @@ jobs:
           WEBCLUB_BASE_URL: ${{ secrets.WEBCLUB_BASE_URL }}
           WEBCLUB_USERNAME: ${{ secrets.WEBCLUB_USERNAME }}
           WEBCLUB_PASSWORD: ${{ secrets.WEBCLUB_PASSWORD }}
+          LOOKBACK_DAYS: ${{ inputs.lookback_days || '90' }}
         run: |
           jq -n \
-            --arg base_url  "$WEBCLUB_BASE_URL" \
-            --arg username  "$WEBCLUB_USERNAME" \
-            --arg password  "$WEBCLUB_PASSWORD" \
+            --arg base_url      "$WEBCLUB_BASE_URL" \
+            --arg username      "$WEBCLUB_USERNAME" \
+            --arg password      "$WEBCLUB_PASSWORD" \
+            --argjson lookback  "${LOOKBACK_DAYS}" \
             '{
               base_url:              $base_url,
               username:              $username,
               password:              $password,
-              lookback_days:         90,
+              lookback_days:         $lookback,
               lookahead_days:        365,
               scrape_competitions:   true,
               scrape_persons:        true,
