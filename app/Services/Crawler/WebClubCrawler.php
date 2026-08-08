@@ -63,10 +63,13 @@ class WebClubCrawler
      */
     public function processPayload(array $output): array
     {
-        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
         $config = $this->buildConfig();
 
         DB::transaction(function () use ($output, $config, &$stats) {
+            // Gruppen-ID-Mapping zuerst: setzt webclub_id auf Trainingsgruppen per Name-Match.
+            $stats['groups_synced'] = $this->syncGroups($output['groups'] ?? []);
+
             foreach ($output['competitions'] ?? [] as $raw) {
                 try {
                     $result = $this->syncCompetition($raw, $config);
@@ -449,6 +452,33 @@ class WebClubCrawler
         $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? []);
 
         return $updates ? 'synced' : 'skipped';
+    }
+
+    private function syncGroups(array $rawGroups): int
+    {
+        $synced = 0;
+        foreach ($rawGroups as $raw) {
+            $wcId = trim((string) ($raw['webclub_id'] ?? ''));
+            $name = trim((string) ($raw['name']       ?? ''));
+            if (!$wcId || !$name) continue;
+
+            // Suche portal-Gruppe per Name (case-insensitive, dann exakt).
+            // Setzt webclub_id wenn noch nicht gesetzt oder abweichend.
+            $group = TrainingGroup::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first()
+                  ?? TrainingGroup::where('name', $name)->first();
+
+            if (!$group) {
+                Log::info("WebClubCrawler Gruppen: '{$name}' (ID {$wcId}) nicht im Portal – übersprungen.");
+                continue;
+            }
+
+            if ((string) $group->webclub_id !== $wcId) {
+                $group->update(['webclub_id' => $wcId]);
+                Log::info("WebClubCrawler Gruppen: '{$name}' → webclub_id={$wcId} gesetzt.");
+                $synced++;
+            }
+        }
+        return $synced;
     }
 
     private function syncGroupMembership(User $user, array $webclubGroupIds): void

@@ -58,6 +58,7 @@ const HEADLESS       = cfg.headless !== false;
 const TIMEOUT_MS     = parseInt(cfg.timeout_ms ?? 15000, 10);
 const DO_COMPETITIONS = cfg.scrape_competitions !== false;
 const DO_PERSONS      = cfg.scrape_persons      !== false;
+const DO_GROUPS       = cfg.scrape_groups       !== false;
 const SCREENSHOT_PREFIX = cfg.screenshot_on_error || null;
 
 if (!BASE_URL) die('base_url ist nicht konfiguriert.');
@@ -1295,6 +1296,71 @@ async function scrapePersons(page) {
     return { persons, errors };
 }
 
+// ── Stammdaten → Gruppen ─────────────────────────────────────────────────────
+// WebClub liefert Gruppen-IDs als reine Strings in grpswr (["14"]).
+// Diese Funktion crawlt grp.php und baut die ID→Name-Tabelle auf.
+
+async function scrapeGroups(page) {
+    log('Navigiere zu Stammdaten → Gruppen (grp.php)…');
+    const groups = [];
+    const errors = [];
+
+    const groupBodies = [];
+    const captureGrpXhr = async (res) => {
+        try {
+            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+            if (res.status() < 200 || res.status() >= 300) return;
+            const body = await res.text();
+            if (body.includes('"grpNAME"') || body.includes('"grpID"') || body.includes('"grpBEZEICHNUNG"')) {
+                groupBodies.push(body);
+                log(`Gruppen-XHR (${body.length}B): ${body.slice(0, 600).replace(/[\r\n]+/g, ' ')}`);
+            }
+        } catch (_) {}
+    };
+    page.on('response', captureGrpXhr);
+
+    // Versuche zuerst direkte URL, dann Dropdown-Navigation
+    let navigated = false;
+    try {
+        await page.goto(BASE_URL + '/grp.php', { waitUntil: 'load', timeout: 15000 });
+        navigated = true;
+        log('grp.php direkt geladen');
+    } catch (_) {}
+
+    if (!navigated) {
+        navigated = await navigateViaDropdownMenu(page, /stammdaten/i, /gruppen/i).catch(() => false);
+        if (!navigated) {
+            errors.push({ type: 'navigation', message: 'Gruppen-Seite (grp.php) nicht erreichbar' });
+        }
+    }
+
+    // XHR-Antworten abwarten
+    await page.waitForTimeout(2000);
+    page.off('response', captureGrpXhr);
+
+    // Responses parsen – WebClub liefert Gruppen entweder als Liste oder einzeln
+    for (const body of groupBodies) {
+        try {
+            const d = JSON.parse(body);
+            // Format 1: { list: [{grpID, grpNAME, ...}] }
+            // Format 2: { data: {grpID, grpNAME, ...} }
+            // Format 3: direkt [{grpID, grpNAME}]
+            const items = d.list ?? (Array.isArray(d) ? d : null) ?? (d.data ? [d.data] : []);
+            for (const item of (items || [])) {
+                const id   = String(item.grpID   ?? item.id   ?? '').trim();
+                const name = (item.grpNAME ?? item.grpBEZEICHNUNG ?? item.bezeichnung ?? item.name ?? '').trim();
+                if (id && name && !groups.find(g => g.webclub_id === id)) {
+                    groups.push({ webclub_id: id, name });
+                    log(`Gruppe: id=${id} name="${name}"`);
+                }
+            }
+        } catch (_) {}
+    }
+
+    log(`Gruppen gesamt: ${groups.length}`);
+    return { groups, errors };
+}
+
 async function navigateToNextPage(page) {
     try {
         const next = page.getByRole('link', { name: /nächste|weiter|next|›|»/i })
@@ -1357,6 +1423,7 @@ function parseTimeMs(str) {
     const result = {
         competitions: [],
         persons:      [],
+        groups:       [],
         errors:       [],
     };
 
@@ -1396,13 +1463,19 @@ function parseTimeMs(str) {
             result.errors.push(...errors);
         }
 
+        if (DO_GROUPS) {
+            const { groups, errors } = await scrapeGroups(page);
+            result.groups = groups;
+            result.errors.push(...errors);
+        }
+
         if (DO_PERSONS) {
             const { persons, errors } = await scrapePersons(page);
             result.persons = persons;
             result.errors.push(...errors);
         }
 
-        log(`Fertig: ${result.competitions.length} Veranstaltungen, ${result.persons.length} Personen, ${result.errors.length} Fehler.`);
+        log(`Fertig: ${result.competitions.length} Veranstaltungen, ${result.groups.length} Gruppen, ${result.persons.length} Personen, ${result.errors.length} Fehler.`);
     } catch (e) {
         result.errors.push({ type: 'fatal', message: e.message });
         log('FATAL: ' + e.message);

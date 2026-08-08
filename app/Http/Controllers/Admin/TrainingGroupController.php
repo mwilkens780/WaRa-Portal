@@ -61,13 +61,15 @@ class TrainingGroupController extends Controller
             'color'       => ['required', 'in:' . implode(',', array_keys(TrainingGroup::COLORS))],
             'group_type'  => ['required', 'in:' . implode(',', array_keys(TrainingGroup::GROUP_TYPES))],
             'active'      => ['boolean'],
+            'webclub_id'  => ['nullable', 'integer', 'min:1', 'unique:training_groups,webclub_id'],
             'trainers'    => ['nullable', 'array'],
             'trainers.*'  => ['exists:users,id'],
             'swimmers'    => ['nullable', 'array'],
             'swimmers.*'  => ['exists:users,id'],
         ]);
 
-        $data['active'] = $request->boolean('active', true);
+        $data['active']     = $request->boolean('active', true);
+        $data['webclub_id'] = $request->filled('webclub_id') ? (int) $request->input('webclub_id') : null;
 
         $group = TrainingGroup::create($data);
         $group->trainers()->sync($request->input('trainers', []));
@@ -306,6 +308,7 @@ class TrainingGroupController extends Controller
             'color'       => ['required', 'in:' . implode(',', array_keys(TrainingGroup::COLORS))],
             'group_type'  => ['required', 'in:' . implode(',', array_keys(TrainingGroup::GROUP_TYPES))],
             'active'      => ['boolean'],
+            'webclub_id'  => ['nullable', 'integer', 'min:1', 'unique:training_groups,webclub_id,' . $trainingGroup->id],
             'trainers'    => ['nullable', 'array'],
             'trainers.*'  => ['exists:users,id'],
             'swimmers'    => ['nullable', 'array'],
@@ -315,7 +318,8 @@ class TrainingGroupController extends Controller
         // Admin-only: changing trainers/swimmers (trainers can change swimmers in their group)
         $isAdmin = auth()->user()->isAdmin();
 
-        $data['active'] = $request->boolean('active');
+        $data['active']     = $request->boolean('active');
+        $data['webclub_id'] = $request->filled('webclub_id') ? (int) $request->input('webclub_id') : null;
         $trainingGroup->update($data);
 
         // Trainers pivot: admin only
