@@ -85,7 +85,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $WEBCLUB_IMPORT_TOKEN" \
             --data @/tmp/webclub-output.json \
-            --max-time 60 \
+            --max-time 180 \
             "$IMPORT_URL")
 
           echo "Portal-Antwort (HTTP $HTTP_STATUS):"
