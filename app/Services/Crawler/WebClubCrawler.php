@@ -66,28 +66,34 @@ class WebClubCrawler
         $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
         $config = $this->buildConfig();
 
-        DB::transaction(function () use ($output, $config, &$stats) {
-            // Gruppen-ID-Mapping zuerst: setzt webclub_id auf Trainingsgruppen per Name-Match.
-            $stats['groups_synced'] = $this->syncGroups($output['groups'] ?? []);
+        $stats['groups_synced'] = $this->syncGroups($output['groups'] ?? []);
 
-            foreach ($output['competitions'] ?? [] as $raw) {
-                try {
-                    [$status, $resultsSynced] = $this->syncCompetition($raw, $config);
+        // Einmalig alle Schwimmer mit webclub_person_id laden (verhindert N DB-Queries in syncResults)
+        $usersByWcId = User::whereNotNull('webclub_person_id')
+            ->get(['id', 'webclub_person_id', 'lastname', 'firstname', 'birth_date', 'gender'])
+            ->keyBy(fn($u) => (string) $u->webclub_person_id);
+
+        // Per-Wettkampf-Transaktionen statt einer einzigen Riesentransaktion:
+        // Verhindert, dass ein Server-Timeout alle bereits gespeicherten Daten wieder löscht.
+        foreach ($output['competitions'] ?? [] as $raw) {
+            try {
+                DB::transaction(function () use ($raw, $config, $usersByWcId, &$stats) {
+                    [$status, $resultsSynced] = $this->syncCompetition($raw, $config, $usersByWcId);
                     if ($status === 'created' || $status === 'updated') $stats['imported']++;
                     else $stats['skipped']++;
                     $stats['results_synced'] += $resultsSynced;
-                } catch (\Throwable $e) {
-                    $stats['errors']++;
-                    Log::error('WebClubCrawler Wettkampf-Sync: ' . $e->getMessage(), $raw);
-                }
+                });
+            } catch (\Throwable $e) {
+                $stats['errors']++;
+                Log::error('WebClubCrawler Wettkampf-Sync: ' . $e->getMessage(), $raw);
             }
+        }
 
-            $personStats = $this->syncPersons($output['persons'] ?? []);
-            $stats['persons_synced']      = $personStats['synced'];
-            $stats['persons_created']     = $personStats['created'] ?? 0;
-            $stats['persons_deactivated'] = $personStats['deactivated'] ?? 0;
-            $stats['errors']             += $personStats['errors'];
-        });
+        $personStats = $this->syncPersons($output['persons'] ?? []);
+        $stats['persons_synced']      = $personStats['synced'];
+        $stats['persons_created']     = $personStats['created'] ?? 0;
+        $stats['persons_deactivated'] = $personStats['deactivated'] ?? 0;
+        $stats['errors']             += $personStats['errors'];
 
         foreach ($output['errors'] ?? [] as $err) {
             Log::warning('WebClubCrawler (JS): ' . ($err['type'] ?? '?') . ' – ' . ($err['message'] ?? ''));
@@ -99,7 +105,7 @@ class WebClubCrawler
 
     // ── Wettkämpfe ───────────────────────────────────────────────────────────
 
-    private function syncCompetition(array $raw, array $config): array
+    private function syncCompetition(array $raw, array $config, \Illuminate\Support\Collection $usersByWcId): array
     {
         $webclubId = $raw['webclub_id'] ?? null;
         $name      = trim($raw['name'] ?? '');
@@ -150,9 +156,9 @@ class WebClubCrawler
                 'message'        => 'Wettkampf neu angelegt via WebClub-Crawler.',
             ]);
 
-            $this->syncEntries($competition, $raw['entries'] ?? []);
-            $resultsSynced = $this->syncResults($competition, $raw['results'] ?? []);
+            $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId);
             $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
+            $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId);
 
             TraceService::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
             return ['created', $resultsSynced];
@@ -200,19 +206,19 @@ class WebClubCrawler
             ]);
         }
 
-        $this->syncEntries($competition, $raw['entries'] ?? []);
-        $resultsSynced = $this->syncResults($competition, $raw['results'] ?? []);
+        $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId);
         $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
+        $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId);
 
         return [$updates ? 'updated' : 'skipped', $resultsSynced];
     }
 
-    private function syncEntries(Competition $competition, array $entries): void
+    private function syncEntries(Competition $competition, array $entries, \Illuminate\Support\Collection $usersByWcId): void
     {
         foreach ($entries as $entry) {
             if (empty($entry['athlete_name'])) continue;
 
-            $user = $this->findUser($entry);
+            $user = $this->findUserFromMap($entry, $usersByWcId);
             if (!$user) continue;
 
             // Veranstaltungs-Event ermitteln
@@ -236,26 +242,45 @@ class WebClubCrawler
         }
     }
 
-    private function syncResults(Competition $competition, array $results): int
+    private function syncResults(Competition $competition, array $results, \Illuminate\Support\Collection $usersByWcId): int
     {
+        if (empty($results)) return 0;
+
+        // Bulk: alle Events dieser Veranstaltung (1 Query statt N Queries)
+        $eventsMap = CompetitionEvent::where('competition_id', $competition->id)
+            ->get()
+            ->keyBy('event_number');
+
+        // Bulk: bereits vorhandene Ergebnisse (1 Query statt N exists()-Queries)
+        $existingKeys = CompetitionResult::where('competition_id', $competition->id)
+            ->get(['user_id', 'discipline', 'distance'])
+            ->mapWithKeys(fn($r) => ["{$r->user_id}_{$r->discipline}_{$r->distance}" => true]);
+
         $synced = 0;
         foreach ($results as $result) {
             if (empty($result['athlete_name']) || empty($result['time_ms'])) continue;
 
-            $user = $this->findUser($result);
+            $user = $this->findUserFromMap($result, $usersByWcId);
             if (!$user) continue;
 
-            $event = $this->findOrSkipEvent($competition, $result);
+            // Event aus lokalem Map (kein DB-Query)
+            $eventNumber = isset($result['event_number']) ? (int) $result['event_number'] : 0;
+            $event = $eventNumber > 0 ? $eventsMap->get($eventNumber) : null;
+            if (!$event) {
+                // Fallback: Disziplin+Distanz aus Label, Suche im lokalen Map
+                $label      = $result['event_label'] ?? null;
+                $discipline = $label ? $this->parseDisciplineFromLabel($label) : null;
+                $distance   = $label ? $this->parseDistanceFromLabel($label)   : null;
+                if ($discipline && $distance) {
+                    $event = $eventsMap->first(fn($e) => $e->discipline === $discipline && $e->distance === $distance);
+                }
+            }
             if (!$event) continue;
 
-            // Nur anlegen, wenn noch kein Ergebnis existiert
-            $exists = CompetitionResult::where('competition_id', $competition->id)
-                ->where('user_id', $user->id)
-                ->where('discipline', $event->discipline)
-                ->where('distance', $event->distance)
-                ->exists();
-
-            if ($exists) continue;
+            // Duplikat-Check aus In-Memory-Cache (kein DB-Query)
+            $key = "{$user->id}_{$event->discipline}_{$event->distance}";
+            if (isset($existingKeys[$key])) continue;
+            $existingKeys[$key] = true;
 
             $wcRek = trim((string) ($result['webclub_rek'] ?? ''));
             CompetitionResult::create(array_filter([
@@ -688,6 +713,16 @@ class WebClubCrawler
         if ($birthYear) $query->whereYear('birth_date', $birthYear);
 
         return $query->first();
+    }
+
+    private function findUserFromMap(array $item, \Illuminate\Support\Collection $usersByWcId): ?User
+    {
+        $webclubId = $item['webclub_person_id'] ?? null;
+        if ($webclubId && ($user = $usersByWcId->get((string) $webclubId))) {
+            return $user;
+        }
+        // Fallback: DB-Query per Name (für Einträge ohne webclub_person_id)
+        return $this->findUser($item);
     }
 
     private function buildVenueDetails(array $raw): ?array
