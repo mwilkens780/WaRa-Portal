@@ -420,7 +420,7 @@ class WebClubCrawler
                 'dsv_id'            => !empty($raw['dsv_id']) ? $raw['dsv_id'] : null,
             ], fn($v) => $v !== null && $v !== ''));
 
-            $this->syncGroupMembership($user, $raw['training_group'] ?? null);
+            $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? []);
 
             Log::info("WebClubCrawler: Neuer Schwimmer angelegt – {$firstname} {$lastname}");
             return 'created';
@@ -446,30 +446,26 @@ class WebClubCrawler
         if ($updates) $user->update($updates);
 
         // Gruppenzuordnung immer synchronisieren (non-destruktiv: nur hinzufügen)
-        $this->syncGroupMembership($user, $raw['training_group'] ?? null);
+        $this->syncGroupMembership($user, $raw['webclub_group_ids'] ?? []);
 
         return $updates ? 'synced' : 'skipped';
     }
 
-    private function syncGroupMembership(User $user, ?string $groupName): void
+    private function syncGroupMembership(User $user, array $webclubGroupIds): void
     {
-        if (!$groupName) return;
+        if (empty($webclubGroupIds)) return;
 
-        // Kommaseparierte Mehrfachgruppen ("Gruppe A, Gruppe B")
-        $names = array_filter(array_map('trim', explode(',', $groupName)));
+        foreach ($webclubGroupIds as $wcId) {
+            $wcId = (string) $wcId;
+            if ($wcId === '') continue;
 
-        foreach ($names as $name) {
-            if ($name === '') continue;
-
-            // Gruppen sind stabil (CSV-Import) – nur vorhandene suchen, nie auto-anlegen.
-            // Lookup: zuerst exakter Name, dann webclub_id (wenn WebClub nur IDs zurückgibt).
-            $group = TrainingGroup::where('name', $name)->first();
+            // Lookup per webclub_id (numerische ID aus WebClub grpswr-Feld).
+            $group = TrainingGroup::where('webclub_id', $wcId)->first();
             if (!$group) {
-                Log::warning("WebClubCrawler: Trainingsgruppe '{$name}' nicht im Portal – übersprungen.");
+                Log::warning("WebClubCrawler: Keine Trainingsgruppe für WebClub-ID {$wcId} – webclub_id in Trainingsgruppen pflegen.");
                 continue;
             }
 
-            // Nur hinzufügen, nicht entfernen (non-destruktiv)
             if (!$user->trainingGroups()->where('training_groups.id', $group->id)->exists()) {
                 $user->trainingGroups()->attach($group->id);
             }

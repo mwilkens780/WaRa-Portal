@@ -1130,32 +1130,28 @@ function parsePersonDetail(body) {
         const firstname = (d.persVORNAME  ?? '').trim() || null;
         if (!lastname && !firstname) return null;
 
-        // Trainingsgruppen aus data.grpswr (Schwimmer-Gruppen).
-        // Vollständiger Response zeigt: grpswr/grpcoa/grpkari/grpfunc in data-Objekt,
-        // top-level grp ist immer null (andere Bedeutung).
-        let trainingGroup = null;
-        const grpArr = d.grpswr ?? d.grp ?? detail.grp;
-        if (Array.isArray(grpArr) && grpArr.length > 0) {
-            trainingGroup = grpArr
-                .map(g => g.grpNAME ?? g.name ?? g.GRPNAME ?? g.bezeichnung ?? null)
-                .filter(Boolean).join(', ') || null;
-        }
+        // grpswr enthält Gruppen-IDs als String-Array: ["14"] oder ["1", "9"]
+        // Kein Objekt, keine Namen – nur numerische IDs (WebClub-Format).
+        const grpswr = d.grpswr;
+        const webclubGroupIds = Array.isArray(grpswr)
+            ? grpswr.map(String).filter(Boolean)
+            : [];
 
         return {
-            webclub_person_id: d.persID ? String(d.persID) : null,
+            webclub_person_id:  d.persID ? String(d.persID) : null,
             lastname,
             firstname,
-            birth_date:        isoDate(d.persGEBTAG ?? d.persGEB ?? null),
-            gender:            normalizeGender(d.persGESCHLECHT ?? ''),
-            email:             d.adrMAIL1  ?? d.adrMAIL2  ?? null,
-            phone:             d.adrFON1   ?? d.adrFON2   ?? null,
-            mobile:            d.adrMOBIL  ?? null,
-            street:            d.adrSTRASSE ?? null,
-            postal_code:       d.adrPLZ    ?? null,
-            city:              d.adrORT    ?? null,
-            dsv_id:            d.swrDSVID  ?? d.persDSVID ?? null,
-            membership_number: d.swrMNR    ?? d.persMNR   ?? d.swrMITGLIEDNR ?? null,
-            training_group:    trainingGroup,
+            birth_date:         isoDate(d.persGEBTAG ?? d.persGEB ?? null),
+            gender:             normalizeGender(d.persGESCHLECHT ?? ''),
+            email:              d.adrMAIL1  ?? d.adrMAIL2  ?? null,
+            phone:              d.adrFON1   ?? d.adrFON2   ?? null,
+            mobile:             d.adrMOBIL  ?? null,
+            street:             d.adrSTRASSE ?? null,
+            postal_code:        d.adrPLZ    ?? null,
+            city:               d.adrORT    ?? null,
+            dsv_id:             d.swrDSVID  ?? d.persDSVID ?? null,
+            membership_number:  d.swrMNR    ?? d.persMNR   ?? d.swrMITGLIEDNR ?? null,
+            webclub_group_ids:  webclubGroupIds,
         };
     } catch (_) {
         return null;
@@ -1179,14 +1175,13 @@ async function scrapePersons(page) {
                 try {
                     const d = JSON.parse(body);
                     const grpswr = d.data?.grpswr;
-                    const hasGrp = Array.isArray(grpswr) && grpswr.length > 0;
-                    const grpLog = hasGrp
-                        ? JSON.stringify(grpswr)
-                        : (grpswr !== undefined ? '[]' : 'n/a');
-                    log(`Pers-XHR: idx=${d.idx}/${d.count} id=${d.data?.persID} aktiv=${d.data?.swrAKTIV} ${d.data?.persNACHNAME}, ${d.data?.persVORNAME} grpswr=${grpLog}`);
+                    const grpIds = Array.isArray(grpswr) ? grpswr : [];
+                    log(`Pers-XHR: idx=${d.idx}/${d.count} id=${d.data?.persID} aktiv=${d.data?.swrAKTIV} ${d.data?.persNACHNAME}, ${d.data?.persVORNAME} grps=[${grpIds.join(',')}]`);
                 } catch (_) { log(`Pers-XHR Detail (${body.length}B) erfasst`); }
             } else if (body.trim().startsWith('{') || body.trim().startsWith('[')) {
-                log(`Pers-XHR JSON (${body.length}B): ${body.slice(0, 150).replace(/[\r\n]+/g, ' ')}`);
+                // Große Responses vollständig loggen (können Gruppen-Definitionen enthalten)
+                const preview = body.length > 1000 ? body.slice(0, 4000) : body.slice(0, 300);
+                log(`Pers-XHR JSON (${body.length}B): ${preview.replace(/[\r\n]+/g, ' ')}`);
             }
         } catch (_) {}
     };
