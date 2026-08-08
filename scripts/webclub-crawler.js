@@ -1221,8 +1221,8 @@ async function scrapePersons(page) {
             const first = JSON.parse(detailBodies[0]);
             totalCount = parseInt(first.count ?? '0', 10);
             log(`Personen laut WebClub: ${totalCount}`);
-            // Ersten Person-Detail für Feldname-Entdeckung loggen
-            log(`Erste Person raw (600B): ${detailBodies[0].slice(0, 600)}`);
+            // Ersten Person-Detail vollständig loggen (für Feldname-Entdeckung, inkl. grp-Format)
+            log(`Erste Person raw (2500B): ${detailBodies[0].slice(0, 2500)}`);
         } catch (_) {}
     }
 

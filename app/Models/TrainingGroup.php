@@ -27,7 +27,7 @@ class TrainingGroup extends Model
         'indigo' => ['dot' => 'bg-indigo-500', 'badge' => 'bg-indigo-100 text-indigo-700', 'border' => 'border-indigo-400'],
     ];
 
-    protected $fillable = ['name', 'description', 'color', 'group_type', 'active'];
+    protected $fillable = ['name', 'description', 'color', 'group_type', 'active', 'webclub_id'];
 
     protected function casts(): array
     {

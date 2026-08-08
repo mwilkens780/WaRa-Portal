@@ -454,16 +454,19 @@ class WebClubCrawler
     {
         if (!$groupName) return;
 
-        // Unterstütze kommaseparierte Mehrfachgruppen ("Gruppe A, Gruppe B")
+        // Kommaseparierte Mehrfachgruppen ("Gruppe A, Gruppe B")
         $names = array_filter(array_map('trim', explode(',', $groupName)));
 
         foreach ($names as $name) {
             if ($name === '') continue;
 
-            $group = TrainingGroup::firstOrCreate(
-                ['name' => $name],
-                ['color' => 'blue', 'active' => true]
-            );
+            // Gruppen sind stabil (CSV-Import) – nur vorhandene suchen, nie auto-anlegen.
+            // Lookup: zuerst exakter Name, dann webclub_id (wenn WebClub nur IDs zurückgibt).
+            $group = TrainingGroup::where('name', $name)->first();
+            if (!$group) {
+                Log::warning("WebClubCrawler: Trainingsgruppe '{$name}' nicht im Portal – übersprungen.");
+                continue;
+            }
 
             // Nur hinzufügen, nicht entfernen (non-destruktiv)
             if (!$user->trainingGroups()->where('training_groups.id', $group->id)->exists()) {
