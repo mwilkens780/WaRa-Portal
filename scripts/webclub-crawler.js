@@ -1130,16 +1130,15 @@ function parsePersonDetail(body) {
         const firstname = (d.persVORNAME  ?? '').trim() || null;
         if (!lastname && !firstname) return null;
 
-        // Gruppe: top-level grp-Array (analog zu competitions) oder Feld in data
+        // Trainingsgruppen aus data.grpswr (Schwimmer-Gruppen).
+        // Vollständiger Response zeigt: grpswr/grpcoa/grpkari/grpfunc in data-Objekt,
+        // top-level grp ist immer null (andere Bedeutung).
         let trainingGroup = null;
-        const grpArr = detail.grp ?? detail.groups ?? d.grp;
+        const grpArr = d.grpswr ?? d.grp ?? detail.grp;
         if (Array.isArray(grpArr) && grpArr.length > 0) {
             trainingGroup = grpArr
-                .map(g => g.name ?? g.grpNAME ?? g.GRPNAME ?? g.bezeichnung ?? null)
+                .map(g => g.grpNAME ?? g.name ?? g.GRPNAME ?? g.bezeichnung ?? null)
                 .filter(Boolean).join(', ') || null;
-        }
-        if (!trainingGroup) {
-            trainingGroup = d.swrGRUPPE ?? d.swrGRP ?? d.grpNAME ?? d.GRPNAME ?? d.gruppe ?? null;
         }
 
         return {
