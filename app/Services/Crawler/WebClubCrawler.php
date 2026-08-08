@@ -294,6 +294,8 @@ class WebClubCrawler
 
         foreach ($events as $ev) {
             if (empty($ev['discipline']) || empty($ev['distance'])) continue;
+            // Unbekannte Disziplincodes (z.B. 14 = Bambini "Kindgerecht") überspringen
+            if (!in_array($ev['discipline'], ['F', 'B', 'R', 'S', 'L'])) continue;
 
             $sessionNr = max(1, (int) ($ev['session'] ?? 1));
             $meta      = $sessionMeta[$sessionNr] ?? [];

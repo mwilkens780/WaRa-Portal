@@ -991,15 +991,27 @@ function mergePflichtzeiten(bodies, events) {
     }
 }
 
+// WebClub-Zeitformat: z = MM*10000 + SS*100 + cs (Hundertstel)
+// Beispiel: z=3650 → 0:36,50 → 36500ms | z=24856 → 2:48,56 → 168560ms
+function parseWebClubTime(z) {
+    const v = parseInt(z, 10);
+    if (!v) return 0; // z=0 → DNS/DQ/kein Ergebnis
+    const minutes = Math.floor(v / 10000);
+    const seconds = Math.floor((v % 10000) / 100);
+    const cs      = v % 100;
+    return (minutes * 60 + seconds) * 1000 + cs * 10;
+}
+
 // Parst Ergebnis-XHR aus dem Tab-Bucket.
 // Erkennungsmerkmal: "dorek":true im Response-Body (WebClub-spezifisch für Ergebnis-Tab).
-// Format-Discovery: erster Run loggt den rohen ersten Eintrag – Feldnamen erg* werden daraus abgeleitet.
+// Echte Feldnamen (entdeckt per Discovery-Log): p=Name, j=Jahrgang, s=Geschlecht,
+// z=Zeit (MM*10000+SS*100+cs), pl=Platz, n=Event-Nr (wkfNUMMER), pid=Person-ID, a=Anzahl Lagen
 function parseResultsFromXhr(bodies) {
     const results = [];
     for (const body of bodies) {
         try {
             const data = JSON.parse(body);
-            if (!data.dorek) continue; // Nur Ergebnis-Responses
+            if (!data.dorek) continue;
             const list = data.list;
             if (!Array.isArray(list) || list.length === 0) {
                 log(`Ergebnis-XHR: dorek=true, list leer`);
@@ -1007,24 +1019,24 @@ function parseResultsFromXhr(bodies) {
             }
             log(`Ergebnis-XHR (${list.length} Einträge): ${JSON.stringify(list[0])}`);
             for (const item of list) {
-                const timeStr = item.ergZEIT ?? item.ergZ    ?? item.zeit ?? null;
-                const timeMs  = parseTimeToMs(timeStr);
-                if (!timeMs) continue; // DNS/DNF/DQ haben keine gültige Zeit
+                // Staffel-Ergebnisse überspringen (a > 1 = mehrere Lagen, kein einzelner Schwimmer)
+                if (parseInt(item.a ?? '1', 10) > 1) continue;
+                // z=0 → DNS/DQ – kein auswertbares Ergebnis
+                const timeMs = parseWebClubTime(item.z);
+                if (!timeMs) continue;
 
-                const lastname  = (item.ergNACHNAME ?? item.ergNACH ?? item.nachname ?? '').trim();
-                const firstname = (item.ergVORNAME  ?? item.ergVOR  ?? item.vorname  ?? '').trim();
-                if (!lastname && !firstname) continue;
+                const name = (item.p ?? '').trim();
+                if (!name) continue;
 
                 results.push({
-                    placement:         parseInt(item.ergPLATZ ?? item.platz ?? '0', 10) || null,
-                    athlete_name:      [firstname, lastname].filter(Boolean).join(' '),
-                    birth_year:        String(item.ergGEBJAHR ?? item.ergGEBDAT ?? item.gebjahr ?? '').trim() || null,
-                    gender:            normalizeGender(String(item.ergGESCHLECHT ?? item.ges ?? '')),
+                    placement:         parseInt(item.pl ?? '0', 10) || null,
+                    athlete_name:      name,
+                    birth_year:        String(item.j ?? '').trim() || null,
+                    gender:            normalizeGender(String(item.s ?? '')),
                     time_ms:           timeMs,
-                    webclub_person_id: item.ergPERSID ?? item.persID ?? null
-                        ? String(item.ergPERSID ?? item.persID) : null,
-                    // Event-Nummer (wkfNUMMER) für Direktlookup im Portal
-                    event_number:      parseInt(item.ergWKFNR ?? item.ergWKFID ?? item.wkfNR ?? '0', 10) || null,
+                    webclub_person_id: item.pid && String(item.pid) !== '0'
+                        ? String(item.pid) : null,
+                    event_number:      parseInt(item.n ?? '0', 10) || null,
                 });
             }
         } catch (_) {}
