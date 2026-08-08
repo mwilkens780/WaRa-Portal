@@ -63,7 +63,7 @@ class WebClubCrawler
      */
     public function processPayload(array $output): array
     {
-        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
         $config = $this->buildConfig();
 
         DB::transaction(function () use ($output, $config, &$stats) {
@@ -72,9 +72,10 @@ class WebClubCrawler
 
             foreach ($output['competitions'] ?? [] as $raw) {
                 try {
-                    $result = $this->syncCompetition($raw, $config);
-                    if ($result === 'created' || $result === 'updated') $stats['imported']++;
+                    [$status, $resultsSynced] = $this->syncCompetition($raw, $config);
+                    if ($status === 'created' || $status === 'updated') $stats['imported']++;
                     else $stats['skipped']++;
+                    $stats['results_synced'] += $resultsSynced;
                 } catch (\Throwable $e) {
                     $stats['errors']++;
                     Log::error('WebClubCrawler Wettkampf-Sync: ' . $e->getMessage(), $raw);
@@ -98,14 +99,14 @@ class WebClubCrawler
 
     // ── Wettkämpfe ───────────────────────────────────────────────────────────
 
-    private function syncCompetition(array $raw, array $config): string
+    private function syncCompetition(array $raw, array $config): array
     {
         $webclubId = $raw['webclub_id'] ?? null;
         $name      = trim($raw['name'] ?? '');
         $date      = $raw['date'] ?? null;
 
         if (!$name || !$date) {
-            return 'skipped';
+            return ['skipped', 0];
         }
 
         // Vorhandenen Wettkampf finden: erst per webclub_id, dann per Name+Datum
@@ -150,11 +151,11 @@ class WebClubCrawler
             ]);
 
             $this->syncEntries($competition, $raw['entries'] ?? []);
-            $this->syncResults($competition, $raw['results'] ?? []);
+            $resultsSynced = $this->syncResults($competition, $raw['results'] ?? []);
             $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
 
             TraceService::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
-            return 'created';
+            return ['created', $resultsSynced];
         }
 
         // Vorhandenen Wettkampf ergänzen (nur NULL-Felder befüllen, nie überschreiben)
@@ -200,10 +201,10 @@ class WebClubCrawler
         }
 
         $this->syncEntries($competition, $raw['entries'] ?? []);
-        $this->syncResults($competition, $raw['results'] ?? []);
+        $resultsSynced = $this->syncResults($competition, $raw['results'] ?? []);
         $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
 
-        return $updates ? 'updated' : 'skipped';
+        return [$updates ? 'updated' : 'skipped', $resultsSynced];
     }
 
     private function syncEntries(Competition $competition, array $entries): void
@@ -235,8 +236,9 @@ class WebClubCrawler
         }
     }
 
-    private function syncResults(Competition $competition, array $results): void
+    private function syncResults(Competition $competition, array $results): int
     {
+        $synced = 0;
         foreach ($results as $result) {
             if (empty($result['athlete_name']) || empty($result['time_ms'])) continue;
 
@@ -261,10 +263,13 @@ class WebClubCrawler
                 'discipline'     => $event->discipline,
                 'distance'       => $event->distance,
                 'gender'         => $result['gender'] ?? $event->gender ?? null,
-                'time_ms'        => $result['time_ms'],
+                'time_ms'        => (int) $result['time_ms'],
                 'placement'      => $result['placement'] ?? null,
+                'age_group'      => $event->age_group ?? null,
             ]));
+            $synced++;
         }
+        return $synced;
     }
 
     private function syncCompetitionEvents(Competition $competition, array $events, array $sessions): void
@@ -316,10 +321,19 @@ class WebClubCrawler
 
     private function findOrSkipEvent(Competition $competition, array $item): ?CompetitionEvent
     {
+        // Direkt per Event-Nummer (aus WebClub-XHR: ergWKFNR → event_number)
+        $eventNumber = isset($item['event_number']) ? (int) $item['event_number'] : 0;
+        if ($eventNumber > 0) {
+            $event = CompetitionEvent::where('competition_id', $competition->id)
+                ->where('event_number', $eventNumber)
+                ->first();
+            if ($event) return $event;
+        }
+
+        // Fallback: Disziplin + Distanz aus Label parsen (DOM-Scraper / DSV7-Import)
         $eventLabel = $item['event_label'] ?? null;
         if (!$eventLabel) return null;
 
-        // Versuche Disziplin + Distanz aus Label zu parsen: "100 Freistil" o.ä.
         $discipline = $this->parseDisciplineFromLabel($eventLabel);
         $distance   = $this->parseDistanceFromLabel($eventLabel);
 

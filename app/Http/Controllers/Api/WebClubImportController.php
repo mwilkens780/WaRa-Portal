@@ -28,8 +28,9 @@ class WebClubImportController extends Controller
                 'source'  => 'webclub_crawler',
                 'status'  => 'success',
                 'message' => sprintf(
-                    'GitHub Actions Import: %d Wettkämpfe, %d Personen, %d Fehler.',
+                    'GitHub Actions Import: %d Wettkämpfe, %d Ergebnisse, %d Personen, %d Fehler.',
                     $stats['imported'],
+                    $stats['results_synced'],
                     $stats['persons_synced'],
                     $stats['errors']
                 ),

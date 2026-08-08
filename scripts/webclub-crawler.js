@@ -575,7 +575,7 @@ async function scrapeCompetitions(page) {
     for (const link of eventLinks) {
         const id = extractIdFromUrl(link.url);
         const d  = detailMap.get(id);
-        const ev = eventsMap.get(id) || { sessions: [], events: [] };
+        const ev = eventsMap.get(id) || { sessions: [], events: [], results: [] };
         competitions.push({
             webclub_id:        id,
             webclub_url:       link.url,
@@ -601,7 +601,7 @@ async function scrapeCompetitions(page) {
             melde_phone:       d?.verMELDEFON            || null,
             type:              null,
             entries:           [],
-            results:           [],
+            results:           ev.results,
             sessions:          ev.sessions,
             events:            ev.events,
         });
@@ -991,6 +991,47 @@ function mergePflichtzeiten(bodies, events) {
     }
 }
 
+// Parst Ergebnis-XHR aus dem Tab-Bucket.
+// Erkennungsmerkmal: "dorek":true im Response-Body (WebClub-spezifisch für Ergebnis-Tab).
+// Format-Discovery: erster Run loggt den rohen ersten Eintrag – Feldnamen erg* werden daraus abgeleitet.
+function parseResultsFromXhr(bodies) {
+    const results = [];
+    for (const body of bodies) {
+        try {
+            const data = JSON.parse(body);
+            if (!data.dorek) continue; // Nur Ergebnis-Responses
+            const list = data.list;
+            if (!Array.isArray(list) || list.length === 0) {
+                log(`Ergebnis-XHR: dorek=true, list leer`);
+                continue;
+            }
+            log(`Ergebnis-XHR (${list.length} Einträge): ${JSON.stringify(list[0])}`);
+            for (const item of list) {
+                const timeStr = item.ergZEIT ?? item.ergZ    ?? item.zeit ?? null;
+                const timeMs  = parseTimeToMs(timeStr);
+                if (!timeMs) continue; // DNS/DNF/DQ haben keine gültige Zeit
+
+                const lastname  = (item.ergNACHNAME ?? item.ergNACH ?? item.nachname ?? '').trim();
+                const firstname = (item.ergVORNAME  ?? item.ergVOR  ?? item.vorname  ?? '').trim();
+                if (!lastname && !firstname) continue;
+
+                results.push({
+                    placement:         parseInt(item.ergPLATZ ?? item.platz ?? '0', 10) || null,
+                    athlete_name:      [firstname, lastname].filter(Boolean).join(' '),
+                    birth_year:        String(item.ergGEBJAHR ?? item.ergGEBDAT ?? item.gebjahr ?? '').trim() || null,
+                    gender:            normalizeGender(String(item.ergGESCHLECHT ?? item.ges ?? '')),
+                    time_ms:           timeMs,
+                    webclub_person_id: item.ergPERSID ?? item.persID ?? null
+                        ? String(item.ergPERSID ?? item.persID) : null,
+                    // Event-Nummer (wkfNUMMER) für Direktlookup im Portal
+                    event_number:      parseInt(item.ergWKFNR ?? item.ergWKFID ?? item.wkfNR ?? '0', 10) || null,
+                });
+            }
+        } catch (_) {}
+    }
+    return results;
+}
+
 async function scrapeCompetitionTabs(page, eventLinks) {
     if (eventLinks.length === 0) return new Map();
     log('Tab-Pass: Abschnitte / Wettkampffolge / Pflichtzeiten…');
@@ -1031,7 +1072,10 @@ async function scrapeCompetitionTabs(page, eventLinks) {
 
         mergePflichtzeiten([...xhrBucket], events);
 
-        result.set(id, { sessions, events });
+        const results = parseResultsFromXhr([...xhrBucket]);
+        log(`  Ergebnisse: ${results.length}`);
+
+        result.set(id, { sessions, events, results });
 
         if (i < eventLinks.length - 1) {
             xhrBucket.length = 0; // Bucket leeren BEVOR next-Competition geladen wird
