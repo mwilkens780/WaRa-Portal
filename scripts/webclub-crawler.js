@@ -1047,9 +1047,9 @@ function parseResultsFromXhr(bodies) {
 
 async function scrapeCompetitionTabs(page, eventLinks) {
     if (eventLinks.length === 0) return new Map();
-    log('Tab-Pass: Abschnitte / Wettkampffolge / Pflichtzeiten…');
+    log('Tab-Pass: Abschnitte / Wettkampffolge / Ergebnisse…');
 
-    const result = new Map(); // verID → { sessions: [], events: [] }
+    const result = new Map();
     const xhrBucket = [];
 
     const captureTabXhr = async (res) => {
@@ -1067,16 +1067,26 @@ async function scrapeCompetitionTabs(page, eventLinks) {
     };
     page.on('response', captureTabXhr);
 
-    // ver.php lädt alle Tab-Daten (Abschnitte, Wettkampffolge, etc.) automatisch beim Seitenaufruf
-    // → kein separates activateTab nötig; XHR-Bucket nach dem Seitenaufruf direkt auswerten.
-    await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
-    await page.waitForTimeout(3000); // Alle Auto-XHRs für idx:1 abwarten
+    // Jede Veranstaltung direkt per URL laden (nicht via sequentiellem next.png).
+    // WebClubs interne Sortierung auf ver.php weicht von der Reihenfolge in eventLinks ab –
+    // sequentielles next.png würde Daten falsch zuordnen (Sprint-Wettkampf bekommt
+    // Langstreckendaten, DJM bekommt Daten eines anderen Wettkampfs usw.).
+    for (const link of eventLinks) {
+        const id = extractIdFromUrl(link.url);
+        log(`Tab-Pass: id=${id} (${link.name || link.url})`);
 
-    for (let i = 0; i < eventLinks.length; i++) {
-        const id = extractIdFromUrl(eventLinks[i].url);
-        log(`Tab-Pass: id=${id} (idx:${i + 1})`);
+        // Bucket VOR dem Seitenaufruf leeren – kein Carry-over aus dem vorherigen Wettkampf
+        xhrBucket.length = 0;
 
-        // Alle Tab-Daten liegen bereits im xhrBucket (auto-geladen durch Seitenaufruf / next.png)
+        await page.goto(link.url, { waitUntil: 'load' });
+        await page.waitForTimeout(2000); // Auto-XHRs für Abschnitte + Wettkampffolge abwarten
+
+        // Ergebnisse-Tab explizit aktivieren → löst den dorek-XHR aus
+        const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
+        if (hasErgebnisse) {
+            await page.waitForTimeout(2000);
+        }
+
         const sessions = parseAbschnitte([...xhrBucket]);
         log(`  Abschnitte: ${sessions.length}`);
 
@@ -1089,18 +1099,6 @@ async function scrapeCompetitionTabs(page, eventLinks) {
         log(`  Ergebnisse: ${results.length}`);
 
         result.set(id, { sessions, events, results });
-
-        if (i < eventLinks.length - 1) {
-            xhrBucket.length = 0; // Bucket leeren BEVOR next-Competition geladen wird
-            const nextImg = page.locator('img[src*="ico24/next.png"]').first();
-            if (await nextImg.count() > 0) {
-                await nextImg.click({ timeout: 3000, force: true });
-                await page.waitForTimeout(3000); // Alle Auto-XHRs für idx:i+2 abwarten
-            } else {
-                log(`  Tab-Pass: next.png nicht gefunden für idx:${i + 2}`);
-                break;
-            }
-        }
     }
 
     page.off('response', captureTabXhr);
