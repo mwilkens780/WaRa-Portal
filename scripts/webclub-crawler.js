@@ -1128,7 +1128,9 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             const sessions  = parseAbschnitte(allBodies);
             const events    = parseWettkampffolge(allBodies);
             mergePflichtzeiten(allBodies, events);
-            const results   = parseResultsFromXhr([...xhrBucket]);
+            // dorek-XHR kann schon vor dem Tab-Klick im beforeTab landen (auto-load),
+            // daher allBodies statt nur xhrBucket verwenden.
+            const results   = parseResultsFromXhr(allBodies);
 
             log(`  → ${events.length} Events, ${results.length} Ergebnisse`);
             result.set(verID, { sessions, events, results });
