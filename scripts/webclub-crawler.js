@@ -1049,7 +1049,9 @@ async function scrapeCompetitionTabs(page, eventLinks) {
     if (eventLinks.length === 0) return new Map();
     log('Tab-Pass: Abschnitte / Wettkampffolge / Ergebnisse…');
 
-    const result = new Map();
+    // IDs der Wettkämpfe die wir brauchen (aus der JSON-Liste, entsprechen verID)
+    const neededIds = new Set(eventLinks.map(l => extractIdFromUrl(l.url)));
+    const result    = new Map();
     const xhrBucket = [];
 
     const captureTabXhr = async (res) => {
@@ -1060,49 +1062,101 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             if (body.length < 20) return;
             const t = body.trimStart();
             if (t.startsWith('{') || t.startsWith('[')) {
-                log(`Tab-XHR (${body.length}B) ${res.url().replace(BASE_URL, '***')}: ${body.slice(0, 400)}`);
+                log(`Tab-XHR (${body.length}B) ${res.url().replace(BASE_URL, '***')}: ${body.slice(0, 200)}`);
                 xhrBucket.push(body);
             }
         } catch (_) {}
     };
     page.on('response', captureTabXhr);
 
-    // Jede Veranstaltung direkt per URL laden (nicht via sequentiellem next.png).
-    // WebClubs interne Sortierung auf ver.php weicht von der Reihenfolge in eventLinks ab –
-    // sequentielles next.png würde Daten falsch zuordnen (Sprint-Wettkampf bekommt
-    // Langstreckendaten, DJM bekommt Daten eines anderen Wettkampfs usw.).
-    for (const link of eventLinks) {
-        const id = extractIdFromUrl(link.url);
-        log(`Tab-Pass: id=${id} (${link.name || link.url})`);
+    // WICHTIG: ver.php?id=X navigiert WebClub NICHT zu Wettkampf X.
+    // WebClubs Tab-XHRs (Wettkampffolge, Ergebnisse) sind an den Server-Session-Kontext
+    // gebunden. Nur next.png aktualisiert diesen Kontext korrekt.
+    // Strategie: ver.php ohne Parameter laden (→ idx:1), dann via next.png durch alle
+    // Wettkämpfe navigieren. Die verID kommt aus dem selbst-identifizierenden Detail-XHR
+    // (enthält "verID"), nicht aus der URL-Position – daher ist die Reihenfolge egal.
 
-        // Bucket VOR dem Seitenaufruf leeren – kein Carry-over aus dem vorherigen Wettkampf
-        xhrBucket.length = 0;
+    xhrBucket.length = 0;
+    await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
+    await page.waitForTimeout(3000); // Detail-XHR für idx:1 abwarten
 
-        await page.goto(link.url, { waitUntil: 'load' });
-        await page.waitForTimeout(2000); // Auto-XHRs für Abschnitte + Wettkampffolge abwarten
+    // Gesamtzahl aus erster Detail-Response (enthält count-Feld wie Personen-XHR)
+    let totalCount = 0;
+    for (const body of xhrBucket) {
+        try {
+            const d = JSON.parse(body);
+            if (d.count && d.data?.verID) {
+                totalCount = parseInt(d.count, 10) || 0;
+                log(`Tab-Pass: ${totalCount} Wettkämpfe im Session-Kontext`);
+                break;
+            }
+        } catch (_) {}
+    }
+    if (!totalCount) {
+        // Fallback: etwas mehr als die bekannte Anzahl scannen
+        totalCount = neededIds.size * 4 + 20;
+        log(`Tab-Pass: count nicht ermittelbar – scanne bis ${totalCount} Positionen`);
+    }
 
-        // Ergebnisse-Tab explizit aktivieren → löst den dorek-XHR aus
-        const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
-        if (hasErgebnisse) {
-            await page.waitForTimeout(2000);
+    const nextBtn = page.locator('img[src*="ico24/next.png"]');
+
+    // Hilfsfunktion: verID aus dem aktuellen Bucket lesen
+    const extractVerID = () => {
+        for (const body of xhrBucket) {
+            try {
+                const d = JSON.parse(body);
+                if (d.data?.verID) return String(d.data.verID);
+            } catch (_) {}
+        }
+        return null;
+    };
+
+    for (let pos = 1; pos <= totalCount; pos++) {
+        const verID = extractVerID();
+        log(`Tab-Pass: pos=${pos}/${totalCount} verID=${verID || '?'}`);
+
+        if (verID && neededIds.has(verID)) {
+            // Snapshot der bisherigen XHRs (Abschnitte + Wettkampffolge)
+            const beforeTab = [...xhrBucket];
+            xhrBucket.length = 0;
+
+            // Ergebnisse-Tab aktivieren → löst dorek-XHR aus
+            const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
+            if (hasErgebnisse) await page.waitForTimeout(2000);
+
+            const allBodies = [...beforeTab, ...xhrBucket];
+            const sessions  = parseAbschnitte(allBodies);
+            const events    = parseWettkampffolge(allBodies);
+            mergePflichtzeiten(allBodies, events);
+            const results   = parseResultsFromXhr([...xhrBucket]);
+
+            log(`  → ${events.length} Events, ${results.length} Ergebnisse`);
+            result.set(verID, { sessions, events, results });
+
+            if (result.size >= neededIds.size) {
+                log('Alle benötigten Wettkämpfe gefunden – Tab-Pass beendet');
+                break;
+            }
         }
 
-        const sessions = parseAbschnitte([...xhrBucket]);
-        log(`  Abschnitte: ${sessions.length}`);
-
-        const events = parseWettkampffolge([...xhrBucket]);
-        log(`  Wettkampffolge: ${events.length} Events`);
-
-        mergePflichtzeiten([...xhrBucket], events);
-
-        const results = parseResultsFromXhr([...xhrBucket]);
-        log(`  Ergebnisse: ${results.length}`);
-
-        result.set(id, { sessions, events, results });
+        if (pos < totalCount) {
+            xhrBucket.length = 0;
+            try {
+                if (await nextBtn.count() === 0) {
+                    log('next.png nicht gefunden – Tab-Pass beendet');
+                    break;
+                }
+                await nextBtn.click({ timeout: 3000, force: true });
+                await page.waitForTimeout(3000); // Detail-XHR für nächste Position abwarten
+            } catch (e) {
+                log(`next.png-Klick Fehler: ${e.message.slice(0, 80)}`);
+                break;
+            }
+        }
     }
 
     page.off('response', captureTabXhr);
-    log(`Tab-Pass abgeschlossen: ${result.size} Veranstaltungen`);
+    log(`Tab-Pass abgeschlossen: ${result.size} von ${neededIds.size} benötigten Wettkämpfen gefunden`);
     return result;
 }
 
