@@ -575,7 +575,7 @@ async function scrapeCompetitions(page) {
     for (const link of eventLinks) {
         const id = extractIdFromUrl(link.url);
         const d  = detailMap.get(id);
-        const ev = eventsMap.get(id) || { sessions: [], events: [], results: [] };
+        const ev = eventsMap.get(id) || { sessions: [], events: [], results: [], entries: [] };
         competitions.push({
             webclub_id:        id,
             webclub_url:       link.url,
@@ -600,7 +600,7 @@ async function scrapeCompetitions(page) {
             melde_email:       d?.verMELDEMAIL           || null,
             melde_phone:       d?.verMELDEFON            || null,
             type:              null,
-            entries:           [],
+            entries:           ev.entries ?? [],
             results:           ev.results,
             sessions:          ev.sessions,
             events:            ev.events,
@@ -1002,6 +1002,41 @@ function parseWebClubTime(z) {
     return (minutes * 60 + seconds) * 1000 + cs * 10;
 }
 
+// Parst Meldungen-XHR aus dem Tab-Bucket.
+// Feldnamen analog zu Ergebnissen: p=Name, j=Jahrgang, s=Geschlecht,
+// z=Meldezeit (MM*10000+SS*100+cs), n=Event-Nr (wkfNUMMER), pid=Person-ID.
+// Der erste gefundene Array-Response wird vollständig geloggt (Discovery).
+function parseMeldungenFromXhr(bodies) {
+    const entries = [];
+    for (const body of bodies) {
+        try {
+            const data = JSON.parse(body);
+            const list = data.list ?? data.meldungen ?? data.data ?? data.entries;
+            if (!Array.isArray(list) || list.length === 0) continue;
+
+            log(`Meldungen-XHR (${list.length} Einträge): ${JSON.stringify(list[0])}`);
+
+            for (const item of list) {
+                const name = (item.p ?? item.name ?? item.persNAME ?? '').trim();
+                if (!name) continue;
+
+                const timeMs = parseWebClubTime(item.z ?? item.mz ?? 0);
+
+                entries.push({
+                    athlete_name:      name,
+                    birth_year:        String(item.j ?? item.jg ?? '').trim() || null,
+                    gender:            normalizeGender(String(item.s ?? item.g ?? '')),
+                    time_ms:           timeMs || null,
+                    webclub_person_id: item.pid && String(item.pid) !== '0' ? String(item.pid) : null,
+                    event_number:      parseInt(item.n ?? item.wkn ?? '0', 10) || null,
+                });
+            }
+            if (entries.length > 0) break; // nur erste passende Response verarbeiten
+        } catch (_) {}
+    }
+    return entries;
+}
+
 // Parst Ergebnis-XHR aus dem Tab-Bucket.
 // Erkennungsmerkmal: "dorek":true im Response-Body (WebClub-spezifisch für Ergebnis-Tab).
 // Echte Feldnamen (entdeckt per Discovery-Log): p=Name, j=Jahrgang, s=Geschlecht,
@@ -1132,8 +1167,15 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             // daher allBodies statt nur xhrBucket verwenden.
             const results   = parseResultsFromXhr(allBodies);
 
-            log(`  → ${events.length} Events, ${results.length} Ergebnisse`);
-            result.set(verID, { sessions, events, results });
+            // Meldungen-Tab aktivieren → Meldungen-XHR erfassen
+            xhrBucket.length = 0;
+            const hasMeldungen = await activateTab(page, /meldung|anmeldung|einzel|entry/i);
+            if (hasMeldungen) await page.waitForTimeout(2000);
+            const meldungenBodies = [...xhrBucket];
+            const entries = parseMeldungenFromXhr(meldungenBodies);
+
+            log(`  → ${events.length} Events, ${results.length} Ergebnisse, ${entries.length} Meldungen`);
+            result.set(verID, { sessions, events, results, entries });
 
             if (result.size >= neededIds.size) {
                 log('Alle benötigten Wettkämpfe gefunden – Tab-Pass beendet');

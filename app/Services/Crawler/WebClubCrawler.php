@@ -63,7 +63,7 @@ class WebClubCrawler
      */
     public function processPayload(array $output): array
     {
-        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'entries_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
         $config = $this->buildConfig();
 
         $stats['groups_synced'] = $this->syncGroups($output['groups'] ?? []);
@@ -78,10 +78,11 @@ class WebClubCrawler
         foreach ($output['competitions'] ?? [] as $raw) {
             try {
                 DB::transaction(function () use ($raw, $config, $usersByWcId, &$stats) {
-                    [$status, $resultsSynced] = $this->syncCompetition($raw, $config, $usersByWcId);
+                    [$status, $resultsSynced, $entriesSynced] = $this->syncCompetition($raw, $config, $usersByWcId);
                     if ($status === 'created' || $status === 'updated') $stats['imported']++;
                     else $stats['skipped']++;
                     $stats['results_synced'] += $resultsSynced;
+                    $stats['entries_synced'] += $entriesSynced;
                 });
             } catch (\Throwable $e) {
                 $stats['errors']++;
@@ -156,12 +157,12 @@ class WebClubCrawler
                 'message'        => 'Wettkampf neu angelegt via WebClub-Crawler.',
             ]);
 
-            $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId);
             $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
+            $entriesSynced = $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId, $raw['events'] ?? []);
             $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId, $raw['events'] ?? []);
 
             TraceService::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
-            return ['created', $resultsSynced];
+            return ['created', $resultsSynced, $entriesSynced];
         }
 
         // Vorhandenen Wettkampf ergänzen (nur NULL-Felder befüllen, nie überschreiben)
@@ -206,40 +207,98 @@ class WebClubCrawler
             ]);
         }
 
-        $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId);
         $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
+        $entriesSynced = $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId, $raw['events'] ?? []);
         $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId, $raw['events'] ?? []);
 
-        return [$updates ? 'updated' : 'skipped', $resultsSynced];
+        return [$updates ? 'updated' : 'skipped', $resultsSynced, $entriesSynced];
     }
 
-    private function syncEntries(Competition $competition, array $entries, \Illuminate\Support\Collection $usersByWcId): void
+    private function syncEntries(Competition $competition, array $entries, \Illuminate\Support\Collection $usersByWcId, array $webclubEvents = []): int
     {
+        if (empty($entries)) return 0;
+
+        // WebClub event_number → discipline+distance (gleiche Logik wie syncResults)
+        $wcEventDefs = [];
+        foreach ($webclubEvents as $ev) {
+            $nr = (int) ($ev['number'] ?? 0);
+            if ($nr > 0 && !empty($ev['discipline']) && !empty($ev['distance'])) {
+                $wcEventDefs[$nr] = [
+                    'discipline' => $ev['discipline'],
+                    'distance'   => (int) $ev['distance'],
+                    'gender'     => $ev['gender'] ?? 'X',
+                ];
+            }
+        }
+
+        // Bulk: alle Portal-Events dieser Veranstaltung
+        $portalEvents     = CompetitionEvent::where('competition_id', $competition->id)->get();
+        $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
+        $portalByNumber   = $portalEvents->keyBy('event_number');
+
+        // Bulk-Duplikat-Check (kein N×DB-Query)
+        $existingKeys = CompetitionEntry::where('competition_id', $competition->id)
+            ->get(['user_id', 'discipline', 'distance'])
+            ->mapWithKeys(fn($e) => ["{$e->user_id}_{$e->discipline}_{$e->distance}" => true]);
+
+        $synced = 0;
         foreach ($entries as $entry) {
             if (empty($entry['athlete_name'])) continue;
 
             $user = $this->findUserFromMap($entry, $usersByWcId);
             if (!$user) continue;
 
-            // Veranstaltungs-Event ermitteln
-            $event = $this->findOrSkipEvent($competition, $entry);
+            $eventNumber = isset($entry['event_number']) ? (int) $entry['event_number'] : 0;
+            $event       = null;
+            $discipline  = null;
+            $distance    = null;
+            $gender      = null;
 
-            // Nur anlegen, wenn noch kein Eintrag existiert
-            $exists = CompetitionEntry::where('competition_id', $competition->id)
-                ->where('user_id', $user->id)
-                ->when($event, fn($q) => $q->where('competition_event_id', $event->id))
-                ->exists();
+            if ($eventNumber > 0 && isset($wcEventDefs[$eventNumber])) {
+                $def         = $wcEventDefs[$eventNumber];
+                $discipline  = $def['discipline'];
+                $distance    = $def['distance'];
+                $gender      = $def['gender'];
+                $discDistKey = $discipline . '_' . $distance;
+                $candidates  = $portalByDiscDist->get($discDistKey);
+                if ($candidates) {
+                    $event = $candidates->count() === 1
+                        ? $candidates->first()
+                        : ($candidates->firstWhere('gender', $gender)
+                            ?? $candidates->firstWhere('gender', 'X')
+                            ?? $candidates->first());
+                }
+            } elseif ($eventNumber > 0 && empty($wcEventDefs)) {
+                $event = $portalByNumber->get($eventNumber);
+            }
 
-            if ($exists) continue;
+            if (!$discipline && $event) {
+                $discipline = $event->discipline;
+                $distance   = $event->distance;
+                $gender     = $event->gender;
+            }
+
+            if (!$discipline || !$distance) continue;
+
+            $key = "{$user->id}_{$discipline}_{$distance}";
+            if (isset($existingKeys[$key])) continue;
+            $existingKeys[$key] = true;
+
+            $resolvedGender = ($entry['gender'] ?? $user->gender ?? $gender ?? 'X') ?: 'X';
 
             CompetitionEntry::create(array_filter([
                 'competition_id'       => $competition->id,
                 'user_id'              => $user->id,
                 'competition_event_id' => $event?->id,
-                'entry_time_ms'        => $entry['entry_time_ms'] ?? $entry['time_ms'] ?? null,
+                'discipline'           => $discipline,
+                'distance'             => $distance,
+                'gender'               => $resolvedGender,
+                'entry_time_ms'        => $entry['time_ms'] ?? $entry['entry_time_ms'] ?? null,
                 'status'               => 'entered',
-            ]));
+            ], fn($v) => $v !== null));
+            $synced++;
         }
+        return $synced;
     }
 
     private function syncResults(Competition $competition, array $results, \Illuminate\Support\Collection $usersByWcId, array $webclubEvents = []): int

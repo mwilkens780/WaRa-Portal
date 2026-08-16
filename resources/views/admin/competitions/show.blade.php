@@ -1539,28 +1539,78 @@
              }"
              class="p-5 space-y-5">
 
+            @php
+                $existingEntries = \App\Models\CompetitionEntry::where('competition_id', $competition->id)
+                    ->where('status', 'entered')
+                    ->with('user', 'competitionEvent')
+                    ->get()
+                    ->groupBy('user_id');
+                $_disziplinLabel = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
+            @endphp
+
             @if(!$signupRequest || !$signupRequest->isClosed())
-                <div class="text-center py-8">
-                    <svg class="mx-auto w-10 h-10 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                    <p class="text-sm text-gray-400">Die Meldeliste steht zur Verfügung, sobald die Anmeldeabfrage geschlossen wurde.</p>
-                    @if($signupRequest?->isActive())
-                        <p class="text-xs text-gray-400 mt-1">Gehe zu „Anmeldungen" und schließe die Abfrage.</p>
-                    @elseif(!$signupRequest)
-                        <p class="text-xs text-gray-400 mt-1">Starte zunächst eine Anmeldeabfrage im Tab „Anmeldungen".</p>
-                    @endif
-                </div>
+                @if($existingEntries->isNotEmpty())
+                    {{-- WebClub-importierte Meldungen (read-only) --}}
+                    <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 mb-4">
+                        Diese Meldungen wurden via WebClub-Crawler importiert.
+                        @if(!$signupRequest)
+                            Erstelle eine Anmeldeabfrage im Tab „Anmeldungen", um Meldungen selbst zu verwalten und eine DSV7-Meldedatei zu exportieren.
+                        @else
+                            Schließe die Anmeldeabfrage, um Meldungen manuell zu verwalten.
+                        @endif
+                    </div>
+                    <div class="space-y-3">
+                        @foreach($existingEntries as $userId => $userEntries)
+                            @php $entryUser = $userEntries->first()?->user; @endphp
+                            @if(!$entryUser) @continue @endif
+                            <details class="border border-gray-200 rounded-xl overflow-hidden" open>
+                                <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-semibold text-gray-800 text-sm">{{ $entryUser->name }}</span>
+                                        @if($entryUser->birth_date)
+                                            <span class="text-xs text-gray-500">Jg. {{ $entryUser->birth_date->year }}</span>
+                                        @endif
+                                    </div>
+                                    <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                                        {{ $userEntries->count() }} Meldung(en)
+                                    </span>
+                                </summary>
+                                <div class="divide-y divide-gray-50">
+                                    @foreach($userEntries->sortBy(fn($e) => $e->discipline . str_pad($e->distance, 5, '0', STR_PAD_LEFT)) as $entry)
+                                        <div class="flex items-center gap-4 px-4 py-2.5">
+                                            <span class="text-sm font-medium text-gray-800">
+                                                {{ $entry->distance }}m {{ $_disziplinLabel[$entry->discipline] ?? $entry->discipline }}
+                                            </span>
+                                            @if($entry->entry_time_ms)
+                                                <span class="text-sm font-mono text-gray-500">{{ $entry->entry_time_formatted }}</span>
+                                            @endif
+                                            @if($entry->competitionEvent)
+                                                <span class="text-xs text-gray-400 ml-auto">WK {{ $entry->competitionEvent->event_number }}</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </details>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8">
+                        <svg class="mx-auto w-10 h-10 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <p class="text-sm text-gray-400">Die Meldeliste steht zur Verfügung, sobald die Anmeldeabfrage geschlossen wurde.</p>
+                        @if($signupRequest?->isActive())
+                            <p class="text-xs text-gray-400 mt-1">Gehe zu „Anmeldungen" und schließe die Abfrage.</p>
+                        @elseif(!$signupRequest)
+                            <p class="text-xs text-gray-400 mt-1">Starte zunächst eine Anmeldeabfrage im Tab „Anmeldungen".</p>
+                        @endif
+                    </div>
+                @endif
             @else
                 @php
                     $attending = $signupRequest->responses->where('status', 'attending')
                         ->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
                     $events = $competition->events->sortBy('event_number');
-                    // Load existing entries grouped by user
-                    $existingEntries = \App\Models\CompetitionEntry::where('competition_id', $competition->id)
-                        ->where('status', 'entered')
-                        ->get()
-                        ->groupBy('user_id');
                 @endphp
 
                 {{-- Header: Meldeschluss + DSV7-Downloads --}}
