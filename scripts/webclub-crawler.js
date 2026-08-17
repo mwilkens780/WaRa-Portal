@@ -1030,10 +1030,12 @@ function parseMeldungenFromXhr(bodies) {
                 entries.push({
                     athlete_name:      name,
                     birth_year:        String(item.j ?? item.jg ?? '').trim() || null,
-                    gender:            normalizeGender(String(item.s ?? item.g ?? '')),
+                    gender:            normalizeGender(String(item.s ?? '')),
+                    discipline:        mapDiscipline(item.g ?? null),  // g=Disziplin (1=S,2=R,3=B,4=L,5=F)
+                    distance:          parseInt(item.l ?? '0', 10) || null,  // l=Strecke
                     time_ms:           timeMs || null,
                     webclub_person_id: item.pid && String(item.pid) !== '0' ? String(item.pid) : null,
-                    event_number:      parseInt(item.n ?? item.wkn ?? '0', 10) || null,
+                    event_number:      parseInt(item.n ?? '0', 10) || null,
                 });
             }
             if (entries.length > 0) break; // nur erste passende Response verarbeiten

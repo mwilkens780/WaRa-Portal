@@ -278,6 +278,22 @@ class WebClubCrawler
                 $gender     = $event->gender;
             }
 
+            // Fallback: discipline+distance direkt aus dem XHR (Felder g+l), wcEventDefs nicht nötig
+            if (!$discipline && !empty($entry['discipline'])) {
+                $discipline  = $entry['discipline'];
+                $distance    = (int) ($entry['distance'] ?? 0) ?: null;
+                $discDistKey = $discipline . '_' . $distance;
+                $candidates  = $portalByDiscDist->get($discDistKey);
+                if ($candidates) {
+                    $gender = $entry['gender'] ?? null;
+                    $event  = $candidates->count() === 1
+                        ? $candidates->first()
+                        : ($candidates->firstWhere('gender', $gender)
+                            ?? $candidates->firstWhere('gender', 'X')
+                            ?? $candidates->first());
+                }
+            }
+
             if (!$discipline || !$distance) continue;
 
             $key = "{$user->id}_{$discipline}_{$distance}";
