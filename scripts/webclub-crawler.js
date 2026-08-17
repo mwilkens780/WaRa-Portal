@@ -1003,25 +1003,30 @@ function parseWebClubTime(z) {
 }
 
 // Parst Meldungen-XHR aus dem Tab-Bucket.
-// Feldnamen analog zu Ergebnissen: p=Name, j=Jahrgang, s=Geschlecht,
-// z=Meldezeit (MM*10000+SS*100+cs), n=Event-Nr (wkfNUMMER), pid=Person-ID.
-// Der erste gefundene Array-Response wird vollständig geloggt (Discovery).
+// Erkennungsmerkmal: "pauschal"-Feld (Gebühren-Zusammenfassung) OHNE dorek:true.
+// Die XHR feuert automatisch bei jeder Navigation – suche daher in allBodies, nicht nur meldungenBodies.
+// Feldnamen: p=Name, j=Jahrgang, s=Geschlecht, z=Meldezeit, n=Event-Nr, pid=Person-ID, a=Lagen (Staffel)
 function parseMeldungenFromXhr(bodies) {
     const entries = [];
     for (const body of bodies) {
         try {
             const data = JSON.parse(body);
-            const list = data.list ?? data.meldungen ?? data.data ?? data.entries;
-            if (!Array.isArray(list) || list.length === 0) continue;
+            // Meldungen erkennen: pauschal-Feld vorhanden, kein dorek-Flag (dorek = Ergebnisse)
+            if (data.dorek || !('pauschal' in data) || !Array.isArray(data.list)) continue;
+            const list = data.list;
+            if (list.length === 0) continue;
 
-            log(`Meldungen-XHR (${list.length} Einträge): ${JSON.stringify(list[0])}`);
+            // Discovery: ersten Eintrag vollständig loggen
+            log(`Meldungen-XHR (${list.length} Einträge, ec=${data.ec ?? '?'} sc=${data.sc ?? '?'}): ${JSON.stringify(list[0])}`);
 
             for (const item of list) {
-                const name = (item.p ?? item.name ?? item.persNAME ?? '').trim();
+                // Staffel-Einträge überspringen (a > 1 = mehrere Schwimmer/Lagen)
+                if (parseInt(item.a ?? '1', 10) > 1) continue;
+
+                const name = (item.p ?? item.name ?? '').trim();
                 if (!name) continue;
 
                 const timeMs = parseWebClubTime(item.z ?? item.mz ?? 0);
-
                 entries.push({
                     athlete_name:      name,
                     birth_year:        String(item.j ?? item.jg ?? '').trim() || null,
@@ -1172,7 +1177,8 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             const hasMeldungen = await activateTab(page, /meldung|anmeldung|einzel|entry/i);
             if (hasMeldungen) await page.waitForTimeout(2000);
             const meldungenBodies = [...xhrBucket];
-            const entries = parseMeldungenFromXhr(meldungenBodies);
+            // allBodies einschließen: Meldungen-XHR feuert automatisch (wie dorek) → landet in beforeTab
+            const entries = parseMeldungenFromXhr([...allBodies, ...meldungenBodies]);
 
             log(`  → ${events.length} Events, ${results.length} Ergebnisse, ${entries.length} Meldungen`);
             result.set(verID, { sessions, events, results, entries });
