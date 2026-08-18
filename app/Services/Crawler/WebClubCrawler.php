@@ -96,6 +96,37 @@ class WebClubCrawler
         $stats['persons_deactivated'] = $personStats['deactivated'] ?? 0;
         $stats['errors']             += $personStats['errors'];
 
+        // Zweiter Pass: syncPersons kann neue Portal-User angelegt haben, die im ersten
+        // Durchlauf noch nicht in usersByWcId waren (one-run lag). usersByWcId neu laden
+        // und nochmals alle Einträge verarbeiten – existierende werden per Key-Check übersprungen.
+        if (($personStats['created'] ?? 0) > 0 && !empty($output['competitions'])) {
+            $usersByWcId = User::whereNotNull('webclub_person_id')
+                ->get(['id', 'webclub_person_id', 'lastname', 'firstname', 'birth_date', 'gender'])
+                ->keyBy(fn($u) => (string) $u->webclub_person_id);
+
+            foreach ($output['competitions'] as $raw) {
+                try {
+                    DB::transaction(function () use ($raw, $config, $usersByWcId, &$stats) {
+                        $competition = null;
+                        if (!empty($raw['webclub_id'])) {
+                            $competition = Competition::where('webclub_event_id', $raw['webclub_id'])->first();
+                        }
+                        if (!$competition && !empty($raw['name']) && !empty($raw['date'])) {
+                            $competition = Competition::where('name', $raw['name'])
+                                ->whereDate('date', $raw['date'])
+                                ->first();
+                        }
+                        if (!$competition) return;
+
+                        $synced = $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId, $raw['events'] ?? []);
+                        $stats['entries_synced'] += $synced;
+                    });
+                } catch (\Throwable $e) {
+                    Log::error('WebClubCrawler zweiter Pass: ' . $e->getMessage(), $raw);
+                }
+            }
+        }
+
         foreach ($output['errors'] ?? [] as $err) {
             Log::warning('WebClubCrawler (JS): ' . ($err['type'] ?? '?') . ' – ' . ($err['message'] ?? ''));
             $stats['errors']++;

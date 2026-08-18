@@ -1366,6 +1366,57 @@ async function scrapePersons(page) {
         return { persons, errors };
     }
 
+    // "Nur aktive"-Filter deaktivieren, damit ALLE Mitglieder erscheinen (inkl. Bambini ohne DSV-Lizenz).
+    // optSWRACTONLY=1 im WebClub-Account würde sonst junge Schwimmer aus pers.php ausblenden.
+    try {
+        await page.waitForTimeout(300);
+        const allCbs = page.locator('input[type="checkbox"]');
+        const cbCount = await allCbs.count();
+        if (cbCount > 0) log(`pers.php: ${cbCount} Checkbox(en) gefunden – prüfe auf Aktiv-Filter`);
+        for (let i = 0; i < cbCount; i++) {
+            const cb = allCbs.nth(i);
+            const labelText = await cb.evaluate(el => {
+                const id = el.id || el.name;
+                if (id) {
+                    const byFor = document.querySelector(`label[for="${id}"]`);
+                    if (byFor) return byFor.textContent.trim();
+                }
+                const closest = el.closest('label') || el.parentElement?.closest('label');
+                return closest?.textContent?.trim() || el.name || '';
+            });
+            if (/aktiv|nur.*mitglied|only|swrakt/i.test(labelText)) {
+                const isChecked = await cb.isChecked().catch(() => false);
+                log(`pers.php Aktiv-Filter-Checkbox: "${labelText}" (checked=${isChecked})`);
+                if (isChecked) {
+                    await cb.uncheck({ force: true }).catch(() => {});
+                    log(`pers.php: Aktiv-Filter deaktiviert → zeige alle Mitglieder`);
+                }
+            }
+        }
+        // Auch select-Felder prüfen (manche WebClub-Instanzen nutzen Dropdown)
+        const selects = page.locator('select');
+        const selCount = await selects.count();
+        for (let i = 0; i < selCount; i++) {
+            const sel = selects.nth(i);
+            const selInfo = await sel.evaluate(el => ({
+                name: el.name || '',
+                value: el.value,
+                options: Array.from(el.options).map(o => ({ value: o.value, text: o.text.trim() })),
+            })).catch(() => null);
+            if (!selInfo) continue;
+            if (/aktiv|swr/i.test(selInfo.name) || selInfo.options.some(o => /aktiv|nur/i.test(o.text))) {
+                log(`pers.php Filter-Select "${selInfo.name}": value="${selInfo.value}" options=${JSON.stringify(selInfo.options)}`);
+                const allOpt = selInfo.options.find(o => /alle|all/i.test(o.text) || o.value === '0' || o.value === '');
+                if (allOpt && allOpt.value !== selInfo.value) {
+                    await sel.selectOption(allOpt.value).catch(() => {});
+                    log(`pers.php: Select auf "${allOpt.text}" gesetzt`);
+                }
+            }
+        }
+    } catch (filterErr) {
+        log(`pers.php Filter-Erkennung fehlgeschlagen (ignoriert): ${filterErr.message}`);
+    }
+
     // Suchen-Button klicken → löst Person idx:1 XHR aus
     const searchBtn = page.locator(
         'input[type="submit"], button[type="submit"], button, input[type="button"]'
