@@ -1394,36 +1394,11 @@ async function scrapePersons(page) {
                 }
             }
         }
-        // swrISSWR auf "0" (alle) setzen, damit auch Bambini/Nicht-SWR-Mitglieder erscheinen.
-        // selectOption() kann durch onChange-Handler zurückgesetzt werden → evaluate() ist zuverlässiger.
-        const filterResult = await page.evaluate(() => {
-            const changed = [];
-            const selects = document.querySelectorAll('select[name="swrISSWR"], select[name*="AKTIV"]');
-            for (const sel of selects) {
-                if (sel.name === 'swrISSWR' && sel.value !== '0') {
-                    sel.value = '0';
-                    changed.push(`${sel.name}=0`);
-                }
-            }
-            return changed;
-        }).catch(() => []);
-        if (filterResult.length > 0) log(`pers.php: Filter gesetzt via evaluate(): ${filterResult.join(', ')}`);
-
-        // Auch select-Felder loggen (für Diagnose)
-        const selects = page.locator('select');
-        const selCount = await selects.count();
-        for (let i = 0; i < selCount; i++) {
-            const sel = selects.nth(i);
-            const selInfo = await sel.evaluate(el => ({
-                name: el.name || '',
-                value: el.value,
-                options: Array.from(el.options).map(o => ({ value: o.value, text: o.text.trim() })),
-            })).catch(() => null);
-            if (!selInfo) continue;
-            if (/aktiv|swr/i.test(selInfo.name) || selInfo.options.some(o => /aktiv|nur/i.test(o.text))) {
-                log(`pers.php Filter-Select "${selInfo.name}": value="${selInfo.value}" options=${JSON.stringify(selInfo.options)}`);
-            }
-        }
+        // Diagnose: swrISSWR-Wert loggen (Server ignoriert DOM-Änderungen durch optSWRACTONLY serverseitig)
+        const swrVal = await page.evaluate(() =>
+            document.querySelector('select[name="swrISSWR"]')?.value ?? 'n/a'
+        ).catch(() => 'n/a');
+        log(`pers.php: swrISSWR=${swrVal} (Server-Filter optSWRACTONLY überschreibt DOM-Wert)`);
     } catch (filterErr) {
         log(`pers.php Filter-Erkennung fehlgeschlagen (ignoriert): ${filterErr.message}`);
     }

@@ -277,7 +277,36 @@ class WebClubCrawler
             if (empty($entry['athlete_name'])) continue;
 
             $user = $this->findUserFromMap($entry, $usersByWcId);
-            if (!$user) continue;
+
+            // Kein Portal-Account gefunden: Schwimmer aus Meldungen-Daten anlegen (z.B. Bambini mit swrISSWR=0,
+            // die nicht in pers.php erscheinen aber aktiv an Wettkämpfen teilnehmen).
+            if (!$user) {
+                $wcId = $entry['webclub_person_id'] ?? null;
+                if (!$wcId) continue;
+
+                $nameParts = preg_split('/\s+/', trim($entry['athlete_name']), -1, PREG_SPLIT_NO_EMPTY);
+                $lastname  = array_pop($nameParts) ?: null;
+                $firstname = $nameParts ? implode(' ', $nameParts) : null;
+                if (!$lastname) continue;
+
+                $birthYear  = $entry['birth_year'] ?? null;
+                $initialPwd = Str::random(12);
+                $user = User::create(array_filter([
+                    'name'              => trim("$firstname $lastname"),
+                    'lastname'          => $lastname,
+                    'firstname'         => $firstname,
+                    'birth_date'        => $birthYear ? "{$birthYear}-01-01" : null,
+                    'gender'            => $this->normalizeGender($entry['gender'] ?? null),
+                    'role'              => 'schwimmer',
+                    'active'            => true,
+                    'webclub_person_id' => $wcId,
+                    'password'          => $initialPwd,
+                    'initial_password'  => $initialPwd,
+                ], fn($v) => $v !== null && $v !== ''));
+
+                Log::info("WebClubCrawler syncEntries: Schwimmer aus Meldungen angelegt – {$firstname} {$lastname} (pid={$wcId})");
+                $usersByWcId->put((string) $wcId, $user);
+            }
 
             $eventNumber = isset($entry['event_number']) ? (int) $entry['event_number'] : 0;
             $event       = null;
@@ -701,16 +730,37 @@ class WebClubCrawler
     {
         if (empty($webclubIds)) return 0;
 
-        // Nur Schwimmer deaktivieren, die:
-        // 1. Rolle 'schwimmer' haben
-        // 2. Eine webclub_person_id gesetzt haben (d.h. aus WebClub stammen)
-        // 3. In der aktuellen WebClub-Liste NICHT vorkommen
-        // 4. Aktuell aktiv sind
-        return User::where('role', 'schwimmer')
+        // Schwimmer mit aktuellen Wettkampf-Meldungen schützen: sie sind aktiv,
+        // auch wenn sie nicht in pers.php erscheinen (z.B. swrISSWR=0, Bambini).
+        $protectedIds = DB::table('competition_entries')
+            ->join('competitions', 'competition_entries.competition_id', '=', 'competitions.id')
+            ->where('competitions.date_from', '>=', now()->subMonths(18))
+            ->distinct()
+            ->pluck('competition_entries.user_id')
+            ->toArray();
+
+        // Bereits fälschlicherweise deaktivierte Schwimmer mit aktuellen Meldungen reaktivieren.
+        if (!empty($protectedIds)) {
+            $reactivated = User::where('role', 'schwimmer')
+                ->whereNotNull('webclub_person_id')
+                ->whereNotIn('webclub_person_id', $webclubIds)
+                ->where('active', false)
+                ->whereIn('id', $protectedIds)
+                ->update(['active' => true]);
+            if ($reactivated > 0) {
+                Log::info("WebClubCrawler: {$reactivated} Schwimmer reaktiviert (haben aktuelle Meldungen, waren fälschlicherweise deaktiviert).");
+            }
+        }
+
+        // Deaktivieren: fehlt in pers.php UND hat keine aktuellen Meldungen.
+        $deactivated = User::where('role', 'schwimmer')
             ->whereNotNull('webclub_person_id')
             ->whereNotIn('webclub_person_id', $webclubIds)
+            ->whereNotIn('id', $protectedIds)
             ->where('active', true)
             ->update(['active' => false]);
+
+        return $deactivated;
     }
 
     private function normalizeGender(?string $gender): ?string
