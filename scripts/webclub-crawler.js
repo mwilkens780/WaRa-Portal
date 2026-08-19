@@ -1007,7 +1007,7 @@ function parseWebClubTime(z) {
 // Parst Meldungen-XHR aus dem Tab-Bucket.
 // Erkennungsmerkmal: "pauschal"-Feld (Gebühren-Zusammenfassung) OHNE dorek:true.
 // Die XHR feuert automatisch bei jeder Navigation – suche daher in allBodies, nicht nur meldungenBodies.
-// Feldnamen: p=Name, j=Jahrgang, s=Geschlecht, z=Meldezeit, n=Event-Nr, pid=Person-ID, a=Lagen (Staffel)
+// Feldnamen: p=Name, j=Jahrgang, s=Geschlecht, z=Meldezeit, n=Event-Nr, pid=Person-ID, d=DSV-ID, a=Lagen (Staffel)
 function parseMeldungenFromXhr(bodies) {
     const entries = [];
     for (const body of bodies) {
@@ -1037,6 +1037,7 @@ function parseMeldungenFromXhr(bodies) {
                     distance:          parseInt(item.l ?? '0', 10) || null,  // l=Strecke
                     time_ms:           timeMs || null,
                     webclub_person_id: item.pid && String(item.pid) !== '0' ? String(item.pid) : null,
+                    dsv_id:            item.d  && String(item.d)   !== '0' ? String(item.d)   : null,  // d=DSV-ID
                     event_number:      parseInt(item.n ?? '0', 10) || null,
                 });
             }
@@ -1393,7 +1394,22 @@ async function scrapePersons(page) {
                 }
             }
         }
-        // Auch select-Felder prüfen (manche WebClub-Instanzen nutzen Dropdown)
+        // swrISSWR auf "0" (alle) setzen, damit auch Bambini/Nicht-SWR-Mitglieder erscheinen.
+        // selectOption() kann durch onChange-Handler zurückgesetzt werden → evaluate() ist zuverlässiger.
+        const filterResult = await page.evaluate(() => {
+            const changed = [];
+            const selects = document.querySelectorAll('select[name="swrISSWR"], select[name*="AKTIV"]');
+            for (const sel of selects) {
+                if (sel.name === 'swrISSWR' && sel.value !== '0') {
+                    sel.value = '0';
+                    changed.push(`${sel.name}=0`);
+                }
+            }
+            return changed;
+        }).catch(() => []);
+        if (filterResult.length > 0) log(`pers.php: Filter gesetzt via evaluate(): ${filterResult.join(', ')}`);
+
+        // Auch select-Felder loggen (für Diagnose)
         const selects = page.locator('select');
         const selCount = await selects.count();
         for (let i = 0; i < selCount; i++) {
@@ -1406,11 +1422,6 @@ async function scrapePersons(page) {
             if (!selInfo) continue;
             if (/aktiv|swr/i.test(selInfo.name) || selInfo.options.some(o => /aktiv|nur/i.test(o.text))) {
                 log(`pers.php Filter-Select "${selInfo.name}": value="${selInfo.value}" options=${JSON.stringify(selInfo.options)}`);
-                const allOpt = selInfo.options.find(o => /alle|all/i.test(o.text) || o.value === '0' || o.value === '');
-                if (allOpt && allOpt.value !== selInfo.value) {
-                    await sel.selectOption(allOpt.value).catch(() => {});
-                    log(`pers.php: Select auf "${allOpt.text}" gesetzt`);
-                }
             }
         }
     } catch (filterErr) {

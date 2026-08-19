@@ -832,26 +832,45 @@ class WebClubCrawler
     private function findUser(array $item): ?User
     {
         $webclubId = $item['webclub_person_id'] ?? null;
+        $dsvId     = $item['dsv_id'] ?? null;
 
         if ($webclubId) {
             $user = User::where('webclub_person_id', $webclubId)->first();
             if ($user) return $user;
         }
 
-        // Aus vollem Namen und Jahrgang matchen
+        // Fallback: DSV-ID (d-Feld aus Meldungen-XHR / swrDSVID aus pers.php)
+        if ($dsvId) {
+            $user = User::where('dsv_id', $dsvId)->first();
+            if ($user) {
+                // webclub_person_id nachträglich setzen, damit future Läufe den Map-Pfad nutzen
+                if (!$user->webclub_person_id && $webclubId) {
+                    $user->update(['webclub_person_id' => $webclubId]);
+                }
+                return $user;
+            }
+        }
+
+        // Aus vollem Namen (letztes Wort = Nachname) und Jahrgang matchen
         $name = $item['athlete_name'] ?? null;
         if (!$name) return null;
 
-        $parts    = explode(' ', $name, 2);
-        $lastname = count($parts) > 1 ? $parts[1] : $parts[0];
-        $firstname = count($parts) > 1 ? $parts[0] : null;
+        $nameParts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY);
+        $lastname  = array_pop($nameParts) ?: null;
+        $firstname = $nameParts ? implode(' ', $nameParts) : null;
         $birthYear = $item['birth_year'] ?? null;
+
+        if (!$lastname) return null;
 
         $query = User::where('lastname', $lastname);
         if ($firstname) $query->where('firstname', $firstname);
         if ($birthYear) $query->whereYear('birth_date', $birthYear);
 
-        return $query->first();
+        $user = $query->first();
+        if ($user && $webclubId && !$user->webclub_person_id) {
+            $user->update(['webclub_person_id' => $webclubId]);
+        }
+        return $user;
     }
 
     private function findUserFromMap(array $item, \Illuminate\Support\Collection $usersByWcId): ?User
