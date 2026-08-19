@@ -17,7 +17,7 @@ on:
 jobs:
   crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -37,7 +37,9 @@ jobs:
       - name: Playwright installieren
         run: |
           npm install playwright
-          npx playwright install chromium --with-deps
+          npx playwright install chromium
+          # System-Abhängigkeiten separat mit Timeout (apt-get kann bei Mirror-Ausfällen hängen)
+          timeout 180 npx playwright install-deps chromium || echo "WARN: install-deps fehlgeschlagen (ggf. bereits vorhanden)"
 
       - name: Crawler-Config erstellen
         env:
