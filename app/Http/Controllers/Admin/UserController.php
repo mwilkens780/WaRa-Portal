@@ -8,6 +8,7 @@ use App\Services\WebClubImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
@@ -212,5 +213,78 @@ class UserController extends Controller
         $status = $user->active ? 'aktiviert' : 'deaktiviert';
 
         return back()->with('success', "Benutzer \"{$user->name}\" wurde {$status}.");
+    }
+
+    public function export(): StreamedResponse
+    {
+        $users = User::with(['trainingGroups', 'children', 'parents'])
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+
+        $filename = 'portal-personen-' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $columns = [
+            'Portal-ID', 'Nachname', 'Vorname', 'Geburtsdatum', 'Geschlecht',
+            'Rolle', 'Aktiv',
+            'E-Mail', 'E-Mail 2', 'Telefon', 'Mobil',
+            'Straße', 'PLZ', 'Ort', 'Land',
+            'Mitgliedsnummer', 'DSV-ID', 'WebClub-ID', 'Mitglied seit',
+            'Trainingsgruppen',
+            'Eltern (Name / E-Mail)',
+            'Kinder (Name / E-Mail)',
+            'Notizen',
+            'Portal erstellt am',
+        ];
+
+        return response()->streamDownload(function () use ($users, $columns) {
+            $out = fopen('php://output', 'w');
+
+            // UTF-8 BOM so Excel erkennt die Kodierung
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, $columns, ';');
+
+            foreach ($users as $user) {
+                $groups = $user->trainingGroups->pluck('name')->join(', ');
+
+                $parents = $user->parents->map(fn($p) => trim("{$p->firstname} {$p->lastname}") . ($p->email ? " <{$p->email}>" : ''))->join(' | ');
+                $children = $user->children->map(fn($c) => trim("{$c->firstname} {$c->lastname}") . ($c->email ? " <{$c->email}>" : ''))->join(' | ');
+
+                fputcsv($out, [
+                    $user->id,
+                    $user->lastname,
+                    $user->firstname,
+                    $user->birth_date?->format('d.m.Y'),
+                    match($user->gender) { 'M' => 'männlich', 'F' => 'weiblich', default => '' },
+                    User::ROLE_LABELS[$user->role] ?? $user->role,
+                    $user->active ? 'ja' : 'nein',
+                    $user->email,
+                    $user->email2,
+                    $user->phone,
+                    $user->mobile,
+                    $user->street,
+                    $user->postal_code,
+                    $user->city,
+                    $user->country,
+                    $user->membership_number,
+                    $user->dsv_id,
+                    $user->webclub_person_id,
+                    $user->member_since?->format('d.m.Y'),
+                    $groups,
+                    $parents,
+                    $children,
+                    $user->notes,
+                    $user->created_at?->format('d.m.Y'),
+                ], ';');
+            }
+
+            fclose($out);
+        }, $filename, $headers);
     }
 }

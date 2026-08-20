@@ -106,6 +106,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/benutzer/{user}/passwort-reset', [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
     Route::delete('/benutzer-alle', [AdminUserController::class, 'destroyAll'])->name('users.destroy-all');
     Route::post('/benutzer/dsv-bereinigen', [AdminUserController::class, 'cleanupDsvIds'])->name('users.cleanup-dsv');
+    Route::get('/benutzer/export', [AdminUserController::class, 'export'])->name('users.export');
 
     // WebClub Wettkampf-Terminimport
     Route::get('/wettkaempfe/webclub-import', [CompetitionWebclubImportController::class, 'showForm'])->name('competitions.webclub-import.form');
