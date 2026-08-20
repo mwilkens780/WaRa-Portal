@@ -27,7 +27,7 @@ class WebClubCrawler
 
     public function run(): array
     {
-        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
+        $stats = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0, 'persons_reactivated' => 0];
 
         if (!Setting::getBool('crawler.webclub.enabled', false)) {
             Log::info('WebClubCrawler: deaktiviert – übersprungen.');
@@ -63,7 +63,7 @@ class WebClubCrawler
      */
     public function processPayload(array $output): array
     {
-        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'entries_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0];
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'entries_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0, 'persons_reactivated' => 0];
         $config = $this->buildConfig();
 
         $stats['groups_synced'] = $this->syncGroups($output['groups'] ?? []);
@@ -94,6 +94,7 @@ class WebClubCrawler
         $stats['persons_synced']      = $personStats['synced'];
         $stats['persons_created']     = $personStats['created'] ?? 0;
         $stats['persons_deactivated'] = $personStats['deactivated'] ?? 0;
+        $stats['persons_reactivated'] = $personStats['reactivated'] ?? 0;
         $stats['errors']             += $personStats['errors'];
 
         // Zweiter Pass: syncPersons kann neue Portal-User angelegt haben, die im ersten
@@ -583,23 +584,26 @@ class WebClubCrawler
 
         // Schwimmer deaktivieren, die nicht mehr in WebClub vorhanden sind.
         // Mindestanzahl 5 als Schutz gegen versehentliche Massendeaktivierung bei leerem Crawl.
-        $deactivated = 0;
+        $deactivated  = 0;
+        $reactivated  = 0;
         if (count($webclubIds) >= 5) {
-            $deactivated = $this->deactivateAbsentPersons($webclubIds);
+            $result      = $this->deactivateAbsentPersons($webclubIds);
+            $deactivated = $result['deactivated'];
+            $reactivated = $result['reactivated'];
             if ($deactivated > 0) {
                 Log::info("WebClubCrawler: {$deactivated} Schwimmer deaktiviert (nicht mehr in WebClub).");
             }
         }
 
-        if ($synced > 0 || $errors > 0 || $deactivated > 0) {
+        if ($synced > 0 || $errors > 0 || $deactivated > 0 || $reactivated > 0) {
             ImportLog::create([
                 'source'  => self::SOURCE,
                 'status'  => $errors > 0 ? 'error' : 'success',
-                'message' => "Personen-Sync: {$synced} bearbeitet ({$created} neu angelegt), {$deactivated} deaktiviert, {$errors} Fehler.",
+                'message' => "Personen-Sync: {$synced} bearbeitet ({$created} neu angelegt), {$deactivated} deaktiviert, {$reactivated} reaktiviert, {$errors} Fehler.",
             ]);
         }
 
-        return compact('synced', 'created', 'errors', 'deactivated');
+        return compact('synced', 'created', 'errors', 'deactivated', 'reactivated');
     }
 
     private function syncPerson(array $raw, \Illuminate\Support\Collection $usersByWcId, \Illuminate\Support\Collection $groupsByWcId, \Illuminate\Support\Collection &$existingMemberships): string
@@ -740,6 +744,7 @@ class WebClubCrawler
             ->toArray();
 
         // Bereits fälschlicherweise deaktivierte Schwimmer mit aktuellen Meldungen reaktivieren.
+        $reactivated = 0;
         if (!empty($protectedIds)) {
             $reactivated = User::where('role', 'schwimmer')
                 ->whereNotNull('webclub_person_id')
@@ -760,7 +765,7 @@ class WebClubCrawler
             ->where('active', true)
             ->update(['active' => false]);
 
-        return $deactivated;
+        return compact('deactivated', 'reactivated');
     }
 
     private function normalizeGender(?string $gender): ?string
