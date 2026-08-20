@@ -734,7 +734,7 @@ class WebClubCrawler
         // auch wenn sie nicht in pers.php erscheinen (z.B. swrISSWR=0, Bambini).
         $protectedIds = DB::table('competition_entries')
             ->join('competitions', 'competition_entries.competition_id', '=', 'competitions.id')
-            ->where('competitions.date_from', '>=', now()->subMonths(18))
+            ->where('competitions.date', '>=', now()->subMonths(18))
             ->distinct()
             ->pluck('competition_entries.user_id')
             ->toArray();
