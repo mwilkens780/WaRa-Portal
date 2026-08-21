@@ -1302,21 +1302,33 @@ function parsePersonDetail(body) {
             ? grpswr.map(String).filter(Boolean)
             : [];
 
+        // persAUSTRITT "31.12.2099" = aktives Mitglied → null; echtes Datum = ausgetreten
+        const resignedAt = (s) => (!s || s === '31.12.2099' || s === '01.01.2099') ? null : isoDate(s);
+
         return {
-            webclub_person_id:  d.persID ? String(d.persID) : null,
+            webclub_person_id:           d.persID ? String(d.persID) : null,
             lastname,
             firstname,
-            birth_date:         isoDate(d.persGEBTAG ?? d.persGEB ?? null),
-            gender:             normalizeGender(d.persGESCHLECHT ?? ''),
-            email:              d.adrMAIL1  ?? d.adrMAIL2  ?? null,
-            phone:              d.adrFON1   ?? d.adrFON2   ?? null,
-            mobile:             d.adrMOBIL  ?? null,
-            street:             d.adrSTRASSE ?? null,
-            postal_code:        d.adrPLZ    ?? null,
-            city:               d.adrORT    ?? null,
-            dsv_id:             d.swrDSVID  ?? d.persDSVID ?? null,
-            membership_number:  d.swrMNR    ?? d.persMNR   ?? d.swrMITGLIEDNR ?? null,
-            webclub_group_ids:  webclubGroupIds,
+            birth_date:                  isoDate(d.persGEBTAG ?? d.persGEB ?? null),
+            gender:                      normalizeGender(d.persGESCHLECHT ?? ''),
+            email:                       d.adrMAIL1  ?? d.adrMAIL2  ?? null,
+            email2:                      (d.adrMAIL1 != null && d.adrMAIL2 != null) ? d.adrMAIL2 : null,
+            phone:                       d.adrFON1   ?? d.adrFON2   ?? null,
+            mobile:                      d.adrMOBIL  ?? null,
+            street:                      d.adrSTRASSE ?? null,
+            postal_code:                 d.adrPLZ    ?? null,
+            city:                        d.adrORT    ?? null,
+            country:                     (d.adrNATION && d.adrNATION !== 'XXX') ? d.adrNATION : null,
+            dsv_id:                      d.swrDSVID  ?? d.persDSVID ?? null,
+            membership_number:           d.swrMNR    ?? d.persMNR   ?? d.swrMITGLIEDNR ?? null,
+            member_since:                isoDate(d.persEINTRITT ?? null),
+            resigned_at:                 resignedAt(d.persAUSTRITT ?? null),
+            trainer_license_nr:          d.coaLIZNR  ?? null,
+            trainer_license_valid_until: isoDate(d.coaLIZGUELTIG ?? null),
+            rescue_certificate_until:    isoDate(d.coaRETTUNGBIS  ?? null),
+            first_aid_until:             isoDate(d.coaERSTEHILFE  ?? null),
+            kampfrichter_license_nr:     d.kariLIZNR ?? null,
+            webclub_group_ids:           webclubGroupIds,
         };
     } catch (_) {
         return null;

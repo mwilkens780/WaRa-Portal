@@ -29,7 +29,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'firstname', 'lastname', 'email', 'email2', 'password', 'role',
         'birth_date', 'phone', 'mobile', 'active',
-        'gender', 'dsv_id', 'membership_number', 'webclub_person_id', 'member_since', 'training_group',
+        'gender', 'dsv_id', 'membership_number', 'webclub_person_id', 'member_since', 'resigned_at', 'training_group',
         'street', 'postal_code', 'city', 'country',
         'initial_password',
         'trainer_license_nr', 'trainer_license_valid_until',
@@ -51,6 +51,7 @@ class User extends Authenticatable
             'password'                    => 'hashed',
             'birth_date'                  => 'date',
             'member_since'                => 'date',
+            'resigned_at'                 => 'date',
             'active'                      => 'boolean',
             'trainer_license_valid_until' => 'date',
             'rescue_certificate_until'    => 'date',

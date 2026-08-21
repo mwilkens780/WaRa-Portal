@@ -658,18 +658,33 @@ class WebClubCrawler
         }
 
         $updates = [];
-        if (!$user->webclub_person_id && $webclubId)                                $updates['webclub_person_id'] = $webclubId;
+        if (!$user->webclub_person_id && $webclubId)                                        $updates['webclub_person_id']           = $webclubId;
         $mappedGender = $this->normalizeGender($raw['gender'] ?? null);
-        if (empty($user->gender)            && $mappedGender)                       $updates['gender']            = $mappedGender;
-        if (empty($user->dsv_id)            && !empty($raw['dsv_id']))              $updates['dsv_id']            = $raw['dsv_id'];
-        if (empty($user->membership_number) && !empty($raw['membership_number']))   $updates['membership_number'] = $raw['membership_number'];
-        if (empty($user->member_since)      && !empty($raw['member_since']))        $updates['member_since']      = $raw['member_since'];
-        if (empty($user->phone)             && !empty($raw['phone']))               $updates['phone']             = $raw['phone'];
-        if (empty($user->mobile)            && !empty($raw['mobile']))              $updates['mobile']            = $raw['mobile'];
-        if (empty($user->street)            && !empty($raw['street']))              $updates['street']            = $raw['street'];
-        if (empty($user->postal_code)       && !empty($raw['postal_code']))         $updates['postal_code']       = $raw['postal_code'];
-        if (empty($user->city)              && !empty($raw['city']))                $updates['city']              = $raw['city'];
-        if (!$user->active)                                                         $updates['active']            = true;
+        if (empty($user->gender)                    && $mappedGender)                       $updates['gender']                      = $mappedGender;
+        if (empty($user->dsv_id)                    && !empty($raw['dsv_id']))              $updates['dsv_id']                      = $raw['dsv_id'];
+        if (empty($user->membership_number)         && !empty($raw['membership_number']))   $updates['membership_number']           = $raw['membership_number'];
+        if (empty($user->member_since)              && !empty($raw['member_since']))        $updates['member_since']                = $raw['member_since'];
+        if (empty($user->phone)                     && !empty($raw['phone']))               $updates['phone']                       = $raw['phone'];
+        if (empty($user->mobile)                    && !empty($raw['mobile']))              $updates['mobile']                      = $raw['mobile'];
+        if (empty($user->email2)                    && !empty($raw['email2']))              $updates['email2']                      = $raw['email2'];
+        if (empty($user->street)                    && !empty($raw['street']))              $updates['street']                      = $raw['street'];
+        if (empty($user->postal_code)               && !empty($raw['postal_code']))         $updates['postal_code']                 = $raw['postal_code'];
+        if (empty($user->city)                      && !empty($raw['city']))                $updates['city']                        = $raw['city'];
+        if (empty($user->country)                   && !empty($raw['country']))             $updates['country']                     = $raw['country'];
+        if (empty($user->trainer_license_nr)        && !empty($raw['trainer_license_nr']))          $updates['trainer_license_nr']          = $raw['trainer_license_nr'];
+        if (empty($user->trainer_license_valid_until) && !empty($raw['trainer_license_valid_until'])) $updates['trainer_license_valid_until'] = $raw['trainer_license_valid_until'];
+        if (empty($user->rescue_certificate_until)  && !empty($raw['rescue_certificate_until']))    $updates['rescue_certificate_until']    = $raw['rescue_certificate_until'];
+        if (empty($user->first_aid_until)           && !empty($raw['first_aid_until']))             $updates['first_aid_until']             = $raw['first_aid_until'];
+        if (empty($user->kampfrichter_license_nr)   && !empty($raw['kampfrichter_license_nr']))     $updates['kampfrichter_license_nr']     = $raw['kampfrichter_license_nr'];
+
+        // resigned_at: WebClub-Austrittsdatum übernehmen und Benutzer deaktivieren
+        if (!empty($raw['resigned_at'])) {
+            if (empty($user->resigned_at))  $updates['resigned_at'] = $raw['resigned_at'];
+            if ($user->active)              $updates['active']       = false;
+        } elseif (!$user->active) {
+            // Kein Austrittsdatum mehr in WebClub → reaktivieren (sofern nicht manuell deaktiviert)
+            $updates['active'] = true;
+        }
 
         if ($updates) $user->update($updates);
 
