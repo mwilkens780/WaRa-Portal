@@ -730,7 +730,7 @@ class WebClubCrawler
         }
     }
 
-    private function deactivateAbsentPersons(array $webclubIds): int
+    private function deactivateAbsentPersons(array $webclubIds): array
     {
         if (empty($webclubIds)) return 0;
 
