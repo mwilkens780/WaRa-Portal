@@ -111,9 +111,9 @@ function parseTimeToMs(str) {
 }
 
 const WEBCLUB_DISCIPLINE = {
-    '1': 'S', '2': 'R', '3': 'B', '4': 'L', '5': 'F',
+    '1': 'S', '2': 'R', '3': 'B', '4': 'F', '5': 'L',
     // 25m-Varianten (Bambini, NOP, Pokal): Codes +10
-    '11': 'S', '12': 'R', '13': 'B', '14': 'L', '15': 'F',
+    '11': 'S', '12': 'R', '13': 'B', '14': 'F', '15': 'L',
     'SCH': 'S', 'SCHM': 'S', 'SM': 'S', 'FLY': 'S', 'BUTTERFLY': 'S',
     'RÜ': 'R', 'RUE': 'R', 'BACK': 'R', 'RÜCKEN': 'R',
     'BR': 'B', 'BRUST': 'B', 'BREAST': 'B',
@@ -942,7 +942,7 @@ function parseWettkampffolge(bodies) {
             if (!Array.isArray(list) || list.length === 0) continue;
             const events = [];
             for (const item of list) {
-                // WebClub: wkfLAGE = Disziplin (1=S,2=R,3=B,4=L,5=F; 11-15 = 25m-Varianten), wkfLAENGE = Distanz
+                // WebClub: wkfLAGE = Disziplin (1=S,2=R,3=B,4=F,5=L; 11-15 = 25m-Varianten), wkfLAENGE = Distanz
                 //          wkfNUMMER = Event-Nr, wkfABS = Abschnitt-Nr, wkfGESCHLECHT = M/W
                 const discipline = mapDiscipline(item.wkfLAGE ?? item.wkDIS ?? item.dis ?? item.disziplin ?? null);
                 const distance   = parseInt(item.wkfLAENGE ?? item.wkSTR ?? item.str ?? item.strecke ?? '0', 10);
@@ -1033,7 +1033,7 @@ function parseMeldungenFromXhr(bodies) {
                     athlete_name:      name,
                     birth_year:        String(item.j ?? item.jg ?? '').trim() || null,
                     gender:            normalizeGender(String(item.s ?? '')),
-                    discipline:        mapDiscipline(item.g ?? null),  // g=Disziplin (1=S,2=R,3=B,4=L,5=F)
+                    discipline:        mapDiscipline(item.g ?? null),  // g=Disziplin (1=S,2=R,3=B,4=F,5=L)
                     distance:          parseInt(item.l ?? '0', 10) || null,  // l=Strecke
                     time_ms:           timeMs || null,
                     webclub_person_id: item.pid && String(item.pid) !== '0' ? String(item.pid) : null,

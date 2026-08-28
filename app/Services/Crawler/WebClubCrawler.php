@@ -472,9 +472,6 @@ class WebClubCrawler
     {
         if (empty($events)) return;
 
-        // DSV7-Import hat Vorrang: wenn bereits Events existieren, überspringen
-        if ($competition->events()->exists()) return;
-
         // Session-Nr → date/name Index
         $sessionMeta = [];
         foreach ($sessions as $s) {
@@ -490,30 +487,25 @@ class WebClubCrawler
 
         foreach ($events as $ev) {
             if (empty($ev['discipline']) || empty($ev['distance'])) continue;
-            // Unbekannte Disziplincodes (z.B. 14 = Bambini "Kindgerecht") überspringen
             if (!in_array($ev['discipline'], ['F', 'B', 'R', 'S', 'L'])) continue;
 
             $sessionNr = max(1, (int) ($ev['session'] ?? 1));
             $meta      = $sessionMeta[$sessionNr] ?? [];
+            $evNr      = (int) ($ev['number'] ?? 0);
 
-            $evNr = (int) ($ev['number'] ?? 0);
-            if (CompetitionEvent::where('competition_id', $competition->id)
-                    ->where('event_number', $evNr)->exists()) {
-                continue;
-            }
-
-            CompetitionEvent::create([
-                'competition_id'     => $competition->id,
-                'event_number'       => $evNr,
-                'session_number'     => $sessionNr,
-                'session_date'       => $meta['date'] ?? null,
-                'session_name'       => $meta['name'] ?? null,
-                'discipline'         => $ev['discipline'],
-                'distance'           => (int) $ev['distance'],
-                'gender'             => $ev['gender'] ?? 'X',
-                'age_group'          => $ev['age_group'] ?? null,
-                'qualifying_time_ms' => $ev['qualifying_time_ms'] ?? null,
-            ]);
+            CompetitionEvent::updateOrCreate(
+                ['competition_id' => $competition->id, 'event_number' => $evNr],
+                [
+                    'session_number'     => $sessionNr,
+                    'session_date'       => $meta['date'] ?? null,
+                    'session_name'       => $meta['name'] ?? null,
+                    'discipline'         => $ev['discipline'],
+                    'distance'           => (int) $ev['distance'],
+                    'gender'             => $ev['gender'] ?? 'X',
+                    'age_group'          => $ev['age_group'] ?? null,
+                    'qualifying_time_ms' => $ev['qualifying_time_ms'] ?? null,
+                ]
+            );
         }
     }
 
