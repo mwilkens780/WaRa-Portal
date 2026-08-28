@@ -11,60 +11,50 @@ return new class extends Migration
         //   Falsch: 4→L (Lagen), 5→F (Freistil)
         //   Korrekt: 4→F (Freistil), 5→L (Lagen)
         //
-        // Beweis: wkfLAGE=4 erscheint für 1500m, 5000m, 800m → nur Freistil existiert
+        // Beweis: wkfLAGE=4 erscheint für 1500m, 5000m, 800m – nur Freistil existiert
         // für diese Distanzen. L↔F-Tausch für alle WebClub-importierten Wettkämpfe.
-        // DSV7-/manuell importierte Wettkämpfe (webclub_competition_id IS NULL) werden
-        // nicht angefasst.
 
-        $webclubCompIds = DB::table('competitions')
+        $ids = DB::table('competitions')
             ->whereNotNull('webclub_event_id')
             ->pluck('id');
 
-        if ($webclubCompIds->isEmpty()) return;
+        if ($ids->isEmpty()) return;
 
-        // Temporäres Zeichen für den Tausch: L→X, F→L, X→F
+        // CASE-Statement tauscht L und F in einem einzigen UPDATE (kein Enum-Zwischenwert nötig)
         foreach (['competition_events', 'competition_results', 'competition_entries'] as $table) {
-            DB::table($table)
-                ->whereIn('competition_id', $webclubCompIds)
-                ->where('discipline', 'L')
-                ->update(['discipline' => 'X']);
-
-            DB::table($table)
-                ->whereIn('competition_id', $webclubCompIds)
-                ->where('discipline', 'F')
-                ->update(['discipline' => 'L']);
-
-            DB::table($table)
-                ->whereIn('competition_id', $webclubCompIds)
-                ->where('discipline', 'X')
-                ->update(['discipline' => 'F']);
+            DB::statement("
+                UPDATE `{$table}`
+                SET discipline = CASE discipline
+                    WHEN 'L' THEN 'F'
+                    WHEN 'F' THEN 'L'
+                    ELSE discipline
+                END
+                WHERE competition_id IN (" . $ids->implode(',') . ")
+                  AND discipline IN ('L', 'F')
+            ");
         }
     }
 
     public function down(): void
     {
-        // Rückgängig: F↔L erneut tauschen für WebClub-Wettkämpfe
-        $webclubCompIds = DB::table('competitions')
+        // Rückgängig: identischer Tausch F↔L
+        $ids = DB::table('competitions')
             ->whereNotNull('webclub_event_id')
             ->pluck('id');
 
-        if ($webclubCompIds->isEmpty()) return;
+        if ($ids->isEmpty()) return;
 
         foreach (['competition_events', 'competition_results', 'competition_entries'] as $table) {
-            DB::table($table)
-                ->whereIn('competition_id', $webclubCompIds)
-                ->where('discipline', 'F')
-                ->update(['discipline' => 'X']);
-
-            DB::table($table)
-                ->whereIn('competition_id', $webclubCompIds)
-                ->where('discipline', 'L')
-                ->update(['discipline' => 'F']);
-
-            DB::table($table)
-                ->whereIn('competition_id', $webclubCompIds)
-                ->where('discipline', 'X')
-                ->update(['discipline' => 'L']);
+            DB::statement("
+                UPDATE `{$table}`
+                SET discipline = CASE discipline
+                    WHEN 'L' THEN 'F'
+                    WHEN 'F' THEN 'L'
+                    ELSE discipline
+                END
+                WHERE competition_id IN (" . $ids->implode(',') . ")
+                  AND discipline IN ('L', 'F')
+            ");
         }
     }
 };
