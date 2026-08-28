@@ -568,11 +568,12 @@ class DashboardController extends Controller
 
     public function myTimes()
     {
-        $swimmer  = auth()->user();
-        $filter   = request('filter', 'all');
-        $yearVal  = (int) request('year', now()->year);
-        $seasonId = (int) request('season_id', 0);
-        $seasons  = Season::orderByDesc('start_date')->get();
+        $swimmer      = auth()->user();
+        $filter       = request('filter', 'all');
+        $courseFilter = request('course', 'all'); // 'all', 'LB', 'KB'
+        $yearVal      = (int) request('year', now()->year);
+        $seasonId     = (int) request('season_id', 0);
+        $seasons      = Season::orderByDesc('start_date')->get();
 
         $filterLabel     = 'Alle Zeiten';
         $seasonDateRange = null;
@@ -588,33 +589,36 @@ class DashboardController extends Controller
             }
         }
 
-        // Training times (filtered)
+        // Training times (filtered) — Bahnlänge unbekannt, zählen als Langbahn
         $trainQuery = SwimmingTime::where('user_id', $swimmer->id)->with('trainingSession');
         if ($filter === 'year')   $trainQuery->whereYear('created_at', $yearVal);
         elseif ($seasonDateRange) $trainQuery->whereBetween('created_at', $seasonDateRange);
         $trainTimes = $trainQuery->get();
 
         // Competition results (filtered by competition date)
-        $compQuery = CompetitionResult::where('user_id', $swimmer->id)->where('time_ms', '>', 0)->with('competition');
+        $compQuery = CompetitionResult::where('user_id', $swimmer->id)->where('time_ms', '>', 0)
+            ->with('competition:id,date,name,location,course');
         if ($filter === 'year')
             $compQuery->whereHas('competition', fn($q) => $q->whereYear('date', $yearVal));
         elseif ($seasonDateRange)
             $compQuery->whereHas('competition', fn($q) => $q->whereBetween('date', $seasonDateRange));
         $compResults = $compQuery->get();
 
-        // Build best per discipline+distance from both sources
         $discLabels = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
         $discOrder  = ['F' => 0, 'B' => 1, 'R' => 2, 'S' => 3, 'L' => 4];
         $bestsByKey = [];
 
+        // Trainingszeiten: Bahnlänge unbekannt → Langbahn-Bucket
         foreach ($trainTimes as $t) {
-            $key = $t->discipline . '_' . $t->distance;
+            $key = $t->discipline . '_' . $t->distance . '_LB';
             if (!isset($bestsByKey[$key]) || $t->time_ms < $bestsByKey[$key]->ms) {
                 $bestsByKey[$key] = (object)[
                     'discipline'       => $t->discipline,
                     'discipline_label' => $discLabels[$t->discipline] ?? $t->discipline,
                     'discipline_order' => $discOrder[$t->discipline] ?? 99,
                     'distance'         => $t->distance,
+                    'course'           => 'LB',
+                    'course_label'     => null,
                     'ms'               => $t->time_ms,
                     'formatted'        => SwimmingTime::formatMs($t->time_ms),
                     'source'           => 'training',
@@ -625,14 +629,20 @@ class DashboardController extends Controller
             }
         }
 
+        // Wettkampfergebnisse: Bahnlänge aus competition.course
         foreach ($compResults as $r) {
-            $key = $r->discipline . '_' . $r->distance;
+            $courseKey   = $r->competition?->course === 'Kurzbahn' ? 'KB' : 'LB';
+            $courseLabel = $r->competition?->course; // 'Langbahn', 'Kurzbahn', null
+            $key         = $r->discipline . '_' . $r->distance . '_' . $courseKey;
+
             if (!isset($bestsByKey[$key]) || $r->time_ms < $bestsByKey[$key]->ms) {
                 $bestsByKey[$key] = (object)[
                     'discipline'       => $r->discipline,
                     'discipline_label' => $discLabels[$r->discipline] ?? $r->discipline,
                     'discipline_order' => $discOrder[$r->discipline] ?? 99,
                     'distance'         => $r->distance,
+                    'course'           => $courseKey,
+                    'course_label'     => $courseLabel,
                     'ms'               => $r->time_ms,
                     'formatted'        => SwimmingTime::formatMs($r->time_ms),
                     'source'           => 'competition',
@@ -644,15 +654,21 @@ class DashboardController extends Controller
         }
 
         $bests = collect($bestsByKey)
-            ->sortBy(fn($b) => sprintf('%d_%05d', $b->discipline_order, $b->distance))
+            ->sortBy(fn($b) => sprintf('%d_%05d_%s', $b->discipline_order, $b->distance, $b->course))
             ->values();
+
+        // Bahnfilter anwenden
+        if ($courseFilter !== 'all') {
+            $bests = $bests->filter(fn($b) => $b->course === $courseFilter)->values();
+        }
+
         $bestsByDisc = $bests->groupBy('discipline');
 
         $availableYears = SwimmingTime::where('user_id', $swimmer->id)
             ->selectRaw('YEAR(created_at) as y')->distinct()->pluck('y')->sortDesc();
 
         return view('swimmer.my-times', compact(
-            'filter', 'filterLabel', 'seasons', 'seasonId', 'yearVal', 'availableYears',
+            'filter', 'filterLabel', 'courseFilter', 'seasons', 'seasonId', 'yearVal', 'availableYears',
             'bests', 'bestsByDisc'
         ));
     }
