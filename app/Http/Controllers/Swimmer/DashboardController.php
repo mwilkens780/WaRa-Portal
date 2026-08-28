@@ -801,8 +801,14 @@ class DashboardController extends Controller
                     $q->orWhere('recurrence_group_id', $session->recurrence_group_id);
                 }
             })->exists();
+        // Anwesenheit als drittes Kriterium: wer als anwesend markiert ist, darf
+        // die Session und sein Tagebuch sehen (z.B. nach Gruppenwechsel oder manueller Eintragung)
+        $hasAttendance = TrainingAttendance::where('training_session_id', $session->id)
+            ->where('user_id', $user->id)
+            ->where('attended', true)
+            ->exists();
 
-        if (!$hasGroupAccess && !$hasIndividual) {
+        if (!$hasGroupAccess && !$hasIndividual && !$hasAttendance) {
             abort(403);
         }
 
