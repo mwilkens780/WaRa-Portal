@@ -137,6 +137,11 @@ class User extends Authenticatable
         return $this->hasMany(SwimmingTime::class);
     }
 
+    public function trainingDiaries()
+    {
+        return $this->hasMany(TrainingDiary::class);
+    }
+
     public function competitionResults()
     {
         return $this->hasMany(CompetitionResult::class);

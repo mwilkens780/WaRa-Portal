@@ -174,66 +174,158 @@
         @endif
     @endif
 
-    {{-- Tagebucheintrag (nur für vergangene Trainings) --}}
+    {{-- Selbsteinschätzung (nur für vergangene Trainings) --}}
     @if($session->date->lte(today()))
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Mein Tagebucheintrag</h2>
+            <h2 class="text-sm font-semibold text-gray-700 mb-4">Meine Selbsteinschätzung</h2>
 
-            <form method="POST" action="{{ route('sessions.diary', $session) }}" class="space-y-4">
+            @if(session('success'))
+                <div class="mb-4 px-4 py-2.5 bg-green-50 border border-green-100 rounded-lg text-sm text-green-700">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('sessions.diary', $session) }}"
+                  x-data="scoreKnob({{ $diary?->self_score ?? 5 }})"
+                  @submit="document.getElementById('selfScoreInput').value = value">
                 @csrf
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Stimmung</label>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach([
-                            'sehr_gut'      => ['label' => 'Sehr gut',    'emoji' => '😄'],
-                            'gut'           => ['label' => 'Gut',         'emoji' => '🙂'],
-                            'mittel'        => ['label' => 'Mittel',      'emoji' => '😐'],
-                            'schlecht'      => ['label' => 'Schlecht',    'emoji' => '😕'],
-                            'sehr_schlecht' => ['label' => 'Sehr schlecht', 'emoji' => '😞'],
-                        ] as $val => $item)
-                            <label class="flex items-center gap-1.5 cursor-pointer">
-                                <input type="radio" name="mood" value="{{ $val }}"
-                                       {{ old('mood', $diary?->mood) === $val ? 'checked' : '' }}
-                                       class="text-primary">
-                                <span class="text-sm">{{ $item['emoji'] }} {{ $item['label'] }}</span>
-                            </label>
-                        @endforeach
+                <div class="flex flex-col items-center gap-4">
+                    {{-- Drehegler --}}
+                    <div class="select-none touch-none"
+                         @mousedown.prevent="startDrag($event)"
+                         @mousemove.window.prevent="onDrag($event)"
+                         @mouseup.window="stopDrag()"
+                         @touchstart.prevent="startDrag($event)"
+                         @touchmove.window.prevent="onDrag($event)"
+                         @touchend.window="stopDrag()">
+                        <svg viewBox="0 0 120 120" class="w-36 h-36 cursor-grab active:cursor-grabbing" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.10))">
+                            {{-- Hintergrundspur --}}
+                            <path :d="trackPath" fill="none" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
+                            {{-- Wertspur --}}
+                            <path :d="valuePath" fill="none" :stroke="arcColor" stroke-width="10" stroke-linecap="round"/>
+                            {{-- Wert --}}
+                            <text x="60" y="55" text-anchor="middle" dominant-baseline="middle"
+                                  class="font-bold" style="font-size:28px;font-family:inherit" :fill="arcColor" x-text="value"></text>
+                            <text x="60" y="78" text-anchor="middle" style="font-size:11px;fill:#9ca3af;font-family:inherit">von 10</text>
+                        </svg>
                     </div>
-                </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Wahrgenommene Intensität: <span id="intensityVal">{{ old('perceived_intensity', $diary?->perceived_intensity ?? 5) }}</span>/10
-                    </label>
-                    <input type="range" name="perceived_intensity" min="1" max="10"
-                           value="{{ old('perceived_intensity', $diary?->perceived_intensity ?? 5) }}"
-                           oninput="document.getElementById('intensityVal').textContent = this.value"
-                           class="w-full accent-primary">
-                    <div class="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Leicht</span><span>Mittel</span><span>Sehr intensiv</span>
+                    {{-- Tasten --}}
+                    <div class="flex items-center gap-4">
+                        <button type="button" @click="decrement()"
+                                class="w-9 h-9 rounded-full border border-gray-200 text-gray-600 text-lg font-bold hover:bg-gray-50 transition flex items-center justify-center">−</button>
+                        <span class="text-xs text-gray-400 w-24 text-center" x-text="label"></span>
+                        <button type="button" @click="increment()"
+                                class="w-9 h-9 rounded-full border border-gray-200 text-gray-600 text-lg font-bold hover:bg-gray-50 transition flex items-center justify-center">+</button>
                     </div>
-                </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
-                    <textarea name="body" rows="4"
-                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm"
-                              placeholder="Wie war das Training für dich? Was hat gut geklappt, was möchtest du verbessern?">{{ old('body', $diary?->body) }}</textarea>
-                    @error('body')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
-                </div>
+                    <input type="hidden" name="self_score" id="selfScoreInput" :value="value">
 
-                <button type="submit"
-                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm">
-                    {{ $diary ? 'Eintrag aktualisieren' : 'Eintrag speichern' }}
-                </button>
+                    <button type="submit"
+                            class="bg-primary hover:bg-primary-dark text-white font-semibold px-8 py-2.5 rounded-lg transition-colors text-sm">
+                        {{ $diary ? 'Einschätzung aktualisieren' : 'Einschätzung speichern' }}
+                    </button>
+                </div>
             </form>
+
+            {{-- Trainereinschätzung (nur lesen) --}}
+            @if($diary?->trainer_score !== null)
+                <div class="mt-5 pt-5 border-t border-gray-100">
+                    <p class="text-xs text-gray-500 mb-2">Trainereinschätzung</p>
+                    <div class="flex items-center gap-3">
+                        @php $dev = $diary->deviation_level; @endphp
+                        <span class="text-2xl font-bold {{ $diary->score_color }}">{{ $diary->trainer_score }}<span class="text-sm font-normal text-gray-400">/10</span></span>
+                        @if($dev === 'match')
+                            <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                Übereinstimmung
+                            </span>
+                        @elseif($dev === 'minor')
+                            <span class="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                                ~ Geringe Abweichung ({{ $diary->deviation }})
+                            </span>
+                        @elseif($dev === 'major')
+                            <span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/></svg>
+                                Starke Abweichung ({{ $diary->deviation }})
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
     @else
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-sm text-gray-400 text-center py-2">Das Tagebuch ist nach dem Training verfügbar.</p>
+            <p class="text-sm text-gray-400 text-center py-2">Die Selbsteinschätzung ist nach dem Training verfügbar.</p>
         </div>
     @endif
+
+@push('scripts')
+<script>
+function scoreKnob(initial) {
+    const CX = 60, CY = 60, R = 44;
+    const START_DEG = 135, RANGE_DEG = 270;
+
+    function polar(deg) {
+        const rad = (deg - 90) * Math.PI / 180;
+        return { x: CX + R * Math.cos(rad), y: CY + R * Math.sin(rad) };
+    }
+
+    function arcPath(fromDeg, toDeg) {
+        const s = polar(fromDeg), e = polar(toDeg);
+        const large = (toDeg - fromDeg) > 180 ? 1 : 0;
+        return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+    }
+
+    const LABELS = ['Sehr niedrig','Sehr niedrig','Niedrig','Niedrig','Mittel','Mittel','Gut','Gut','Hoch','Sehr hoch','Maximal'];
+
+    return {
+        value: Math.min(10, Math.max(0, initial)),
+        dragging: false,
+        startAngle: null,
+        startValue: null,
+
+        get trackPath() { return arcPath(START_DEG, START_DEG + RANGE_DEG); },
+        get valuePath() {
+            if (this.value === 0) return `M ${polar(START_DEG).x.toFixed(2)} ${polar(START_DEG).y.toFixed(2)}`;
+            return arcPath(START_DEG, START_DEG + (this.value / 10) * RANGE_DEG);
+        },
+        get arcColor() {
+            if (this.value >= 8) return '#16a34a';
+            if (this.value >= 5) return '#f59e0b';
+            return '#ef4444';
+        },
+        get label() { return LABELS[this.value] || ''; },
+
+        angleFromEvent(e) {
+            const rect = this.$el.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            const dx = touch.clientX - (rect.left + rect.width / 2);
+            const dy = touch.clientY - (rect.top + rect.height / 2);
+            return Math.atan2(dy, dx) * 180 / Math.PI;
+        },
+
+        startDrag(e) {
+            this.dragging = true;
+            this.startAngle = this.angleFromEvent(e);
+            this.startValue = this.value;
+        },
+        onDrag(e) {
+            if (!this.dragging) return;
+            let delta = this.angleFromEvent(e) - this.startAngle;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            const newVal = Math.round(this.startValue + delta / RANGE_DEG * 10);
+            this.value = Math.min(10, Math.max(0, newVal));
+        },
+        stopDrag() { this.dragging = false; },
+        increment() { if (this.value < 10) this.value++; },
+        decrement() { if (this.value > 0) this.value--; },
+    };
+}
+</script>
+@endpush
 
     <a href="{{ route('swimmer.dashboard') }}" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

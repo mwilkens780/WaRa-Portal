@@ -897,37 +897,86 @@
             @endif
         </div>
 
-        {{-- Tagebuch Tab --}}
+        {{-- Einschätzungen Tab --}}
         <div x-show="activeTab === 'diary'" x-cloak class="p-5">
-            <div class="space-y-4">
-                @forelse($session->diaries as $entry)
-                    <div class="border border-gray-100 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center gap-2">
-                                <div class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                                    {{ substr($entry->user->name, 0, 1) }}
+            @if(session('success'))
+                <div class="mb-4 px-4 py-2 bg-green-50 border border-green-100 rounded-lg text-sm text-green-700">{{ session('success') }}</div>
+            @endif
+            <div class="space-y-3">
+                @forelse($session->diaries->sortByDesc('self_score') as $entry)
+                    @php
+                        $dev = $entry->deviation_level;
+                        $devBadge = match($dev) {
+                            'match' => '<span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Übereinstimmung</span>',
+                            'minor' => '<span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">~ ' . $entry->deviation . ' Pkt. Diff.</span>',
+                            'major' => '<span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/></svg>' . $entry->deviation . ' Pkt. Abw.</span>',
+                            default => '',
+                        };
+                    @endphp
+                    <div class="border border-gray-100 rounded-xl p-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            {{-- Schwimmer --}}
+                            <div class="flex items-center gap-2 min-w-[140px]">
+                                <div class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                    {{ substr($entry->user->firstname ?? $entry->user->name, 0, 1) }}
                                 </div>
-                                <span class="text-sm font-semibold text-gray-800">{{ $entry->user->name }}</span>
+                                <span class="text-sm font-semibold text-gray-800">{{ $entry->user->firstname }} {{ $entry->user->lastname }}</span>
                             </div>
-                            <div class="flex items-center gap-3 text-sm">
-                                @if($entry->mood)
-                                    <span class="{{ $entry->mood_color }} font-medium">
-                                        {{ $entry->mood_emoji }} {{ $entry->mood_label }}
+
+                            {{-- Scores --}}
+                            <div class="flex items-center gap-4">
+                                {{-- Selbsteinschätzung --}}
+                                <div class="text-center">
+                                    <p class="text-xs text-gray-400 mb-0.5">Selbst</p>
+                                    <span class="text-xl font-bold {{ \App\Models\TrainingDiary::scoreColor($entry->self_score) }}">
+                                        {{ $entry->self_score ?? '–' }}
                                     </span>
-                                @endif
-                                @if($entry->perceived_intensity)
-                                    <span class="text-gray-500">Intensität: <strong>{{ $entry->perceived_intensity }}/10</strong></span>
-                                @endif
+                                </div>
+                                <span class="text-gray-300 text-xl">↔</span>
+                                {{-- Trainereinschätzung --}}
+                                <div class="text-center" x-data="{ editing: false, score: {{ $entry->trainer_score ?? 'null' }} }">
+                                    <p class="text-xs text-gray-400 mb-0.5">Trainer</p>
+                                    <template x-if="!editing">
+                                        <button @click="editing = true"
+                                                class="text-xl font-bold hover:opacity-70 transition"
+                                                :class="score !== null ? '{{ \App\Models\TrainingDiary::scoreColor($entry->trainer_score) }}' : 'text-gray-300'">
+                                            <span x-text="score !== null ? score : '+'"></span>
+                                        </button>
+                                    </template>
+                                    <template x-if="editing">
+                                        <form method="POST" action="{{ route('trainer.sessions.trainer-score', [$session, $entry->user_id]) }}"
+                                              class="flex items-center gap-1" @submit="editing = false">
+                                            @csrf
+                                            <input type="number" name="trainer_score" :value="score ?? {{ $entry->self_score ?? 5 }}"
+                                                   min="0" max="10" required
+                                                   class="w-14 text-center border border-primary rounded-lg px-1 py-0.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                   x-ref="scoreInput"
+                                                   x-init="$nextTick(() => $refs.scoreInput?.focus())">
+                                            <button type="submit" class="text-green-600 hover:text-green-700">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            </button>
+                                            <button type="button" @click="editing = false" class="text-gray-400 hover:text-gray-600">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </button>
+                                        </form>
+                                    </template>
+                                </div>
                             </div>
+
+                            {{-- Abweichungs-Badge --}}
+                            <div class="ml-auto">{!! $devBadge !!}</div>
                         </div>
-                        @if($entry->body)
-                            <p class="text-sm text-gray-600 whitespace-pre-line">{{ $entry->body }}</p>
-                        @endif
                     </div>
                 @empty
-                    <p class="text-sm text-gray-400 py-4 text-center">Noch keine Tagebucheinträge für diese Einheit.</p>
+                    <p class="text-sm text-gray-400 py-4 text-center">Noch keine Einschätzungen für diese Einheit.</p>
                 @endforelse
             </div>
+            @if($session->diaries->whereNotNull('self_score')->isNotEmpty())
+                <div class="mt-4 pt-4 border-t border-gray-100 text-right">
+                    <a href="{{ route('trainer.diary.overview') }}"
+                       class="text-xs text-primary hover:underline">Alle Einschätzungen →</a>
+                </div>
+            @endif
         </div>
     </div>
 </div>

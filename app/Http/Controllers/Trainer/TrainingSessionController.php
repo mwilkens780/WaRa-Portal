@@ -629,9 +629,7 @@ class TrainingSessionController extends Controller
     public function saveDiary(Request $request, TrainingSession $session)
     {
         $data = $request->validate([
-            'body'                => ['nullable', 'string', 'max:2000'],
-            'mood'                => ['nullable', 'in:sehr_gut,gut,mittel,schlecht,sehr_schlecht'],
-            'perceived_intensity' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'self_score' => ['required', 'integer', 'min:0', 'max:10'],
         ]);
 
         TrainingDiary::updateOrCreate(
@@ -639,7 +637,45 @@ class TrainingSessionController extends Controller
             $data
         );
 
-        return back()->with('success', 'Tagebucheintrag gespeichert.');
+        return back()->with('success', 'Selbsteinschätzung gespeichert.');
+    }
+
+    public function saveTrainerScore(Request $request, TrainingSession $session, User $user)
+    {
+        $data = $request->validate([
+            'trainer_score' => ['required', 'integer', 'min:0', 'max:10'],
+        ]);
+
+        TrainingDiary::updateOrCreate(
+            ['training_session_id' => $session->id, 'user_id' => $user->id],
+            $data
+        );
+
+        return back()->with('success', 'Trainereinschätzung gespeichert.');
+    }
+
+    public function diaryOverview(Request $request)
+    {
+        $userId   = $request->integer('user_id');
+        $onlyDiff = $request->boolean('only_diff');
+
+        $swimmers = User::whereHas('trainingDiaries')->orderBy('lastname')->orderBy('firstname')->get(['id', 'lastname', 'firstname']);
+
+        $entries = collect();
+        if ($userId) {
+            $entries = TrainingDiary::with(['session', 'user'])
+                ->where('user_id', $userId)
+                ->whereNotNull('self_score')
+                ->whereHas('session')
+                ->get()
+                ->sortByDesc(fn($e) => $e->session?->date?->format('Y-m-d') ?? '');
+
+            if ($onlyDiff) {
+                $entries = $entries->filter(fn($e) => $e->deviation_level === 'major')->values();
+            }
+        }
+
+        return view('trainer.diary-overview', compact('swimmers', 'userId', 'onlyDiff', 'entries'));
     }
 
     // ── Trainingspläne ──────────────────────────────────────────────────────

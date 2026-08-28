@@ -303,6 +303,10 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::delete('/training/{session}/trainingsplan/anhang', [TrainingPlanController::class, 'deleteAttachment'])->name('sessions.plan.attachment.delete');
     Route::post('/training/{session}/block-zeiten', [TrainingPlanController::class, 'saveBlockTime'])->name('sessions.block-times.save');
 
+    // Trainingstagebuch (Trainereinschätzung + Übersicht)
+    Route::post('/training/{session}/einschaetzung/{user}', [TrainingSessionController::class, 'saveTrainerScore'])->name('sessions.trainer-score');
+    Route::get('/tagebuch', [TrainingSessionController::class, 'diaryOverview'])->name('diary.overview');
+
     // Ziele
     Route::get('/ziele', [TrainerGoalController::class, 'index'])->name('goals.index');
     Route::post('/ziele/{goal}/kommentar', [TrainerGoalController::class, 'storeComment'])->name('goals.comment');

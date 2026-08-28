@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class TrainingDiary extends Model
 {
     protected $fillable = [
-        'training_session_id', 'user_id', 'body', 'mood', 'perceived_intensity',
+        'training_session_id', 'user_id', 'self_score', 'trainer_score',
     ];
 
     protected function casts(): array
     {
         return [
-            'perceived_intensity' => 'integer',
+            'self_score'    => 'integer',
+            'trainer_score' => 'integer',
         ];
     }
 
@@ -27,39 +28,35 @@ class TrainingDiary extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function getMoodLabelAttribute(): string
+    /** Abweichung zwischen Selbst- und Trainereinschätzung (null wenn eine fehlt). */
+    public function getDeviationAttribute(): ?int
     {
-        return match($this->mood) {
-            'sehr_gut'  => 'Sehr gut',
-            'gut'       => 'Gut',
-            'mittel'    => 'Mittel',
-            'schlecht'  => 'Schlecht',
-            'sehr_schlecht' => 'Sehr schlecht',
-            default     => '–',
-        };
+        if ($this->self_score === null || $this->trainer_score === null) return null;
+        return abs($this->self_score - $this->trainer_score);
     }
 
-    public function getMoodColorAttribute(): string
+    /** 'match' | 'minor' | 'major' | null */
+    public function getDeviationLevelAttribute(): ?string
     {
-        return match($this->mood) {
-            'sehr_gut'      => 'text-green-600',
-            'gut'           => 'text-green-500',
-            'mittel'        => 'text-amber-500',
-            'schlecht'      => 'text-orange-500',
-            'sehr_schlecht' => 'text-red-600',
-            default         => 'text-gray-400',
-        };
+        $d = $this->deviation;
+        if ($d === null) return null;
+        if ($d === 0)    return 'match';
+        if ($d <= 2)     return 'minor';
+        return 'major';
     }
 
-    public function getMoodEmojiAttribute(): string
+    public function getScoreColorAttribute(): string
     {
-        return match($this->mood) {
-            'sehr_gut'      => '😄',
-            'gut'           => '🙂',
-            'mittel'        => '😐',
-            'schlecht'      => '😕',
-            'sehr_schlecht' => '😞',
-            default         => '–',
+        return self::scoreColor($this->self_score);
+    }
+
+    public static function scoreColor(?int $score): string
+    {
+        return match(true) {
+            $score === null => 'text-gray-400',
+            $score >= 8     => 'text-green-600',
+            $score >= 5     => 'text-amber-500',
+            default         => 'text-red-500',
         };
     }
 }
