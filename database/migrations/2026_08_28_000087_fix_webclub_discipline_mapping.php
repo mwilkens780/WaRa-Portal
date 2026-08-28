@@ -17,7 +17,7 @@ return new class extends Migration
         // nicht angefasst.
 
         $webclubCompIds = DB::table('competitions')
-            ->whereNotNull('webclub_competition_id')
+            ->whereNotNull('webclub_event_id')
             ->pluck('id');
 
         if ($webclubCompIds->isEmpty()) return;
@@ -45,7 +45,7 @@ return new class extends Migration
     {
         // Rückgängig: F↔L erneut tauschen für WebClub-Wettkämpfe
         $webclubCompIds = DB::table('competitions')
-            ->whereNotNull('webclub_competition_id')
+            ->whereNotNull('webclub_event_id')
             ->pluck('id');
 
         if ($webclubCompIds->isEmpty()) return;
