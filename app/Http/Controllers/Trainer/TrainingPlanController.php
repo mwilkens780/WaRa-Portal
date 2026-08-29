@@ -25,6 +25,7 @@ class TrainingPlanController extends Controller
                 'repetition_levels'    => !empty($b->repetitions_nested)
                     ? array_map('strval', $b->repetitions_nested)
                     : ($b->repetitions ? [strval($b->repetitions)] : ['']),
+                'time_tracking'        => (bool) $b->time_tracking,
                 'distance'             => $b->distance ?? '',
                 'disciplines'          => $b->disciplines ?? [],
                 'additions'            => $b->additions ?? [],
@@ -71,35 +72,59 @@ class TrainingPlanController extends Controller
 
         $plan->save();
 
-        // Rebuild blocks
-        $plan->blocks()->delete();
+        $this->syncBlocks($plan, json_decode($data['blocks_json'] ?? '[]', true) ?? []);
 
-        $blocks = json_decode($data['blocks_json'] ?? '[]', true) ?? [];
+        return back()->with('success', 'Trainingsplan gespeichert.');
+    }
+
+    /**
+     * Write the submitted blocks onto the plan.
+     *
+     * Recorded times hang off the block id via cascadeOnDelete, so blocks must
+     * keep their id — deleting and recreating them would wipe every time the
+     * trainer already took.
+     */
+    private function syncBlocks(TrainingPlan $plan, array $blocks): void
+    {
+        $existing = $plan->blocks()->get()->keyBy('id');
+        $keptIds  = [];
+
         foreach ($blocks as $i => $b) {
-            $startSec   = ((int)($b['start_interval_min'] ?? 0)) * 60 + (int)($b['start_interval_sec'] ?? 0);
+            $startSec    = ((int)($b['start_interval_min'] ?? 0)) * 60 + (int)($b['start_interval_sec'] ?? 0);
             $recoverySec = ((int)($b['recovery_min'] ?? 0)) * 60 + (int)($b['recovery_sec'] ?? 0);
 
             // Parse multi-level repetitions: [4, 6, 2] → nested=[4,6,2], product=48
             $levels  = $this->parseRepetitionLevels($b['repetitions'] ?? null);
             $product = !empty($levels) ? array_reduce($levels, fn($c, $r) => $c * $r, 1) : null;
 
-            TrainingPlanBlock::create([
+            $attributes = [
                 'training_plan_id'       => $plan->id,
                 'sort_order'             => $i,
                 'label'                  => ($b['label'] ?? '') ?: null,
                 'repetitions'            => $product,
                 'repetitions_nested'     => $levels ?: null,
-                'distance'               => ($b['distance'] !== '' && $b['distance'] !== null) ? (int)$b['distance'] : null,
+                'time_tracking'          => (bool)($b['time_tracking'] ?? false),
+                'distance'               => (($b['distance'] ?? '') !== '' && ($b['distance'] ?? null) !== null) ? (int)$b['distance'] : null,
                 'disciplines'            => $b['disciplines'] ?? [],
                 'additions'              => $b['additions'] ?? [],
                 'materials'              => $b['materials'] ?? [],
                 'comment'                => ($b['comment'] ?? '') ?: null,
                 'start_interval_seconds' => $startSec > 0 ? $startSec : null,
                 'recovery_seconds'       => $recoverySec > 0 ? $recoverySec : null,
-            ]);
+            ];
+
+            $blockId = isset($b['id']) ? (int)$b['id'] : 0;
+            if ($blockId && $existing->has($blockId)) {
+                $block = $existing[$blockId];
+                $block->update($attributes);
+            } else {
+                $block = TrainingPlanBlock::create($attributes);
+            }
+            $keptIds[] = $block->id;
         }
 
-        return back()->with('success', 'Trainingsplan gespeichert.');
+        // Only blocks the trainer actually removed get dropped (with their times)
+        $plan->blocks()->whereNotIn('id', $keptIds ?: [0])->delete();
     }
 
     public function deleteAttachment(TrainingSession $session)

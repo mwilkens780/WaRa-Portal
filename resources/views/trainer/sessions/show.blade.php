@@ -478,6 +478,15 @@
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-semibold text-gray-700">Trainingsplan</h2>
             <div class="flex items-center gap-2">
+                @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->tracksTime())->isNotEmpty())
+                    <a href="{{ route('trainer.sessions.live', $session) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Live-Zeitnahme
+                    </a>
+                @endif
                 @if($session->trainingPlan)
                     <a href="{{ route('trainer.sessions.print', $session) }}" target="_blank"
                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
@@ -744,10 +753,10 @@
         <div x-show="activeTab === 'times'" x-cloak class="p-5">
 
             {{-- Block-Zeitenmatrizen --}}
-            @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->total_repetitions > 0)->isNotEmpty() && $swimmers->isNotEmpty())
+            @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->tracksTime())->isNotEmpty() && $swimmers->isNotEmpty())
                 @php $blockNum = 0; @endphp
                 @foreach($session->trainingPlan->blocks as $block)
-                    @if($block->total_repetitions > 0)
+                    @if($block->tracksTime())
                         @php
                             $blockNum++;
                             $blockTimeRow = $blockTimesMap[$block->id] ?? [];

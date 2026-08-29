@@ -145,12 +145,12 @@
     @endif
 
     {{-- ======================== ZEITEN-TABELLEN ======================== --}}
-    @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->total_repetitions > 0)->isNotEmpty() && $swimmers->isNotEmpty())
+    @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->tracksTime())->isNotEmpty() && $swimmers->isNotEmpty())
         <div class="page-break"></div>
         <h2>Zeiten</h2>
         @php $blockNum = 0; @endphp
         @foreach($session->trainingPlan->blocks as $block)
-            @if($block->total_repetitions > 0)
+            @if($block->tracksTime())
                 @php
                     $blockNum++;
                     $blockTimeRow = $blockTimesMap[$block->id] ?? [];

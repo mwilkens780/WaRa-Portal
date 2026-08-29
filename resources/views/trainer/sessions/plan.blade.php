@@ -223,6 +223,29 @@
                                               class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-y"></textarea>
                                 </div>
 
+                                {{-- Zeile 5b: Zeitnahme --}}
+                                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors"
+                                       :class="block.time_tracking
+                                            ? 'bg-amber-50 border-amber-300'
+                                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'">
+                                    <input type="checkbox" x-model="block.time_tracking"
+                                           class="mt-0.5 w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-400 cursor-pointer">
+                                    <span class="min-w-0">
+                                        <span class="flex items-center gap-2 text-sm font-semibold"
+                                              :class="block.time_tracking ? 'text-amber-900' : 'text-gray-700'">
+                                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            Zeitnahme bei dieser Serie
+                                        </span>
+                                        <span class="block text-xs mt-0.5"
+                                              :class="block.time_tracking ? 'text-amber-700' : 'text-gray-400'"
+                                              x-text="block.time_tracking
+                                                ? (blockTotalReps(block) > 0
+                                                    ? 'Erscheint in der Live-Zeitnahme mit ' + blockTotalReps(block) + ' Wiederholung(en) pro Sportler.'
+                                                    : 'Bitte noch Wiederholungen eintragen – ohne sie gibt es kein Raster.')
+                                                : 'Diese Serie wird nur geschwommen, es werden keine Zeiten erfasst.'"></span>
+                                    </span>
+                                </label>
+
                                 {{-- Zeile 6: Zeiten --}}
                                 <div class="grid sm:grid-cols-3 gap-4 bg-blue-50/50 rounded-lg p-3 border border-blue-100">
                                     <div>
@@ -441,6 +464,7 @@ function planBuilder(initialBlocks, targetSeconds) {
                 this.blocks = initialBlocks.map(b => ({
                     ...b,
                     repetition_levels: b.repetition_levels?.length ? b.repetition_levels : [''],
+                    time_tracking: !!b.time_tracking,
                     disciplines: b.disciplines || [],
                     additions:   b.additions   || [],
                     materials:   b.materials   || [],
@@ -454,8 +478,10 @@ function planBuilder(initialBlocks, targetSeconds) {
         addBlock() {
             this.blocks.push({
                 _key:                this._nextKey++,
+                id:                  null,
                 label:               '',
                 repetition_levels:   [''],
+                time_tracking:       false,
                 distance:            '',
                 disciplines:         [],
                 additions:           [],
@@ -493,6 +519,9 @@ function planBuilder(initialBlocks, targetSeconds) {
         duplicateBlock(index) {
             const copy = JSON.parse(JSON.stringify(this.blocks[index]));
             copy._key = this._nextKey++;
+            // A copy is a new block — it must not claim the original's id,
+            // otherwise both would write onto the same recorded times.
+            copy.id = null;
             this.blocks.push(copy);
         },
 
@@ -577,9 +606,12 @@ function planBuilder(initialBlocks, targetSeconds) {
 
         submitForm() {
             const payload = this.blocks.map(b => ({
+                // Keep the id so the block survives the save with its recorded times
+                id:                  b.id ?? null,
                 label:               b.label    || null,
                 // Send the levels array (controller will compute product)
                 repetitions:         b.repetition_levels.map(r => parseInt(r)).filter(r => r > 0),
+                time_tracking:       !!b.time_tracking,
                 distance:            b.distance !== '' ? b.distance : null,
                 disciplines:         b.disciplines,
                 additions:           b.additions,

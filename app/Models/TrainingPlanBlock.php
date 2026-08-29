@@ -8,7 +8,7 @@ class TrainingPlanBlock extends Model
 {
     protected $fillable = [
         'training_plan_id', 'sort_order', 'label',
-        'repetitions', 'repetitions_nested', 'distance',
+        'repetitions', 'repetitions_nested', 'time_tracking', 'distance',
         'disciplines', 'additions', 'materials',
         'comment', 'start_interval_seconds', 'recovery_seconds',
     ];
@@ -20,6 +20,7 @@ class TrainingPlanBlock extends Model
             'additions'              => 'array',
             'materials'              => 'array',
             'repetitions_nested'     => 'array',
+            'time_tracking'          => 'boolean',
             'repetitions'            => 'integer',
             'distance'               => 'integer',
             'sort_order'             => 'integer',
@@ -46,6 +47,12 @@ class TrainingPlanBlock extends Model
             return implode('×', $nested);
         }
         return (string)($this->repetitions ?? '');
+    }
+
+    // A block only gets a time grid when the trainer ticked "Zeitnahme" and it has repetitions
+    public function tracksTime(): bool
+    {
+        return (bool) $this->time_tracking && $this->total_repetitions > 0;
     }
 
     public function plan()       { return $this->belongsTo(TrainingPlan::class, 'training_plan_id'); }
