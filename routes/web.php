@@ -26,6 +26,7 @@ use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
 use App\Http\Controllers\Trainer\TrainingSessionController;
 use App\Http\Controllers\Trainer\DsvImportController;
 use App\Http\Controllers\Trainer\TrainingPlanController;
+use App\Http\Controllers\Trainer\LiveTimingController;
 use App\Http\Controllers\Swimmer\DashboardController as SwimmerDashboard;
 use App\Http\Controllers\Swimmer\GoalController as SwimmerGoalController;
 use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
@@ -302,6 +303,10 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::post('/training/{session}/trainingsplan', [TrainingPlanController::class, 'save'])->name('sessions.plan.save');
     Route::delete('/training/{session}/trainingsplan/anhang', [TrainingPlanController::class, 'deleteAttachment'])->name('sessions.plan.attachment.delete');
     Route::post('/training/{session}/block-zeiten', [TrainingPlanController::class, 'saveBlockTime'])->name('sessions.block-times.save');
+
+    // Live-Zeitnahme am Beckenrand (Handy)
+    Route::get('/training/{session}/live', [LiveTimingController::class, 'index'])->name('sessions.live');
+    Route::post('/training/{session}/live/zeiten', [LiveTimingController::class, 'saveBulk'])->name('sessions.live.save');
 
     // Trainingstagebuch (Trainereinschätzung + Übersicht)
     Route::post('/training/{session}/einschaetzung/{user}', [TrainingSessionController::class, 'saveTrainerScore'])->name('sessions.trainer-score');
