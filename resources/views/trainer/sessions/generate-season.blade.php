@@ -72,9 +72,18 @@
 
             {{-- Startdatum --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Startdatum</label>
+                @php
+                    $dayNames = [1=>'Montag',2=>'Dienstag',3=>'Mittwoch',4=>'Donnerstag',5=>'Freitag',6=>'Samstag',7=>'Sonntag'];
+                    $seriesWeekday = $dayNames[$seriesDayOfWeekIso] ?? '';
+                @endphp
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Startdatum
+                    @if($seriesWeekday)
+                        <span class="text-xs font-normal text-blue-600 ml-1">(muss ein {{ $seriesWeekday }} sein)</span>
+                    @endif
+                </label>
                 <input type="date" name="start_date"
-                       value="{{ old('start_date', $suggestedSeason?->start_date?->format('Y-m-d') ?? '') }}"
+                       value="{{ old('start_date', $suggestedStart?->format('Y-m-d') ?? $suggestedSeason?->start_date?->format('Y-m-d') ?? '') }}"
                        min="{{ today()->format('Y-m-d') }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>

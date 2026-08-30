@@ -910,8 +910,23 @@ class TrainingSessionController extends Controller
         $suggestedSeason = $seriesSeason ? Season::after($seriesSeason) : null;
         $suggestedSeason = $suggestedSeason ?? Season::current();
 
+        // Compute suggested start date aligned to the series's original weekday
+        $seriesDayOfWeekIso = $sessions->first()->date->dayOfWeekIso; // 1=Mon…7=Sun
+        $suggestedStart = null;
+        if ($suggestedSeason?->start_date) {
+            $candidate = $suggestedSeason->start_date->copy();
+            for ($i = 0; $i < 7; $i++) {
+                if ($candidate->dayOfWeekIso === $seriesDayOfWeekIso) {
+                    $suggestedStart = $candidate;
+                    break;
+                }
+                $candidate->addDay();
+            }
+        }
+
         return view('trainer.sessions.generate-season', compact(
-            'rep', 'sessions', 'group', 'hasFuture', 'suggestedSeason', 'seriesSeason'
+            'rep', 'sessions', 'group', 'hasFuture', 'suggestedSeason', 'seriesSeason',
+            'suggestedStart', 'seriesDayOfWeekIso'
         ));
     }
 
@@ -934,6 +949,17 @@ class TrainingSessionController extends Controller
         $rep          = $existingSessions->first();
         $groupIds     = $rep->trainingGroups->pluck('id')->toArray();
         $coTrainerIds = $rep->coTrainers->pluck('id')->toArray();
+
+        // Guard: start_date must match the series's original weekday
+        $seriesDayOfWeekIso  = $existingSessions->first()->date->dayOfWeekIso;
+        $requestDayOfWeekIso = Carbon::parse($data['start_date'])->dayOfWeekIso;
+        if ($requestDayOfWeekIso !== $seriesDayOfWeekIso) {
+            $dayNames = [1=>'Montag',2=>'Dienstag',3=>'Mittwoch',4=>'Donnerstag',5=>'Freitag',6=>'Samstag',7=>'Sonntag'];
+            $expected = $dayNames[$seriesDayOfWeekIso] ?? "Wochentag {$seriesDayOfWeekIso}";
+            return back()->withInput()->withErrors([
+                'start_date' => "Das Startdatum muss ein {$expected} sein (Wochentag der bestehenden Serie). Andernfalls würde die Serie den Wochentag wechseln.",
+            ]);
+        }
 
         $current = Carbon::parse($data['start_date']);
         $until   = Carbon::parse($data['end_date']);
