@@ -197,6 +197,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::post('/trainingsgruppen/{trainingGroup}/motto/umschalten', [TrainingGroupController::class, 'mottoToggle'])->name('training-groups.motto-toggle');
     Route::post('/trainingsgruppen/{trainingGroup}/motto/generieren', [TrainingGroupController::class, 'mottoGenerate'])->name('training-groups.motto-generate');
     Route::put('/trainingsgruppen/{trainingGroup}/motto-wochen/{week}', [TrainingGroupController::class, 'mottoUpdateWeek'])->name('training-groups.motto-week-update');
+    Route::post('/trainingsgruppen/{trainingGroup}/motto/zuruecksetzen', [TrainingGroupController::class, 'mottoReset'])->name('training-groups.motto-reset');
 });
 
 // Wettkämpfe – Ansicht & Import auch für Trainer, Vorstand, Kampfrichter zugänglich

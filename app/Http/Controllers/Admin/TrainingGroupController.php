@@ -419,6 +419,40 @@ class TrainingGroupController extends Controller
         return back()->with('success', "{$count} Wochen generiert.");
     }
 
+    public function mottoReset(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $season = Season::current();
+        if (!$season) {
+            return back()->with('error', 'Keine aktive Saison gefunden.');
+        }
+
+        // Alle Wochen der aktuellen Saison löschen (nur ohne Motto – oder alle wenn force)
+        $force = $request->boolean('force');
+        $query = GroupMottoWeek::where('training_group_id', $trainingGroup->id)
+            ->where('week_start', '>=', $season->start_date)
+            ->where('week_start', '<=', $season->end_date);
+
+        if (!$force) {
+            $query->whereNull('motto'); // Wochen mit eingetragenem Motto bewahren
+        }
+
+        $deleted = $query->count();
+        $query->delete();
+
+        $service = app(MottoWeekService::class);
+        $created = $service->generateWeeks($trainingGroup, $season);
+
+        $msg = "{$deleted} Wochen zurückgesetzt, {$created} neu verteilt.";
+        if (!$force) {
+            $msg .= ' Wochen mit vorhandenem Motto wurden bewahrt.';
+        }
+
+        return back()->with('success', $msg);
+    }
+
     public function mottoUpdateWeek(Request $request, TrainingGroup $trainingGroup, GroupMottoWeek $week)
     {
         $this->authorizeGroup($trainingGroup);
