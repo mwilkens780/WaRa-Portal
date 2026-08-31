@@ -32,7 +32,8 @@
     <div class="space-y-4">
         @foreach($currentMottos as $currentMotto)
         @php $groupColor = \App\Models\TrainingGroup::COLORS[$currentMotto->group->color ?? 'blue'] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
-        <div class="bg-gradient-to-br from-primary to-primary-dark text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div class="bg-gradient-to-br from-primary to-primary-dark text-white rounded-2xl p-6 shadow-md relative overflow-hidden"
+             x-data="{ editing: false }">
             <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8"></div>
             <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6"></div>
             <div class="relative">
@@ -41,22 +42,55 @@
                     <span class="text-blue-200 text-xs font-semibold uppercase tracking-widest">Motto der Woche</span>
                     <span class="text-xs text-blue-300 ml-1">· {{ $currentMotto->group->name }}</span>
                 </div>
-                @if($currentMotto->motto)
-                    <blockquote class="text-xl font-semibold leading-snug">"{{ $currentMotto->motto }}"</blockquote>
-                    @if($currentMotto->user)
-                        <p class="mt-3 text-blue-200 text-sm">
-                            — {{ $currentMotto->user->firstname }} {{ $currentMotto->user->lastname }}
-                        </p>
+
+                {{-- Display --}}
+                <div x-show="!editing">
+                    @if($currentMotto->motto)
+                        <blockquote class="text-xl font-semibold leading-snug">"{{ $currentMotto->motto }}"</blockquote>
+                        @if($currentMotto->user)
+                            <p class="mt-3 text-blue-200 text-sm">
+                                — {{ $currentMotto->user->firstname }} {{ $currentMotto->user->lastname }}
+                            </p>
+                        @endif
+                    @else
+                        <p class="text-xl font-semibold text-blue-200 italic">Noch kein Motto für diese Woche eingetragen.</p>
+                        @if($currentMotto->user)
+                            <p class="mt-2 text-blue-300 text-sm">
+                                Zuständig: {{ $currentMotto->user->firstname }} {{ $currentMotto->user->lastname }}
+                            </p>
+                        @endif
                     @endif
-                @else
-                    <p class="text-xl font-semibold text-blue-200 italic">Noch kein Motto für diese Woche eingetragen.</p>
-                    @if($currentMotto->user)
-                        <p class="mt-2 text-blue-300 text-sm">
-                            Zuständig: {{ $currentMotto->user->firstname }} {{ $currentMotto->user->lastname }}
-                        </p>
+                    <p class="mt-3 text-blue-300 text-xs">KW {{ $monday->weekOfYear }} · {{ $monday->format('d.m.Y') }}</p>
+
+                    @if($currentMotto->user_id === auth()->id() || auth()->user()->isAdmin())
+                    <button @click="editing = true" type="button"
+                            class="mt-4 inline-flex items-center gap-1.5 text-xs text-white/70 hover:text-white transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        {{ $currentMotto->motto ? 'Motto bearbeiten' : 'Motto eintragen' }}
+                    </button>
                     @endif
+                </div>
+
+                {{-- Inline-Edit --}}
+                @if($currentMotto->user_id === auth()->id() || auth()->user()->isAdmin())
+                <form method="POST" action="{{ route('swimmer.motto.save', $currentMotto) }}"
+                      x-show="editing" x-transition class="space-y-3">
+                    @csrf
+                    <textarea name="motto" rows="3" maxlength="500" required
+                              class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-sm text-white placeholder-white/50 focus:bg-white/30 focus:outline-none resize-none"
+                              placeholder="Dein Motto der Woche…">{{ $currentMotto->motto }}</textarea>
+                    <div class="flex items-center gap-2">
+                        <button type="submit"
+                                class="px-4 py-2 bg-white text-primary text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors">
+                            Speichern
+                        </button>
+                        <button type="button" @click="editing = false"
+                                class="px-4 py-2 text-sm text-white/70 hover:text-white">
+                            Abbrechen
+                        </button>
+                    </div>
+                </form>
                 @endif
-                <p class="mt-3 text-blue-300 text-xs">KW {{ $monday->weekOfYear }} · {{ $monday->format('d.m.Y') }}</p>
             </div>
         </div>
         @endforeach

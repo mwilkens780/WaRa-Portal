@@ -50,41 +50,67 @@
                     @endif
                 </div>
 
-                @if($week->motto)
-                    <blockquote class="border-l-4 border-primary pl-4">
-                        <p class="text-sm font-medium text-gray-800 leading-relaxed">"{{ $week->motto }}"</p>
-                        @if($week->user)
-                            <p class="text-xs text-gray-500 mt-1.5">— {{ $week->user->firstname }} {{ $week->user->lastname }}</p>
-                        @endif
-                    </blockquote>
-                @else
-                    <div class="space-y-2">
-                        @if($week->generated_motto)
-                            <div class="bg-violet-50 rounded-lg p-3 border border-violet-100">
-                                <p class="text-xs text-violet-600 font-semibold mb-1">KI-Vorschlag:</p>
-                                <p class="text-sm text-violet-800">"{{ $week->generated_motto }}"</p>
-                            </div>
-                        @endif
-                        <div class="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                <div x-data="{ editing: false }">
+                    @if($week->motto)
+                        <blockquote class="border-l-4 border-primary pl-4" x-show="!editing">
+                            <p class="text-sm font-medium text-gray-800 leading-relaxed">"{{ $week->motto }}"</p>
                             @if($week->user)
-                                <p class="text-xs text-amber-800">
-                                    <span class="font-semibold">{{ $week->user->firstname }} {{ $week->user->lastname }}</span>
-                                    hat noch kein Motto eingetragen.
-                                </p>
-                            @else
-                                <p class="text-xs text-amber-800">Niemand für diese Woche zugewiesen.</p>
+                                <p class="text-xs text-gray-500 mt-1.5">— {{ $week->user->firstname }} {{ $week->user->lastname }}</p>
                             @endif
+                        </blockquote>
+                    @else
+                        <div class="space-y-2" x-show="!editing">
+                            @if($week->generated_motto)
+                                <div class="bg-violet-50 rounded-lg p-3 border border-violet-100">
+                                    <p class="text-xs text-violet-600 font-semibold mb-1">KI-Vorschlag:</p>
+                                    <p class="text-sm text-violet-800">"{{ $week->generated_motto }}"</p>
+                                </div>
+                            @endif
+                            <div class="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                                @if($week->user)
+                                    <p class="text-xs text-amber-800">
+                                        <span class="font-semibold">{{ $week->user->firstname }} {{ $week->user->lastname }}</span>
+                                        hat noch kein Motto eingetragen.
+                                    </p>
+                                @else
+                                    <p class="text-xs text-amber-800">Niemand für diese Woche zugewiesen.</p>
+                                @endif
+                            </div>
+                            <form method="POST" action="{{ route('trainer.motto.activate', $week) }}">
+                                @csrf
+                                <button type="submit"
+                                        class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                    {{ $week->generated_motto ? 'KI-Motto aktivieren' : 'KI-Motto generieren & aktivieren' }}
+                                </button>
+                            </form>
                         </div>
-                        <form method="POST" action="{{ route('trainer.motto.activate', $week) }}">
-                            @csrf
+                    @endif
+
+                    {{-- Inline-Edit --}}
+                    <button @click="editing = !editing" type="button" x-show="!editing"
+                            class="mt-3 text-xs text-primary hover:underline flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        {{ $week->motto ? 'Motto bearbeiten' : 'Motto direkt eintragen' }}
+                    </button>
+                    <form method="POST" action="{{ route('trainer.motto.save', $week) }}"
+                          x-show="editing" x-transition class="mt-3 space-y-2">
+                        @csrf
+                        <textarea name="motto" rows="3" maxlength="500" required
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                  placeholder="Motto der Woche…">{{ $week->motto }}</textarea>
+                        <div class="flex items-center gap-2">
                             <button type="submit"
-                                    class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                {{ $week->generated_motto ? 'KI-Motto aktivieren' : 'KI-Motto generieren & aktivieren' }}
+                                    class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
+                                Speichern
                             </button>
-                        </form>
-                    </div>
-                @endif
+                            <button type="button" @click="editing = false"
+                                    class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+                                Abbrechen
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
             @endforeach
         </div>
@@ -101,7 +127,8 @@
                 $gc   = \App\Models\TrainingGroup::COLORS[$week->group->color ?? 'blue'] ?? \App\Models\TrainingGroup::COLORS['blue'];
                 $days = $week->daysUntilStart();
             @endphp
-            <div class="p-5 flex items-start gap-4 flex-wrap">
+            <div x-data="{ editing: false }">
+            <div class="p-5 flex items-start gap-4 flex-wrap" x-show="!editing">
                 {{-- Week Info --}}
                 <div class="min-w-[120px]">
                     <p class="font-semibold text-gray-800 text-sm">KW {{ $week->week_start->weekOfYear }}</p>
@@ -143,7 +170,32 @@
                             </form>
                         </div>
                     @endif
+                    <button @click="editing = true" type="button"
+                            class="mt-1 text-xs text-primary hover:underline flex items-center gap-1 ml-auto">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        {{ $week->motto ? 'Bearbeiten' : 'Direkt eintragen' }}
+                    </button>
                 </div>
+            </div>
+            {{-- Inline-Edit --}}
+            <div class="px-5 pb-5" x-show="editing" x-transition>
+                <form method="POST" action="{{ route('trainer.motto.save', $week) }}" class="space-y-2">
+                    @csrf
+                    <textarea name="motto" rows="3" maxlength="500" required
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                              placeholder="Motto der Woche…">{{ $week->motto }}</textarea>
+                    <div class="flex items-center gap-2">
+                        <button type="submit"
+                                class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
+                            Speichern
+                        </button>
+                        <button type="button" @click="editing = false"
+                                class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+                            Abbrechen
+                        </button>
+                    </div>
+                </form>
+            </div>
             </div>
             @endforeach
         </div>

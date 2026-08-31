@@ -34,6 +34,21 @@ class MottoController extends Controller
         return view('trainer.motto.index', compact('currentWeeks', 'upcomingWeeks', 'monday'));
     }
 
+    public function saveMotto(\Illuminate\Http\Request $request, GroupMottoWeek $week)
+    {
+        $trainer  = auth()->user();
+        $groupIds = $trainer->isAdmin()
+            ? \App\Models\TrainingGroup::pluck('id')
+            : $trainer->trainerGroups()->pluck('training_groups.id');
+
+        abort_unless($groupIds->contains($week->training_group_id), 403);
+
+        $data = $request->validate(['motto' => ['required', 'string', 'max:500']]);
+        $week->update(['motto' => $data['motto']]);
+
+        return back()->with('success', 'Motto aktualisiert.');
+    }
+
     public function activateGenerated(GroupMottoWeek $week)
     {
         $trainer  = auth()->user();

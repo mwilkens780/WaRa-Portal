@@ -322,6 +322,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
 
     // Motto der Woche (Trainer)
     Route::get('/motto', [TrainerMottoController::class, 'index'])->name('motto.index');
+    Route::post('/motto/{week}/speichern', [TrainerMottoController::class, 'saveMotto'])->name('motto.save');
     Route::post('/motto/{week}/aktivieren', [TrainerMottoController::class, 'activateGenerated'])->name('motto.activate');
 
     // Ziele
