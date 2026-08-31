@@ -714,27 +714,44 @@ class WebClubCrawler
 
     private function syncGroupMembership(User $user, array $webclubGroupIds, \Illuminate\Support\Collection $groupsByWcId, \Illuminate\Support\Collection &$existingMemberships): void
     {
-        if (empty($webclubGroupIds)) return;
+        // No portal groups have a webclub_id yet → nothing to sync
+        if ($groupsByWcId->isEmpty()) return;
 
+        // Build the target set: portal group IDs this person should belong to per WebClub
+        $targetGroupIds = [];
         foreach ($webclubGroupIds as $wcId) {
             $wcId = (string) $wcId;
             if ($wcId === '') continue;
-
-            // Lookup aus Preload-Map (kein DB-Query)
             $group = $groupsByWcId->get($wcId);
             if (!$group) {
                 Log::warning("WebClubCrawler: Keine Trainingsgruppe für WebClub-ID {$wcId} – webclub_id in Trainingsgruppen pflegen.");
                 continue;
             }
-
-            // Membership-Check aus In-Memory-Cache (kein DB-Query)
-            $userGroups = $existingMemberships->get($user->id, []);
-            if (!in_array($group->id, $userGroups)) {
-                $user->trainingGroups()->attach($group->id);
-                // Cache aktualisieren damit Doppelanlagen vermieden werden
-                $existingMemberships->put($user->id, array_merge($userGroups, [$group->id]));
-            }
+            $targetGroupIds[] = $group->id;
         }
+
+        // All portal-group IDs that are tracked via WebClub
+        $allWebclubPortalIds = $groupsByWcId->pluck('id')->all();
+        $currentGroupIds     = $existingMemberships->get($user->id, []);
+
+        // REMOVE: webclub-tracked groups the person is no longer assigned to in WebClub
+        $toDetach = array_values(array_diff(
+            array_intersect($currentGroupIds, $allWebclubPortalIds),
+            $targetGroupIds
+        ));
+        if (!empty($toDetach)) {
+            $user->trainingGroups()->detach($toDetach);
+            $currentGroupIds = array_values(array_diff($currentGroupIds, $toDetach));
+        }
+
+        // ADD: groups the person should be in but isn't yet
+        $toAttach = array_diff($targetGroupIds, $currentGroupIds);
+        foreach ($toAttach as $groupId) {
+            $user->trainingGroups()->attach($groupId);
+            $currentGroupIds[] = $groupId;
+        }
+
+        $existingMemberships->put($user->id, $currentGroupIds);
     }
 
     private function deactivateAbsentPersons(array $webclubIds): array
@@ -882,6 +899,7 @@ class WebClubCrawler
             'lookback_days'         => (int) Setting::getCached('crawler.webclub.lookback_days', 90),
             'lookahead_days'        => (int) Setting::getCached('crawler.webclub.lookahead_days', 365),
             'scrape_competitions'   => Setting::getBool('crawler.webclub.scrape_competitions', true),
+            'scrape_groups'         => Setting::getBool('crawler.webclub.scrape_groups', true),
             'scrape_persons'        => Setting::getBool('crawler.webclub.scrape_persons', true),
             'headless'              => Setting::getBool('crawler.webclub.headless', true),
             'timeout_ms'            => (int) Setting::getCached('crawler.webclub.timeout_ms', 15000),
