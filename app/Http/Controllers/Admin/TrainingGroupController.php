@@ -325,13 +325,17 @@ class TrainingGroupController extends Controller
         $data['webclub_id'] = $request->filled('webclub_id') ? (int) $request->input('webclub_id') : null;
         $trainingGroup->update($data);
 
-        // Trainers pivot: admin only
-        if ($isAdmin) {
+        // Trainers pivot: admin only — the form shows all trainers with checkboxes,
+        // so sync() (full replace) is correct here.
+        if ($isAdmin && $request->has('trainers')) {
             $trainingGroup->trainers()->sync($request->input('trainers', []));
         }
 
-        // Swimmers pivot: trainer or admin
-        $trainingGroup->swimmers()->sync($request->input('swimmers', []));
+        // Swimmers pivot: the edit form only shows unassigned swimmers to ADD,
+        // so we must never remove existing members — use syncWithoutDetaching().
+        if ($request->has('swimmers')) {
+            $trainingGroup->swimmers()->syncWithoutDetaching($request->input('swimmers', []));
+        }
 
         // Link/unlink sessions via pivot
         if ($request->has('link_sessions')) {
