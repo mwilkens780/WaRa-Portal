@@ -17,6 +17,7 @@ use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionSwimmer;
 use App\Models\SwimmingTime;
+use App\Models\GroupMottoWeek;
 use App\Services\CompetitionResultGrouper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -202,12 +203,34 @@ class DashboardController extends Controller
 
         $new_records = $this->loadNewRecords();
 
+        // ── Motto der Woche ─────────────────────────────────────────────────────
+        $mottoMonday    = now()->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $mottoGroupIds  = $swimmer->trainingGroups()->where('motto_week_enabled', true)->pluck('training_groups.id')
+            ->merge($swimmer->trainerGroups()->where('motto_week_enabled', true)->pluck('training_groups.id'))
+            ->unique()->values();
+
+        // Current week's motto for the dashboard widget
+        $dashboardMotto = GroupMottoWeek::whereIn('training_group_id', $mottoGroupIds)
+            ->where('week_start', $mottoMonday->format('Y-m-d'))
+            ->with(['group:id,name,color', 'user:id,firstname,lastname'])
+            ->first();
+
+        // My upcoming week without a motto (reminder)
+        $mottoReminder = GroupMottoWeek::whereIn('training_group_id', $mottoGroupIds)
+            ->where('user_id', $swimmer->id)
+            ->where('week_start', '>=', $mottoMonday->format('Y-m-d'))
+            ->whereNull('motto')
+            ->orderBy('week_start')
+            ->with('group:id,name,color')
+            ->first();
+
         return view('swimmer.dashboard', compact(
             'stats', 'allBests', 'yearBests', 'seasonBests',
             'recent_sessions', 'recent_results',
             'next_competition', 'upcoming_sessions', 'my_pre_absences',
             'goalsTotal', 'goalsAchieved', 'goalsUnnotified',
-            'pendingSignups', 'busSignups', 'new_records'
+            'pendingSignups', 'busSignups', 'new_records',
+            'dashboardMotto', 'mottoReminder'
         ));
     }
 

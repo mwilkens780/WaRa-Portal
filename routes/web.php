@@ -22,7 +22,9 @@ use App\Http\Controllers\Admin\ImportLogController;
 use App\Http\Controllers\Admin\CronController;
 use App\Http\Controllers\Admin\WaScoringController;
 use App\Http\Controllers\Swimmer\SignupController as SwimmerSignupController;
+use App\Http\Controllers\Swimmer\MottoController as SwimmerMottoController;
 use App\Http\Controllers\Trainer\DashboardController as TrainerDashboard;
+use App\Http\Controllers\Trainer\MottoController as TrainerMottoController;
 use App\Http\Controllers\Trainer\TrainingSessionController;
 use App\Http\Controllers\Trainer\DsvImportController;
 use App\Http\Controllers\Trainer\TrainingPlanController;
@@ -190,6 +192,11 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
     Route::put('/trainingsgruppen/{trainingGroup}/ziele/{goal}', [TrainingGroupController::class, 'updateGoal'])->name('training-groups.goals.update');
     Route::delete('/trainingsgruppen/{trainingGroup}/ziele/{goal}', [TrainingGroupController::class, 'destroyGoal'])->name('training-groups.goals.destroy');
     Route::post('/trainingsgruppen/{trainingGroup}/ziele/{goal}/bewertungen/{user}', [TrainingGroupController::class, 'storeTrainerEvaluation'])->name('training-groups.goals.trainer-eval');
+    // Motto der Woche
+    Route::get('/trainingsgruppen/{trainingGroup}/motto-wochen', [TrainingGroupController::class, 'mottoWeeks'])->name('training-groups.motto-weeks');
+    Route::post('/trainingsgruppen/{trainingGroup}/motto/umschalten', [TrainingGroupController::class, 'mottoToggle'])->name('training-groups.motto-toggle');
+    Route::post('/trainingsgruppen/{trainingGroup}/motto/generieren', [TrainingGroupController::class, 'mottoGenerate'])->name('training-groups.motto-generate');
+    Route::put('/trainingsgruppen/{trainingGroup}/motto-wochen/{week}', [TrainingGroupController::class, 'mottoUpdateWeek'])->name('training-groups.motto-week-update');
 });
 
 // Wettkämpfe – Ansicht & Import auch für Trainer, Vorstand, Kampfrichter zugänglich
@@ -312,6 +319,10 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::post('/training/{session}/einschaetzung/{user}', [TrainingSessionController::class, 'saveTrainerScore'])->name('sessions.trainer-score');
     Route::get('/tagebuch', [TrainingSessionController::class, 'diaryOverview'])->name('diary.overview');
 
+    // Motto der Woche (Trainer)
+    Route::get('/motto', [TrainerMottoController::class, 'index'])->name('motto.index');
+    Route::post('/motto/{week}/aktivieren', [TrainerMottoController::class, 'activateGenerated'])->name('motto.activate');
+
     // Ziele
     Route::get('/ziele', [TrainerGoalController::class, 'index'])->name('goals.index');
     Route::post('/ziele/{goal}/kommentar', [TrainerGoalController::class, 'storeComment'])->name('goals.comment');
@@ -426,6 +437,11 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     // Gruppenziele (Qualifikationskriterien & Eigenbewertung)
     Route::get('/trainingsgruppen-ziele', [SwimmerDashboard::class, 'groupGoals'])->name('group-goals.index');
     Route::post('/gruppen-ziel/{goal}/eigenbewertung', [SwimmerDashboard::class, 'storeGroupGoalEvaluation'])->name('group-goal.self-eval');
+
+    // Motto der Woche (Schwimmer)
+    Route::get('/motto', [SwimmerMottoController::class, 'index'])->name('motto.index');
+    Route::post('/motto/{week}/speichern', [SwimmerMottoController::class, 'save'])->name('motto.save');
+    Route::get('/motto/{week}/ki-generieren', [SwimmerMottoController::class, 'generateAi'])->name('motto.generate-ai');
 
     // Ziele
     Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');

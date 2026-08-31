@@ -137,6 +137,66 @@
         @endforeach
     @endif
 
+    {{-- Motto der Woche --}}
+    @if(isset($dashboardMotto) && $dashboardMotto)
+    <div class="bg-gradient-to-br from-primary to-primary-dark text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8"></div>
+        <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6"></div>
+        <div class="relative flex items-start justify-between gap-4">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-5 h-5 text-yellow-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    <span class="text-blue-200 text-xs font-semibold uppercase tracking-widest">Motto der Woche</span>
+                </div>
+                @if($dashboardMotto->motto)
+                    <blockquote class="text-lg font-semibold leading-snug">"{{ $dashboardMotto->motto }}"</blockquote>
+                    @if($dashboardMotto->user)
+                        <p class="mt-2 text-blue-200 text-sm">— {{ $dashboardMotto->user->firstname }} {{ $dashboardMotto->user->lastname }}</p>
+                    @endif
+                @else
+                    <p class="text-blue-200 italic text-base">Noch kein Motto für diese Woche eingetragen.</p>
+                @endif
+            </div>
+            <a href="{{ route('swimmer.motto.index') }}"
+               class="shrink-0 text-xs text-blue-200 hover:text-white border border-white/30 px-3 py-1.5 rounded-lg transition-colors">
+                Alle →
+            </a>
+        </div>
+    </div>
+    @endif
+
+    @if(isset($mottoReminder) && $mottoReminder)
+    @php
+        $reminderDays = $mottoReminder->daysUntilStart();
+        $isUrgent     = $reminderDays <= 3;
+    @endphp
+    <div class="flex items-start gap-4 {{ $isUrgent ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200' }} rounded-xl p-5">
+        <div class="shrink-0 w-10 h-10 rounded-full {{ $isUrgent ? 'bg-red-100' : 'bg-amber-100' }} flex items-center justify-center">
+            <svg class="w-5 h-5 {{ $isUrgent ? 'text-red-600' : 'text-amber-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+        <div class="flex-1">
+            <p class="font-semibold text-gray-800 text-sm">
+                {{ $isUrgent ? 'Dringlich: Dein Motto fehlt noch!' : 'Erinnerung: Motto der Woche' }}
+            </p>
+            <p class="text-xs text-gray-600 mt-0.5">
+                Du bist in KW {{ $mottoReminder->week_start->weekOfYear }} ({{ $mottoReminder->week_start->format('d.m.Y') }})
+                für die Gruppe <strong>{{ $mottoReminder->group->name }}</strong> zuständig.
+                @if($reminderDays === 0)
+                    <strong>Diese Woche!</strong>
+                @elseif($reminderDays === 1)
+                    <strong>Morgen beginnt deine Woche.</strong>
+                @else
+                    Noch {{ $reminderDays }} {{ $reminderDays === 1 ? 'Tag' : 'Tage' }} bis zu deiner Woche.
+                @endif
+            </p>
+        </div>
+        <a href="{{ route('swimmer.motto.index') }}"
+           class="shrink-0 {{ $isUrgent ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600' }} text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors">
+            Motto eintragen
+        </a>
+    </div>
+    @endif
+
     {{-- Statistik --}}
     <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <a href="{{ route('swimmer.sessions') }}"

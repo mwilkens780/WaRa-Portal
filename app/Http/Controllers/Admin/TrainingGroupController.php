@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\GroupMottoWeek;
+use App\Models\Season;
 use App\Models\TrainingGroup;
 use App\Models\TrainingGroupGoal;
 use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\GroupImportService;
+use App\Services\MottoWeekService;
 use Illuminate\Http\Request;
 
 class TrainingGroupController extends Controller
@@ -352,6 +355,79 @@ class TrainingGroupController extends Controller
 
         return redirect()->route('admin.training-groups.index')
             ->with('success', "Trainingsgruppe \"{$name}\" gelöscht.");
+    }
+
+    // ── Motto der Woche ───────────────────────────────────────────────────
+
+    public function mottoWeeks(TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+
+        $season = Season::current();
+
+        $weeks = GroupMottoWeek::where('training_group_id', $trainingGroup->id)
+            ->with('user:id,firstname,lastname')
+            ->orderBy('week_start')
+            ->get();
+
+        $allMembers = $trainingGroup->swimmers()
+            ->where('active', true)
+            ->orderBy('lastname')->orderBy('firstname')
+            ->get(['users.id', 'users.firstname', 'users.lastname'])
+            ->merge(
+                $trainingGroup->trainers()
+                    ->where('active', true)
+                    ->orderBy('lastname')->orderBy('firstname')
+                    ->get(['users.id', 'users.firstname', 'users.lastname'])
+            );
+
+        return view('admin.training-groups.motto-weeks', compact(
+            'trainingGroup', 'weeks', 'season', 'allMembers'
+        ));
+    }
+
+    public function mottoToggle(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $enabled = $request->boolean('enabled');
+        $trainingGroup->update(['motto_week_enabled' => $enabled]);
+
+        return back()->with('success', $enabled
+            ? 'Motto der Woche aktiviert.'
+            : 'Motto der Woche deaktiviert.');
+    }
+
+    public function mottoGenerate(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $season = Season::current();
+        if (!$season) {
+            return back()->with('error', 'Keine aktive Saison gefunden.');
+        }
+
+        $service = app(MottoWeekService::class);
+        $count   = $service->generateWeeks($trainingGroup, $season);
+
+        return back()->with('success', "{$count} Wochen generiert.");
+    }
+
+    public function mottoUpdateWeek(Request $request, TrainingGroup $trainingGroup, GroupMottoWeek $week)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_if($week->training_group_id !== $trainingGroup->id, 404);
+
+        $data = $request->validate([
+            'user_id' => ['nullable', 'exists:users,id'],
+            'motto'   => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $week->update($data);
+
+        return back()->with('success', 'Woche aktualisiert.');
     }
 
     // ── Helper ────────────────────────────────────────────────────────────

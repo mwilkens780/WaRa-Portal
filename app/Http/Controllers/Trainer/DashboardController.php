@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Trainer;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompetitionResult;
+use App\Models\GroupMottoWeek;
 use App\Models\TrainingGroup;
 use App\Models\TrainingSession;
 use App\Models\TrainingAttendance;
 use App\Models\User;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -102,10 +104,24 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->get();
 
+        // ── Motto der Woche Warnungen ────────────────────────────────────────────
+        $nextMonday    = now()->startOfWeek(Carbon::MONDAY)->addWeek()->startOfDay();
+        $mottoGroupIds = $trainer->isAdmin()
+            ? TrainingGroup::where('motto_week_enabled', true)->pluck('id')
+            : $trainer->trainerGroups()->where('motto_week_enabled', true)->pluck('training_groups.id');
+
+        $upcomingMottoWarnings = GroupMottoWeek::whereIn('training_group_id', $mottoGroupIds)
+            ->where('week_start', '>=', now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'))
+            ->where('week_start', '<=', $nextMonday->copy()->addWeeks(1)->format('Y-m-d'))
+            ->whereNull('motto')
+            ->with(['group:id,name,color', 'user:id,firstname,lastname'])
+            ->orderBy('week_start')
+            ->get();
+
         return view('trainer.dashboard', compact(
             'stats', 'recent_sessions', 'upcoming',
             'chartLabels', 'chartData', 'swimmerStats', 'new_records',
-            'myGroups'
+            'myGroups', 'upcomingMottoWarnings'
         ));
     }
 }

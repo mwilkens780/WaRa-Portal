@@ -27,11 +27,14 @@ class TrainingGroup extends Model
         'indigo' => ['dot' => 'bg-indigo-500', 'badge' => 'bg-indigo-100 text-indigo-700', 'border' => 'border-indigo-400'],
     ];
 
-    protected $fillable = ['name', 'description', 'color', 'group_type', 'active', 'webclub_id'];
+    protected $fillable = ['name', 'description', 'color', 'group_type', 'active', 'webclub_id', 'motto_week_enabled'];
 
     protected function casts(): array
     {
-        return ['active' => 'boolean'];
+        return [
+            'active'              => 'boolean',
+            'motto_week_enabled'  => 'boolean',
+        ];
     }
 
     public function trainers()
@@ -52,6 +55,11 @@ class TrainingGroup extends Model
     public function goals()
     {
         return $this->hasMany(TrainingGroupGoal::class, 'training_group_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function mottoWeeks()
+    {
+        return $this->hasMany(GroupMottoWeek::class, 'training_group_id');
     }
 
     /**
