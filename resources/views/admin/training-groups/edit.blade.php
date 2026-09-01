@@ -43,38 +43,78 @@
             </div>
             @endif
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Gruppentyp <span class="text-red-500">*</span></label>
-                <select name="group_type"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('group_type') border-red-400 @enderror">
-                    @foreach(\App\Models\TrainingGroup::GROUP_TYPES as $key => $label)
-                        <option value="{{ $key }}" {{ old('group_type', $trainingGroup->group_type) === $key ? 'selected' : '' }}>{{ $label }}</option>
-                    @endforeach
-                </select>
-                @error('group_type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-            </div>
+            @php
+                $typeColorMap    = \App\Models\TrainingGroup::TYPE_COLORS;
+                $customColorKeys = \App\Models\TrainingGroup::CUSTOM_COLORS;
+                $allColors       = \App\Models\TrainingGroup::COLORS;
+                $initType        = old('group_type', $trainingGroup->group_type ?? 'breitensport');
+                $typeDefault     = $typeColorMap[$initType] ?? 'blue';
+                $initColor       = old('color', $trainingGroup->color ?? $typeDefault);
+                $initCustomColor = in_array($initColor, $customColorKeys) ? $initColor : '';
+            @endphp
+            <div x-data="{
+                    groupType: '{{ $initType }}',
+                    customColor: '{{ $initCustomColor }}',
+                    typeColors: @js($typeColorMap),
+                    get typeColor() { return this.typeColors[this.groupType] || 'blue'; },
+                    get activeColor() { return this.customColor || this.typeColor; }
+                }">
+                <input type="hidden" name="color" :value="activeColor">
 
-            <div class="flex items-start gap-8">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Farbe <span class="text-red-500">*</span></label>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach(\App\Models\TrainingGroup::COLORS as $key => $cls)
-                            <label class="cursor-pointer">
-                                <input type="radio" name="color" value="{{ $key }}" class="sr-only peer"
-                                       {{ old('color', $trainingGroup->color) === $key ? 'checked' : '' }}>
-                                <span class="block w-7 h-7 rounded-full {{ $cls['dot'] }} ring-2 ring-transparent peer-checked:ring-offset-2 peer-checked:ring-gray-400 transition-all"></span>
-                            </label>
+                {{-- Gruppentyp --}}
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Gruppentyp <span class="text-red-500">*</span></label>
+                    <select name="group_type" x-model="groupType" @change="customColor = ''"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('group_type') border-red-400 @enderror">
+                        @foreach(\App\Models\TrainingGroup::GROUP_TYPES as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('group_type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Automatische Standardfarbe --}}
+                <div class="mb-3">
+                    <p class="text-xs font-medium text-gray-600 mb-1.5">Standardfarbe dieses Typs</p>
+                    <div class="flex items-center gap-2 h-7">
+                        @foreach($typeColorMap as $type => $colorKey)
+                        @php $cls = $allColors[$colorKey]; @endphp
+                        <div x-show="groupType === '{{ $type }}'" class="flex items-center gap-2" style="display:none">
+                            <span class="w-5 h-5 rounded-full flex-shrink-0 {{ $cls['dot'] }}"></span>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ $cls['badge'] }}">{{ $cls['label'] }}</span>
+                        </div>
                         @endforeach
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 pt-6">
-                    <input type="hidden" name="active" value="0">
-                    <input type="checkbox" name="active" id="active" value="1"
-                           {{ old('active', $trainingGroup->active) ? 'checked' : '' }}
-                           class="w-4 h-4 text-primary rounded border-gray-300">
-                    <label for="active" class="text-sm text-gray-700">Aktiv</label>
+                {{-- Individuelle Abweichungsfarbe --}}
+                <div>
+                    <p class="text-xs font-medium text-gray-600 mb-1.5">Abweichende Farbe <span class="text-gray-400 font-normal">(optional)</span></p>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" @click="customColor = ''" title="Standardfarbe verwenden"
+                                class="w-8 h-8 rounded-full bg-white border-2 flex items-center justify-center transition-all"
+                                :class="customColor === '' ? 'border-gray-500 ring-2 ring-offset-1 ring-gray-400' : 'border-dashed border-gray-300'">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                        @foreach($customColorKeys as $colorKey)
+                        @php $cls = $allColors[$colorKey]; @endphp
+                        <label class="cursor-pointer" title="{{ $cls['label'] }}">
+                            <input type="radio" x-model="customColor" value="{{ $colorKey }}" class="sr-only peer">
+                            <span class="block w-7 h-7 rounded-full {{ $cls['dot'] }} ring-2 ring-transparent peer-checked:ring-offset-2 peer-checked:ring-gray-400 transition-all"></span>
+                        </label>
+                        @endforeach
+                    </div>
+                    @error('color') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    <p class="text-xs text-gray-400 mt-1">Nur wählen, wenn du von der Standardfarbe des Typs abweichen möchtest.</p>
                 </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="hidden" name="active" value="0">
+                <input type="checkbox" name="active" id="active" value="1"
+                       {{ old('active', $trainingGroup->active) ? 'checked' : '' }}
+                       class="w-4 h-4 text-primary rounded border-gray-300">
+                <label for="active" class="text-sm text-gray-700">Aktiv</label>
             </div>
         </div>
 
