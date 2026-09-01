@@ -69,6 +69,8 @@
                     @endif
                 @elseif($isFuture && $hasSignup)
                     <span class="text-xs bg-gray-100 text-gray-400 px-2.5 py-1 rounded-full">Kein Status</span>
+                @elseif(!$isFuture)
+                    <span class="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Abgeschlossen</span>
                 @endif
                 <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="{ 'rotate-180': open }"
                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,7 +154,7 @@
                     @endif
                 </div>
 
-                @if($signupRequest->bus_available)
+                @if($signupRequest->bus_available && $isFuture)
                     <div class="flex items-center gap-2 text-sm">
                         <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8M7 9h10M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14"/>
