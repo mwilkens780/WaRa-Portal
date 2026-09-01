@@ -59,7 +59,16 @@
                 </p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                @if($response)
+                @if(!$isFuture)
+                    {{-- Vergangener Wettkampf: nur eindeutige Zusage/Absage zeigen, sonst "Abgeschlossen" --}}
+                    @if($isAttending)
+                        <span class="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-semibold">Zugesagt</span>
+                    @elseif($isDeclined)
+                        <span class="text-xs bg-red-100 text-red-600 px-2.5 py-1 rounded-full font-semibold">Abgesagt</span>
+                    @else
+                        <span class="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Abgeschlossen</span>
+                    @endif
+                @elseif($response)
                     @if($isAttending)
                         <span class="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-semibold">Zugesagt</span>
                     @elseif($isDeclined)
@@ -67,10 +76,8 @@
                     @else
                         <span class="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-semibold">Ausstehend</span>
                     @endif
-                @elseif($isFuture && $hasSignup)
+                @elseif($hasSignup)
                     <span class="text-xs bg-gray-100 text-gray-400 px-2.5 py-1 rounded-full">Kein Status</span>
-                @elseif(!$isFuture)
-                    <span class="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Abgeschlossen</span>
                 @endif
                 <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="{ 'rotate-180': open }"
                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
