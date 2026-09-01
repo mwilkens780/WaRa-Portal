@@ -36,6 +36,9 @@ jobs:
             echo "── Referenzdaten ──"
             php artisan db:seed --class=WaScoringTableSeeder --force
 
+            echo "── Cache leeren ──"
+            php artisan optimize:clear
+
             echo "── Cache neu aufbauen ──"
             php artisan config:cache
             php artisan route:cache
