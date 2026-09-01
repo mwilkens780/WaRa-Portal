@@ -23,7 +23,6 @@
     </div>
 @else
 <div x-data="liveTiming(@json($liveBlocks), @json($liveAthletes), @json($timesMap), {{ $session->id }})"
-     x-init="init()"
      class="mt-2 pb-24">
 
     {{-- Kopf: Serie wählen --}}
@@ -251,8 +250,8 @@
 
 @push('scripts')
 <script>
-function liveTiming(blocks, athletes, timesMap, sessionId) {
-    return {
+document.addEventListener('alpine:init', () => {
+Alpine.data('liveTiming', (blocks, athletes, timesMap, sessionId) => ({
         blocks: blocks,
         athletes: athletes,
         // PHP sends [] for an empty map — normalise so property access is safe
@@ -642,7 +641,7 @@ function liveTiming(blocks, athletes, timesMap, sessionId) {
             clearTimeout(this.toastTimer);
             this.toastTimer = setTimeout(() => { this.toast = ''; }, 2600);
         },
-    };
-}
+}));
+});
 </script>
 @endpush
