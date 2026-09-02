@@ -22,8 +22,13 @@
         </div>
     </div>
 @else
-<div x-data="liveTiming(@json($liveBlocks), @json($liveAthletes), @json($timesMap), {{ $session->id }})"
-     class="mt-2 pb-24">
+<script>
+window._ltBlocks    = @json($liveBlocks);
+window._ltAthletes  = @json($liveAthletes);
+window._ltTimesMap  = @json($timesMap);
+window._ltSessionId = {{ $session->id }};
+</script>
+<div x-data="liveTiming" class="mt-2 pb-24">
 
     {{-- Kopf: Serie wählen --}}
     <div class="flex items-center justify-between gap-3 mb-3">
@@ -251,7 +256,12 @@
 @push('scripts')
 <script>
 document.addEventListener('alpine:init', () => {
-Alpine.data('liveTiming', (blocks, athletes, timesMap, sessionId) => ({
+Alpine.data('liveTiming', () => {
+    const blocks    = window._ltBlocks    || [];
+    const athletes  = window._ltAthletes  || [];
+    const timesMap  = window._ltTimesMap;
+    const sessionId = window._ltSessionId;
+    return {
         blocks: blocks,
         athletes: athletes,
         // PHP sends [] for an empty map — normalise so property access is safe
@@ -641,7 +651,8 @@ Alpine.data('liveTiming', (blocks, athletes, timesMap, sessionId) => ({
             clearTimeout(this.toastTimer);
             this.toastTimer = setTimeout(() => { this.toast = ''; }, 2600);
         },
-}));
+    };
+});
 });
 </script>
 @endpush
