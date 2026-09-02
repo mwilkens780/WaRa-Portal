@@ -647,30 +647,8 @@ function liveTiming() {
         applyNewOrder(newIds) {
             const blockId = this.activeBlockId;
             const cfg     = this.waveConfig[blockId] || {};
-            const oldOrder = cfg.order || [];
-            const lanes   = cfg.lanesPerWave || 1;
-            const gap     = cfg.gapCs || 0;
 
-            // Adjust stored times when a swimmer's wave changes
-            if (gap > 0 && oldOrder.length > 0) {
-                newIds.forEach((uid, newIdx) => {
-                    const oldIdx = oldOrder.indexOf(uid);
-                    if (oldIdx === -1) return;
-                    const oldWave = Math.floor(oldIdx / lanes);
-                    const newWave = Math.floor(newIdx / lanes);
-                    if (oldWave === newWave) return;
-                    const delta = (newWave - oldWave) * gap;
-                    const blk = (this.times[blockId] || {})[uid] || {};
-                    Object.keys(blk).forEach(rep => {
-                        const old = blk[rep];
-                        if (old === null) return;
-                        const corrected = Math.max(0, old - delta);
-                        this.putCs(blockId, uid, parseInt(rep), corrected);
-                        this.queue(blockId, uid, parseInt(rep), corrected);
-                    });
-                });
-            }
-
+            // Already-saved times stay as-is; only future taps use the new offset.
             this.waveConfig = {
                 ...this.waveConfig,
                 [blockId]: { ...cfg, order: newIds },
