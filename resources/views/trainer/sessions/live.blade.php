@@ -492,7 +492,21 @@ function liveTiming() {
             this.voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
             this.render();
             window.addEventListener('beforeunload', (e) => {
-                if (this.pending.length) { e.preventDefault(); e.returnValue = ''; }
+                clearTimeout(this.flushTimer);
+                if (!this.pending.length) return;
+                // keepalive: true lässt den Request den Seitenabbruch überleben
+                fetch('{{ route('trainer.sessions.live.save', $session) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ entries: this.pending }),
+                    keepalive: true,
+                }).catch(() => {});
+                e.preventDefault();
+                e.returnValue = '';
             });
         },
 
@@ -889,7 +903,7 @@ function liveTiming() {
             );
             this.pending.push({ block_id: blockId, user_id: userId, repetition: rep, time_cs: cs });
             clearTimeout(this.flushTimer);
-            this.flushTimer = setTimeout(() => this.flush(), 700);
+            this.flushTimer = setTimeout(() => this.flush(), 300);
         },
 
         flush() {
