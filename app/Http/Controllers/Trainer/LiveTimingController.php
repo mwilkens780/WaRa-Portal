@@ -51,9 +51,10 @@ class LiveTimingController extends Controller
             'display'      => $b->repetitions_display,
             'distance'     => $b->distance,
             'comment'      => $b->comment,
-            'lanesPerWave' => $b->lanes_per_wave,
-            'waveGapCs'    => $b->wave_gap_cs,
-            'athleteOrder' => $b->athlete_order ?? [],
+            'lanesPerWave'      => $b->lanes_per_wave,
+            'waveGapCs'         => $b->wave_gap_cs,
+            'athleteOrder'      => $b->athlete_order ?? [],
+            'startIntervalCs'   => ($b->start_interval_seconds ?? 0) * 100,
         ])->all();
 
         // Everyone is sent to the client, flagged by presence, so a swimmer who

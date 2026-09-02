@@ -80,6 +80,8 @@ window._ltSessionId = {{ $session->id }};
     <div x-show="mode === 'watch'" class="space-y-3">
 
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+
+            {{-- Hauptuhr --}}
             <div class="text-center">
                 <p class="font-mono font-bold tabular-nums leading-none text-gray-900"
                    style="font-size:clamp(2.6rem,15vw,4rem)"
@@ -87,7 +89,34 @@ window._ltSessionId = {{ $session->id }};
                 <p class="text-xs text-gray-400 mt-1.5" x-text="activeBlock ? (activeBlock.label || '') + ' · ' + activeBlock.display + ' × ' + (activeBlock.distance || '?') + ' m' : ''"></p>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 mt-4">
+            {{-- Serien-Fortschritt (erscheint nach dem ersten Start) --}}
+            <div x-show="seriesStarted" x-cloak class="mt-3 rounded-lg bg-gray-50 px-3 py-2.5 space-y-1.5">
+
+                {{-- Wiederholungszähler --}}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-gray-700"
+                          x-text="currentRound + '. Wiederholung von ' + (activeBlock ? activeBlock.reps : 0)"></span>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                          :class="currentRound >= (activeBlock ? activeBlock.reps : 0)
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-blue-50 text-blue-600'"
+                          x-text="currentRound >= (activeBlock ? activeBlock.reps : 0)
+                              ? 'abgeschlossen'
+                              : 'noch ' + ((activeBlock ? activeBlock.reps : 0) - currentRound)"></span>
+                </div>
+
+                {{-- Intervall-Countdown (nur wenn Startabstand konfiguriert + nicht letzte WH) --}}
+                <div x-show="activeBlock && activeBlock.startIntervalCs > 0 && currentRound < (activeBlock ? activeBlock.reps : 0)" x-cloak
+                     class="flex items-center justify-between border-t border-gray-200 pt-1.5">
+                    <span class="text-xs text-gray-500">Nächster Start</span>
+                    <span class="font-mono text-sm font-bold tabular-nums"
+                          :class="intervalOverdue ? 'text-red-600 animate-pulse' : 'text-gray-700'"
+                          x-text="intervalOverdue ? 'Jetzt!' : intervalDisplay"></span>
+                </div>
+            </div>
+
+            {{-- Primäre Buttons: Start/Stopp + Reset --}}
+            <div class="grid grid-cols-3 gap-2 mt-3">
                 <button type="button" @click="toggleWatch()"
                         class="col-span-2 py-4 rounded-xl text-white font-bold text-lg shadow-sm transition-colors active:scale-[.98]"
                         :class="running ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'"
@@ -98,6 +127,17 @@ window._ltSessionId = {{ $session->id }};
                 </button>
             </div>
 
+            {{-- Nächste Wiederholung (erscheint nach dem ersten Start, solange noch WH offen) --}}
+            <button type="button" x-show="seriesStarted && currentRound < (activeBlock ? activeBlock.reps : 0)" x-cloak
+                    @click="startNextRound()"
+                    class="mt-2 w-full py-3 rounded-xl font-bold text-sm transition-colors active:scale-[.98]"
+                    :class="intervalOverdue
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white animate-pulse'
+                        : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'">
+                Nächste Wiederholung
+            </button>
+
+            {{-- Sprache + Rückgängig --}}
             <div class="flex items-center gap-2 mt-2">
                 <button type="button" @click="toggleVoice()" x-show="voiceSupported"
                         class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border transition-colors"
@@ -433,6 +473,14 @@ function liveTiming() {
         saveState: 'idle',
         flushTimer: null,
 
+        // Serien-Fortschritt
+        seriesStarted:   false,
+        currentRound:    0,
+        repWallStart:    0,
+        intervalDisplay: '',
+        intervalOverdue: false,
+        intervalTicker:  null,
+
         // Wave
         waveConfig:    initWaveCfg,
         waveOpen:      false,
@@ -467,6 +515,20 @@ function liveTiming() {
         selectBlock(id) {
             this.activeBlockId = id;
             this.rowAthlete = null;
+            // Reset stopwatch + series counter when switching blocks
+            clearInterval(this.ticker);
+            clearInterval(this.intervalTicker);
+            this.ticker = null;
+            this.intervalTicker = null;
+            this.running = false;
+            this.baseCs = 0;
+            this.elapsedCs = 0;
+            this.seriesStarted = false;
+            this.currentRound = 0;
+            this.repWallStart = 0;
+            this.intervalDisplay = '';
+            this.intervalOverdue = false;
+            this.render();
             if (this.orderModalOpen) {
                 this.$nextTick(() => this.renderOrderList());
             }
@@ -695,13 +757,15 @@ function liveTiming() {
             return null;
         },
 
-        // ---------- Stoppuhr ----------
+        // ---------- Stoppuhr + Serien-Steuerung ----------
         toggleWatch() {
             if (this.running) {
                 this.baseCs = this.elapsedCs;
                 this.running = false;
                 clearInterval(this.ticker);
             } else {
+                // Frischer Start (Uhr bei 0) → neue Wiederholung beginnt
+                if (this.elapsedCs === 0) this.beginRound();
                 this.startedAt = Date.now();
                 this.running = true;
                 this.ticker = setInterval(() => this.render(), 41);
@@ -710,11 +774,59 @@ function liveTiming() {
         },
 
         resetWatch() {
+            // Technischer Reset: alles auf Null, Serie ebenfalls zurücksetzen
             this.running = false;
             clearInterval(this.ticker);
+            clearInterval(this.intervalTicker);
+            this.ticker = null;
+            this.intervalTicker = null;
+            this.baseCs = 0;
+            this.elapsedCs = 0;
+            this.seriesStarted = false;
+            this.currentRound = 0;
+            this.repWallStart = 0;
+            this.intervalDisplay = '';
+            this.intervalOverdue = false;
+            this.render();
+        },
+
+        // Nächste Wiederholung: Uhr auf 0 zurück und sofort starten
+        startNextRound() {
+            clearInterval(this.ticker);
+            this.running = false;
             this.baseCs = 0;
             this.elapsedCs = 0;
             this.render();
+            this.beginRound();
+            this.startedAt = Date.now();
+            this.running = true;
+            this.ticker = setInterval(() => this.render(), 41);
+            this.render();
+        },
+
+        // Gemeinsame Logik für jeden Rundenbeginn
+        beginRound() {
+            this.seriesStarted = true;
+            this.currentRound += 1;
+            this.repWallStart = Date.now();
+            this.intervalOverdue = false;
+            this.intervalDisplay = '';
+            // Intervall-Ticker starten (unabhängig von der Stoppuhr)
+            clearInterval(this.intervalTicker);
+            if (this.activeBlock && this.activeBlock.startIntervalCs > 0) {
+                this.renderInterval();
+                this.intervalTicker = setInterval(() => this.renderInterval(), 100);
+            }
+        },
+
+        renderInterval() {
+            if (!this.repWallStart || !this.activeBlock) return;
+            const intervalCs = this.activeBlock.startIntervalCs || 0;
+            if (!intervalCs) return;
+            const elapsed = Math.floor((Date.now() - this.repWallStart) / 10);
+            const remaining = intervalCs - elapsed;
+            this.intervalOverdue = remaining <= 0;
+            this.intervalDisplay = remaining > 0 ? this.fmt(remaining) : '';
         },
 
         render() {
