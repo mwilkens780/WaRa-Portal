@@ -380,7 +380,17 @@ class WebClubCrawler
 
     private function syncResults(Competition $competition, array $results, \Illuminate\Support\Collection $usersByWcId, array $webclubEvents = []): int
     {
-        if (empty($results)) return 0;
+        $total = count($results);
+
+        if (empty($results)) {
+            ImportLog::create([
+                'source'         => self::SOURCE,
+                'status'         => 'skipped',
+                'competition_id' => $competition->id,
+                'message'        => 'Ergebnisse: WebClub hat keine Ergebnisse für diesen Wettkampf geliefert (Tab nicht vorhanden oder leer).',
+            ]);
+            return 0;
+        }
 
         // WebClub-Eventdefinitionen: event_number → {discipline, distance, gender}
         // Diese kommen aus demselben Crawl-Lauf wie die Ergebnisse und verwenden
@@ -410,12 +420,19 @@ class WebClubCrawler
             ->get(['user_id', 'discipline', 'distance'])
             ->mapWithKeys(fn($r) => ["{$r->user_id}_{$r->discipline}_{$r->distance}" => true]);
 
-        $synced = 0;
+        $synced      = 0;
+        $skipNoUser  = 0;
+        $skipNoEvent = 0;
+        $skipDup     = 0;
+
         foreach ($results as $result) {
             if (empty($result['athlete_name']) || empty($result['time_ms'])) continue;
 
             $user = $this->findUserFromMap($result, $usersByWcId);
-            if (!$user) continue;
+            if (!$user) {
+                $skipNoUser++;
+                continue;
+            }
 
             $eventNumber = isset($result['event_number']) ? (int) $result['event_number'] : 0;
             $event       = null;
@@ -444,11 +461,17 @@ class WebClubCrawler
                 $event = $portalByNumber->get($eventNumber);
             }
 
-            if (!$event) continue;
+            if (!$event) {
+                $skipNoEvent++;
+                continue;
+            }
 
             // Duplikat-Check aus In-Memory-Cache (kein DB-Query)
             $key = "{$user->id}_{$event->discipline}_{$event->distance}";
-            if (isset($existingKeys[$key])) continue;
+            if (isset($existingKeys[$key])) {
+                $skipDup++;
+                continue;
+            }
             $existingKeys[$key] = true;
 
             $wcRek = trim((string) ($result['webclub_rek'] ?? ''));
@@ -465,6 +488,19 @@ class WebClubCrawler
             ]));
             $synced++;
         }
+
+        $parts = ["{$synced} neu importiert von {$total} WebClub-Einträgen"];
+        if ($skipDup > 0)     $parts[] = "{$skipDup} bereits vorhanden (übersprungen)";
+        if ($skipNoEvent > 0) $parts[] = "{$skipNoEvent} ohne passendes Portal-Event";
+        if ($skipNoUser > 0)  $parts[] = "{$skipNoUser} Schwimmer nicht im Portal gefunden";
+
+        ImportLog::create([
+            'source'         => self::SOURCE,
+            'status'         => $synced > 0 ? 'success' : 'skipped',
+            'competition_id' => $competition->id,
+            'message'        => 'Ergebnisse: ' . implode(', ', $parts) . '.',
+        ]);
+
         return $synced;
     }
 
