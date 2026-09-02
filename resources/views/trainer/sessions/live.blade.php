@@ -28,7 +28,10 @@ window._ltAthletes  = @json($liveAthletes);
 window._ltTimesMap  = @json($timesMap);
 window._ltSessionId = {{ $session->id }};
 </script>
-<div x-data="liveTiming" class="mt-2 pb-24">
+<div x-data="liveTiming()" class="mt-2 pb-24">
+
+    {{-- DEBUG: grüner Text zeigt, ob Alpine läuft – wird nach Test entfernt --}}
+    <div x-cloak class="text-xs text-green-600 font-semibold mb-2" x-text="'Alpine OK, Modus: ' + mode"></div>
 
     {{-- Kopf: Serie wählen --}}
     <div class="flex items-center justify-between gap-3 mb-3">
@@ -255,8 +258,8 @@ window._ltSessionId = {{ $session->id }};
 
 @push('scripts')
 <script>
-document.addEventListener('alpine:init', () => {
-Alpine.data('liveTiming', () => {
+function liveTiming() {
+    console.log('[LT] liveTiming() aufgerufen', { blocks: window._ltBlocks, athletes: window._ltAthletes });
     const blocks    = window._ltBlocks    || [];
     const athletes  = window._ltAthletes  || [];
     const timesMap  = window._ltTimesMap;
@@ -294,6 +297,7 @@ Alpine.data('liveTiming', () => {
         flushTimer: null,
 
         init() {
+            console.log('[LT] init() gestartet');
             this.voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
             this.render();
             window.addEventListener('beforeunload', (e) => {
@@ -652,7 +656,6 @@ Alpine.data('liveTiming', () => {
             this.toastTimer = setTimeout(() => { this.toast = ''; }, 2600);
         },
     };
-});
-});
+}
 </script>
 @endpush
