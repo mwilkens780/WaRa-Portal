@@ -315,6 +315,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     // Live-Zeitnahme am Beckenrand (Handy)
     Route::get('/training/{session}/live', [LiveTimingController::class, 'index'])->name('sessions.live');
     Route::post('/training/{session}/live/zeiten', [LiveTimingController::class, 'saveBulk'])->name('sessions.live.save');
+    Route::patch('/training/{session}/live/welle', [LiveTimingController::class, 'saveWave'])->name('sessions.live.wave');
 
     // Trainingstagebuch (Trainereinschätzung + Übersicht)
     Route::post('/training/{session}/einschaetzung/{user}', [TrainingSessionController::class, 'saveTrainerScore'])->name('sessions.trainer-score');

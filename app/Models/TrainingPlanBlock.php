@@ -11,6 +11,7 @@ class TrainingPlanBlock extends Model
         'repetitions', 'repetitions_nested', 'time_tracking', 'distance',
         'disciplines', 'additions', 'materials',
         'comment', 'start_interval_seconds', 'recovery_seconds',
+        'lanes_per_wave', 'wave_gap_cs', 'athlete_order',
     ];
 
     protected function casts(): array
@@ -26,6 +27,9 @@ class TrainingPlanBlock extends Model
             'sort_order'             => 'integer',
             'start_interval_seconds' => 'integer',
             'recovery_seconds'       => 'integer',
+            'lanes_per_wave'         => 'integer',
+            'wave_gap_cs'            => 'integer',
+            'athlete_order'          => 'array',
         ];
     }
 

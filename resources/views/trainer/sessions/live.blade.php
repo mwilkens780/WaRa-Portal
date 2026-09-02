@@ -13,7 +13,7 @@
             <svg class="w-10 h-10 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <p class="text-sm font-semibold text-gray-700">Keine Serie mit Zeitnahme</p>
             <p class="text-xs text-gray-400 mt-1.5 max-w-sm mx-auto">
-                Setze im Trainingsplan bei den Serien, bei denen Zeiten genommen werden sollen, den Haken „Zeitnahme“.
+                Setze im Trainingsplan bei den Serien, bei denen Zeiten genommen werden sollen, den Haken „Zeitnahme".
             </p>
             <a href="{{ route('trainer.sessions.plan.builder', $session) }}"
                class="inline-block mt-4 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
@@ -29,9 +29,6 @@ window._ltTimesMap  = @json($timesMap);
 window._ltSessionId = {{ $session->id }};
 </script>
 <div x-data="liveTiming()" class="mt-2 pb-24">
-
-    {{-- DEBUG: grüner Text zeigt, ob Alpine läuft – wird nach Test entfernt --}}
-    <div x-cloak class="text-xs text-green-600 font-semibold mb-2" x-text="'Alpine OK, Modus: ' + mode"></div>
 
     {{-- Kopf: Serie wählen --}}
     <div class="flex items-center justify-between gap-3 mb-3">
@@ -117,7 +114,7 @@ window._ltSessionId = {{ $session->id }};
             </div>
 
             <p x-show="voiceSupported && listening" x-cloak class="text-xs text-center text-gray-400 mt-2">
-                Sag Name und Zeit, z.&nbsp;B. „Anna 32 45“ oder „Lukas eine Minute 12 30“.
+                Sag Name und Zeit, z.&nbsp;B. „Anna 32 45" oder „Lukas eine Minute 12 30".
             </p>
             <p x-show="!voiceSupported" x-cloak class="text-xs text-center text-gray-400 mt-2">
                 Dieser Browser unterstützt keine Spracherkennung – nutze die Tipp-Eingabe unten.
@@ -127,6 +124,66 @@ window._ltSessionId = {{ $session->id }};
                  class="mt-2 text-center text-sm font-medium rounded-lg px-3 py-2"
                  :class="toastOk ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'"
                  x-text="toast"></div>
+        </div>
+
+        {{-- Wellen-Einstellungen (einklappbar) --}}
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <button type="button" @click="waveOpen = !waveOpen"
+                    class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Wellen-Zeitnahme
+                    <span x-show="hasWaves" x-cloak
+                          class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium"
+                          x-text="waveLanes + ' Bahnen · ' + (waveGapCs / 100).toFixed(1).replace('.', ',') + ' s'"></span>
+                </span>
+                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="waveOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+
+            <div x-show="waveOpen" x-cloak class="px-4 pb-4 border-t border-gray-100 space-y-4 pt-3">
+                {{-- Bahnen pro Welle --}}
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Bahnen pro Welle</p>
+                    <div class="flex gap-2">
+                        <template x-for="n in [1,2,3,4]" :key="n">
+                            <button type="button" @click="setWaveLanes(n)"
+                                    class="flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors"
+                                    :class="waveLanes === n
+                                        ? 'bg-primary text-white border-primary'
+                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'"
+                                    x-text="n === 1 ? 'Aus' : n"></button>
+                        </template>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1.5">„Aus" = alle einzeln, keine Wellen-Korrektur</p>
+                </div>
+
+                {{-- Wellenabstand --}}
+                <div x-show="waveLanes > 1" x-cloak>
+                    <p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Wellenabstand</p>
+                    <div class="flex gap-2">
+                        <template x-for="g in [{cs:300,label:'3 Sek'},{cs:500,label:'5 Sek'}]" :key="g.cs">
+                            <button type="button" @click="setWaveGap(g.cs)"
+                                    class="flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors"
+                                    :class="waveGapCs === g.cs
+                                        ? 'bg-primary text-white border-primary'
+                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'"
+                                    x-text="g.label"></button>
+                        </template>
+                    </div>
+                </div>
+
+                {{-- Reihenfolge-Button --}}
+                <div class="flex items-center gap-2">
+                    <button type="button" @click="openOrderModal()"
+                            class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        Reihenfolge bearbeiten
+                    </button>
+                    <span x-show="waveSaveState === 'saving'" x-cloak class="text-xs text-gray-400">speichert…</span>
+                    <span x-show="waveSaveState === 'saved'" x-cloak class="text-xs text-green-600">gespeichert</span>
+                    <span x-show="waveSaveState === 'error'" x-cloak class="text-xs text-red-600">Fehler</span>
+                </div>
+            </div>
         </div>
 
         {{-- Sportler antippen --}}
@@ -140,25 +197,62 @@ window._ltSessionId = {{ $session->id }};
                         x-text="showAll ? 'nur Anwesende' : 'alle anzeigen'"></button>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <template x-for="a in activeAthletes" :key="a.id">
-                    <button type="button" @click="tapAthlete(a)"
-                            class="text-left px-3 py-3 rounded-xl border transition-colors active:scale-[.98]"
-                            :class="nextRep(a.id) === null
-                                ? 'bg-gray-50 border-gray-200 text-gray-400'
-                                : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
-                        <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
-                        <span class="block text-xs mt-0.5"
-                              :class="nextRep(a.id) === null ? 'text-green-600 font-medium' : 'text-gray-400'"
-                              x-text="nextRep(a.id) === null
-                                ? 'komplett'
-                                : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
-                    </button>
-                </template>
+            {{-- Normaler Modus (keine Wellen) --}}
+            <div x-show="!hasWaves">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <template x-for="a in activeAthletes" :key="a.id">
+                        <button type="button" @click="tapAthlete(a)"
+                                class="text-left px-3 py-3 rounded-xl border transition-colors active:scale-[.98]"
+                                :class="nextRep(a.id) === null
+                                    ? 'bg-gray-50 border-gray-200 text-gray-400'
+                                    : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
+                            <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
+                            <span class="block text-xs mt-0.5"
+                                  :class="nextRep(a.id) === null ? 'text-green-600 font-medium' : 'text-gray-400'"
+                                  x-text="nextRep(a.id) === null
+                                    ? 'komplett'
+                                    : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
+                        </button>
+                    </template>
+                </div>
+                <p x-show="activeAthletes.length === 0" x-cloak class="text-sm text-gray-400 text-center py-4">
+                    Keine Sportler – über „alle anzeigen" einblenden.
+                </p>
             </div>
-            <p x-show="activeAthletes.length === 0" x-cloak class="text-sm text-gray-400 text-center py-4">
-                Keine Sportler – über „alle anzeigen“ einblenden.
-            </p>
+
+            {{-- Wellen-Modus --}}
+            <div x-show="hasWaves" x-cloak class="space-y-3">
+                <template x-for="g in waveGroups" :key="g.wave">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-xs font-bold text-blue-600" x-text="'Welle ' + (g.wave + 1)"></span>
+                            <span x-show="g.offsetCs > 0" x-cloak
+                                  class="text-xs text-gray-400"
+                                  x-text="'(−' + fmt(g.offsetCs) + ' s Offset)'"></span>
+                            <div class="flex-1 h-px bg-blue-100"></div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <template x-for="a in g.athletes" :key="a.id">
+                                <button type="button" @click="tapAthlete(a)"
+                                        class="text-left px-3 py-3 rounded-xl border transition-colors active:scale-[.98]"
+                                        :class="nextRep(a.id) === null
+                                            ? 'bg-gray-50 border-gray-200 text-gray-400'
+                                            : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
+                                    <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
+                                    <span class="block text-xs mt-0.5"
+                                          :class="nextRep(a.id) === null ? 'text-green-600 font-medium' : 'text-gray-400'"
+                                          x-text="nextRep(a.id) === null
+                                            ? 'komplett'
+                                            : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <p x-show="waveGroups.length === 0" x-cloak class="text-sm text-gray-400 text-center py-4">
+                    Keine Sportler.
+                </p>
+            </div>
         </div>
     </div>
 
@@ -189,6 +283,9 @@ window._ltSessionId = {{ $session->id }};
                                     <button type="button" @click="openRow(a)"
                                             class="font-medium text-gray-700 hover:text-primary truncate max-w-[96px] block text-left transition-colors"
                                             x-text="a.short"></button>
+                                    <span x-show="hasWaves" x-cloak
+                                          class="text-[10px] text-blue-400"
+                                          x-text="'W' + (waveOf(a.id) + 1)"></span>
                                 </td>
                                 <template x-for="i in (activeBlock ? activeBlock.reps : 0)" :key="i">
                                     <td class="px-1 py-1">
@@ -252,52 +349,98 @@ window._ltSessionId = {{ $session->id }};
             </div>
         </div>
     </div>
+
+    {{-- ===================== REIHENFOLGE-MODAL ===================== --}}
+    <div x-show="orderModalOpen" x-cloak class="fixed inset-0 z-[110] flex items-end sm:items-center justify-center"
+         @keydown.escape.window="orderModalOpen = false">
+        <div class="absolute inset-0 bg-black/50" @click="orderModalOpen = false"></div>
+        <div class="relative bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div>
+                    <p class="font-semibold text-gray-800 text-base">Reihenfolge</p>
+                    <p class="text-xs text-gray-400 mt-0.5"
+                       x-text="waveLanes > 1 ? 'Ziehen zum Umsortieren · ' + waveLanes + ' pro Welle' : 'Ziehen zum Umsortieren'"></p>
+                </div>
+                <button type="button" @click="orderModalOpen = false" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="overflow-y-auto px-4 py-3">
+                <div id="wave-order-list" class="space-y-1.5">
+                    {{-- JS-rendered --}}
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-gray-100">
+                <button type="button" @click="orderModalOpen = false"
+                        class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">
+                    Fertig
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 @endif
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>
 function liveTiming() {
-    console.log('[LT] liveTiming() aufgerufen', { blocks: window._ltBlocks, athletes: window._ltAthletes });
     const blocks    = window._ltBlocks    || [];
     const athletes  = window._ltAthletes  || [];
     const timesMap  = window._ltTimesMap;
     const sessionId = window._ltSessionId;
+
+    // Per-block wave config keyed by block ID
+    const initWaveCfg = blocks.reduce((m, b) => {
+        m[b.id] = {
+            lanesPerWave: b.lanesPerWave || 1,
+            gapCs:        b.waveGapCs    || 0,
+            order:        Array.isArray(b.athleteOrder) ? b.athleteOrder : [],
+        };
+        return m;
+    }, {});
+
     return {
-        blocks: blocks,
-        athletes: athletes,
-        // PHP sends [] for an empty map — normalise so property access is safe
-        times: Array.isArray(timesMap) ? {} : (timesMap || {}),
-        sessionId: sessionId,
+        blocks:      blocks,
+        athletes:    athletes,
+        times:       Array.isArray(timesMap) ? {} : (timesMap || {}),
+        sessionId:   sessionId,
 
         activeBlockId: blocks.length ? blocks[0].id : null,
-        mode: 'watch',
-        showAll: false,
-        rowAthlete: null,
+        mode:          'watch',
+        showAll:       false,
+        rowAthlete:    null,
 
-        running: false,
+        running:   false,
         startedAt: 0,
-        baseCs: 0,
+        baseCs:    0,
         elapsedCs: 0,
-        display: '0,00',
-        ticker: null,
+        display:   '0,00',
+        ticker:    null,
 
-        listening: false,
+        listening:      false,
         voiceSupported: false,
-        recognition: null,
+        recognition:    null,
 
-        lastEntry: null,
-        toast: '',
-        toastOk: true,
+        lastEntry:  null,
+        toast:      '',
+        toastOk:    true,
         toastTimer: null,
 
-        pending: [],
+        pending:   [],
         saveState: 'idle',
         flushTimer: null,
 
+        // Wave
+        waveConfig:    initWaveCfg,
+        waveOpen:      false,
+        orderModalOpen: false,
+        waveSaveState: 'idle',
+        _sortable:     null,
+
         init() {
-            console.log('[LT] init() gestartet');
             this.voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
             this.render();
             window.addEventListener('beforeunload', (e) => {
@@ -305,17 +448,234 @@ function liveTiming() {
             });
         },
 
+        // ---------- Basis-Getter ----------
         get activeBlock() {
             return this.blocks.find(b => b.id === this.activeBlockId) || null;
         },
 
         get activeAthletes() {
-            return this.showAll ? this.athletes : this.athletes.filter(a => a.present);
+            const base = this.showAll ? this.athletes : this.athletes.filter(a => a.present);
+            const order = (this.waveConfig[this.activeBlockId] || {}).order || [];
+            if (!order.length) return base;
+            return [...base].sort((a, b) => {
+                const ia = order.indexOf(a.id);
+                const ib = order.indexOf(b.id);
+                return (ia === -1 ? 99999 : ia) - (ib === -1 ? 99999 : ib);
+            });
         },
 
         selectBlock(id) {
             this.activeBlockId = id;
             this.rowAthlete = null;
+            if (this.orderModalOpen) {
+                this.$nextTick(() => this.renderOrderList());
+            }
+        },
+
+        // ---------- Wellen-Getter ----------
+        get waveLanes() {
+            return (this.waveConfig[this.activeBlockId] || {}).lanesPerWave || 1;
+        },
+        get waveGapCs() {
+            return (this.waveConfig[this.activeBlockId] || {}).gapCs || 0;
+        },
+        get hasWaves() {
+            return this.waveLanes > 1 && this.waveGapCs > 0;
+        },
+        get waveGroups() {
+            if (!this.hasWaves) return [];
+            const athletes  = this.activeAthletes;
+            const lanes     = this.waveLanes;
+            const gap       = this.waveGapCs;
+            const groups    = [];
+            for (let i = 0; i < athletes.length; i += lanes) {
+                const wi = Math.floor(i / lanes);
+                groups.push({ wave: wi, offsetCs: wi * gap, athletes: athletes.slice(i, i + lanes) });
+            }
+            return groups;
+        },
+
+        waveOf(userId) {
+            const cfg = this.waveConfig[this.activeBlockId] || {};
+            const order = cfg.order || [];
+            const lanes = cfg.lanesPerWave || 1;
+            const idx = order.indexOf(userId);
+            if (idx === -1 || lanes < 2) return 0;
+            return Math.floor(idx / lanes);
+        },
+
+        waveOffsetCs(userId) {
+            if (!this.hasWaves) return 0;
+            return this.waveOf(userId) * this.waveGapCs;
+        },
+
+        // ---------- Wellen-Konfiguration ----------
+        setWaveLanes(n) {
+            const cfg = this.waveConfig[this.activeBlockId] || {};
+            this.waveConfig = {
+                ...this.waveConfig,
+                [this.activeBlockId]: { ...cfg, lanesPerWave: n },
+            };
+            if (n <= 1) {
+                // turn off waves: clear gap too
+                this.waveConfig = {
+                    ...this.waveConfig,
+                    [this.activeBlockId]: { ...this.waveConfig[this.activeBlockId], gapCs: 0 },
+                };
+            } else if (!cfg.gapCs) {
+                // default gap when enabling waves
+                this.waveConfig = {
+                    ...this.waveConfig,
+                    [this.activeBlockId]: { ...this.waveConfig[this.activeBlockId], gapCs: 500 },
+                };
+            }
+            this.saveWaveConfig();
+        },
+
+        setWaveGap(cs) {
+            const cfg = this.waveConfig[this.activeBlockId] || {};
+            this.waveConfig = {
+                ...this.waveConfig,
+                [this.activeBlockId]: { ...cfg, gapCs: cs },
+            };
+            this.saveWaveConfig();
+        },
+
+        saveWaveConfig() {
+            const blockId = this.activeBlockId;
+            const cfg     = this.waveConfig[blockId] || {};
+            this.waveSaveState = 'saving';
+            fetch('{{ route('trainer.sessions.live.wave', $session) }}', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    block_id:       blockId,
+                    lanes_per_wave: cfg.lanesPerWave > 1 ? cfg.lanesPerWave : null,
+                    wave_gap_cs:    cfg.gapCs || null,
+                    athlete_order:  cfg.order || [],
+                }),
+            })
+            .then(r => { if (!r.ok) throw new Error(); })
+            .then(() => {
+                this.waveSaveState = 'saved';
+                setTimeout(() => { this.waveSaveState = 'idle'; }, 2000);
+            })
+            .catch(() => { this.waveSaveState = 'error'; });
+        },
+
+        // ---------- Reihenfolge-Modal ----------
+        openOrderModal() {
+            this.orderModalOpen = true;
+            this.$nextTick(() => {
+                this.renderOrderList();
+                this.initSortable();
+            });
+        },
+
+        renderOrderList() {
+            const container = document.getElementById('wave-order-list');
+            if (!container) return;
+            const cfg   = this.waveConfig[this.activeBlockId] || {};
+            const order = cfg.order || [];
+            const lanes = cfg.lanesPerWave || 1;
+            const gap   = cfg.gapCs || 0;
+            const base  = this.showAll ? this.athletes : this.athletes.filter(a => a.present);
+            const sorted = [...base].sort((a, b) => {
+                const ia = order.indexOf(a.id);
+                const ib = order.indexOf(b.id);
+                return (ia === -1 ? 99999 : ia) - (ib === -1 ? 99999 : ib);
+            });
+
+            container.innerHTML = '';
+            sorted.forEach((athlete, idx) => {
+                const wave = Math.floor(idx / lanes);
+                const item = document.createElement('div');
+                item.dataset.uid = athlete.id;
+                item.className = 'flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing';
+                const waveLabel = lanes > 1 && gap > 0
+                    ? '<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-semibold flex-shrink-0 wave-badge">W' + (wave + 1) + '</span>'
+                    : '';
+                item.innerHTML = `
+                    <svg class="w-4 h-4 text-gray-300 flex-shrink-0 drag-handle" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 6h2v2H8zm0 4h2v2H8zm0 4h2v2H8zm6-8h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2z"/>
+                    </svg>
+                    <span class="flex-1 text-sm font-medium text-gray-700 truncate">${athlete.name}</span>
+                    ${waveLabel}
+                `;
+                container.appendChild(item);
+            });
+        },
+
+        updateWaveBadges() {
+            const container = document.getElementById('wave-order-list');
+            if (!container) return;
+            const cfg   = this.waveConfig[this.activeBlockId] || {};
+            const lanes = cfg.lanesPerWave || 1;
+            const gap   = cfg.gapCs || 0;
+            const items = [...container.querySelectorAll('[data-uid]')];
+            items.forEach((el, idx) => {
+                const badge = el.querySelector('.wave-badge');
+                if (!badge) return;
+                const wave = Math.floor(idx / lanes);
+                badge.textContent = 'W' + (wave + 1);
+            });
+        },
+
+        initSortable() {
+            if (typeof Sortable === 'undefined') return;
+            const container = document.getElementById('wave-order-list');
+            if (!container) return;
+            if (this._sortable) { this._sortable.destroy(); this._sortable = null; }
+            this._sortable = Sortable.create(container, {
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'bg-blue-50',
+                onSort: () => {
+                    this.updateWaveBadges();
+                },
+                onEnd: () => {
+                    const ids = [...container.querySelectorAll('[data-uid]')].map(el => parseInt(el.dataset.uid));
+                    this.applyNewOrder(ids);
+                },
+            });
+        },
+
+        applyNewOrder(newIds) {
+            const blockId = this.activeBlockId;
+            const cfg     = this.waveConfig[blockId] || {};
+            const oldOrder = cfg.order || [];
+            const lanes   = cfg.lanesPerWave || 1;
+            const gap     = cfg.gapCs || 0;
+
+            // Adjust stored times when a swimmer's wave changes
+            if (gap > 0 && oldOrder.length > 0) {
+                newIds.forEach((uid, newIdx) => {
+                    const oldIdx = oldOrder.indexOf(uid);
+                    if (oldIdx === -1) return;
+                    const oldWave = Math.floor(oldIdx / lanes);
+                    const newWave = Math.floor(newIdx / lanes);
+                    if (oldWave === newWave) return;
+                    const delta = (newWave - oldWave) * gap;
+                    const blk = (this.times[blockId] || {})[uid] || {};
+                    Object.keys(blk).forEach(rep => {
+                        const old = blk[rep];
+                        if (old === null) return;
+                        const corrected = Math.max(0, old - delta);
+                        this.putCs(blockId, uid, parseInt(rep), corrected);
+                        this.queue(blockId, uid, parseInt(rep), corrected);
+                    });
+                });
+            }
+
+            this.waveConfig = {
+                ...this.waveConfig,
+                [blockId]: { ...cfg, order: newIds },
+            };
+            this.saveWaveConfig();
         },
 
         // ---------- Datenzugriff ----------
@@ -333,7 +693,6 @@ function liveTiming() {
             if (!this.times[blockId][userId]) this.times[blockId][userId] = {};
             if (cs === null) delete this.times[blockId][userId][rep];
             else this.times[blockId][userId][rep] = cs;
-            // Alpine tracks the object identity, so replace the reference
             this.times = Object.assign({}, this.times);
         },
 
@@ -350,7 +709,6 @@ function liveTiming() {
             return n;
         },
 
-        // Lowest repetition that has no time yet, or null when the athlete is done
         nextRep(userId) {
             const total = this.activeBlock ? this.activeBlock.reps : 0;
             for (let i = 1; i <= total; i++) {
@@ -390,19 +748,22 @@ function liveTiming() {
             this.display = this.fmt(this.elapsedCs) || '0,00';
         },
 
-        // Tap an athlete: their next open repetition gets the current time
         tapAthlete(a) {
             const rep = this.nextRep(a.id);
             if (rep === null) { this.say(a.short + ' ist komplett', false); return; }
             if (this.elapsedCs <= 0) { this.say('Stoppuhr läuft noch nicht', false); return; }
-            this.record(a, rep, this.elapsedCs);
+            const offset = this.waveOffsetCs(a.id);
+            const netCs  = Math.max(0, this.elapsedCs - offset);
+            this.record(a, rep, netCs);
         },
 
         record(a, rep, cs) {
             this.putCs(this.activeBlockId, a.id, rep, cs);
             this.lastEntry = { blockId: this.activeBlockId, athlete: a, rep: rep };
             this.queue(this.activeBlockId, a.id, rep, cs);
-            this.say(a.short + ' · ' + rep + '. → ' + this.fmt(cs), true);
+            const offsetCs = this.waveOffsetCs(a.id);
+            const note = offsetCs > 0 ? ' (−' + this.fmt(offsetCs) + ' s)' : '';
+            this.say(a.short + ' · ' + rep + '. → ' + this.fmt(cs) + note, true);
         },
 
         undo() {
@@ -433,7 +794,6 @@ function liveTiming() {
 
         // ---------- Speichern ----------
         queue(blockId, userId, rep, cs) {
-            // One pending entry per cell — a later edit replaces the earlier one
             this.pending = this.pending.filter(
                 p => !(p.block_id === blockId && p.user_id === userId && p.repetition === rep)
             );
@@ -458,7 +818,6 @@ function liveTiming() {
             })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(() => {
-                // Drop exactly what was sent; anything typed meanwhile stays queued
                 this.pending = this.pending.filter(p => !batch.some(
                     b => b.block_id === p.block_id && b.user_id === p.user_id
                       && b.repetition === p.repetition && b.time_cs === p.time_cs
@@ -467,7 +826,6 @@ function liveTiming() {
                 if (this.pending.length) this.flush();
             })
             .catch(() => {
-                // Keep the entries and retry — poolside wifi is unreliable
                 this.saveState = 'error';
                 setTimeout(() => { if (this.pending.length) this.flush(); }, 4000);
             });
@@ -489,7 +847,6 @@ function liveTiming() {
             r.onresult = (ev) => {
                 for (let i = ev.resultIndex; i < ev.results.length; i++) {
                     if (!ev.results[i].isFinal) continue;
-                    // Try every alternative — the first is often the worst for names
                     let done = false;
                     for (let j = 0; j < ev.results[i].length && !done; j++) {
                         done = this.handleSpeech(ev.results[i][j].transcript);
@@ -504,7 +861,6 @@ function liveTiming() {
                 }
             };
             r.onend = () => {
-                // Safari and Chrome both cut the stream off; restart while wanted
                 if (this.listening) { try { r.start(); } catch (e) {} }
             };
 
@@ -519,7 +875,6 @@ function liveTiming() {
             this.recognition = null;
         },
 
-        /** "Anna 32 45" → record 32,45 for Anna. Returns true when understood. */
         handleSpeech(transcript) {
             const raw = (transcript || '').toLowerCase().trim();
             if (!raw) return false;
@@ -544,7 +899,6 @@ function liveTiming() {
                 .replace(/\s+/g, ' ').trim();
         },
 
-        // Speech returns umlauts either as "ö" or spelled out "oe" — keep both
         normAlt(s) {
             return (s || '').toLowerCase()
                 .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
@@ -553,9 +907,9 @@ function liveTiming() {
         },
 
         matchAthlete(text) {
-            const words = this.norm(text).split(' ').filter(w => w && !/^\d+$/.test(w));
+            const words    = this.norm(text).split(' ').filter(w => w && !/^\d+$/.test(w));
             const wordsAlt = this.normAlt(text).split(' ').filter(w => w && !/^\d+$/.test(w));
-            const all = [...new Set(words.concat(wordsAlt))];
+            const all      = [...new Set(words.concat(wordsAlt))];
             if (!all.length) return null;
 
             let best = null, bestScore = 0;
@@ -572,7 +926,6 @@ function liveTiming() {
                         let score = 0;
                         if (w === f.v) score = f.base;
                         else if ((f.v.startsWith(w) || w.startsWith(f.v)) && w.length >= 3) score = f.base - 30;
-                        // Longer matches win, so "Annalena" beats "Anna" on the same word
                         if (score > 0) score += Math.min(w.length, 12);
                         if (score > bestScore) { bestScore = score; best = a; }
                     }
@@ -581,7 +934,6 @@ function liveTiming() {
             return bestScore >= 60 ? best : null;
         },
 
-        /** Parse a spoken time: "32 45", "eine minute 12 30", "1:23,45". */
         parseSpokenTime(text) {
             let t = ' ' + text.toLowerCase() + ' ';
             t = t.replace(/\bkomma\b/g, ',')
@@ -594,7 +946,6 @@ function liveTiming() {
                  .replace(/\s*([:,])\s*/g, '$1');
 
             let m;
-            // "1:23,45" and also "eine minute 23 45" → 1:23 followed by hundredths
             if ((m = t.match(/(\d+):(\d{1,2})[,\s]\s*(\d{1,2})/))) {
                 return (+m[1]) * 6000 + (+m[2]) * 100 + +((m[3] + '0').slice(0, 2));
             }
@@ -605,7 +956,6 @@ function liveTiming() {
                 return (+m[1]) * 100 + +((m[2] + '0').slice(0, 2));
             }
 
-            // Bare digit groups after the name
             const groups = (t.match(/\d+/g) || []);
             if (!groups.length) return null;
 
@@ -613,7 +963,6 @@ function liveTiming() {
                 return (+groups[0]) * 6000 + (+groups[1]) * 100 + +((groups[2] + '0').slice(0, 2));
             }
             if (groups.length === 2) {
-                // "32 45" → 32,45 — repeats under a minute are the common case
                 return (+groups[0]) * 100 + +((groups[1] + '0').slice(0, 2));
             }
 

@@ -45,12 +45,15 @@ class LiveTimingController extends Controller
 
         // Payload for Alpine: blocks, athletes and any times already recorded
         $liveBlocks = $blocks->map(fn($b) => [
-            'id'       => $b->id,
-            'label'    => $b->label ?: null,
-            'reps'     => $b->total_repetitions,
-            'display'  => $b->repetitions_display,
-            'distance' => $b->distance,
-            'comment'  => $b->comment,
+            'id'           => $b->id,
+            'label'        => $b->label ?: null,
+            'reps'         => $b->total_repetitions,
+            'display'      => $b->repetitions_display,
+            'distance'     => $b->distance,
+            'comment'      => $b->comment,
+            'lanesPerWave' => $b->lanes_per_wave,
+            'waveGapCs'    => $b->wave_gap_cs,
+            'athleteOrder' => $b->athlete_order ?? [],
         ])->all();
 
         // Everyone is sent to the client, flagged by presence, so a swimmer who
@@ -76,6 +79,32 @@ class LiveTimingController extends Controller
             'timesMap'     => $timesMap,
             'attendanceTaken' => !empty($attendedIds),
         ]);
+    }
+
+    /** Save wave configuration (lanes, gap, athlete order) for one block. */
+    public function saveWave(Request $request, TrainingSession $session)
+    {
+        $this->authorizeSession($session);
+
+        $data = $request->validate([
+            'block_id'        => ['required', 'integer'],
+            'lanes_per_wave'  => ['nullable', 'integer', 'min:1', 'max:4'],
+            'wave_gap_cs'     => ['nullable', 'integer', 'in:0,300,500'],
+            'athlete_order'   => ['nullable', 'array'],
+            'athlete_order.*' => ['integer'],
+        ]);
+
+        $block = TrainingPlanBlock::whereHas(
+            'plan', fn($q) => $q->where('training_session_id', $session->id)
+        )->findOrFail((int) $data['block_id']);
+
+        $block->update([
+            'lanes_per_wave' => $data['lanes_per_wave'] ?? null,
+            'wave_gap_cs'    => $data['wave_gap_cs'] ?? null,
+            'athlete_order'  => $data['athlete_order'] ?? null,
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     /**
