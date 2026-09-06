@@ -515,8 +515,8 @@ async function scrapeCompetitions(page) {
     const dateFrom = new Date(today); dateFrom.setDate(today.getDate() - LOOKBACK_DAYS);
     const dateTo   = new Date(today); dateTo.setDate(today.getDate() + LOOKAHEAD_DAYS);
 
-    const eventLinks = await collectEventLinks(page, dateFrom, dateTo, capturedCompHtml);
-    log(`${eventLinks.length} Veranstaltungslinks gefunden.`);
+    const eventLinks = await collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedCompHtml);
+    log(`${eventLinks.length} Veranstaltungslinks gefunden (saisonübergreifend).`);
 
     // ── Detail-Daten laden ────────────────────────────────────────────────────
     // ver.php zeigt automatisch die Session-aktuelle Veranstaltung (idx:1 aus Suche).
@@ -621,6 +621,111 @@ function extractUrlFromOnclick(onclick) {
         /(?:(?:window\.|document\.)?location(?:\.href)?\s*=|openUrl|go|navigate|showPage|gotoPage|openPage)\s*\(?\s*['"]([^'"]+)['"]/i
     );
     return m ? m[1] : null;
+}
+
+// Iteriert durch alle Saison-Optionen im WebClub-Veranstaltungsfilter und sammelt
+// Veranstaltungslinks aus jeder Saison. Ohne Saison-Selector: Fallback auf einzelnen Pass.
+async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) {
+    // XHR-Capture-Hilfsfunktion: gibt ein Promise zurück, das bei der nächsten
+    // Veranstaltungslisten-XHR resolvet, und eine stop()-Funktion zum Abmelden.
+    function captureNextCompListXhr() {
+        let body = null;
+        let resolve;
+        const promise = new Promise(r => { resolve = r; });
+        const handler = async (res) => {
+            if (body) return;
+            try {
+                if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+                if (res.status() < 200 || res.status() >= 300) return;
+                const text = await res.text();
+                const isCompList = (text.includes('"list"') && text.includes('"id"') && text.includes('"d"'))
+                    || (text.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(text) && text.length > 200);
+                if (!isCompList) return;
+                body = text;
+                resolve(text);
+            } catch (_) {}
+        };
+        return {
+            handler,
+            getBody: () => body,
+            wait: (timeout = 5000) => Promise.race([promise, new Promise(r => setTimeout(() => r(null), timeout))]),
+        };
+    }
+
+    // Saison-Selector suchen: <select> mit Jahres-Optionen (z.B. "2024/25", "2024", "alle")
+    const selEl = page.locator('select').filter({
+        has: page.locator('option').filter({ hasText: /20\d{2}|alle|all/i }),
+    }).first();
+
+    if (await selEl.count() === 0) {
+        log('Kein Saison-Selector gefunden – ein Pass mit aktueller Anzeige');
+        return collectEventLinks(page, dateFrom, dateTo, capturedHtml);
+    }
+
+    const options = await selEl.evaluate(s =>
+        Array.from(s.options).map(o => ({ value: o.value, text: o.text.trim() }))
+    );
+    const currentVal = await selEl.evaluate(s => s.value);
+    log(`Saison-Selector gefunden (aktuell: "${options.find(o => o.value === currentVal)?.text ?? currentVal}"): ${options.map(o => o.text).join(', ')}`);
+
+    const allLinks = new Map(); // url → link-Objekt, dedupliziert
+
+    // "Alle"-Option bevorzugt (ein einziger Pass genügt)
+    const alleOpt = options.find(o =>
+        /^alle?$/i.test(o.text) || o.value === '0' || o.value === '' || o.text.trim() === '-'
+    );
+    if (alleOpt && alleOpt.value !== currentVal) {
+        log(`Wechsle Saison-Filter auf "${alleOpt.text}" (value="${alleOpt.value}")…`);
+        const capture = captureNextCompListXhr();
+        page.on('response', capture.handler);
+        try {
+            await selEl.selectOption(alleOpt.value);
+            await waitForAjaxContent(page);
+        } catch (_) {}
+        await capture.wait(6000);
+        page.off('response', capture.handler);
+        const newHtml = capture.getBody() || capturedHtml;
+        const links = await collectEventLinks(page, dateFrom, dateTo, newHtml);
+        log(`Saison "alle": ${links.length} Veranstaltungen`);
+        return links;
+    }
+
+    // Keine "alle"-Option: jeden Saison-Eintrag einzeln abfragen
+    const processedValues = new Set();
+
+    for (const opt of options) {
+        const isCurrentlySelected = opt.value === currentVal && processedValues.size === 0;
+        processedValues.add(opt.value);
+
+        let html = null;
+        if (isCurrentlySelected) {
+            // Bereits geladene Saison – capturedHtml verwenden
+            html = capturedHtml;
+            log(`Saison "${opt.text}" (aktuell): verwende bereits erfasste Daten`);
+        } else {
+            log(`Wechsle zu Saison "${opt.text}" (value="${opt.value}")…`);
+            const capture = captureNextCompListXhr();
+            page.on('response', capture.handler);
+            try {
+                await selEl.selectOption(opt.value);
+                await waitForAjaxContent(page);
+            } catch (_) {}
+            await capture.wait(6000);
+            page.off('response', capture.handler);
+            html = capture.getBody();
+            if (!html) {
+                log(`Saison "${opt.text}": keine XHR erhalten – übersprungen`);
+                continue;
+            }
+        }
+
+        const links = await collectEventLinks(page, dateFrom, dateTo, html);
+        const before = allLinks.size;
+        for (const l of links) allLinks.set(l.url, l);
+        log(`Saison "${opt.text}": ${links.length} gefunden, ${allLinks.size - before} neu im Gesamtergebnis`);
+    }
+
+    return [...allLinks.values()];
 }
 
 async function collectEventLinks(page, dateFrom, dateTo, capturedHtml = null) {
