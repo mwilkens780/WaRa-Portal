@@ -821,7 +821,7 @@ class TrainingSessionController extends Controller
     public function editSeries(string $group)
     {
         $sessions = TrainingSession::where('recurrence_group_id', $group)
-            ->with(['coTrainers', 'trainingGroups'])
+            ->with(['coTrainers', 'trainingGroups.swimmers' => fn($q) => $q->where('active', true)])
             ->orderBy('date')
             ->get();
 
@@ -829,20 +829,49 @@ class TrainingSessionController extends Controller
 
         $this->authorizeSeriesAccess($sessions->first());
 
-        $rep          = $sessions->first();
-        $last         = $sessions->last();
+        $rep            = $sessions->first();
+        $last           = $sessions->last();
         $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
-        $isExpired    = $futureSessions->isEmpty();
-        $groups       = $this->availableGroups();
-        $allGroups    = \App\Models\TrainingGroup::where('active', true)->orderBy('name')->get();
-        $allTrainers  = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
-                            ->orderBy('lastname')->orderBy('firstname')->get();
-        $coTrainerIds = $rep->coTrainers->pluck('id')->toArray();
-        $groupIds     = $rep->trainingGroups->pluck('id')->toArray();
+        $isExpired      = $futureSessions->isEmpty();
+        $groups         = $this->availableGroups();
+        $allGroups      = TrainingGroup::where('active', true)->orderBy('name')->get();
+        $allTrainers    = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
+                              ->orderBy('lastname')->orderBy('firstname')->get();
+        $coTrainerIds   = $rep->coTrainers->pluck('id')->toArray();
+        $groupIds       = $rep->trainingGroups->pluck('id')->toArray();
+
+        // Permanent series exclusions (swimmers who opted out of the whole series)
+        $exclusions = \App\Models\SwimmerSeriesExclusion::where('recurrence_group_id', $group)
+            ->with('user:id,firstname,lastname')
+            ->get()
+            ->sortBy('user.lastname');
+
+        // Expected swimmer count from current group memberships (minus series exclusions)
+        $groupSwimmerIds = $rep->trainingGroups
+            ->flatMap(fn($g) => $g->swimmers->pluck('id'))
+            ->unique();
+        $excludedIds      = $exclusions->pluck('user_id');
+        $expectedCount    = $groupSwimmerIds->diff($excludedIds)->count();
+
+        // Per-session attendance data (2 queries for entire series)
+        $sessionIds = $sessions->pluck('id');
+
+        $preAbsentCounts = TrainingAttendance::whereIn('training_session_id', $sessionIds)
+            ->where('pre_absent', true)
+            ->groupBy('training_session_id')
+            ->selectRaw('training_session_id, count(*) as cnt')
+            ->pluck('cnt', 'training_session_id');
+
+        $attendedCounts = TrainingAttendance::whereIn('training_session_id', $sessionIds)
+            ->where('attended', true)
+            ->groupBy('training_session_id')
+            ->selectRaw('training_session_id, count(*) as cnt')
+            ->pluck('cnt', 'training_session_id');
 
         return view('trainer.sessions.edit-series', compact(
             'rep', 'last', 'sessions', 'futureSessions', 'isExpired',
-            'group', 'groups', 'allGroups', 'allTrainers', 'coTrainerIds', 'groupIds'
+            'group', 'groups', 'allGroups', 'allTrainers', 'coTrainerIds', 'groupIds',
+            'exclusions', 'expectedCount', 'preAbsentCounts', 'attendedCounts'
         ));
     }
 
@@ -855,23 +884,36 @@ class TrainingSessionController extends Controller
         $this->authorizeSeriesAccess($sessions->first());
 
         $data = $request->validate([
-            'title'            => ['required', 'string', 'max:255'],
-            'start_time'       => ['required', 'date_format:H:i'],
-            'end_time'         => ['nullable', 'date_format:H:i', 'after:start_time'],
-            'location'         => ['required', 'string', 'max:255'],
-            'type'             => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
-            'notes'            => ['nullable', 'string'],
-            'groups'           => ['nullable', 'array'],
-            'groups.*'         => ['exists:training_groups,id'],
-            'co_trainer_ids'   => ['nullable', 'array'],
-            'co_trainer_ids.*' => ['exists:users,id'],
+            'title'             => ['required', 'string', 'max:255'],
+            'start_time'        => ['required', 'date_format:H:i'],
+            'end_time'          => ['nullable', 'date_format:H:i', 'after:start_time'],
+            'location'          => ['required', 'string', 'max:255'],
+            'type'              => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
+            'notes'             => ['nullable', 'string'],
+            'groups'            => ['nullable', 'array'],
+            'groups.*'          => ['exists:training_groups,id'],
+            'co_trainer_ids'    => ['nullable', 'array'],
+            'co_trainer_ids.*'  => ['exists:users,id'],
+            'max_participants'  => ['nullable', 'integer', 'min:1', 'max:999'],
+            'registration_open' => ['nullable', 'boolean'],
+            'guest_group_id'    => ['nullable', 'exists:training_groups,id'],
         ]);
 
         $groupIds     = $request->input('groups', []);
         $coTrainerIds = $request->input('co_trainer_ids', []);
-        $seriesData   = array_intersect_key($data, array_flip(
-            ['title', 'start_time', 'end_time', 'location', 'type', 'notes']
-        ));
+        $seriesData   = array_intersect_key($data, array_flip([
+            'title', 'start_time', 'end_time', 'location', 'type', 'notes',
+            'max_participants', 'registration_open', 'guest_group_id',
+        ]));
+        // Checkbox not submitted when unchecked – default to false
+        $seriesData['registration_open'] = (bool) ($data['registration_open'] ?? false);
+        // Explicit null for cleared capacity
+        if (!array_key_exists('max_participants', $data) || $data['max_participants'] === null) {
+            $seriesData['max_participants'] = null;
+        }
+        if (!array_key_exists('guest_group_id', $data) || $data['guest_group_id'] === null) {
+            $seriesData['guest_group_id'] = null;
+        }
 
         $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
         $count = 0;
