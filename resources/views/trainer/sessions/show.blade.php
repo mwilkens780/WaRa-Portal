@@ -954,7 +954,7 @@
                                     </template>
                                     <template x-if="editing">
                                         <form method="POST" action="{{ route('trainer.sessions.trainer-score', [$session, $entry->user_id]) }}"
-                                              class="flex items-center gap-1" @submit="editing = false">
+                                              class="flex items-center gap-1">
                                             @csrf
                                             <input type="number" name="trainer_score" :value="score ?? {{ $entry->self_score ?? 5 }}"
                                                    min="0" max="10" required

@@ -123,7 +123,7 @@
                                 <template x-if="editing">
                                     <form method="POST"
                                           action="{{ route('trainer.sessions.trainer-score', [$entry->training_session_id, $entry->user_id]) }}"
-                                          class="inline-flex items-center gap-1" @submit="editing = false">
+                                          class="inline-flex items-center gap-1">
                                         @csrf
                                         <input type="number" name="trainer_score"
                                                value="{{ $entry->trainer_score ?? $entry->self_score ?? 5 }}"
