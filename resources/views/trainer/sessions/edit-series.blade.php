@@ -69,7 +69,7 @@ function seriesEditForm() {
                 </svg>
                 <div>
                     <p class="text-sm font-semibold text-blue-800">Serie mit {{ $sessions->count() }} Einheiten
-                        @if($rep->max_participants) &nbsp;·&nbsp; Max. {{ $rep->max_participants }} Teilnehmer@endif
+                        @if($rep->max_participants) &nbsp;·&nbsp; Max. {{ $rep->max_participants }} Teilnehmer @endif
                     </p>
                     <p class="text-xs text-blue-700 mt-0.5">
                         {{ $futureSessions->count() }} zukünftige Einheiten werden beim Speichern aktualisiert.
