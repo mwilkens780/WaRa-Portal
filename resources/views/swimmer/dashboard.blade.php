@@ -8,71 +8,75 @@
     {{-- Offene Wettkampf-Anmeldeabfragen --}}
     @if($pendingSignups->isNotEmpty())
         @foreach($pendingSignups as $signup)
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5"
-                 x-data="{ open: true }" x-show="open">
-                <div class="flex items-start justify-between gap-4">
-                    <div class="flex items-start gap-3">
-                        <div class="shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-800 text-sm">Wettkampf-Anmeldung: {{ $signup->competition->name }}</p>
-                            <p class="text-xs text-gray-500 mt-0.5">
-                                {{ $signup->competition->date_range }} · {{ $signup->competition->location }}
-                                @if($signup->deadline) · <strong>Anmeldefrist: {{ $signup->deadline->format('d.m.Y') }}</strong>@endif
-                            </p>
-                            @if($signup->meeting_point || $signup->meeting_time)
-                                <p class="text-xs text-gray-600 mt-1.5">
-                                    <span class="font-medium">Treffpunkt:</span>
-                                    @if($signup->meeting_time){{ \Illuminate\Support\Str::substr($signup->meeting_time, 0, 5) }} Uhr @endif
-                                    @if($signup->meeting_point) · {{ $signup->meeting_point }} @endif
-                                </p>
-                            @endif
-                            @if($signup->message)
-                                <p class="text-sm text-gray-700 mt-2 whitespace-pre-line">{{ $signup->message }}</p>
-                            @endif
-                        </div>
-                    </div>
-                    <button @click="open = false" class="shrink-0 text-gray-300 hover:text-gray-500">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <div x-data="{ open: false }" class="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+                {{-- Collapsed header (always visible) --}}
+                <button @click="open = !open"
+                        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-100/50 transition-colors">
+                    <div class="shrink-0 w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                    </button>
-                </div>
-                <div class="flex gap-3 mt-4 flex-wrap">
-                    <form method="POST" action="{{ route('swimmer.signup.respond', $signup) }}">
-                        @csrf
-                        <input type="hidden" name="status" value="attending">
-                        <button type="submit"
-                                class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
-                            Ich nehme teil
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ route('swimmer.signup.respond', $signup) }}"
-                          x-data="{ showNote: false }">
-                        @csrf
-                        <input type="hidden" name="status" value="not_attending">
-                        <div x-show="showNote" class="mb-2">
-                            <input type="text" name="note" placeholder="Grund (optional)"
-                                   class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-full focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div class="flex-1 min-w-0 text-left">
+                        <span class="text-sm font-semibold text-gray-800">Wettkampf-Anmeldung: {{ $signup->competition->name }}</span>
+                        <span class="text-xs text-gray-500 ml-2">{{ $signup->competition->date_range }}</span>
+                        @if($signup->deadline)
+                            <span class="text-xs text-amber-700 font-medium ml-2">Frist: {{ $signup->deadline->format('d.m.Y') }}</span>
+                        @endif
+                    </div>
+                    <svg class="w-4 h-4 text-amber-500 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                {{-- Expanded content --}}
+                <div x-show="open" x-cloak class="px-5 pb-5 border-t border-amber-200">
+                    <div class="pt-4">
+                        @if($signup->meeting_point || $signup->meeting_time)
+                            <p class="text-xs text-gray-600 mb-1.5">
+                                <span class="font-medium">Treffpunkt:</span>
+                                @if($signup->meeting_time){{ \Illuminate\Support\Str::substr($signup->meeting_time, 0, 5) }} Uhr @endif
+                                @if($signup->meeting_point) · {{ $signup->meeting_point }} @endif
+                            </p>
+                        @endif
+                        @if($signup->message)
+                            <p class="text-sm text-gray-700 mb-3 whitespace-pre-line">{{ $signup->message }}</p>
+                        @endif
+                        <div class="flex gap-3 flex-wrap">
+                            <form method="POST" action="{{ route('swimmer.signup.respond', $signup) }}">
+                                @csrf
+                                <input type="hidden" name="status" value="attending">
+                                <button type="submit"
+                                        class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
+                                    Ich nehme teil
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('swimmer.signup.respond', $signup) }}"
+                                  x-data="{ showNote: false }">
+                                @csrf
+                                <input type="hidden" name="status" value="not_attending">
+                                <div x-show="showNote" class="mb-2">
+                                    <input type="text" name="note" placeholder="Grund (optional)"
+                                           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-full focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" @click="showNote = !showNote"
+                                            class="px-5 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg text-sm transition-colors">
+                                        Ich kann nicht teilnehmen
+                                    </button>
+                                    <button x-show="showNote" type="submit"
+                                            class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm transition-colors">
+                                        Absagen
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        <div class="flex gap-2">
-                            <button type="button" @click="showNote = !showNote"
-                                    class="px-5 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg text-sm transition-colors">
-                                Ich kann nicht teilnehmen
-                            </button>
-                            <button x-show="showNote" type="submit"
-                                    class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm transition-colors">
-                                Absagen
-                            </button>
-                        </div>
-                    </form>
+                        @if(session('success'))
+                            <p class="mt-3 text-sm text-green-700 font-medium">{{ session('success') }}</p>
+                        @endif
+                    </div>
                 </div>
-                @if(session('success'))
-                    <p class="mt-3 text-sm text-green-700 font-medium">{{ session('success') }}</p>
-                @endif
             </div>
         @endforeach
     @endif
@@ -583,26 +587,15 @@
                                 <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
                                 <p class="text-xs text-gray-500">{{ $session->trainer?->name ?? '–' }} · {{ $session->type_label }}</p>
                             </div>
-                            {{-- Tagebuch-Badge --}}
-                            @if($diary)
-                                <div class="flex items-center gap-1 flex-shrink-0">
-                                    @if($diary->mood)
-                                        <span class="text-base leading-none">{{ $diary->mood_emoji }}</span>
-                                    @endif
-                                    @if($diary->perceived_intensity)
-                                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
-                                            {{ $diary->perceived_intensity }}/10
-                                        </span>
-                                    @endif
-                                    @if(!$diary->mood && !$diary->perceived_intensity)
-                                        <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-                                            <svg class="w-3 h-3 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                            </svg>
-                                            Tagebuch
-                                        </span>
-                                    @endif
-                                </div>
+                            {{-- Selbsteinschätzungs-Badge --}}
+                            @if($diary && $diary->self_score !== null)
+                                @php
+                                    $sc = $diary->self_score;
+                                    $scoreClass = $sc >= 8 ? 'bg-green-100 text-green-700' : ($sc >= 5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700');
+                                @endphp
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 {{ $scoreClass }}">{{ $sc }}/10</span>
+                            @else
+                                <span class="flex-shrink-0 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Bewerten</span>
                             @endif
                         </a>
                     @empty

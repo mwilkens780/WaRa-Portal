@@ -139,12 +139,12 @@ class DashboardController extends Controller
             'season_label'          => $currentSeason?->name ?? SwimmingTime::currentSeasonLabel(),
         ];
 
-        // Letzte absolvierte Trainings (mit Tagebucheintrag-Info)
+        // Letzte absolvierte Trainings – letzte 2 Wochen (mit Selbsteinschätzungs-Info)
         $recent_sessions = TrainingSession::where('date', '<=', today())
+            ->where('date', '>=', today()->subDays(13))
             ->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true))
             ->with(['coTrainers:id,firstname,lastname', 'diaries' => fn($q) => $q->where('user_id', $swimmer->id)])
             ->orderByDesc('date')
-            ->limit(5)
             ->get();
 
         // Letzte Wettkampfergebnisse (zusammengeführt)
@@ -434,21 +434,29 @@ class DashboardController extends Controller
         // Sort chronologically Mo (1) → So (7)
         $trainingSeries = $trainingSeries->sortBy('day_of_week_iso')->values();
 
-        // ── Upcoming sessions (strictly future, exclusions applied) ──────────
+        // ── Upcoming sessions: next 14 days only ─────────────────────────────
         $upcoming = TrainingSession::where('date', '>', today())
+            ->where('date', '<=', today()->addDays(13))
             ->tap($relevantSessions)
             ->tap($exclusionFilter)
             ->with(['coTrainers:id,firstname,lastname', 'trainingGroups'])
             ->orderBy('date')->orderBy('start_time')
             ->get();
 
+        $upcomingLaterCount = TrainingSession::where('date', '>', today()->addDays(13))
+            ->tap($relevantSessions)
+            ->tap($exclusionFilter)
+            ->count();
+
+        $upcomingIds = $upcoming->pluck('id');
+
         $myRegistrations = \App\Models\TrainingSessionRegistration::where('user_id', $swimmer->id)
-            ->whereIn('training_session_id', $upcoming->pluck('id'))
+            ->whereIn('training_session_id', $upcomingIds)
             ->pluck('training_session_id');
 
         $preAbsenceMap = TrainingAttendance::where('user_id', $swimmer->id)
             ->where('pre_absent', true)
-            ->whereIn('training_session_id', $upcoming->pluck('id'))
+            ->whereIn('training_session_id', $upcomingIds)
             ->get()
             ->keyBy('training_session_id');
 
@@ -480,11 +488,15 @@ class DashboardController extends Controller
             ];
         })->filter(fn($g) => $g->available || $g->booked)->values();
 
-        // ── Past sessions: exclude swimmer-cancelled ones, group by month ────
-        $filter    = request('filter', 'attended');
-        $pastQuery = TrainingSession::where('date', '<=', today())
+        // ── Past sessions: 14-day sliding window ──────────────────────────────
+        $filter   = request('filter', 'attended');
+        $pastPage = max(1, (int) request('past_page', 1));
+        $windowEnd   = today()->subDays(($pastPage - 1) * 14);
+        $windowStart = today()->subDays($pastPage * 14 - 1);
+
+        $pastQuery = TrainingSession::where('date', '<=', $windowEnd)
+            ->where('date', '>=', $windowStart)
             ->tap($relevantSessions)
-            // Never show sessions the swimmer pre-cancelled
             ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
             ->with([
                 'coTrainers:id,firstname,lastname',
@@ -497,13 +509,21 @@ class DashboardController extends Controller
             $pastQuery->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true));
         }
 
-        $pastSessions = $pastQuery->paginate(20)->withQueryString();
+        $pastSessions   = $pastQuery->get();
+        $pastHasNewer   = $pastPage > 1;
+        $pastHasOlder   = TrainingSession::where('date', '<', $windowStart)
+            ->tap($relevantSessions)
+            ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
+            ->when($filter === 'attended', fn($q) => $q->whereHas('attendances', fn($a) => $a->where('user_id', $swimmer->id)->where('attended', true)))
+            ->exists();
+        $pastWindowLabel = $windowStart->format('d.m.') . ' – ' . $windowEnd->format('d.m.Y');
 
         return view('swimmer.my-trainings', compact(
             'totalRelevant', 'totalAttended', 'pct', 'diaryPendingCount',
             'trainingSeries', 'excludedSeriesIds',
-            'upcoming', 'preAbsenceMap', 'myRegistrations',
-            'pastSessions', 'filter',
+            'upcoming', 'upcomingLaterCount',
+            'preAbsenceMap', 'myRegistrations',
+            'pastSessions', 'filter', 'pastPage', 'pastHasNewer', 'pastHasOlder', 'pastWindowLabel',
             'guestSessions'
         ));
     }

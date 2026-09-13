@@ -282,17 +282,18 @@
     </div>
     @endif
 
-    {{-- ── Bevorstehende Trainings ─────────────────────────────────────────── --}}
+    {{-- ── Bevorstehende Trainings (nächste 2 Wochen) ────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2 flex-wrap">
             <h2 class="text-sm font-semibold text-gray-700">Bevorstehende Trainings</h2>
+            <span class="text-xs text-gray-400">nächste 2 Wochen</span>
             @if($upcoming->count())
                 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{{ $upcoming->count() }}</span>
             @endif
         </div>
 
         @if($upcoming->isEmpty())
-            <p class="text-sm text-gray-400 text-center py-8">Keine bevorstehenden Einheiten geplant.</p>
+            <p class="text-sm text-gray-400 text-center py-8">Keine Einheiten in den nächsten 2 Wochen.</p>
         @else
             <div class="divide-y divide-gray-50">
                 @foreach($upcoming as $session)
@@ -398,30 +399,57 @@
                 @endforeach
             </div>
         @endif
+        @if($upcomingLaterCount > 0)
+            <div class="px-5 py-3 border-t border-gray-50 text-center">
+                <p class="text-xs text-gray-400">+ {{ $upcomingLaterCount }} weitere {{ $upcomingLaterCount === 1 ? 'Einheit' : 'Einheiten' }} in den Folgewochen</p>
+            </div>
+        @endif
     </div>
 
-    {{-- ── Trainingstagebuch ───────────────────────────────────────────────── --}}
+    {{-- ── Selbsteinschätzung ──────────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-sm font-semibold text-gray-700">Trainingstagebuch</h2>
-            {{-- Filter tabs --}}
-            <div class="flex gap-1 p-1 bg-white border border-gray-200 rounded-lg text-xs">
-                <a href="{{ route('swimmer.sessions', ['filter' => 'all']) }}"
-                   class="px-2.5 py-1 rounded font-medium transition-colors {{ $filter === 'all' ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700' }}">
-                    Alle
-                </a>
-                <a href="{{ route('swimmer.sessions', ['filter' => 'attended']) }}"
-                   class="px-2.5 py-1 rounded font-medium transition-colors {{ $filter === 'attended' ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700' }}">
-                    Anwesend
-                </a>
+            <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Selbsteinschätzung</h2>
+                <span class="text-xs text-gray-400">{{ $pastWindowLabel }}</span>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                {{-- Filter tabs --}}
+                <div class="flex gap-1 p-1 bg-white border border-gray-200 rounded-lg text-xs">
+                    <a href="{{ route('swimmer.sessions', ['filter' => 'all', 'past_page' => 1]) }}"
+                       class="px-2.5 py-1 rounded font-medium transition-colors {{ $filter === 'all' ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700' }}">
+                        Alle
+                    </a>
+                    <a href="{{ route('swimmer.sessions', ['filter' => 'attended', 'past_page' => 1]) }}"
+                       class="px-2.5 py-1 rounded font-medium transition-colors {{ $filter === 'attended' ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700' }}">
+                        Anwesend
+                    </a>
+                </div>
+                {{-- Window navigation --}}
+                <div class="flex gap-1">
+                    @if($pastHasNewer)
+                        <a href="{{ route('swimmer.sessions', ['filter' => $filter, 'past_page' => $pastPage - 1]) }}"
+                           class="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                            Neuer
+                        </a>
+                    @endif
+                    @if($pastHasOlder)
+                        <a href="{{ route('swimmer.sessions', ['filter' => $filter, 'past_page' => $pastPage + 1]) }}"
+                           class="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                            Älter
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    @endif
+                </div>
             </div>
         </div>
 
         @if($pastSessions->isEmpty())
-            <p class="text-sm text-gray-400 text-center py-10">Keine Einheiten gefunden.</p>
+            <p class="text-sm text-gray-400 text-center py-10">Keine Einheiten in diesem Zeitraum.</p>
         @else
             @php
-                $sessionsByMonth = $pastSessions->getCollection()->groupBy(fn($s) => $s->date->format('Y-m'));
+                $sessionsByMonth = $pastSessions->groupBy(fn($s) => $s->date->format('Y-m'));
             @endphp
             <div class="divide-y divide-gray-50">
                 @foreach($sessionsByMonth as $monthKey => $monthSessions)
@@ -485,22 +513,26 @@
                                         · {{ $session->trainer?->name ?? '–' }}
                                     </p>
 
-                                    @if($diary)
-                                        <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                            @if($diary->mood)
-                                                <span class="text-sm" title="{{ $diary->mood_label }}">{{ $diary->mood_emoji }}</span>
+                                    @if($diary && $diary->self_score !== null)
+                                        @php
+                                            $sc = $diary->self_score;
+                                            $scClass = $sc >= 8 ? 'bg-green-100 text-green-700' : ($sc >= 5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700');
+                                        @endphp
+                                        <div class="mt-1.5 flex items-center gap-1.5">
+                                            <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ $scClass }}">{{ $sc }}/10</span>
+                                            <span class="text-xs text-gray-400">Selbsteinschätzung</span>
+                                            @if($diary->trainer_score !== null)
+                                                <span class="text-xs text-gray-400">· Trainer: {{ $diary->trainer_score }}/10</span>
                                             @endif
-                                            @if($diary->perceived_intensity)
-                                                <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{{ $diary->perceived_intensity }}/10</span>
-                                            @endif
-                                            @if($diary->body)
-                                                <span class="text-xs text-gray-500 truncate max-w-[200px]">{{ Str::limit($diary->body, 60) }}</span>
-                                            @endif
+                                        </div>
+                                    @elseif($isPresent)
+                                        <div class="mt-1.5">
+                                            <span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Noch nicht bewertet</span>
                                         </div>
                                     @endif
                                 </div>
 
-                                {{-- Diary toggle (only for attended sessions) --}}
+                                {{-- Selbsteinschätzung toggle (only for attended sessions) --}}
                                 @if($isPresent)
                                     <button type="button" @click="diaryOpen = !diaryOpen"
                                             class="flex-shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
@@ -508,61 +540,55 @@
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
-                                        <span x-text="diaryOpen ? 'Schließen' : '{{ $diary ? 'Bearbeiten' : 'Tagebuch' }}'">{{ $diary ? 'Bearbeiten' : 'Tagebuch' }}</span>
+                                        <span x-text="diaryOpen ? 'Schließen' : '{{ ($diary && $diary->self_score !== null) ? 'Bearbeiten' : 'Bewerten' }}'">{{ ($diary && $diary->self_score !== null) ? 'Bearbeiten' : 'Bewerten' }}</span>
                                     </button>
                                 @endif
 
                             </div>
 
-                            {{-- Inline diary form --}}
+                            {{-- Inline Selbsteinschätzung --}}
                             @if($isPresent)
                                 <div x-show="diaryOpen" x-cloak
                                      class="mt-3 ml-11 border border-gray-100 rounded-xl overflow-hidden">
                                     <form method="POST" action="{{ route('sessions.diary', $session) }}"
-                                          class="p-4 space-y-3 bg-gray-50/60">
+                                          x-data="scoreKnob({{ $diary?->self_score ?? 5 }})"
+                                          @submit="$el.querySelector('[name=self_score]').value = value"
+                                          class="p-4 bg-gray-50/60">
                                         @csrf
 
-                                        <div>
-                                            <p class="text-xs font-medium text-gray-600 mb-1.5">Stimmung</p>
-                                            <div class="flex flex-wrap gap-1.5">
-                                                @foreach(['sehr_gut' => ['😄','Sehr gut'], 'gut' => ['🙂','Gut'], 'mittel' => ['😐','Mittel'], 'schlecht' => ['😕','Schlecht'], 'sehr_schlecht' => ['😞','Sehr schlecht']] as $val => [$emoji, $label])
-                                                    <label class="cursor-pointer">
-                                                        <input type="radio" name="mood" value="{{ $val }}"
-                                                               {{ $diary?->mood === $val ? 'checked' : '' }}
-                                                               class="sr-only peer">
-                                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border border-gray-200 bg-white transition-colors peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary font-medium hover:border-gray-300">
-                                                            {{ $emoji }} {{ $label }}
-                                                        </span>
-                                                    </label>
-                                                @endforeach
+                                        <div class="flex flex-col items-center gap-3">
+                                            {{-- Drehegler --}}
+                                            <div class="select-none touch-none"
+                                                 @mousedown.prevent="startDrag($event)"
+                                                 @mousemove.window.prevent="onDrag($event)"
+                                                 @mouseup.window="stopDrag()"
+                                                 @touchstart.prevent="startDrag($event)"
+                                                 @touchmove.window.prevent="onDrag($event)"
+                                                 @touchend.window="stopDrag()">
+                                                <svg viewBox="0 0 120 120" class="w-28 h-28 cursor-grab active:cursor-grabbing" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.08))">
+                                                    <path :d="trackPath" fill="none" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
+                                                    <path :d="valuePath" fill="none" :stroke="arcColor" stroke-width="10" stroke-linecap="round"/>
+                                                    <text x="60" y="55" text-anchor="middle" dominant-baseline="middle"
+                                                          class="font-bold" style="font-size:28px;font-family:inherit" :fill="arcColor" x-text="value"></text>
+                                                    <text x="60" y="78" text-anchor="middle" style="font-size:11px;fill:#9ca3af;font-family:inherit">von 10</text>
+                                                </svg>
                                             </div>
-                                        </div>
 
-                                        <div>
-                                            <label class="text-xs font-medium text-gray-600">
-                                                Wahrgenommene Intensität:
-                                                <span id="int-{{ $session->id }}">{{ $diary?->perceived_intensity ?? 5 }}</span>/10
-                                            </label>
-                                            <input type="range" name="perceived_intensity" min="1" max="10"
-                                                   value="{{ $diary?->perceived_intensity ?? 5 }}"
-                                                   oninput="document.getElementById('int-{{ $session->id }}').textContent = this.value"
-                                                   class="w-full accent-primary mt-1">
-                                            <div class="flex justify-between text-[10px] text-gray-400 mt-0.5">
-                                                <span>Leicht</span><span>Mittel</span><span>Sehr intensiv</span>
+                                            <div class="flex items-center gap-3">
+                                                <button type="button" @click="decrement()"
+                                                        class="w-8 h-8 rounded-full border border-gray-200 text-gray-600 text-lg font-bold hover:bg-gray-50 transition flex items-center justify-center">−</button>
+                                                <span class="text-xs text-gray-400 w-24 text-center" x-text="label"></span>
+                                                <button type="button" @click="increment()"
+                                                        class="w-8 h-8 rounded-full border border-gray-200 text-gray-600 text-lg font-bold hover:bg-gray-50 transition flex items-center justify-center">+</button>
                                             </div>
-                                        </div>
 
-                                        <div>
-                                            <label class="text-xs font-medium text-gray-600 block mb-1">Notizen</label>
-                                            <textarea name="body" rows="3"
-                                                      class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-none bg-white"
-                                                      placeholder="Wie war das Training? Was hat gut geklappt?">{{ $diary?->body }}</textarea>
-                                        </div>
+                                            <input type="hidden" name="self_score" :value="value">
 
-                                        <button type="submit"
-                                                class="bg-primary hover:bg-primary-dark text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
-                                            {{ $diary ? 'Aktualisieren' : 'Speichern' }}
-                                        </button>
+                                            <button type="submit"
+                                                    class="bg-primary hover:bg-primary-dark text-white text-xs font-semibold px-5 py-2 rounded-lg transition-colors">
+                                                {{ ($diary && $diary->self_score !== null) ? 'Aktualisieren' : 'Speichern' }}
+                                            </button>
+                                        </div>
                                     </form>
                                 </div>
                             @endif
@@ -572,13 +598,95 @@
                 @endforeach
             </div>
 
-            @if($pastSessions->hasPages())
-                <div class="px-5 py-4 border-t border-gray-100">
-                    {{ $pastSessions->links() }}
+            {{-- Window navigation footer --}}
+            @if($pastHasNewer || $pastHasOlder)
+                <div class="px-5 py-3 border-t border-gray-100 flex justify-between items-center">
+                    @if($pastHasNewer)
+                        <a href="{{ route('swimmer.sessions', ['filter' => $filter, 'past_page' => $pastPage - 1]) }}"
+                           class="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-primary transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                            Neuere Einheiten
+                        </a>
+                    @else
+                        <span></span>
+                    @endif
+                    @if($pastHasOlder)
+                        <a href="{{ route('swimmer.sessions', ['filter' => $filter, 'past_page' => $pastPage + 1]) }}"
+                           class="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-primary transition-colors">
+                            Ältere Einheiten
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    @endif
                 </div>
             @endif
         @endif
     </div>
 
 </div>
+
+@push('scripts')
+<script>
+function scoreKnob(initial) {
+    const CX = 60, CY = 60, R = 44;
+    const START_DEG = 135, RANGE_DEG = 270;
+
+    function polar(deg) {
+        const rad = (deg - 90) * Math.PI / 180;
+        return { x: CX + R * Math.cos(rad), y: CY + R * Math.sin(rad) };
+    }
+
+    function arcPath(fromDeg, toDeg) {
+        const s = polar(fromDeg), e = polar(toDeg);
+        const large = (toDeg - fromDeg) > 180 ? 1 : 0;
+        return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+    }
+
+    const LABELS = ['Sehr niedrig','Sehr niedrig','Niedrig','Niedrig','Mittel','Mittel','Gut','Gut','Hoch','Sehr hoch','Maximal'];
+
+    return {
+        value: Math.min(10, Math.max(0, initial)),
+        dragging: false,
+        startAngle: null,
+        startValue: null,
+
+        get trackPath() { return arcPath(START_DEG, START_DEG + RANGE_DEG); },
+        get valuePath() {
+            if (this.value === 0) return `M ${polar(START_DEG).x.toFixed(2)} ${polar(START_DEG).y.toFixed(2)}`;
+            return arcPath(START_DEG, START_DEG + (this.value / 10) * RANGE_DEG);
+        },
+        get arcColor() {
+            if (this.value >= 8) return '#16a34a';
+            if (this.value >= 5) return '#f59e0b';
+            return '#ef4444';
+        },
+        get label() { return LABELS[this.value] || ''; },
+
+        angleFromEvent(e) {
+            const rect = this.$el.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            const dx = touch.clientX - (rect.left + rect.width / 2);
+            const dy = touch.clientY - (rect.top + rect.height / 2);
+            return Math.atan2(dy, dx) * 180 / Math.PI;
+        },
+
+        startDrag(e) {
+            this.dragging = true;
+            this.startAngle = this.angleFromEvent(e);
+            this.startValue = this.value;
+        },
+        onDrag(e) {
+            if (!this.dragging) return;
+            let delta = this.angleFromEvent(e) - this.startAngle;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            const newVal = Math.round(this.startValue + delta / RANGE_DEG * 10);
+            this.value = Math.min(10, Math.max(0, newVal));
+        },
+        stopDrag() { this.dragging = false; },
+        increment() { if (this.value < 10) this.value++; },
+        decrement() { if (this.value > 0) this.value--; },
+    };
+}
+</script>
+@endpush
 @endsection
