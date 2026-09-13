@@ -821,7 +821,7 @@ class TrainingSessionController extends Controller
     public function editSeries(string $group)
     {
         $sessions = TrainingSession::where('recurrence_group_id', $group)
-            ->with(['coTrainers', 'trainingGroups.swimmers' => fn($q) => $q->where('active', true)])
+            ->with(['coTrainers', 'trainingGroups.swimmers' => fn($q) => $q->where('active', true), 'hallBookings.resource'])
             ->orderBy('date')
             ->get();
 
@@ -839,6 +839,8 @@ class TrainingSessionController extends Controller
                               ->orderBy('lastname')->orderBy('firstname')->get();
         $coTrainerIds   = $rep->coTrainers->pluck('id')->toArray();
         $groupIds       = $rep->trainingGroups->pluck('id')->toArray();
+        $allResources   = \App\Models\HallResource::where('active', true)->orderBy('sort_order')->get();
+        $bookedResourceIds = $rep->hallBookings->pluck('hall_resource_id')->toArray();
 
         // Permanent series exclusions (swimmers who opted out of the whole series)
         $exclusions = \App\Models\SwimmerSeriesExclusion::where('recurrence_group_id', $group)
@@ -871,7 +873,8 @@ class TrainingSessionController extends Controller
         return view('trainer.sessions.edit-series', compact(
             'rep', 'last', 'sessions', 'futureSessions', 'isExpired',
             'group', 'groups', 'allGroups', 'allTrainers', 'coTrainerIds', 'groupIds',
-            'exclusions', 'expectedCount', 'preAbsentCounts', 'attendedCounts'
+            'exclusions', 'expectedCount', 'preAbsentCounts', 'attendedCounts',
+            'allResources', 'bookedResourceIds'
         ));
     }
 
@@ -894,9 +897,11 @@ class TrainingSessionController extends Controller
             'groups.*'          => ['exists:training_groups,id'],
             'co_trainer_ids'    => ['nullable', 'array'],
             'co_trainer_ids.*'  => ['exists:users,id'],
-            'max_participants'  => ['nullable', 'integer', 'min:1', 'max:999'],
-            'registration_open' => ['nullable', 'boolean'],
-            'guest_group_id'    => ['nullable', 'exists:training_groups,id'],
+            'max_participants'    => ['nullable', 'integer', 'min:1', 'max:999'],
+            'registration_open'  => ['nullable', 'boolean'],
+            'guest_group_id'     => ['nullable', 'exists:training_groups,id'],
+            'hall_resource_ids'  => ['nullable', 'array'],
+            'hall_resource_ids.*'=> ['exists:hall_resources,id'],
         ]);
 
         $groupIds     = $request->input('groups', []);
@@ -915,17 +920,41 @@ class TrainingSessionController extends Controller
             $seriesData['guest_group_id'] = null;
         }
 
+        $syncLanes   = $request->boolean('manage_lanes');
+        $resourceIds = $syncLanes ? ($request->input('hall_resource_ids', [])) : [];
+
         $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
         $count = 0;
         foreach ($futureSessions as $s) {
             $s->update($seriesData);
             $s->trainingGroups()->sync($groupIds);
             $s->coTrainers()->sync($coTrainerIds);
-            $s->hallBookings()->update([
-                'start_time' => $data['start_time'],
-                'end_time'   => $data['end_time'] ?? null,
-                'label'      => $data['title'],
-            ]);
+
+            if ($syncLanes) {
+                $s->hallBookings()->delete();
+                foreach ($resourceIds as $resourceId) {
+                    \App\Models\HallBooking::updateOrCreate(
+                        [
+                            'hall_resource_id'    => $resourceId,
+                            'day_of_week'         => $s->date->dayOfWeekIso,
+                            'training_session_id' => $s->id,
+                        ],
+                        [
+                            'start_time'    => $data['start_time'],
+                            'end_time'      => $data['end_time'] ?? null,
+                            'label'         => $data['title'],
+                            'type'          => 'training',
+                            'created_by_id' => auth()->id(),
+                        ]
+                    );
+                }
+            } else {
+                $s->hallBookings()->update([
+                    'start_time' => $data['start_time'],
+                    'end_time'   => $data['end_time'] ?? null,
+                    'label'      => $data['title'],
+                ]);
+            }
             $count++;
         }
 

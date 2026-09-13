@@ -232,6 +232,35 @@ function seriesEditForm() {
                 </div>
             </div>
 
+            {{-- ── Bahnverteilung ─────────────────────────────────────────── --}}
+            <div class="border-t border-gray-100 pt-5 space-y-3">
+                <h3 class="text-sm font-semibold text-gray-700">Bahnverteilung</h3>
+                <input type="hidden" name="manage_lanes" value="1">
+                @if($allResources->isEmpty())
+                    <p class="text-xs text-gray-400">Keine aktiven Hallensegmente konfiguriert.</p>
+                @else
+                    <p class="text-xs text-gray-400">
+                        Markierte Ressourcen werden für alle zukünftigen Einheiten dieser Serie gebucht und überschreiben bestehende Bahnbuchungen.
+                    </p>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        @foreach($allResources as $resource)
+                            <label class="flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 select-none">
+                                <input type="checkbox"
+                                       name="hall_resource_ids[]"
+                                       value="{{ $resource->id }}"
+                                       {{ in_array($resource->id, $bookedResourceIds) ? 'checked' : '' }}
+                                       class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/30 flex-shrink-0">
+                                @if($resource->color)
+                                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $resource->color }}"></span>
+                                @endif
+                                <span class="flex-1 text-sm text-gray-700 truncate">{{ $resource->name }}</span>
+                                <span class="text-xs text-gray-400 flex-shrink-0">{{ $resource->type_label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
             <div class="flex items-center gap-3 pt-2">
                 <button type="submit"
                         class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
