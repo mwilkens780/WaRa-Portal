@@ -3,7 +3,7 @@
 @section('page-title', $session->title)
 
 @section('content')
-<div class="mt-2 space-y-6" x-data="{ activeTab: 'attendance' }">
+<div class="mt-2 space-y-6" x-data="{ activeTab: '{{ session('active_tab', 'attendance') }}' }">
 
     {{-- Session-Info --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

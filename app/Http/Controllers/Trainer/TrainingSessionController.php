@@ -651,7 +651,7 @@ class TrainingSessionController extends Controller
             $data
         );
 
-        return back()->with('success', 'Trainereinschätzung gespeichert.');
+        return back()->with('success', 'Trainereinschätzung gespeichert.')->with('active_tab', 'diary');
     }
 
     public function diaryOverview(Request $request)
