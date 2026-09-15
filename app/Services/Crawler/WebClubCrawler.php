@@ -1035,11 +1035,14 @@ class WebClubCrawler
 
     private function parseDisciplineFromLabel(string $label): ?string
     {
-        if (preg_match('/frei|freistil|free|crawl/i', $label))        return 'F';
-        if (preg_match('/brust|breaststroke/i', $label))              return 'B';
-        if (preg_match('/rücken|back|backstroke/i', $label))          return 'R';
-        if (preg_match('/schmetterling|butterfly|delphin/i', $label)) return 'S';
+        // "Lagen" MUSS zuerst geprüft werden: Lagen-Wettkämpfe führen im Titel
+        // häufig die Einzelstrecken auf ("200 m Lagen (S-R-B-F)"). Stünde Freistil
+        // vorne, würden solche Wettkämpfe als Freistil gespeichert.
         if (preg_match('/lagen|medley|individual/i', $label))         return 'L';
+        if (preg_match('/schmetterling|butterfly|delphin/i', $label)) return 'S';
+        if (preg_match('/brust|breaststroke/i', $label))              return 'B';
+        if (preg_match('/rücken|ruecken|back|backstroke/i', $label))  return 'R';
+        if (preg_match('/frei|freistil|free|crawl/i', $label))        return 'F';
         return null;
     }
 

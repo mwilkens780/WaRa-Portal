@@ -29,19 +29,26 @@ class DsvDataCrawler
     // Default-StateID für Schleswig-Holstein; wird durch Admin-Einstellungen überschrieben
     private const DEFAULT_STATE_IDS = [14];
 
-    private const DISCIPLINE_MAP = [
-        'freistil'      => 'F',
-        'brust'         => 'B',
-        'rücken'        => 'R',
-        'ruecken'       => 'R',
-        'schmetterling' => 'S',
+    /**
+     * Reihenfolge ist entscheidend: 'lagen' MUSS vor den Einzellagen stehen.
+     * Lagen-Wettkämpfe führen im Titel oft die Einzelstrecken auf
+     * ("200 m Lagen (S-R-B-F)") – sonst gewinnt fälschlich Freistil.
+     */
+    private const DISCIPLINE_STEMS = [
         'lagen'         => 'L',
         'medley'        => 'L',
-    ];
-
-    private const GENDER_WORDS = [
-        'männlich' => 'M', 'maennlich' => 'M', 'männer' => 'M', 'maenner' => 'M', 'male' => 'M',
-        'weiblich' => 'F', 'frauen'    => 'F', 'female' => 'F',
+        'schmetterling' => 'S',
+        'delphin'       => 'S',
+        'butterfly'     => 'S',
+        'brust'         => 'B',
+        'breaststroke'  => 'B',
+        'rücken'        => 'R',
+        'ruecken'       => 'R',
+        'backstroke'    => 'R',
+        'freistil'      => 'F',
+        'kraul'         => 'F',
+        'freestyle'     => 'F',
+        'frei'          => 'F',
     ];
 
     public function __construct(private WaScoringService $waScoring) {}
@@ -231,54 +238,114 @@ class DsvDataCrawler
 
     private function extractResults(array $lines): array
     {
-        $results     = [];
-        $currentEvent = null;
+        $results         = [];
+        $currentEvent    = null;
+        $eventHasResults = false;
 
         foreach ($lines as $line) {
-            // Event-Header erkennen: "WK 1 100 m Freistil männlich" etc.
-            $event = $this->detectEventHeader($line);
-            if ($event !== null) {
-                $currentEvent = $event;
+            // 1) Ergebniszeilen haben Vorrang – sie dürfen nie als Header gelesen werden.
+            if ($currentEvent !== null) {
+                $result = $this->detectResultRow($line, $currentEvent);
+                if ($result) {
+                    $results[]       = $result;
+                    $eventHasResults = true;
+                    continue;
+                }
+            }
+
+            // 2) Überschrift erkannt. Kann sie nicht eindeutig klassifiziert werden
+            //    (Staffel, unbekannte Disziplin), wird currentEvent bewusst auf null
+            //    gesetzt. Sonst würden die folgenden Ergebnisse dem VORHERIGEN
+            //    Wettkampf zugeordnet – die Ursache für vertauschte Lagen/Freistil-Zeiten.
+            if ($this->looksLikeEventHeader($line)) {
+                $currentEvent    = $this->detectEventHeader($line);
+                $eventHasResults = false;
                 continue;
             }
 
-            if (!$currentEvent) continue;
-
-            // Ergebnis-Zeile erkennen: Beginnt mit Platzzahl, enthält Zeitangabe
-            $result = $this->detectResultRow($line, $currentEvent);
-            if ($result) {
-                $results[] = $result;
+            // 3) Das Geschlecht steht oft erst in der Folgezeile der Überschrift
+            //    ("WK 12  200 m Lagen" / "weiblich  Jahrgang: 2009-2011").
+            //    Nur zwischen Überschrift und erstem Ergebnis nachtragen, damit
+            //    spätere Zeilen (Vereinsnamen, Fußzeilen) nichts überschreiben.
+            if ($currentEvent !== null && !$eventHasResults && $currentEvent['gender'] === 'X') {
+                $gender = $this->genderFromText($line);
+                if ($gender !== 'X') $currentEvent['gender'] = $gender;
             }
         }
 
         return $results;
     }
 
+    /**
+     * Erkennt, ob eine Zeile eine Wettkampf-Überschrift ankündigt – unabhängig
+     * davon, ob sie anschließend klassifiziert werden kann.
+     */
+    private function looksLikeEventHeader(string $line): bool
+    {
+        if ($this->parseDistance($line) === null) return false;
+
+        // Staffeln gelten als Überschrift (und führen zum Reset).
+        if ($this->isRelay($line)) return true;
+
+        // "WK 12 ..." / "Wettkampf 12 ..." am Zeilenanfang
+        if (preg_match('/^\s*(WK|Wettkampf)\s*\d+/iu', $line)) return true;
+
+        return $this->disciplineFromText($line) !== null;
+    }
+
     private function detectEventHeader(string $line): ?array
     {
-        // Muster: "WK 1 100m Freistil, männlich" oder "WK1 100 m Brust männlich Jahrgang 2010-2012"
-        // oder "100m Freistil Männer" (ohne WK-Präfix)
-        $pattern = '/(?:WK\s*\d+\s+)?(\d+)\s*m\s+([A-Za-zäöüÄÖÜß]+)[\s,]+([A-Za-zäöüÄÖÜß]+)/iu';
-        if (!preg_match($pattern, $line, $m)) return null;
+        // Staffeln liefern keine Einzelergebnisse – bewusst verwerfen.
+        if ($this->isRelay($line)) return null;
 
-        $distance   = (int) $m[1];
-        $discipline = self::DISCIPLINE_MAP[mb_strtolower($m[2])] ?? null;
-        $genderWord = mb_strtolower($m[3]);
-        $gender     = self::GENDER_WORDS[$genderWord] ?? 'X';
+        $distance   = $this->parseDistance($line);
+        $discipline = $this->disciplineFromText($line);
 
-        // Fallback: zweites Wort könnte der Geschlechtsbegriff sein
-        if ($gender === 'X') {
-            foreach (self::GENDER_WORDS as $word => $code) {
-                if (mb_stripos($line, $word) !== false) {
-                    $gender = $code;
-                    break;
-                }
-            }
+        if (!$discipline || $distance === null) return null;
+
+        return [
+            'discipline' => $discipline,
+            'distance'   => $distance,
+            'gender'     => $this->genderFromText($line),
+        ];
+    }
+
+    /**
+     * Liest die Streckenangabe ("100 m", "100m", "1500 m").
+     * Das 'm' muss von Trennzeichen oder Zeilenende gefolgt sein, damit
+     * Vereinsnamen wie "SV 1900 München" nicht als Strecke gelesen werden.
+     * Geschützte Leerzeichen (U+00A0) kommen in PDF-Extrakten häufig vor.
+     */
+    private function parseDistance(string $line): ?int
+    {
+        if (!preg_match('/\b(\d{2,4})[\s\x{00A0}]*m(?=[\s\x{00A0},.:;]|$)/iu', $line, $m)) {
+            return null;
         }
+        $distance = (int) $m[1];
+        return $distance > 0 ? $distance : null;
+    }
 
-        if (!$discipline || $distance <= 0) return null;
+    private function isRelay(string $line): bool
+    {
+        return mb_stripos($line, 'staffel') !== false
+            || preg_match('/\b\d\s*[x×]\s*\d+/iu', $line) === 1;
+    }
 
-        return ['discipline' => $discipline, 'distance' => $distance, 'gender' => $gender];
+    private function disciplineFromText(string $text): ?string
+    {
+        $t = mb_strtolower($text);
+        foreach (self::DISCIPLINE_STEMS as $stem => $code) {
+            if (str_contains($t, $stem)) return $code;
+        }
+        return null;
+    }
+
+    private function genderFromText(string $line): string
+    {
+        // Weiblich zuerst: "female" enthält "male".
+        if (preg_match('/weiblich|frauen|mädchen|maedchen|female/iu', $line)) return 'F';
+        if (preg_match('/männlich|maennlich|männer|maenner|jungen|male/iu', $line)) return 'M';
+        return 'X';
     }
 
     private function detectResultRow(string $line, array $event): ?array
