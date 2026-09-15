@@ -110,20 +110,18 @@ class DsvDataCrawler
 
     private function processMeet(string $meetId, int $year, PdfParser $parser): string
     {
-        // Duplikat-Check anhand der import_hash-Kennung
-        $importHash = 'dsvdata_' . $meetId;
-        if (Competition::where('import_hash', $importHash)->exists()) {
-            return 'skipped';
-        }
+        $importHash  = 'dsvdata_' . $meetId;
+        $existing    = Competition::where('import_hash', $importHash)->first();
 
-        // PDF herunterladen
+        // PDF immer herunterladen und parsen — nur so können nachträglich
+        // gelöschte oder fehlerhaft importierte Ergebnisse zuverlässig nachgezogen werden.
+        // persistResults() hat eine eigene Duplikat-Prüfung pro Ergebnis.
         $pdfUrl  = self::FILE_URL . "?F=WKResults&File={$meetId}.pdf";
         $pdfData = $this->downloadPdf($pdfUrl);
         if (!$pdfData) {
-            return 'skipped';  // Kein Protokoll vorhanden
+            return 'skipped';
         }
 
-        // PDF parsen
         try {
             $pdf     = $parser->parseContent($pdfData);
             $rawText = $pdf->getText();
@@ -132,23 +130,26 @@ class DsvDataCrawler
             return 'errors';
         }
 
-        // Wettkampfdaten aus PDF extrahieren
         $meetData = $this->parsePdfText($rawText, $meetId, $year);
         if (!$meetData || empty($meetData['results'])) {
-            $this->logImport($meetId, $pdfUrl, null, 'skipped', 'Keine Ergebnisse im PDF erkannt');
+            if (!$existing) {
+                $this->logImport($meetId, $pdfUrl, null, 'skipped', 'Keine Ergebnisse im PDF erkannt');
+            }
             return 'skipped';
         }
 
-        // In DB speichern
-        $competition = $this->persistMeet($meetData, $pdfUrl, $importHash);
+        // Competition erstellen (falls neu) oder vorhandene verwenden
+        $competition = $existing ?? $this->persistMeet($meetData, $pdfUrl, $importHash);
         $count       = $this->persistResults($competition, $meetData['results']);
 
-        $this->logImport($meetId, $pdfUrl, $competition->id,
-            $count > 0 ? 'success' : 'skipped',
-            $count > 0 ? "{$count} eigene Ergebnisse importiert" : 'Keine eigenen Schwimmer'
-        );
+        if ($count > 0) {
+            $this->logImport($meetId, $pdfUrl, $competition->id, 'success',
+                ($existing ? 'Nachgezogen: ' : '') . "{$count} eigene Ergebnisse importiert"
+            );
+            return 'imported';
+        }
 
-        return $count > 0 ? 'imported' : 'skipped';
+        return 'skipped';
     }
 
     // ── PDF-Parsing ─────────────────────────────────────────────────────────────
