@@ -626,6 +626,48 @@ function extractUrlFromOnclick(onclick) {
     return m ? m[1] : null;
 }
 
+// Diagnose: sucht den globalen Saison-Umschalter.
+//
+// Die Veranstaltungsseite hat keinen Saison-Filter – in WebClub ist die Saison eine
+// benutzerbezogene Einstellung (optAKTSAS / aktsaison, Anzeige z.B. "2026/2027").
+// Diese Funktion protokolliert alle Elemente, die als Umschalter in Frage kommen,
+// damit der Mechanismus belegt statt geraten werden kann.
+async function logSeasonSwitchCandidates(page) {
+    try {
+        const found = await page.evaluate(() => {
+            const out = [];
+            const re  = /(saison|season|20\d{2}\s*[\/\-]\s*\d{2,4})/i;
+
+            for (const el of document.querySelectorAll('a, button, [onclick], [role="button"]')) {
+                const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!txt || txt.length > 70 || !re.test(txt)) continue;
+                out.push({
+                    tag:     el.tagName.toLowerCase(),
+                    txt,
+                    href:    (el.getAttribute('href')    || '').slice(0, 120),
+                    onclick: (el.getAttribute('onclick') || '').slice(0, 140),
+                    id:      el.id || '',
+                    cls:     (el.className || '').toString().slice(0, 60),
+                });
+                if (out.length >= 25) break;
+            }
+            return { url: location.href, out };
+        });
+
+        log(`Suche globalen Saison-Umschalter (Seite: ${found.url}) – ${found.out.length} Kandidaten:`);
+        for (const c of found.out) {
+            log(`    <${c.tag}> "${c.txt}" id="${c.id}" class="${c.cls}"`
+                + (c.href    ? ` href="${c.href}"` : '')
+                + (c.onclick ? ` onclick="${c.onclick}"` : ''));
+        }
+        if (found.out.length === 0) {
+            log('    (keine – der Umschalter liegt vermutlich in einem Menue, das erst geoeffnet werden muss)');
+        }
+    } catch (e) {
+        log('Saison-Umschalter-Diagnose fehlgeschlagen: ' + e.message);
+    }
+}
+
 // Iteriert durch alle Saison-Optionen im WebClub-Veranstaltungsfilter und sammelt
 // Veranstaltungslinks aus jeder Saison. Ohne Saison-Selector: Fallback auf einzelnen Pass.
 async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) {
@@ -687,19 +729,24 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
         log(`    [${s.idx}] name="${s.name}" id="${s.id}" (${s.count}) → ${s.options.join(' | ')}`);
     }
 
-    const SEASON_RE = /^\s*20\d{2}\s*[\/\-]\s*\d{2,4}\s*$/;   // "2026/2027", "2026/27"
-    let picked =
-        // 1. Saison-Format in mindestens zwei Optionen – das eindeutige Merkmal
-        selectInfos.find(s => s.options.filter(t => SEASON_RE.test(t)).length >= 2)
+    // Auf der Veranstaltungsseite sind ALLE Jahres-Dropdowns Punktetabellen
+    // (tabFINASCM, tabFINALCM, tabMASTERSSCM, tabMASTERSLCM, tabDBS, tabRUDOLPH).
+    // Sie heissen durchweg "tab..." und haben nichts mit der Saison zu tun – ein
+    // Umschalten loest dort keinerlei Nachladung aus. Deshalb strikt ausschliessen.
+    const SEASON_RE     = /^\s*20\d{2}\s*[\/\-]\s*\d{2,4}\s*$/;   // "2026/2027", "2026/27"
+    const isPointsTable = s => /^tab/i.test(s.name);
+
+    const picked =
+        // 1. Saison-Format ("2026/2027") in mindestens zwei Optionen
+        selectInfos.find(s => !isPointsTable(s)
+            && s.options.filter(t => SEASON_RE.test(t)).length >= 2)
         // 2. Benennung: WebClub nutzt intern "SAS" fuer Saison (optAKTSAS, aktsaison)
-        ?? selectInfos.find(s => /sas\b|saison|season/i.test(`${s.name} ${s.id}`))
-        // 3. Notnagel: Jahreszahlen, aber bekannte Fremd-Dropdowns ausschliessen
-        ?? selectInfos.find(s =>
-              !/fina|masters|lcm|scm|punkt/i.test(`${s.name} ${s.id}`)
-              && s.options.filter(t => /^\s*20\d{2}\s*$/.test(t)).length >= 2);
+        ?? selectInfos.find(s => !isPointsTable(s)
+            && /sas\b|saison|season/i.test(`${s.name} ${s.id}`));
 
     if (!picked) {
-        log('Kein Saison-Selector gefunden – ein Pass mit aktueller Anzeige');
+        log('Kein Saison-Selector auf dieser Seite – die Saison ist in WebClub global.');
+        await logSeasonSwitchCandidates(page);
         return collectEventLinks(page, dateFrom, dateTo, capturedHtml);
     }
 
