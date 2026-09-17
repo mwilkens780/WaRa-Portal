@@ -13,7 +13,6 @@ use App\Models\Setting;
 use App\Models\TrainingGroup;
 use App\Models\User;
 use App\Services\Import\ResultReconciler;
-use App\Services\TraceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
@@ -209,7 +208,11 @@ class WebClubCrawler
             $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId, $raw['events'] ?? []);
             $this->syncRelayResults($competition, $raw['relay_results'] ?? [], $raw['events'] ?? []);
 
-            TraceService::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
+            // Hier stand ein Aufruf einer Trace-Methode, die es nie gab – AppTrace kennt
+            // nur ERROR und WARNING. Die Exception rollte die umgebende Transaktion
+            // zurueck und verwarf damit den neuen Wettkampf samt seiner Ergebnisse.
+            // Die Anlage ist ohnehin oben im ImportLog protokolliert.
+            Log::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
             return ['created', $resultsSynced, $entriesSynced];
         }
 
