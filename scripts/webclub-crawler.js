@@ -577,7 +577,8 @@ async function scrapeCompetitions(page) {
     for (const link of eventLinks) {
         const id = extractIdFromUrl(link.url);
         const d  = detailMap.get(id);
-        const ev = eventsMap.get(id) || { sessions: [], events: [], results: [], entries: [] };
+        const ev = eventsMap.get(id)
+            || { sessions: [], events: [], results: [], entries: [], relayResults: [], relayEntries: [] };
         competitions.push({
             webclub_id:        id,
             webclub_url:       link.url,
@@ -604,6 +605,8 @@ async function scrapeCompetitions(page) {
             type:              null,
             entries:           ev.entries ?? [],
             results:           ev.results,
+            relay_results:     ev.relayResults ?? [],
+            relay_entries:     ev.relayEntries ?? [],
             sessions:          ev.sessions,
             events:            ev.events,
         });
@@ -1114,7 +1117,10 @@ function parseWebClubTime(z) {
 // Die XHR feuert automatisch bei jeder Navigation – suche daher in allBodies, nicht nur meldungenBodies.
 // Feldnamen: p=Name, j=Jahrgang, s=Geschlecht, z=Meldezeit, n=Event-Nr, pid=Person-ID, d=DSV-ID, a=Lagen (Staffel)
 function parseMeldungenFromXhr(bodies) {
-    const entries = [];
+    const entries   = [];
+    const relays    = [];
+    let relayLogged = false;
+
     for (const body of bodies) {
         try {
             const data = JSON.parse(body);
@@ -1127,13 +1133,30 @@ function parseMeldungenFromXhr(bodies) {
             log(`Meldungen-XHR (${list.length} Einträge, ec=${data.ec ?? '?'} sc=${data.sc ?? '?'}): ${JSON.stringify(list[0])}`);
 
             for (const item of list) {
-                // Staffel-Einträge überspringen (a > 1 = mehrere Schwimmer/Lagen)
-                if (parseInt(item.a ?? '1', 10) > 1) continue;
-
                 const name = (item.p ?? item.name ?? '').trim();
                 if (!name) continue;
 
                 const timeMs = parseWebClubTime(item.z ?? item.mz ?? 0);
+
+                // a > 1 = Staffelmeldung (a = Anzahl Lagen/Schwimmer)
+                const legs = parseInt(item.a ?? '1', 10) || 1;
+                if (legs > 1) {
+                    if (!relayLogged) {
+                        log(`Staffel-Meldung (Rohdaten zur Feldprüfung): ${JSON.stringify(item)}`);
+                        relayLogged = true;
+                    }
+                    relays.push({
+                        team_name:    name,
+                        relay_legs:   legs,
+                        gender:       normalizeGender(String(item.s ?? '')),
+                        discipline:   mapDiscipline(item.g ?? null),
+                        distance:     parseInt(item.l ?? '0', 10) || null,
+                        time_ms:      timeMs || null,
+                        event_number: parseInt(item.n ?? '0', 10) || null,
+                    });
+                    continue;
+                }
+
                 entries.push({
                     athlete_name:      name,
                     birth_year:        String(item.j ?? item.jg ?? '').trim() || null,
@@ -1146,10 +1169,10 @@ function parseMeldungenFromXhr(bodies) {
                     event_number:      parseInt(item.n ?? '0', 10) || null,
                 });
             }
-            if (entries.length > 0) break; // nur erste passende Response verarbeiten
+            if (entries.length > 0 || relays.length > 0) break; // nur erste passende Response verarbeiten
         } catch (_) {}
     }
-    return entries;
+    return { entries, relays };
 }
 
 // Parst Ergebnis-XHR aus dem Tab-Bucket.
@@ -1157,7 +1180,10 @@ function parseMeldungenFromXhr(bodies) {
 // Echte Feldnamen (entdeckt per Discovery-Log): p=Name, j=Jahrgang, s=Geschlecht,
 // z=Zeit (MM*10000+SS*100+cs), pl=Platz, n=Event-Nr (wkfNUMMER), pid=Person-ID, a=Anzahl Lagen
 function parseResultsFromXhr(bodies) {
-    const results = [];
+    const results   = [];
+    const relays    = [];
+    let relayLogged = false;
+
     for (const body of bodies) {
         try {
             const data = JSON.parse(body);
@@ -1169,14 +1195,34 @@ function parseResultsFromXhr(bodies) {
             }
             log(`Ergebnis-XHR (${list.length} Einträge): ${JSON.stringify(list[0])}`);
             for (const item of list) {
-                // Staffel-Ergebnisse überspringen (a > 1 = mehrere Lagen, kein einzelner Schwimmer)
-                if (parseInt(item.a ?? '1', 10) > 1) continue;
                 // z=0 → DNS/DQ – kein auswertbares Ergebnis
                 const timeMs = parseWebClubTime(item.z);
                 if (!timeMs) continue;
 
                 const name = (item.p ?? '').trim();
                 if (!name) continue;
+
+                // a > 1 = Staffel (a = Anzahl Lagen/Schwimmer). p ist dann der
+                // Mannschaftsname, nicht eine Person. Staffeln werden getrennt
+                // zurückgegeben, damit eine falsche Feldannahme die Einzel-
+                // ergebnisse nicht beeinträchtigt.
+                const legs = parseInt(item.a ?? '1', 10) || 1;
+                if (legs > 1) {
+                    if (!relayLogged) {
+                        log(`Staffel-Ergebnis (Rohdaten zur Feldprüfung): ${JSON.stringify(item)}`);
+                        relayLogged = true;
+                    }
+                    relays.push({
+                        team_name:    name,
+                        relay_legs:   legs,
+                        placement:    parseInt(item.pl ?? '0', 10) || null,
+                        gender:       normalizeGender(String(item.s ?? '')),
+                        time_ms:      timeMs,
+                        event_number: parseInt(item.n ?? '0', 10) || null,
+                        webclub_rek:  String(item.rek ?? '').trim(),
+                    });
+                    continue;
+                }
 
                 results.push({
                     placement:         parseInt(item.pl ?? '0', 10) || null,
@@ -1192,7 +1238,7 @@ function parseResultsFromXhr(bodies) {
             }
         } catch (_) {}
     }
-    return results;
+    return { results, relays };
 }
 
 async function scrapeCompetitionTabs(page, eventLinks) {
@@ -1280,7 +1326,9 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             mergePflichtzeiten(allBodies, events);
             // dorek-XHR kann schon vor dem Tab-Klick im beforeTab landen (auto-load),
             // daher allBodies statt nur xhrBucket verwenden.
-            const results   = parseResultsFromXhr(allBodies);
+            const parsedResults = parseResultsFromXhr(allBodies);
+            const results       = parsedResults.results;
+            const relayResults  = parsedResults.relays;
 
             // Meldungen-Tab aktivieren → Meldungen-XHR erfassen
             xhrBucket.length = 0;
@@ -1288,10 +1336,13 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             if (hasMeldungen) await page.waitForTimeout(2000);
             const meldungenBodies = [...xhrBucket];
             // allBodies einschließen: Meldungen-XHR feuert automatisch (wie dorek) → landet in beforeTab
-            const entries = parseMeldungenFromXhr([...allBodies, ...meldungenBodies]);
+            const parsedEntries = parseMeldungenFromXhr([...allBodies, ...meldungenBodies]);
+            const entries       = parsedEntries.entries;
+            const relayEntries  = parsedEntries.relays;
 
-            log(`  → ${events.length} Events, ${results.length} Ergebnisse, ${entries.length} Meldungen`);
-            result.set(verID, { sessions, events, results, entries });
+            log(`  → ${events.length} Events, ${results.length} Ergebnisse, ${entries.length} Meldungen, `
+                + `${relayResults.length} Staffel-Ergebnisse, ${relayEntries.length} Staffel-Meldungen`);
+            result.set(verID, { sessions, events, results, entries, relayResults, relayEntries });
 
             if (result.size >= neededIds.size) {
                 log('Alle benötigten Wettkämpfe gefunden – Tab-Pass beendet');

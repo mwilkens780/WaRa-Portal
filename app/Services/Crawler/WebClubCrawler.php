@@ -7,6 +7,7 @@ use App\Models\CompetitionEntry;
 use App\Models\CompetitionEvent;
 use App\Models\CompetitionResult;
 use App\Models\ImportLog;
+use App\Models\RelayResult;
 use App\Models\Season;
 use App\Models\Setting;
 use App\Models\TrainingGroup;
@@ -22,6 +23,12 @@ use Symfony\Component\Process\Process;
 class WebClubCrawler
 {
     private const SOURCE = 'webclub_crawler';
+
+    /** Ueberschreibbar per Setting 'crawler.own_club_names' (JSON-Array). */
+    private const DEFAULT_OWN_CLUB_NAMES = [
+        'SG Wasserratten Norderstedt',
+        'SG Wasserratten',
+    ];
 
     // ── Öffentliche API ──────────────────────────────────────────────────────
 
@@ -192,6 +199,7 @@ class WebClubCrawler
             $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
             $entriesSynced = $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId, $raw['events'] ?? []);
             $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId, $raw['events'] ?? []);
+            $this->syncRelayResults($competition, $raw['relay_results'] ?? [], $raw['events'] ?? []);
 
             TraceService::info("WebClubCrawler: Wettkampf neu angelegt – {$name}", ['id' => $competition->id]);
             return ['created', $resultsSynced, $entriesSynced];
@@ -242,6 +250,7 @@ class WebClubCrawler
         $this->syncCompetitionEvents($competition, $raw['events'] ?? [], $raw['sessions'] ?? []);
         $entriesSynced = $this->syncEntries($competition, $raw['entries'] ?? [], $usersByWcId, $raw['events'] ?? []);
         $resultsSynced = $this->syncResults($competition, $raw['results'] ?? [], $usersByWcId, $raw['events'] ?? []);
+        $this->syncRelayResults($competition, $raw['relay_results'] ?? [], $raw['events'] ?? []);
 
         return [$updates ? 'updated' : 'skipped', $resultsSynced, $entriesSynced];
     }
@@ -519,6 +528,115 @@ class WebClubCrawler
                 ]
             );
         }
+    }
+
+    /**
+     * Importiert Staffel-Ergebnisse des eigenen Vereins nach relay_results.
+     *
+     * Konvention wie im DSV7-Pfad: distance = Strecke PRO BAHN (50 bei einer 4x50),
+     * die Anzahl der Wiederholungen steckt in relay_legs des Wettkampfs.
+     * discipline nutzt den normalen Code, 'L' = Lagenstaffel.
+     * Geschlecht 'X' bedeutet gemischt (Mixed) – so kodiert es auch DSV7.
+     */
+    private function syncRelayResults(Competition $competition, array $relays, array $webclubEvents = []): int
+    {
+        if (empty($relays)) return 0;
+
+        $wcEventDefs = [];
+        foreach ($webclubEvents as $ev) {
+            $nr = (int) ($ev['number'] ?? 0);
+            if ($nr > 0 && !empty($ev['discipline']) && !empty($ev['distance'])) {
+                $wcEventDefs[$nr] = [
+                    'discipline' => $ev['discipline'],
+                    'distance'   => (int) $ev['distance'],
+                    'gender'     => $ev['gender'] ?? 'X',
+                ];
+            }
+        }
+
+        $ownClubNames = Setting::getJson('crawler.own_club_names', self::DEFAULT_OWN_CLUB_NAMES);
+
+        // Bulk-Duplikat-Check, gleicher Schluessel wie in den DSV7-/CSV-Importern
+        $existingKeys = RelayResult::where('competition_id', $competition->id)
+            ->get(['discipline', 'distance', 'club_name', 'time_ms'])
+            ->mapWithKeys(fn($r) => ["{$r->discipline}_{$r->distance}_{$r->club_name}_{$r->time_ms}" => true]);
+
+        $portalEvents     = CompetitionEvent::where('competition_id', $competition->id)->get();
+        $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
+
+        $synced      = 0;
+        $skipForeign = 0;
+        $skipNoDef   = 0;
+
+        foreach ($relays as $relay) {
+            $teamName = trim((string) ($relay['team_name'] ?? ''));
+            if ($teamName === '' || empty($relay['time_ms'])) continue;
+
+            if (!$this->isOwnClub($teamName, $ownClubNames)) {
+                $skipForeign++;
+                continue;
+            }
+
+            $eventNumber = (int) ($relay['event_number'] ?? 0);
+            $def         = $eventNumber > 0 ? ($wcEventDefs[$eventNumber] ?? null) : null;
+
+            // Disziplin/Distanz bevorzugt aus der WebClub-Wettkampffolge,
+            // sonst aus den Feldern der Staffelzeile selbst.
+            $discipline = $def['discipline'] ?? ($relay['discipline'] ?? null);
+            $distance   = (int) ($def['distance'] ?? ($relay['distance'] ?? 0));
+
+            if (!$discipline || $distance <= 0) {
+                $skipNoDef++;
+                continue;
+            }
+
+            $timeMs = (int) $relay['time_ms'];
+            $key    = "{$discipline}_{$distance}_{$teamName}_{$timeMs}";
+            if (isset($existingKeys[$key])) continue;
+            $existingKeys[$key] = true;
+
+            $gender = $relay['gender'] ?? $def['gender'] ?? null;
+            if ($gender === 'X') $gender = null;
+
+            $event = $this->matchPortalEvent($portalByDiscDist, $discipline, $distance, $gender);
+
+            RelayResult::create([
+                'competition_id' => $competition->id,
+                'discipline'     => $discipline,
+                'distance'       => $distance,
+                'club_name'      => $teamName,
+                'time_ms'        => $timeMs,
+                'placement'      => $relay['placement'] ?? null,
+                'age_group'      => $event->age_group ?? null,
+                'gender'         => $gender,
+                'status'         => 'OK',
+            ]);
+            $synced++;
+        }
+
+        if ($synced > 0 || $skipForeign > 0 || $skipNoDef > 0) {
+            $parts = ["{$synced} Staffel-Ergebnisse importiert"];
+            if ($skipForeign > 0) $parts[] = "{$skipForeign} fremde Vereine (übersprungen)";
+            if ($skipNoDef > 0)   $parts[] = "{$skipNoDef} ohne Disziplin/Distanz";
+
+            ImportLog::create([
+                'source'         => self::SOURCE,
+                'status'         => $synced > 0 ? 'success' : 'skipped',
+                'competition_id' => $competition->id,
+                'message'        => 'Staffeln: ' . implode(' · ', $parts),
+            ]);
+        }
+
+        return $synced;
+    }
+
+    private function isOwnClub(string $teamName, array $ownClubNames): bool
+    {
+        foreach ($ownClubNames as $own) {
+            $own = trim((string) $own);
+            if ($own !== '' && mb_stripos($teamName, $own) !== false) return true;
+        }
+        return false;
     }
 
     /**
