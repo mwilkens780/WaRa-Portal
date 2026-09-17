@@ -634,6 +634,7 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
     function captureNextCompListXhr() {
         let body = null;
         let resolve;
+        const seen = [];   // Diagnose: alle gesehenen XHR, auch nicht passende
         const promise = new Promise(r => { resolve = r; });
         const handler = async (res) => {
             if (body) return;
@@ -641,6 +642,11 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
                 if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
                 if (res.status() < 200 || res.status() >= 300) return;
                 const text = await res.text();
+                seen.push({
+                    url:  res.url(),
+                    len:  text.length,
+                    head: text.slice(0, 110).replace(/\s+/g, ' '),
+                });
                 const isCompList = (text.includes('"list"') && text.includes('"id"') && text.includes('"d"'))
                     || (text.includes('<tr') && /\d{1,2}\.\d{1,2}\.\d{4}/.test(text) && text.length > 200);
                 if (!isCompList) return;
@@ -651,6 +657,7 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
         return {
             handler,
             getBody: () => body,
+            getSeen: () => seen,
             wait: (timeout = 5000) => Promise.race([promise, new Promise(r => setTimeout(() => r(null), timeout))]),
         };
     }
@@ -670,6 +677,20 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
     );
     const currentVal = await selEl.evaluate(s => s.value);
     log(`Saison-Selector gefunden (aktuell: "${options.find(o => o.value === currentVal)?.text ?? currentVal}"): ${options.map(o => o.text).join(', ')}`);
+
+    // Diagnose: Identität des Elements – belegt, ob wirklich der Saison-Filter
+    // bedient wird und nicht irgendein anderes Jahres-Dropdown der Seite.
+    try {
+        const info = await selEl.evaluate(s => ({
+            id:       s.id || '(ohne)',
+            name:     s.name || '(ohne)',
+            cls:      s.className || '(ohne)',
+            onchange: (s.getAttribute('onchange') || '(ohne)').slice(0, 120),
+            selects:  document.querySelectorAll('select').length,
+        }));
+        log(`Saison-Selector: id="${info.id}" name="${info.name}" class="${info.cls}" `
+            + `onchange="${info.onchange}" (${info.selects} select-Elemente auf der Seite)`);
+    } catch (_) {}
 
     const allLinks = new Map(); // url → link-Objekt, dedupliziert
 
@@ -717,7 +738,18 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
             page.off('response', capture.handler);
             html = capture.getBody();
             if (!html) {
-                log(`Saison "${opt.text}": keine XHR erhalten – übersprungen`);
+                // Diagnose: unterscheiden, ob gar kein Request ausgelöst wurde
+                // (dann reagiert die Seite nicht auf selectOption) oder ob Requests
+                // kamen, aber die Listen-Erkennung nicht griff.
+                const seen = capture.getSeen();
+                if (seen.length === 0) {
+                    log(`Saison "${opt.text}": KEIN Request ausgelöst – die Seite reagiert nicht auf die Auswahl`);
+                } else {
+                    log(`Saison "${opt.text}": ${seen.length} XHR gesehen, keine passte auf die Listen-Erkennung:`);
+                    for (const s of seen.slice(0, 6)) {
+                        log(`    ${s.len}B  ${s.url}  ::  ${s.head}`);
+                    }
+                }
                 continue;
             }
         }
