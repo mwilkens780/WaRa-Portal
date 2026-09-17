@@ -8,6 +8,7 @@ use App\Models\ImportLog;
 use App\Models\RelayResult;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Import\ResultReconciler;
 use App\Services\WaScoringService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -58,7 +59,14 @@ class DsvDataCrawler
         'frei'          => 'F',
     ];
 
-    public function __construct(private WaScoringService $waScoring) {}
+    private ResultReconciler $reconciler;
+
+    public function __construct(
+        private WaScoringService $waScoring,
+        ?ResultReconciler $reconciler = null
+    ) {
+        $this->reconciler = $reconciler ?? new ResultReconciler();
+    }
 
     public function getSourceId(): string { return 'dsvdata'; }
 
@@ -536,13 +544,25 @@ class DsvDataCrawler
             $userId = $this->matchSwimmer($result, $swimmers);
             if (!$userId) continue;
 
-            $exists = CompetitionResult::where([
+            $existing = CompetitionResult::where([
                 'competition_id' => $competition->id,
                 'user_id'        => $userId,
                 'discipline'     => $result['discipline'],
                 'distance'       => $result['distance'],
-            ])->exists();
-            if ($exists) continue;
+            ])->first();
+
+            // Schon vorhanden: nicht still ueberspringen, sondern gegen die
+            // Meldung dieser Quelle abgleichen.
+            if ($existing) {
+                $this->reconciler->reconcile($existing, [
+                    'discipline' => $result['discipline'],
+                    'distance'   => $result['distance'],
+                    'time_ms'    => $result['time_ms'],
+                    'placement'  => $result['place'] ?? null,
+                    'age_group'  => $result['age_group'] ?? null,
+                ], $this->getSourceId());
+                continue;
+            }
 
             $isPb = false;
             if ($result['time_ms'] > 0) {
@@ -568,6 +588,7 @@ class DsvDataCrawler
             CompetitionResult::create([
                 'competition_id'   => $competition->id,
                 'user_id'          => $userId,
+                'source'           => $this->getSourceId(),
                 'discipline'       => $result['discipline'],
                 'distance'         => $result['distance'],
                 'time_ms'          => $result['time_ms'],

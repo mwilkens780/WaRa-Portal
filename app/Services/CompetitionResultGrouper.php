@@ -73,9 +73,15 @@ class CompetitionResultGrouper
                     ->filter(fn($v) => $v !== null && $v !== '')
                     ->first() ?? '';
 
+                // Offene Quellen-Widersprüche aller zusammengeführten Zeilen bündeln
+                $discrepancies = $sameTimeGroup
+                    ->flatMap(fn($r) => $r->relationLoaded('discrepancies') ? $r->discrepancies : [])
+                    ->values();
+
                 return (object)[
                     'id'                   => $first->id,
                     'result_ids'           => $sameTimeGroup->pluck('id')->toArray(),
+                    'discrepancies'        => $discrepancies,
                     'user_id'              => $first->user_id,
                     'user'                 => $first->relationLoaded('user') ? $first->user : null,
                     'competition_id'       => $first->competition_id,

@@ -40,6 +40,13 @@ class CompetitionResult extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Offene Abweichungen zwischen den Importquellen (WebClub / DSV / DSV7). */
+    public function discrepancies()
+    {
+        return $this->hasMany(ResultDiscrepancy::class, 'competition_result_id')
+                    ->whereNull('resolved_at');
+    }
+
     public function getFormattedTimeAttribute(): string
     {
         return SwimmingTime::formatMs($this->time_ms);

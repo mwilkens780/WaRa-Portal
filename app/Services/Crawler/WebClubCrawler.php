@@ -12,6 +12,7 @@ use App\Models\Season;
 use App\Models\Setting;
 use App\Models\TrainingGroup;
 use App\Models\User;
+use App\Services\Import\ResultReconciler;
 use App\Services\TraceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
@@ -29,6 +30,13 @@ class WebClubCrawler
         'SG Wasserratten Norderstedt',
         'SG Wasserratten',
     ];
+
+    private ResultReconciler $reconciler;
+
+    public function __construct(?ResultReconciler $reconciler = null)
+    {
+        $this->reconciler = $reconciler ?? new ResultReconciler();
+    }
 
     // ── Öffentliche API ──────────────────────────────────────────────────────
 
@@ -411,6 +419,7 @@ class WebClubCrawler
         $skipNoEvent    = 0;
         $skipNoEventDef = 0;
         $skipDup        = 0;
+        $conflicts      = 0;
 
         foreach ($results as $result) {
             if (empty($result['athlete_name']) || empty($result['time_ms'])) continue;
@@ -447,34 +456,48 @@ class WebClubCrawler
             );
             if (!$event) $skipNoEvent++;
 
-            // Duplikat-Check aus In-Memory-Cache (kein DB-Query)
+            $gender = $result['gender'] ?? $def['gender'] ?? null;
+            if ($gender === 'X') $gender = null;
+
+            $wcRek  = trim((string) ($result['webclub_rek'] ?? ''));
+            $fields = [
+                'discipline' => $discipline,
+                'distance'   => $distance,
+                'gender'     => $gender,
+                'time_ms'    => (int) $result['time_ms'],
+                'placement'  => $result['placement'] ?? null,
+                'age_group'  => $event->age_group ?? null,
+            ];
+
+            // Existiert die Zeile bereits, wird sie nicht still uebersprungen,
+            // sondern gegen die Meldung dieser Quelle abgeglichen.
             $key = "{$user->id}_{$discipline}_{$distance}";
             if (isset($existingKeys[$key])) {
                 $skipDup++;
+                $existing = CompetitionResult::where('competition_id', $competition->id)
+                    ->where('user_id', $user->id)
+                    ->where('discipline', $discipline)
+                    ->where('distance', $distance)
+                    ->first();
+                if ($existing) {
+                    $conflicts += $this->reconciler->reconcile($existing, $fields, self::SOURCE);
+                }
                 continue;
             }
             $existingKeys[$key] = true;
 
-            $gender = $result['gender'] ?? $def['gender'] ?? null;
-            if ($gender === 'X') $gender = null;
-
-            $wcRek = trim((string) ($result['webclub_rek'] ?? ''));
-            CompetitionResult::create(array_filter([
+            CompetitionResult::create(array_filter($fields + [
                 'competition_id' => $competition->id,
                 'user_id'        => $user->id,
-                'discipline'     => $discipline,
-                'distance'       => $distance,
-                'gender'         => $gender,
-                'time_ms'        => (int) $result['time_ms'],
-                'placement'      => $result['placement'] ?? null,
-                'age_group'      => $event->age_group ?? null,
+                'source'         => self::SOURCE,
                 'webclub_rek'    => $wcRek ?: null,
-            ]));
+            ], fn($v) => $v !== null));
             $synced++;
         }
 
         $parts = ["{$synced} neu importiert von {$total} WebClub-Einträgen"];
-        if ($skipDup > 0)        $parts[] = "{$skipDup} bereits vorhanden (übersprungen)";
+        if ($conflicts > 0)      $parts[] = "{$conflicts} Abweichungen zu anderen Quellen erfasst";
+        if ($skipDup > 0)        $parts[] = "{$skipDup} bereits vorhanden (abgeglichen)";
         if ($skipNoEventDef > 0) $parts[] = "{$skipNoEventDef} ohne WebClub-Wettkampfdefinition (übersprungen)";
         if ($skipNoEvent > 0)    $parts[] = "{$skipNoEvent} ohne Portal-Event importiert (ohne Altersklasse)";
         if ($skipNoUser > 0)     $parts[] = "{$skipNoUser} Schwimmer nicht im Portal gefunden";

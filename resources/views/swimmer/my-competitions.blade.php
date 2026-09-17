@@ -332,11 +332,33 @@
                 <table class="w-full text-sm">
                     <tbody class="divide-y divide-gray-50">
                         @foreach($comp->processedResults as $swim)
-                            <tr class="{{ $swim->is_dns ? 'opacity-60' : 'hover:bg-gray-50' }}">
+                            @php $conflicts = $swim->discrepancies ?? collect(); @endphp
+                            <tr class="{{ $swim->is_dns ? 'opacity-60' : 'hover:bg-gray-50' }} {{ $conflicts->isNotEmpty() ? 'bg-red-50/60' : '' }}">
                                 <td class="py-2.5 pr-3 text-gray-700 w-1/3">
                                     {{ $swim->distance }} m {{ $swim->discipline_label }}
                                     @if($swim->is_final)
                                         <span class="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Finale</span>
+                                    @endif
+                                    @if($conflicts->isNotEmpty())
+                                        <span x-data="{ open: false }" class="inline-block relative">
+                                            <button type="button" @click="open = !open"
+                                                    class="ml-1 inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold hover:bg-red-200 transition-colors"
+                                                    title="Die Importquellen widersprechen sich">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
+                                                </svg>
+                                                {{ $conflicts->count() }}
+                                            </button>
+                                            <div x-show="open" x-cloak @click.outside="open = false"
+                                                 class="absolute z-20 left-0 mt-1 w-72 bg-white border border-red-200 rounded-lg shadow-lg p-3 text-left">
+                                                <p class="text-xs font-semibold text-red-700 mb-1.5">Quellen stimmen nicht überein</p>
+                                                <ul class="space-y-1.5">
+                                                    @foreach($conflicts as $conflict)
+                                                        <li class="text-xs text-gray-600 leading-snug">{{ $conflict->message }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        </span>
                                     @endif
                                 </td>
                                 <td class="py-2.5">

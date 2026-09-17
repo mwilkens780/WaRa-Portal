@@ -742,8 +742,10 @@ class DashboardController extends Controller
             ->orderByDesc('date')
             ->get();
 
-        // Load ALL results for accurate PB/SB detection across all competitions
-        $raw = CompetitionResult::with('competition')
+        // Load ALL results for accurate PB/SB detection across all competitions.
+        // discrepancies = offene Widersprüche zwischen den Importquellen; sie
+        // werden in der Ergebnisliste rot markiert.
+        $raw = CompetitionResult::with(['competition', 'discrepancies'])
             ->where('user_id', $swimmer->id)
             ->get();
 
