@@ -626,45 +626,107 @@ function extractUrlFromOnclick(onclick) {
     return m ? m[1] : null;
 }
 
-// Diagnose: sucht den globalen Saison-Umschalter.
+// Oeffnet den globalen Saison-Umschalter der Veranstaltungsliste.
 //
-// Die Veranstaltungsseite hat keinen Saison-Filter – in WebClub ist die Saison eine
-// benutzerbezogene Einstellung (optAKTSAS / aktsaison, Anzeige z.B. "2026/2027").
-// Diese Funktion protokolliert alle Elemente, die als Umschalter in Frage kommen,
-// damit der Mechanismus belegt statt geraten werden kann.
-async function logSeasonSwitchCandidates(page) {
+// In WebClub ist die Saison KEIN Listenfilter, sondern eine benutzerbezogene
+// Einstellung (optAKTSAS / aktsaison, Anzeige "2026/2027"). Auf der Veranstaltungs-
+// liste steht dafuer der Button "Aktuelle Saison ändern" – ein <select> gibt es
+// dort nicht. Die fruehere Implementierung suchte nach einem Dropdown und lief
+// deshalb seit jeher ins Leere.
+//
+// Was nach dem Klick erscheint (Dialog, eigene Seite, Linkliste), ist noch nicht
+// belegt. Diese Funktion klickt und protokolliert den Zustand danach vollstaendig,
+// damit die eigentliche Umschaltung darauf aufbauen kann.
+async function openSeasonSwitcher(page) {
     try {
-        const found = await page.evaluate(() => {
-            const out = [];
-            const re  = /(saison|season|20\d{2}\s*[\/\-]\s*\d{2,4})/i;
+        const before = page.url();
 
-            for (const el of document.querySelectorAll('a, button, [onclick], [role="button"]')) {
-                const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
-                if (!txt || txt.length > 70 || !re.test(txt)) continue;
-                out.push({
+        const clicked = await page.evaluate(() => {
+            const re  = /aktuelle\s+saison\s+(ändern|aendern)/i;
+            const els = document.querySelectorAll(
+                'a, button, input[type="button"], input[type="submit"], [onclick], [role="button"]'
+            );
+            for (const el of els) {
+                const label = (el.value || el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!re.test(label)) continue;
+                const info = {
                     tag:     el.tagName.toLowerCase(),
-                    txt,
-                    href:    (el.getAttribute('href')    || '').slice(0, 120),
-                    onclick: (el.getAttribute('onclick') || '').slice(0, 140),
+                    label,
+                    href:    (el.getAttribute('href')    || '').slice(0, 160),
+                    onclick: (el.getAttribute('onclick') || '').slice(0, 200),
                     id:      el.id || '',
-                    cls:     (el.className || '').toString().slice(0, 60),
-                });
-                if (out.length >= 25) break;
+                    cls:     (el.className || '').toString().slice(0, 80),
+                };
+                el.click();
+                return info;
             }
-            return { url: location.href, out };
+            return null;
         });
 
-        log(`Suche globalen Saison-Umschalter (Seite: ${found.url}) – ${found.out.length} Kandidaten:`);
-        for (const c of found.out) {
-            log(`    <${c.tag}> "${c.txt}" id="${c.id}" class="${c.cls}"`
-                + (c.href    ? ` href="${c.href}"` : '')
-                + (c.onclick ? ` onclick="${c.onclick}"` : ''));
+        if (!clicked) {
+            log('Saison-Umschalter: Button "Aktuelle Saison ändern" NICHT gefunden.');
+            return false;
         }
-        if (found.out.length === 0) {
-            log('    (keine – der Umschalter liegt vermutlich in einem Menue, das erst geoeffnet werden muss)');
+
+        log(`Saison-Umschalter geklickt: <${clicked.tag}> "${clicked.label}" id="${clicked.id}" `
+            + `class="${clicked.cls}" href="${clicked.href}" onclick="${clicked.onclick}"`);
+
+        await page.waitForTimeout(2500);
+        try { await waitForAjaxContent(page, 8000); } catch (_) {}
+
+        // Zustand nach dem Klick vollstaendig protokollieren
+        const after = await page.evaluate(() => {
+            const selects = Array.from(document.querySelectorAll('select')).map((s, idx) => ({
+                idx,
+                name:    s.name || '',
+                id:      s.id || '',
+                count:   s.options.length,
+                options: Array.from(s.options).slice(0, 14).map(o => `${o.text.trim()}=${o.value}`),
+            }));
+
+            const actions = [];
+            for (const el of document.querySelectorAll('a, button, input[type="button"], input[type="submit"]')) {
+                const label = (el.value || el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!label || label.length > 60) continue;
+                actions.push({
+                    tag:     el.tagName.toLowerCase(),
+                    label,
+                    href:    (el.getAttribute('href')    || '').slice(0, 120),
+                    onclick: (el.getAttribute('onclick') || '').slice(0, 160),
+                });
+                if (actions.length >= 30) break;
+            }
+
+            // Sichtbaren Dialog-/Modal-Container mitschneiden
+            let modal = '';
+            for (const el of document.querySelectorAll('.modal, [role="dialog"], .ui-dialog, .popup, .dialog')) {
+                const r = el.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) { modal = el.innerHTML.slice(0, 1200); break; }
+            }
+
+            return { url: location.href, selects, actions, modal };
+        });
+
+        log(`Nach dem Klick – URL: ${after.url} (vorher: ${before})`);
+
+        log(`  ${after.selects.length} select-Elemente:`);
+        for (const s of after.selects) {
+            log(`    [${s.idx}] name="${s.name}" id="${s.id}" (${s.count}) → ${s.options.join(' | ')}`);
         }
+
+        log(`  ${after.actions.length} Buttons/Links:`);
+        for (const a of after.actions) {
+            log(`    <${a.tag}> "${a.label}"`
+                + (a.href    ? ` href="${a.href}"` : '')
+                + (a.onclick ? ` onclick="${a.onclick}"` : ''));
+        }
+
+        if (after.modal) log(`  Dialog-Inhalt (gekuerzt): ${after.modal.replace(/\s+/g, ' ')}`);
+
+        return true;
     } catch (e) {
-        log('Saison-Umschalter-Diagnose fehlgeschlagen: ' + e.message);
+        log('Saison-Umschalter fehlgeschlagen: ' + e.message);
+        return false;
     }
 }
 
@@ -745,9 +807,15 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
             && /sas\b|saison|season/i.test(`${s.name} ${s.id}`));
 
     if (!picked) {
-        log('Kein Saison-Selector auf dieser Seite – die Saison ist in WebClub global.');
-        await logSeasonSwitchCandidates(page);
-        return collectEventLinks(page, dateFrom, dateTo, capturedHtml);
+        log('Kein Saison-Selector auf dieser Seite – die Saison wird in WebClub global umgeschaltet.');
+
+        // Aktuelle Saison zuerst einsammeln, damit sie auch dann vorliegt,
+        // wenn der Umschalter noch nicht bedient werden kann.
+        const currentLinks = await collectEventLinks(page, dateFrom, dateTo, capturedHtml);
+        log(`Aktuelle Saison: ${currentLinks.length} Veranstaltungen`);
+
+        await openSeasonSwitcher(page);
+        return currentLinks;
     }
 
     const selEl = page.locator('select').nth(picked.idx);
