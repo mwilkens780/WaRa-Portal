@@ -31,6 +31,10 @@ class DsvDataCrawler
     // Default-StateID für Schleswig-Holstein; wird durch Admin-Einstellungen überschrieben
     private const DEFAULT_STATE_IDS = [14];
 
+    /** Jahre rueckwaerts ab dem aktuellen Jahr; 1 = bisheriges Verhalten (2 Jahre). */
+    private const DEFAULT_LOOKBACK_YEARS = 1;
+    private const MAX_LOOKBACK_YEARS     = 25;
+
     /** Ueberschreibbar per Setting 'crawler.own_club_names' (JSON-Array). */
     private const DEFAULT_OWN_CLUB_NAMES = [
         'SG Wasserratten Norderstedt',
@@ -80,6 +84,9 @@ class DsvDataCrawler
         $stateIds = Setting::getJson('crawler.dsvdata.state_ids', self::DEFAULT_STATE_IDS);
         $parser   = new PdfParser();
 
+        Log::info('DsvDataCrawler: Zeitraum ' . reset($years) . '–' . end($years)
+            . ' (' . count($years) . ' Jahre), StateIDs ' . implode(', ', $stateIds));
+
         foreach ($stateIds as $stateId) {
             foreach ($years as $year) {
                 $meetIds = $this->fetchMeetIds($year, $stateId);
@@ -102,10 +109,27 @@ class DsvDataCrawler
 
     // ── Meet-Listing ────────────────────────────────────────────────────────────
 
+    /**
+     * Zeitraum der Wettkampfsuche, konfigurierbar per Setting
+     * 'crawler.dsvdata.lookback_years'. 1 = aktuelles Jahr + ein Jahr zurueck.
+     *
+     * Achtung: Jeder Lauf laedt auch fuer bereits importierte Wettkaempfe das PDF
+     * erneut, damit nachtraeglich geloeschte Ergebnisse wieder auftauchen. Ein
+     * grosser Wert verteuert deshalb JEDEN Lauf. Fuer einen einmaligen Neuaufbau
+     * hochsetzen und danach wieder senken.
+     */
     private function relevantYears(): array
     {
-        $current = (int) date('Y');
-        return [$current - 1, $current];
+        $current  = (int) date('Y');
+        $lookback = (int) Setting::getCached(
+            'crawler.dsvdata.lookback_years',
+            self::DEFAULT_LOOKBACK_YEARS
+        );
+
+        // Obergrenze, damit eine Fehleingabe nicht hunderte PDF-Downloads ausloest
+        $lookback = max(0, min($lookback, self::MAX_LOOKBACK_YEARS));
+
+        return range($current - $lookback, $current);
     }
 
     private function fetchMeetIds(int $year, int $stateId): array

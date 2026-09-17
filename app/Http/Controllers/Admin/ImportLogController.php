@@ -113,6 +113,9 @@ class ImportLogController extends Controller
                 'cfg_state_ids' => ($info['has_states'] ?? false)
                     ? Setting::getJson('crawler.dsvdata.state_ids', [14])
                     : [],
+                'cfg_lookback_years' => ($info['has_states'] ?? false)
+                    ? (int) Setting::getCached('crawler.dsvdata.lookback_years', 1)
+                    : null,
                 'schedule'      => $this->buildScheduleLabel($days, $time),
             ];
 
@@ -167,6 +170,7 @@ class ImportLogController extends Controller
             'schedule_time'   => ['nullable', 'regex:/^\d{2}:\d{2}$/'],
             'state_ids'       => ['nullable', 'array'],
             'state_ids.*'     => ['integer'],
+            'lookback_years'  => ['nullable', 'integer', 'between:0,25'],
             'import_token'    => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -189,6 +193,8 @@ class ImportLogController extends Controller
         if ($source === 'dsvdata') {
             Setting::set('crawler.dsvdata.state_ids',
                 json_encode(array_map('intval', $data['state_ids'] ?? [14])));
+            Setting::set('crawler.dsvdata.lookback_years',
+                (string) ($data['lookback_years'] ?? 1));
         }
 
         Setting::clearCache();

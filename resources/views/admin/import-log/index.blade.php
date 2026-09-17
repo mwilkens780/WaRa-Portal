@@ -232,8 +232,24 @@
                                    class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
 
-                        {{-- Landesverbände (nur DSV-Daten) --}}
+                        {{-- Rückschau in Jahren (nur DSV-Daten) --}}
                         @if(!empty($info['has_states']))
+                            <div>
+                                <label class="text-xs font-medium text-gray-700 block mb-1">
+                                    Rückschau (Jahre)
+                                </label>
+                                <input type="number" name="lookback_years" min="0" max="25"
+                                       value="{{ $info['cfg_lookback_years'] ?? 1 }}"
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500">
+                                <p class="text-[10px] text-gray-400 mt-1 leading-snug">
+                                    0 = nur laufendes Jahr, 1 = zusätzlich das Vorjahr.
+                                    Jeder Lauf lädt auch bereits importierte Wettkämpfe erneut,
+                                    damit gelöschte Ergebnisse zurückkommen — ein hoher Wert
+                                    verteuert jeden Lauf. Für einen einmaligen Neuaufbau
+                                    hochsetzen, danach wieder senken.
+                                </p>
+                            </div>
+
                             <div>
                                 <p class="text-xs font-medium text-gray-700 mb-1.5">Landesverbände</p>
                                 <div class="space-y-1 max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2">
