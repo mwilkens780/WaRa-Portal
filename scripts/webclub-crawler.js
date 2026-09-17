@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * WebClub.app Playwright-Crawler
@@ -6,16 +6,16 @@
  * Aufruf: node scripts/webclub-crawler.js /pfad/zur/config.json
  *
  * Config-Felder:
- *   base_url          – z.B. "https://meinverein.web-club.app"
- *   username          – Login-E-Mail
- *   password          – Login-Passwort
- *   lookback_days     – Wie viele Tage zurück nach Veranstaltungen suchen (Standard: 90)
- *   lookahead_days    – Wie viele Tage voraus suchen (Standard: 365)
- *   scrape_competitions – true/false
- *   scrape_persons    – true/false
- *   headless          – true = kein Browser-Fenster (Standard: true)
- *   timeout_ms        – Selektor-Timeout in ms (Standard: 15000)
- *   screenshot_on_error – Pfad-Prefix für Debug-Screenshots (optional)
+ *   base_url          â€“ z.B. "https://meinverein.web-club.app"
+ *   username          â€“ Login-E-Mail
+ *   password          â€“ Login-Passwort
+ *   lookback_days     â€“ Wie viele Tage zurÃ¼ck nach Veranstaltungen suchen (Standard: 90)
+ *   lookahead_days    â€“ Wie viele Tage voraus suchen (Standard: 365)
+ *   scrape_competitions â€“ true/false
+ *   scrape_persons    â€“ true/false
+ *   headless          â€“ true = kein Browser-Fenster (Standard: true)
+ *   timeout_ms        â€“ Selektor-Timeout in ms (Standard: 15000)
+ *   screenshot_on_error â€“ Pfad-Prefix fÃ¼r Debug-Screenshots (optional)
  *
  * Ausgabe: JSON-Objekt auf stdout, Log-Meldungen auf stderr.
  * Exit-Code 0 = OK, 1 = fataler Fehler (Login fehlgeschlagen, etc.)
@@ -32,15 +32,15 @@ try {
     try {
         playwright = require('/opt/node22/lib/node_modules/playwright');
     } catch (e2) {
-        die('Playwright nicht gefunden. Bitte "npm install -g playwright" ausführen.\n' + e2.message);
+        die('Playwright nicht gefunden. Bitte "npm install -g playwright" ausfÃ¼hren.\n' + e2.message);
     }
 }
 const { chromium } = playwright;
 
-// ── Config laden ─────────────────────────────────────────────────────────────
+// â”€â”€ Config laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const configPath = process.argv[2];
-if (!configPath) die('Kein Config-Pfad als Argument übergeben.');
+if (!configPath) die('Kein Config-Pfad als Argument Ã¼bergeben.');
 
 let cfg;
 try {
@@ -62,9 +62,9 @@ const DO_GROUPS       = cfg.scrape_groups       !== false;
 const SCREENSHOT_PREFIX = cfg.screenshot_on_error || null;
 
 if (!BASE_URL) die('base_url ist nicht konfiguriert.');
-if (!USERNAME || !PASSWORD) die('username und password müssen konfiguriert sein.');
+if (!USERNAME || !PASSWORD) die('username und password mÃ¼ssen konfiguriert sein.');
 
-// ── Hilfsfunktionen ──────────────────────────────────────────────────────────
+// â”€â”€ Hilfsfunktionen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function log(msg) {
     process.stderr.write('[webclub-crawler] ' + msg + '\n');
@@ -77,7 +77,7 @@ function die(msg) {
 
 function isoDate(d) {
     if (!d) return null;
-    // "dd.mm.yyyy" → "yyyy-mm-dd"
+    // "dd.mm.yyyy" â†’ "yyyy-mm-dd"
     const m = d.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
     if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
     // Bereits ISO
@@ -88,8 +88,8 @@ function isoDate(d) {
 function parseDateRange(str) {
     if (!str) return { date: null, date_end: null };
     str = str.trim();
-    // "dd.mm.yyyy - dd.mm.yyyy" oder "dd.mm.yyyy–dd.mm.yyyy"
-    const range = str.match(/(\d{1,2}\.\d{1,2}\.\d{4})\s*[-–]\s*(\d{1,2}\.\d{1,2}\.\d{4})/);
+    // "dd.mm.yyyy - dd.mm.yyyy" oder "dd.mm.yyyyâ€“dd.mm.yyyy"
+    const range = str.match(/(\d{1,2}\.\d{1,2}\.\d{4})\s*[-â€“]\s*(\d{1,2}\.\d{1,2}\.\d{4})/);
     if (range) return { date: isoDate(range[1]), date_end: isoDate(range[2]) };
     const single = str.match(/(\d{1,2}\.\d{1,2}\.\d{4})/);
     if (single) return { date: isoDate(single[1]), date_end: null };
@@ -115,7 +115,7 @@ const WEBCLUB_DISCIPLINE = {
     // 25m-Varianten (Bambini, NOP, Pokal): Codes +10
     '11': 'S', '12': 'R', '13': 'B', '14': 'F', '15': 'L',
     'SCH': 'S', 'SCHM': 'S', 'SM': 'S', 'FLY': 'S', 'BUTTERFLY': 'S',
-    'RÜ': 'R', 'RUE': 'R', 'BACK': 'R', 'RÜCKEN': 'R',
+    'RÃœ': 'R', 'RUE': 'R', 'BACK': 'R', 'RÃœCKEN': 'R',
     'BR': 'B', 'BRUST': 'B', 'BREAST': 'B',
     'LA': 'L', 'LAG': 'L', 'LAGEN': 'L', 'MEDLEY': 'L', 'IM': 'L',
     'FR': 'F', 'FREI': 'F', 'FREE': 'F', 'FREISTIL': 'F', 'CRAWL': 'F',
@@ -143,14 +143,14 @@ async function safeAttr(locator, attr) {
     try { return (await locator.first().getAttribute(attr, { timeout: 3000 }))?.trim() || null; } catch (_) { return null; }
 }
 
-// ── Login ────────────────────────────────────────────────────────────────────
+// â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function login(page) {
-    log('Öffne Startseite: ' + BASE_URL);
+    log('Ã–ffne Startseite: ' + BASE_URL);
     await page.goto(BASE_URL, { waitUntil: 'load' });
     await page.waitForTimeout(2000);
 
-    // Login-Trigger-Button suchen und klicken (öffnet das Login-Modal/Popup)
+    // Login-Trigger-Button suchen und klicken (Ã¶ffnet das Login-Modal/Popup)
     const loginTrigger = page.locator([
         'button:has-text("Anmelden")',
         'button:has-text("Login")',
@@ -166,11 +166,11 @@ async function login(page) {
 
     const triggerVisible = await loginTrigger.isVisible().catch(() => false);
     if (triggerVisible) {
-        log('Login-Button gefunden – klicke zum Öffnen des Modals');
+        log('Login-Button gefunden â€“ klicke zum Ã–ffnen des Modals');
         await loginTrigger.click();
         await page.waitForTimeout(1000);
     } else {
-        log('Kein expliziter Login-Button gefunden – Passwortfeld wird direkt erwartet');
+        log('Kein expliziter Login-Button gefunden â€“ Passwortfeld wird direkt erwartet');
     }
 
     // Auf Passwortfeld warten (im Modal oder auf der Seite)
@@ -183,7 +183,7 @@ async function login(page) {
         die('Login-Formular/Modal nicht gefunden. URL: ' + page.url());
     }
 
-    // Felder befüllen
+    // Felder befÃ¼llen
     const usernameField = page.locator([
         'input[name="username"]',
         'input[name="login"]',
@@ -215,28 +215,28 @@ async function login(page) {
     await page.waitForLoadState('load');
     await page.waitForTimeout(2000);
 
-    // Login prüfen: kein Passwortfeld mehr sichtbar?
+    // Login prÃ¼fen: kein Passwortfeld mehr sichtbar?
     const stillLoginPage = await page.locator('input[type="password"]').isVisible().catch(() => false);
     if (stillLoginPage) {
         await screenshot(page, 'login_failed');
-        die('Login fehlgeschlagen – Anmeldedaten prüfen. URL: ' + page.url());
+        die('Login fehlgeschlagen â€“ Anmeldedaten prÃ¼fen. URL: ' + page.url());
     }
 
     log('Login erfolgreich. URL: ' + page.url());
 }
 
-// ── Hilfsfunktion: relative URL auflösen ─────────────────────────────────────
+// â”€â”€ Hilfsfunktion: relative URL auflÃ¶sen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function resolveUrl(href) {
     if (!href) return null;
     try { return new URL(href, BASE_URL + '/').href; } catch (_) { return null; }
 }
 
-// ── Hilfsfunktion: Navigation über Dropdown-Menü ─────────────────────────────
+// â”€â”€ Hilfsfunktion: Navigation Ã¼ber Dropdown-MenÃ¼ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
     try {
-        // Oberstes Menü-Element finden und hovern
+        // Oberstes MenÃ¼-Element finden und hovern
         const topItem = page.locator('a, span, li')
             .filter({ hasText: topLabelRegex }).first();
         if (await topItem.count() === 0) return false;
@@ -244,7 +244,7 @@ async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
         await topItem.hover();
         await page.waitForTimeout(600);
 
-        // Untermenü-Eintrag klicken
+        // UntermenÃ¼-Eintrag klicken
         const subItem = page.locator('a').filter({ hasText: subLabelRegex }).first();
         if (await subItem.count() === 0) {
             await topItem.click();
@@ -253,16 +253,16 @@ async function navigateViaDropdownMenu(page, topLabelRegex, subLabelRegex) {
         await page.locator('a').filter({ hasText: subLabelRegex }).first().click({ timeout: TIMEOUT_MS });
         await page.waitForLoadState('load');
         await page.waitForTimeout(800);
-        log('Navigiert via Dropdown-Menü: ' + page.url());
+        log('Navigiert via Dropdown-MenÃ¼: ' + page.url());
         return true;
     } catch (_) {
         return false;
     }
 }
 
-// ── AJAX-Wartefunktion ────────────────────────────────────────────────────────
+// â”€â”€ AJAX-Wartefunktion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // WebClub hat mehrere Spinner auf der Seite. Der Tabellen-Spinner steckt in
-// einem <td colspan="N"> – das ist der eindeutige Marker für den Datentabellen-AJAX.
+// einem <td colspan="N"> â€“ das ist der eindeutige Marker fÃ¼r den Datentabellen-AJAX.
 // Wir warten bis KEIN solcher Spinner mehr sichtbar ist.
 
 async function waitForAjaxContent(page, timeoutMs = 20000) {
@@ -374,17 +374,17 @@ async function parseEventLinksFromHtml(page, html, dateFrom, dateTo) {
     }, { html, fromMs, toMs, baseUrl });
 }
 
-// ── Veranstaltungen (Competitions) ───────────────────────────────────────────
+// â”€â”€ Veranstaltungen (Competitions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function scrapeCompetitions(page) {
-    log('Navigiere zu Veranstaltungen…');
+    log('Navigiere zu Veranstaltungenâ€¦');
 
     const competitions = [];
     const errors       = [];
 
-    // XHR-Responses abfangen – Veranstaltungsliste UND Detaildaten
+    // XHR-Responses abfangen â€“ Veranstaltungsliste UND Detaildaten
     let capturedCompHtml = null;
-    const detailMap = new Map(); // verID (string) → data-Objekt aus 1789B-Response
+    const detailMap = new Map(); // verID (string) â†’ data-Objekt aus 1789B-Response
     const captureXhr = async (res) => {
         try {
             const rt = res.request().resourceType();
@@ -411,7 +411,7 @@ async function scrapeCompetitions(page) {
                             log(`XHR: Detail id=${id} NEU erfasst (${body.length}B)`);
                             log(`Detail-Daten: ${body.slice(0, 1800)}`);
                         } else {
-                            log(`XHR: Detail id=${id} erneut gesehen – bereits vorhanden`);
+                            log(`XHR: Detail id=${id} erneut gesehen â€“ bereits vorhanden`);
                         }
                     }
                 } catch (_) {}
@@ -420,7 +420,7 @@ async function scrapeCompetitions(page) {
     };
     page.on('response', captureXhr);
 
-    // 1. Direkte URLs probieren – klassische PHP-Apps nutzen .php-Dateinamen
+    // 1. Direkte URLs probieren â€“ klassische PHP-Apps nutzen .php-Dateinamen
     const candidates = [
         BASE_URL + '/verc.php',          // WebClub klassisch (aus Screenshot bekannt)
         BASE_URL + '/veranstaltungen',
@@ -437,7 +437,7 @@ async function scrapeCompetitions(page) {
         try {
             await page.goto(url, { waitUntil: 'load', timeout: 15000 });
 
-            // Seite geladen – globale JS-Funktionen introspektieren (einmalig bei verc.php)
+            // Seite geladen â€“ globale JS-Funktionen introspektieren (einmalig bei verc.php)
             if (url.includes('verc.php')) {
                 const jsFns = await page.evaluate(() =>
                     Object.keys(window).filter(k =>
@@ -447,13 +447,13 @@ async function scrapeCompetitions(page) {
                 );
                 if (jsFns.length > 0) log('JS-Funktionen auf Seite: ' + jsFns.join(', '));
 
-                // Falls es eine Suchen/Filtern-Schaltfläche gibt: klicken (manche WebClub-Instanzen)
+                // Falls es eine Suchen/Filtern-SchaltflÃ¤che gibt: klicken (manche WebClub-Instanzen)
                 const searchBtn = page.locator(
                     'input[type="submit"], button[type="submit"], ' +
                     'button, input[type="button"]'
                 ).filter({ hasText: /suchen|laden|anzeigen|filter|start|go/i }).first();
                 if (await searchBtn.count() > 0) {
-                    log('Suchen-Button gefunden – klicke zum Auslösen des AJAX');
+                    log('Suchen-Button gefunden â€“ klicke zum AuslÃ¶sen des AJAX');
                     await searchBtn.click({ timeout: 3000 }).catch(() => {});
                     await page.waitForTimeout(2000);
                 }
@@ -475,7 +475,7 @@ async function scrapeCompetitions(page) {
 
             const currentUrl = page.url();
             const xhrNote = capturedCompHtml ? ' [XHR-Daten erfasst]' : '';
-            log(`Kandidat ${url} → ${realRows} Competition-Zeilen im DOM, URL: ${currentUrl}${xhrNote}`);
+            log(`Kandidat ${url} â†’ ${realRows} Competition-Zeilen im DOM, URL: ${currentUrl}${xhrNote}`);
 
             if (realRows > 0 || capturedCompHtml) {
                 navigated = true;
@@ -487,9 +487,9 @@ async function scrapeCompetitions(page) {
         }
     }
 
-    // 2. Fallback: Menü "Veranstaltungen" → "Veranstaltungen"
+    // 2. Fallback: MenÃ¼ "Veranstaltungen" â†’ "Veranstaltungen"
     if (!navigated) {
-        log('Direkte URL-Kandidaten erfolglos – versuche Dropdown-Menü');
+        log('Direkte URL-Kandidaten erfolglos â€“ versuche Dropdown-MenÃ¼');
         navigated = await navigateViaDropdownMenu(page, /veranstaltung/i, /veranstaltung/i);
         if (navigated) {
             await waitForAjaxContent(page, 25000);
@@ -499,12 +499,12 @@ async function scrapeCompetitions(page) {
         }
     }
 
-    // Screenshot der Listenseite – immer, für Debugging
+    // Screenshot der Listenseite â€“ immer, fÃ¼r Debugging
     await screenshot(page, 'competitions_list');
 
     if (!navigated && !capturedCompHtml) {
         page.off('response', captureXhr);
-        const msg = 'Veranstaltungsseite nicht gefunden (alle Kandidaten und Menü-Navigation fehlgeschlagen)';
+        const msg = 'Veranstaltungsseite nicht gefunden (alle Kandidaten und MenÃ¼-Navigation fehlgeschlagen)';
         errors.push({ type: 'navigation', message: msg });
         log('WARNUNG: ' + msg);
         return { competitions, errors };
@@ -516,13 +516,13 @@ async function scrapeCompetitions(page) {
     const dateTo   = new Date(today); dateTo.setDate(today.getDate() + LOOKAHEAD_DAYS);
 
     const eventLinks = await collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedCompHtml);
-    log(`${eventLinks.length} Veranstaltungslinks gefunden (saisonübergreifend).`);
+    log(`${eventLinks.length} Veranstaltungslinks gefunden (saisonÃ¼bergreifend).`);
 
-    // ── Detail-Daten laden ────────────────────────────────────────────────────
+    // â”€â”€ Detail-Daten laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // ver.php zeigt automatisch die Session-aktuelle Veranstaltung (idx:1 aus Suche).
     // Dann per verc_choose_cb(idx) durch die Ergebnisliste navigieren.
 
-    log('Navigiere zu ver.php für idx:1 (Session-Kontext aus Suche)…');
+    log('Navigiere zu ver.php fÃ¼r idx:1 (Session-Kontext aus Suche)â€¦');
     await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
     await page.waitForTimeout(3000);
 
@@ -536,7 +536,7 @@ async function scrapeCompetitions(page) {
             continue;
         }
 
-        log(`Detail id=${id} (idx:${idx}) – klicke next-Button…`);
+        log(`Detail id=${id} (idx:${idx}) â€“ klicke next-Buttonâ€¦`);
 
         // next.png direkt anklicken statt evaluate (evaluate-Fehler wenn ver.php navigiert)
         let navResult = 'next.png nicht gefunden';
@@ -564,16 +564,16 @@ async function scrapeCompetitions(page) {
         log(`Navigation: ${navResult}`);
         await page.waitForTimeout(5000);
         log(`URL: ${page.url().replace(/https?:\/\/[^/]+/, '***')}`);
-        log(`Detail id=${id}: ${detailMap.has(id) ? 'erfasst ✓' : 'NICHT erhalten'}`);
+        log(`Detail id=${id}: ${detailMap.has(id) ? 'erfasst âœ“' : 'NICHT erhalten'}`);
     }
 
     page.off('response', captureXhr);
     log(`Details: ${detailMap.size} von ${eventLinks.length} erfasst`);
 
-    // ── Tab-Pass: Abschnitte / Wettkampffolge / Pflichtzeiten ────────────────
+    // â”€â”€ Tab-Pass: Abschnitte / Wettkampffolge / Pflichtzeiten â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const eventsMap = await scrapeCompetitionTabs(page, eventLinks);
 
-    // ── Competition-Objekte bauen ─────────────────────────────────────────────
+    // â”€â”€ Competition-Objekte bauen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     for (const link of eventLinks) {
         const id = extractIdFromUrl(link.url);
         const d  = detailMap.get(id);
@@ -626,114 +626,83 @@ function extractUrlFromOnclick(onclick) {
     return m ? m[1] : null;
 }
 
-// Oeffnet den globalen Saison-Umschalter der Veranstaltungsliste.
-//
-// In WebClub ist die Saison KEIN Listenfilter, sondern eine benutzerbezogene
-// Einstellung (optAKTSAS / aktsaison, Anzeige "2026/2027"). Auf der Veranstaltungs-
-// liste steht dafuer der Button "Aktuelle Saison ändern" – ein <select> gibt es
-// dort nicht. Die fruehere Implementierung suchte nach einem Dropdown und lief
-// deshalb seit jeher ins Leere.
-//
-// Was nach dem Klick erscheint (Dialog, eigene Seite, Linkliste), ist noch nicht
-// belegt. Diese Funktion klickt und protokolliert den Zustand danach vollstaendig,
-// damit die eigentliche Umschaltung darauf aufbauen kann.
-async function openSeasonSwitcher(page) {
+// Liest die aktuell gesetzte Saison aus dem Hinweistext der Veranstaltungsliste.
+async function readCurrentSeasonLabel(page) {
     try {
-        const before = page.url();
+        return await page.evaluate(() => {
+            const m = document.body.innerText
+                .match(/Derzeit\s+gesetzte\s+aktuelle\s+Saison:\s*([0-9]{4}\/[0-9]{2,4})/i);
+            return m ? m[1].trim() : null;
+        });
+    } catch (_) { return null; }
+}
 
+// Oeffnet den Dialog "Aktuelle Saison auswÃ¤hlen" (Button id="sasCHANGE") und
+// liefert die waehlbaren Saisons. Das Dropdown name="choose" ist vor dem Klick
+// leer und wird per POST /ajax.php nachgeladen â€“ daher das Warten auf Optionen.
+async function openSeasonDialog(page) {
+    try {
         const clicked = await page.evaluate(() => {
-            const re  = /aktuelle\s+saison\s+(ändern|aendern)/i;
-            const els = document.querySelectorAll(
-                'a, button, input[type="button"], input[type="submit"], [onclick], [role="button"]'
-            );
-            for (const el of els) {
-                const label = (el.value || el.textContent || '').replace(/\s+/g, ' ').trim();
-                if (!re.test(label)) continue;
-                const info = {
-                    tag:     el.tagName.toLowerCase(),
-                    label,
-                    href:    (el.getAttribute('href')    || '').slice(0, 160),
-                    onclick: (el.getAttribute('onclick') || '').slice(0, 200),
-                    id:      el.id || '',
-                    cls:     (el.className || '').toString().slice(0, 80),
-                };
-                el.click();
-                return info;
-            }
-            return null;
+            const btn = document.querySelector('#sasCHANGE')
+                ?? Array.from(document.querySelectorAll('button, a, input[type="button"]'))
+                        .find(el => /aktuelle\s+saison\s+(Ã¤ndern|aendern)/i
+                            .test((el.value || el.textContent || '').replace(/\s+/g, ' ').trim()));
+            if (!btn) return false;
+            btn.click();
+            return true;
         });
+        if (!clicked) return null;
 
-        if (!clicked) {
-            log('Saison-Umschalter: Button "Aktuelle Saison ändern" NICHT gefunden.');
-            return false;
-        }
+        await page.waitForFunction(() => {
+            const s = document.querySelector('select[name="choose"]');
+            return s && s.options.length > 0;
+        }, { timeout: 12000 });
 
-        log(`Saison-Umschalter geklickt: <${clicked.tag}> "${clicked.label}" id="${clicked.id}" `
-            + `class="${clicked.cls}" href="${clicked.href}" onclick="${clicked.onclick}"`);
-
-        await page.waitForTimeout(2500);
-        try { await waitForAjaxContent(page, 8000); } catch (_) {}
-
-        // Zustand nach dem Klick vollstaendig protokollieren
-        const after = await page.evaluate(() => {
-            const selects = Array.from(document.querySelectorAll('select')).map((s, idx) => ({
-                idx,
-                name:    s.name || '',
-                id:      s.id || '',
-                count:   s.options.length,
-                options: Array.from(s.options).slice(0, 14).map(o => `${o.text.trim()}=${o.value}`),
-            }));
-
-            const actions = [];
-            for (const el of document.querySelectorAll('a, button, input[type="button"], input[type="submit"]')) {
-                const label = (el.value || el.textContent || '').replace(/\s+/g, ' ').trim();
-                if (!label || label.length > 60) continue;
-                actions.push({
-                    tag:     el.tagName.toLowerCase(),
-                    label,
-                    href:    (el.getAttribute('href')    || '').slice(0, 120),
-                    onclick: (el.getAttribute('onclick') || '').slice(0, 160),
-                });
-                if (actions.length >= 30) break;
-            }
-
-            // Sichtbaren Dialog-/Modal-Container mitschneiden
-            let modal = '';
-            for (const el of document.querySelectorAll('.modal, [role="dialog"], .ui-dialog, .popup, .dialog')) {
-                const r = el.getBoundingClientRect();
-                if (r.width > 0 && r.height > 0) { modal = el.innerHTML.slice(0, 1200); break; }
-            }
-
-            return { url: location.href, selects, actions, modal };
-        });
-
-        log(`Nach dem Klick – URL: ${after.url} (vorher: ${before})`);
-
-        log(`  ${after.selects.length} select-Elemente:`);
-        for (const s of after.selects) {
-            log(`    [${s.idx}] name="${s.name}" id="${s.id}" (${s.count}) → ${s.options.join(' | ')}`);
-        }
-
-        log(`  ${after.actions.length} Buttons/Links:`);
-        for (const a of after.actions) {
-            log(`    <${a.tag}> "${a.label}"`
-                + (a.href    ? ` href="${a.href}"` : '')
-                + (a.onclick ? ` onclick="${a.onclick}"` : ''));
-        }
-
-        if (after.modal) log(`  Dialog-Inhalt (gekuerzt): ${after.modal.replace(/\s+/g, ' ')}`);
-
-        return true;
-    } catch (e) {
-        log('Saison-Umschalter fehlgeschlagen: ' + e.message);
-        return false;
+        return await page.evaluate(() =>
+            Array.from(document.querySelector('select[name="choose"]').options)
+                 .map(o => ({ value: o.value, text: o.text.trim() }))
+        );
+    } catch (_) {
+        return null;
     }
 }
+
+// Waehlt im offenen Dialog eine Saison und bestaetigt.
+// WebClub nutzt name="butno" zum Abbrechen; bestaetigt wird per butyes,
+// ersatzweise ueber die Beschriftung des Buttons.
+async function confirmSeason(page, value) {
+    return await page.evaluate((val) => {
+        const sel = document.querySelector('select[name="choose"]');
+        if (!sel) return 'Dropdown "choose" nicht gefunden';
+
+        sel.value = val;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const scope = sel.closest('.modal') || document;
+        let btn = scope.querySelector('[name="butyes"]');
+
+        if (!btn) {
+            for (const b of scope.querySelectorAll('button, input[type="button"], input[type="submit"]')) {
+                if (b.getAttribute('name') === 'butno') continue;
+                const t = (b.value || b.textContent || '').replace(/\s+/g, ' ').trim();
+                if (/^(ok|ja|Ã¼bernehmen|uebernehmen|speichern|auswÃ¤hlen|auswaehlen|Ã¤ndern|aendern)$/i.test(t)) {
+                    btn = b;
+                    break;
+                }
+            }
+        }
+        if (!btn) return 'Bestaetigen-Button nicht gefunden';
+
+        btn.click();
+        return null;
+    }, value);
+}
+
 
 // Iteriert durch alle Saison-Optionen im WebClub-Veranstaltungsfilter und sammelt
 // Veranstaltungslinks aus jeder Saison. Ohne Saison-Selector: Fallback auf einzelnen Pass.
 async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) {
-    // XHR-Capture-Hilfsfunktion: gibt ein Promise zurück, das bei der nächsten
+    // XHR-Capture-Hilfsfunktion: gibt ein Promise zurÃ¼ck, das bei der nÃ¤chsten
     // Veranstaltungslisten-XHR resolvet, und eine stop()-Funktion zum Abmelden.
     function captureNextCompListXhr() {
         let body = null;
@@ -770,7 +739,7 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
     //
     // Frueher wurde schlicht das erste <select> mit irgendeiner Jahreszahl genommen.
     // Auf der Veranstaltungsseite liegen aber 16 Dropdowns, und das erste passende
-    // war "tabFINASCM" – der Selektor fuer die FINA-Punktetabelle. Dessen Umschalten
+    // war "tabFINASCM" â€“ der Selektor fuer die FINA-Punktetabelle. Dessen Umschalten
     // loest natuerlich keine Nachladung der Wettkampfliste aus, weshalb jede
     // vergangene Saison mit "KEIN Request" abbrach und nur das laufende Jahr ankam.
     //
@@ -788,12 +757,12 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
 
     log(`${selectInfos.length} select-Elemente auf der Seite:`);
     for (const s of selectInfos) {
-        log(`    [${s.idx}] name="${s.name}" id="${s.id}" (${s.count}) → ${s.options.join(' | ')}`);
+        log(`    [${s.idx}] name="${s.name}" id="${s.id}" (${s.count}) â†’ ${s.options.join(' | ')}`);
     }
 
     // Auf der Veranstaltungsseite sind ALLE Jahres-Dropdowns Punktetabellen
     // (tabFINASCM, tabFINALCM, tabMASTERSSCM, tabMASTERSLCM, tabDBS, tabRUDOLPH).
-    // Sie heissen durchweg "tab..." und haben nichts mit der Saison zu tun – ein
+    // Sie heissen durchweg "tab..." und haben nichts mit der Saison zu tun â€“ ein
     // Umschalten loest dort keinerlei Nachladung aus. Deshalb strikt ausschliessen.
     const SEASON_RE     = /^\s*20\d{2}\s*[\/\-]\s*\d{2,4}\s*$/;   // "2026/2027", "2026/27"
     const isPointsTable = s => /^tab/i.test(s.name);
@@ -807,15 +776,70 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
             && /sas\b|saison|season/i.test(`${s.name} ${s.id}`));
 
     if (!picked) {
-        log('Kein Saison-Selector auf dieser Seite – die Saison wird in WebClub global umgeschaltet.');
+        // Regelfall: Die Veranstaltungsliste hat keinen Saison-Filter. Umgeschaltet
+        // wird ueber den Dialog hinter dem Button "Aktuelle Saison Ã¤ndern".
+        log('Kein Saison-Dropdown â€“ Umschaltung ueber den Dialog "Aktuelle Saison Ã¤ndern".');
 
-        // Aktuelle Saison zuerst einsammeln, damit sie auch dann vorliegt,
-        // wenn der Umschalter noch nicht bedient werden kann.
-        const currentLinks = await collectEventLinks(page, dateFrom, dateTo, capturedHtml);
-        log(`Aktuelle Saison: ${currentLinks.length} Veranstaltungen`);
+        const collected = new Map();
 
-        await openSeasonSwitcher(page);
-        return currentLinks;
+        // Aktuelle Saison zuerst sichern â€“ sie liegt bereits geladen vor.
+        const currentLinks  = await collectEventLinks(page, dateFrom, dateTo, capturedHtml);
+        for (const l of currentLinks) collected.set(l.url, l);
+        const originalLabel = await readCurrentSeasonLabel(page);
+        log(`Aktuelle Saison "${originalLabel ?? '?'}": ${currentLinks.length} Veranstaltungen`);
+
+        const seasons = await openSeasonDialog(page);
+        if (!seasons || seasons.length === 0) {
+            log('Saison-Dialog liess sich nicht oeffnen â€“ nur die aktuelle Saison.');
+            return [...collected.values()];
+        }
+        log(`${seasons.length} waehlbare Saisons: ${seasons.map(s => s.text).join(', ')}`);
+
+        for (let i = 0; i < seasons.length; i++) {
+            const season = seasons[i];
+            log(`Wechsle zu Saison "${season.text}" (value=${season.value})â€¦`);
+
+            const capture = captureNextCompListXhr();
+            page.on('response', capture.handler);
+
+            const err = await confirmSeason(page, season.value);
+            if (err) {
+                page.off('response', capture.handler);
+                log(`Saison "${season.text}": ${err} â€“ uebersprungen`);
+                break;   // Ohne Bestaetigung bringen weitere Runden nichts
+            }
+
+            await capture.wait(12000);
+            try { await waitForAjaxContent(page, 10000); } catch (_) {}
+            page.off('response', capture.handler);
+
+            const links  = await collectEventLinks(page, dateFrom, dateTo, capture.getBody());
+            const before = collected.size;
+            for (const l of links) collected.set(l.url, l);
+            log(`Saison "${season.text}": ${links.length} gefunden, ${collected.size - before} neu im Gesamtergebnis`);
+
+            if (i < seasons.length - 1 && !(await openSeasonDialog(page))) {
+                log('Dialog liess sich nicht erneut oeffnen â€“ Saison-Iteration beendet.');
+                break;
+            }
+        }
+
+        // Ursprungssaison wiederherstellen: Die Saison ist eine benutzerbezogene
+        // Einstellung im WebClub-Konto. Der Crawler darf sie nicht dauerhaft
+        // verstellen, sonst arbeitet der Verein anschliessend im falschen Jahr.
+        if (originalLabel) {
+            const back   = await openSeasonDialog(page);
+            const target = back?.find(s => s.text === originalLabel);
+            if (target && !(await confirmSeason(page, target.value))) {
+                await page.waitForTimeout(2000);
+                log(`Saison auf "${originalLabel}" zurueckgesetzt.`);
+            } else {
+                log(`WARNUNG: Saison konnte NICHT auf "${originalLabel}" zurueckgesetzt werden `
+                    + 'â€“ bitte in WebClub manuell pruefen.');
+            }
+        }
+
+        return [...collected.values()];
     }
 
     const selEl = page.locator('select').nth(picked.idx);
@@ -828,14 +852,14 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
         + `(aktuell: "${options.find(o => o.value === currentVal)?.text ?? currentVal}")`);
     log(`Saisons: ${options.map(o => `${o.text}=${o.value}`).join(', ')}`);
 
-    const allLinks = new Map(); // url → link-Objekt, dedupliziert
+    const allLinks = new Map(); // url â†’ link-Objekt, dedupliziert
 
-    // "Alle"-Option bevorzugt (ein einziger Pass genügt)
+    // "Alle"-Option bevorzugt (ein einziger Pass genÃ¼gt)
     const alleOpt = options.find(o =>
         /^alle?$/i.test(o.text) || o.value === '0' || o.value === '' || o.text.trim() === '-'
     );
     if (alleOpt && alleOpt.value !== currentVal) {
-        log(`Wechsle Saison-Filter auf "${alleOpt.text}" (value="${alleOpt.value}")…`);
+        log(`Wechsle Saison-Filter auf "${alleOpt.text}" (value="${alleOpt.value}")â€¦`);
         const capture = captureNextCompListXhr();
         page.on('response', capture.handler);
         try {
@@ -859,11 +883,11 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
 
         let html = null;
         if (isCurrentlySelected) {
-            // Bereits geladene Saison – capturedHtml verwenden
+            // Bereits geladene Saison â€“ capturedHtml verwenden
             html = capturedHtml;
             log(`Saison "${opt.text}" (aktuell): verwende bereits erfasste Daten`);
         } else {
-            log(`Wechsle zu Saison "${opt.text}" (value="${opt.value}")…`);
+            log(`Wechsle zu Saison "${opt.text}" (value="${opt.value}")â€¦`);
             const capture = captureNextCompListXhr();
             page.on('response', capture.handler);
             try {
@@ -874,12 +898,12 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
             page.off('response', capture.handler);
             html = capture.getBody();
             if (!html) {
-                // Diagnose: unterscheiden, ob gar kein Request ausgelöst wurde
+                // Diagnose: unterscheiden, ob gar kein Request ausgelÃ¶st wurde
                 // (dann reagiert die Seite nicht auf selectOption) oder ob Requests
                 // kamen, aber die Listen-Erkennung nicht griff.
                 const seen = capture.getSeen();
                 if (seen.length === 0) {
-                    log(`Saison "${opt.text}": KEIN Request ausgelöst – die Seite reagiert nicht auf die Auswahl`);
+                    log(`Saison "${opt.text}": KEIN Request ausgelÃ¶st â€“ die Seite reagiert nicht auf die Auswahl`);
                 } else {
                     log(`Saison "${opt.text}": ${seen.length} XHR gesehen, keine passte auf die Listen-Erkennung:`);
                     for (const s of seen.slice(0, 6)) {
@@ -904,25 +928,25 @@ async function collectEventLinks(page, dateFrom, dateTo, capturedHtml = null) {
     const seen  = new Set();
 
     if (capturedHtml) {
-        // Primärstrategie 1: WebClub JSON-Veranstaltungsliste {"list":[{id,d,n,...}]}
+        // PrimÃ¤rstrategie 1: WebClub JSON-Veranstaltungsliste {"list":[{id,d,n,...}]}
         if (capturedHtml.trimStart().startsWith('{') && capturedHtml.includes('"list"')) {
-            log('collectEventLinks: verarbeite WebClub-JSON-Veranstaltungsliste…');
+            log('collectEventLinks: verarbeite WebClub-JSON-Veranstaltungslisteâ€¦');
             const jsonLinks = parseCompetitionListJson(capturedHtml, dateFrom, dateTo);
             if (jsonLinks && jsonLinks.length > 0) {
                 log(`collectEventLinks: ${jsonLinks.length} Veranstaltungen aus JSON extrahiert`);
                 return jsonLinks;
             }
-            log('collectEventLinks: JSON geparst – keine Treffer im Datumsbereich');
+            log('collectEventLinks: JSON geparst â€“ keine Treffer im Datumsbereich');
         }
 
-        // Primärstrategie 2: HTML mit <tr>-Datenzeilen
-        log('collectEventLinks: verarbeite XHR-HTML-Response…');
+        // PrimÃ¤rstrategie 2: HTML mit <tr>-Datenzeilen
+        log('collectEventLinks: verarbeite XHR-HTML-Responseâ€¦');
         const xhrLinks = await parseEventLinksFromHtml(page, capturedHtml, dateFrom, dateTo);
         if (xhrLinks.length > 0) {
             log(`collectEventLinks: ${xhrLinks.length} Links aus XHR-HTML extrahiert`);
             return xhrLinks;
         }
-        log('collectEventLinks: XHR-Daten enthielten keine verwertbaren Links – weiter mit DOM');
+        log('collectEventLinks: XHR-Daten enthielten keine verwertbaren Links â€“ weiter mit DOM');
     }
 
     // Fallback: DOM-Scraping (wartet auf AJAX-Spinner)
@@ -946,13 +970,13 @@ async function collectEventLinks(page, dateFrom, dateTo, capturedHtml = null) {
     for (let i = 0; i < count; i++) {
         const row = rows.nth(i);
 
-        // Header-Zeilen überspringen
+        // Header-Zeilen Ã¼berspringen
         const tdCount = await row.locator('td').count();
         if (tdCount === 0) continue;
 
         const cells = row.locator('td');
 
-        // Datum: prüfe alle Zellen auf ein Datumsmuster
+        // Datum: prÃ¼fe alle Zellen auf ein Datumsmuster
         let dateText = null;
         for (let c = 0; c < Math.min(tdCount, 5); c++) {
             const txt = await safeText(cells.nth(c));
@@ -1056,7 +1080,7 @@ async function scrapeCompetitionDetail(page, link) {
 
     await screenshot(page, 'competition_detail');
 
-    // Basisfelder: aus dem Listen-JSON vorbelegt, Detail-Scraping kann überschreiben
+    // Basisfelder: aus dem Listen-JSON vorbelegt, Detail-Scraping kann Ã¼berschreiben
     const comp = {
         webclub_id:   extractIdFromUrl(link.url),
         webclub_url:  link.url,
@@ -1073,8 +1097,8 @@ async function scrapeCompetitionDetail(page, link) {
         results:      [],
     };
 
-    // ── Tab: Allgemeines / Ausschreibung / Organisation ──────────────────────
-    await activateTab(page, /ausschreibung|organisation|allgemein|info|übersicht|detail/i);
+    // â”€â”€ Tab: Allgemeines / Ausschreibung / Organisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    await activateTab(page, /ausschreibung|organisation|allgemein|info|Ã¼bersicht|detail/i);
 
     if (!comp.name) {
         comp.name = await safeText(page.locator('h1, h2, .page-title').first());
@@ -1100,14 +1124,14 @@ async function scrapeCompetitionDetail(page, link) {
         comp.date_end = date_end;
     }
 
-    // ── Tab: Meldungen ───────────────────────────────────────────────────────
+    // â”€â”€ Tab: Meldungen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const hasMeldungen = await activateTab(page, /meldung|anmeldung|einzel|entry/i);
     if (hasMeldungen) {
         comp.entries = await scrapeEntries(page);
         log(`  ${comp.entries.length} Meldungen gelesen`);
     }
 
-    // ── Tab: Ergebnisse ──────────────────────────────────────────────────────
+    // â”€â”€ Tab: Ergebnisse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
     if (hasErgebnisse) {
         comp.results = await scrapeResults(page);
@@ -1118,7 +1142,7 @@ async function scrapeCompetitionDetail(page, link) {
 }
 
 async function activateTab(page, labelRegex) {
-    // Suche nach Tab-ähnlichen Elementen: echte ARIA-Tabs, Nav-Links, Anker in Tab-Leisten
+    // Suche nach Tab-Ã¤hnlichen Elementen: echte ARIA-Tabs, Nav-Links, Anker in Tab-Leisten
     const candidates = [
         page.getByRole('tab', { name: labelRegex }),
         page.locator('[role="tab"]').filter({ hasText: labelRegex }),
@@ -1180,7 +1204,7 @@ function pickField(fields, regex) {
     return null;
 }
 
-// ── WebClub Tab-Daten: Abschnitte / Wettkampffolge / Pflichtzeiten ────────────
+// â”€â”€ WebClub Tab-Daten: Abschnitte / Wettkampffolge / Pflichtzeiten â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function parseAbschnitte(bodies) {
     for (const body of bodies) {
@@ -1226,12 +1250,12 @@ function parseWettkampffolge(bodies) {
                 const gRaw   = String(item.wkfGESCHLECHT ?? item.wkGES ?? item.ges ?? item.geschlecht ?? 'X').toUpperCase();
                 const gender = gRaw === 'W' ? 'F' : (['M', 'F', 'X'].includes(gRaw) ? gRaw : 'X');
                 const pzMs   = parseTimeToMs(item.wkPZ ?? item.pz ?? item.pflichtzeit ?? '');
-                // Altersgruppe aus Geburtsjahr-Spanne (wkfJUNG = jüngster Jg., wkfALT = ältester; '0' = kein Limit)
+                // Altersgruppe aus Geburtsjahr-Spanne (wkfJUNG = jÃ¼ngster Jg., wkfALT = Ã¤ltester; '0' = kein Limit)
                 const jg = String(item.wkfJUNG ?? item.wkJUNG ?? '').trim();
                 const ag = String(item.wkfALT  ?? item.wkALT  ?? '').trim();
                 let ageGroup = item.wkWERT ?? item.wert ?? null;
                 if (!ageGroup && jg && jg !== '0') {
-                    ageGroup = ag === '0' ? `Jg. ${jg} u.j.` : `Jg. ${jg}–${ag}`;
+                    ageGroup = ag === '0' ? `Jg. ${jg} u.j.` : `Jg. ${jg}â€“${ag}`;
                 }
                 events.push({
                     number:             parseInt(item.wkfNUMMER ?? item.wkNR ?? item.nr ?? '0', 10),
@@ -1270,10 +1294,10 @@ function mergePflichtzeiten(bodies, events) {
 }
 
 // WebClub-Zeitformat: z = MM*10000 + SS*100 + cs (Hundertstel)
-// Beispiel: z=3650 → 0:36,50 → 36500ms | z=24856 → 2:48,56 → 168560ms
+// Beispiel: z=3650 â†’ 0:36,50 â†’ 36500ms | z=24856 â†’ 2:48,56 â†’ 168560ms
 function parseWebClubTime(z) {
     const v = parseInt(z, 10);
-    if (!v) return 0; // z=0 → DNS/DQ/kein Ergebnis
+    if (!v) return 0; // z=0 â†’ DNS/DQ/kein Ergebnis
     const minutes = Math.floor(v / 10000);
     const seconds = Math.floor((v % 10000) / 100);
     const cs      = v % 100;
@@ -1281,8 +1305,8 @@ function parseWebClubTime(z) {
 }
 
 // Parst Meldungen-XHR aus dem Tab-Bucket.
-// Erkennungsmerkmal: "pauschal"-Feld (Gebühren-Zusammenfassung) OHNE dorek:true.
-// Die XHR feuert automatisch bei jeder Navigation – suche daher in allBodies, nicht nur meldungenBodies.
+// Erkennungsmerkmal: "pauschal"-Feld (GebÃ¼hren-Zusammenfassung) OHNE dorek:true.
+// Die XHR feuert automatisch bei jeder Navigation â€“ suche daher in allBodies, nicht nur meldungenBodies.
 // Feldnamen: p=Name, j=Jahrgang, s=Geschlecht, z=Meldezeit, n=Event-Nr, pid=Person-ID, d=DSV-ID, a=Lagen (Staffel)
 function parseMeldungenFromXhr(bodies) {
     const entries   = [];
@@ -1297,8 +1321,8 @@ function parseMeldungenFromXhr(bodies) {
             const list = data.list;
             if (list.length === 0) continue;
 
-            // Discovery: ersten Eintrag vollständig loggen
-            log(`Meldungen-XHR (${list.length} Einträge, ec=${data.ec ?? '?'} sc=${data.sc ?? '?'}): ${JSON.stringify(list[0])}`);
+            // Discovery: ersten Eintrag vollstÃ¤ndig loggen
+            log(`Meldungen-XHR (${list.length} EintrÃ¤ge, ec=${data.ec ?? '?'} sc=${data.sc ?? '?'}): ${JSON.stringify(list[0])}`);
 
             for (const item of list) {
                 const name = (item.p ?? item.name ?? '').trim();
@@ -1310,7 +1334,7 @@ function parseMeldungenFromXhr(bodies) {
                 const legs = parseInt(item.a ?? '1', 10) || 1;
                 if (legs > 1) {
                     if (!relayLogged) {
-                        log(`Staffel-Meldung (Rohdaten zur Feldprüfung): ${JSON.stringify(item)}`);
+                        log(`Staffel-Meldung (Rohdaten zur FeldprÃ¼fung): ${JSON.stringify(item)}`);
                         relayLogged = true;
                     }
                     relays.push({
@@ -1344,7 +1368,7 @@ function parseMeldungenFromXhr(bodies) {
 }
 
 // Parst Ergebnis-XHR aus dem Tab-Bucket.
-// Erkennungsmerkmal: "dorek":true im Response-Body (WebClub-spezifisch für Ergebnis-Tab).
+// Erkennungsmerkmal: "dorek":true im Response-Body (WebClub-spezifisch fÃ¼r Ergebnis-Tab).
 // Echte Feldnamen (entdeckt per Discovery-Log): p=Name, j=Jahrgang, s=Geschlecht,
 // z=Zeit (MM*10000+SS*100+cs), pl=Platz, n=Event-Nr (wkfNUMMER), pid=Person-ID, a=Anzahl Lagen
 function parseResultsFromXhr(bodies) {
@@ -1361,9 +1385,9 @@ function parseResultsFromXhr(bodies) {
                 log(`Ergebnis-XHR: dorek=true, list leer`);
                 continue;
             }
-            log(`Ergebnis-XHR (${list.length} Einträge): ${JSON.stringify(list[0])}`);
+            log(`Ergebnis-XHR (${list.length} EintrÃ¤ge): ${JSON.stringify(list[0])}`);
             for (const item of list) {
-                // z=0 → DNS/DQ – kein auswertbares Ergebnis
+                // z=0 â†’ DNS/DQ â€“ kein auswertbares Ergebnis
                 const timeMs = parseWebClubTime(item.z);
                 if (!timeMs) continue;
 
@@ -1372,12 +1396,12 @@ function parseResultsFromXhr(bodies) {
 
                 // a > 1 = Staffel (a = Anzahl Lagen/Schwimmer). p ist dann der
                 // Mannschaftsname, nicht eine Person. Staffeln werden getrennt
-                // zurückgegeben, damit eine falsche Feldannahme die Einzel-
-                // ergebnisse nicht beeinträchtigt.
+                // zurÃ¼ckgegeben, damit eine falsche Feldannahme die Einzel-
+                // ergebnisse nicht beeintrÃ¤chtigt.
                 const legs = parseInt(item.a ?? '1', 10) || 1;
                 if (legs > 1) {
                     if (!relayLogged) {
-                        log(`Staffel-Ergebnis (Rohdaten zur Feldprüfung): ${JSON.stringify(item)}`);
+                        log(`Staffel-Ergebnis (Rohdaten zur FeldprÃ¼fung): ${JSON.stringify(item)}`);
                         relayLogged = true;
                     }
                     relays.push({
@@ -1411,9 +1435,9 @@ function parseResultsFromXhr(bodies) {
 
 async function scrapeCompetitionTabs(page, eventLinks) {
     if (eventLinks.length === 0) return new Map();
-    log('Tab-Pass: Abschnitte / Wettkampffolge / Ergebnisse…');
+    log('Tab-Pass: Abschnitte / Wettkampffolge / Ergebnisseâ€¦');
 
-    // IDs der Wettkämpfe die wir brauchen (aus der JSON-Liste, entsprechen verID)
+    // IDs der WettkÃ¤mpfe die wir brauchen (aus der JSON-Liste, entsprechen verID)
     const neededIds = new Set(eventLinks.map(l => extractIdFromUrl(l.url)));
     const result    = new Map();
     const xhrBucket = [];
@@ -1436,22 +1460,22 @@ async function scrapeCompetitionTabs(page, eventLinks) {
     // WICHTIG: ver.php?id=X navigiert WebClub NICHT zu Wettkampf X.
     // WebClubs Tab-XHRs (Wettkampffolge, Ergebnisse) sind an den Server-Session-Kontext
     // gebunden. Nur next.png aktualisiert diesen Kontext korrekt.
-    // Strategie: ver.php ohne Parameter laden (→ idx:1), dann via next.png durch alle
-    // Wettkämpfe navigieren. Die verID kommt aus dem selbst-identifizierenden Detail-XHR
-    // (enthält "verID"), nicht aus der URL-Position – daher ist die Reihenfolge egal.
+    // Strategie: ver.php ohne Parameter laden (â†’ idx:1), dann via next.png durch alle
+    // WettkÃ¤mpfe navigieren. Die verID kommt aus dem selbst-identifizierenden Detail-XHR
+    // (enthÃ¤lt "verID"), nicht aus der URL-Position â€“ daher ist die Reihenfolge egal.
 
     xhrBucket.length = 0;
     await page.goto(BASE_URL + '/ver.php', { waitUntil: 'load' });
-    await page.waitForTimeout(3000); // Detail-XHR für idx:1 abwarten
+    await page.waitForTimeout(3000); // Detail-XHR fÃ¼r idx:1 abwarten
 
-    // Gesamtzahl aus erster Detail-Response (enthält count-Feld wie Personen-XHR)
+    // Gesamtzahl aus erster Detail-Response (enthÃ¤lt count-Feld wie Personen-XHR)
     let totalCount = 0;
     for (const body of xhrBucket) {
         try {
             const d = JSON.parse(body);
             if (d.count && d.data?.verID) {
                 totalCount = parseInt(d.count, 10) || 0;
-                log(`Tab-Pass: ${totalCount} Wettkämpfe im Session-Kontext`);
+                log(`Tab-Pass: ${totalCount} WettkÃ¤mpfe im Session-Kontext`);
                 break;
             }
         } catch (_) {}
@@ -1459,7 +1483,7 @@ async function scrapeCompetitionTabs(page, eventLinks) {
     if (!totalCount) {
         // Fallback: etwas mehr als die bekannte Anzahl scannen
         totalCount = neededIds.size * 4 + 20;
-        log(`Tab-Pass: count nicht ermittelbar – scanne bis ${totalCount} Positionen`);
+        log(`Tab-Pass: count nicht ermittelbar â€“ scanne bis ${totalCount} Positionen`);
     }
 
     const nextBtn = page.locator('img[src*="ico24/next.png"]');
@@ -1484,7 +1508,7 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             const beforeTab = [...xhrBucket];
             xhrBucket.length = 0;
 
-            // Ergebnisse-Tab aktivieren → löst dorek-XHR aus
+            // Ergebnisse-Tab aktivieren â†’ lÃ¶st dorek-XHR aus
             const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
             if (hasErgebnisse) await page.waitForTimeout(2000);
 
@@ -1498,22 +1522,22 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             const results       = parsedResults.results;
             const relayResults  = parsedResults.relays;
 
-            // Meldungen-Tab aktivieren → Meldungen-XHR erfassen
+            // Meldungen-Tab aktivieren â†’ Meldungen-XHR erfassen
             xhrBucket.length = 0;
             const hasMeldungen = await activateTab(page, /meldung|anmeldung|einzel|entry/i);
             if (hasMeldungen) await page.waitForTimeout(2000);
             const meldungenBodies = [...xhrBucket];
-            // allBodies einschließen: Meldungen-XHR feuert automatisch (wie dorek) → landet in beforeTab
+            // allBodies einschlieÃŸen: Meldungen-XHR feuert automatisch (wie dorek) â†’ landet in beforeTab
             const parsedEntries = parseMeldungenFromXhr([...allBodies, ...meldungenBodies]);
             const entries       = parsedEntries.entries;
             const relayEntries  = parsedEntries.relays;
 
-            log(`  → ${events.length} Events, ${results.length} Ergebnisse, ${entries.length} Meldungen, `
+            log(`  â†’ ${events.length} Events, ${results.length} Ergebnisse, ${entries.length} Meldungen, `
                 + `${relayResults.length} Staffel-Ergebnisse, ${relayEntries.length} Staffel-Meldungen`);
             result.set(verID, { sessions, events, results, entries, relayResults, relayEntries });
 
             if (result.size >= neededIds.size) {
-                log('Alle benötigten Wettkämpfe gefunden – Tab-Pass beendet');
+                log('Alle benÃ¶tigten WettkÃ¤mpfe gefunden â€“ Tab-Pass beendet');
                 break;
             }
         }
@@ -1522,11 +1546,11 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             xhrBucket.length = 0;
             try {
                 if (await nextBtn.count() === 0) {
-                    log('next.png nicht gefunden – Tab-Pass beendet');
+                    log('next.png nicht gefunden â€“ Tab-Pass beendet');
                     break;
                 }
                 await nextBtn.click({ timeout: 3000, force: true });
-                await page.waitForTimeout(3000); // Detail-XHR für nächste Position abwarten
+                await page.waitForTimeout(3000); // Detail-XHR fÃ¼r nÃ¤chste Position abwarten
             } catch (e) {
                 log(`next.png-Klick Fehler: ${e.message.slice(0, 80)}`);
                 break;
@@ -1535,7 +1559,7 @@ async function scrapeCompetitionTabs(page, eventLinks) {
     }
 
     page.off('response', captureTabXhr);
-    log(`Tab-Pass abgeschlossen: ${result.size} von ${neededIds.size} benötigten Wettkämpfen gefunden`);
+    log(`Tab-Pass abgeschlossen: ${result.size} von ${neededIds.size} benÃ¶tigten WettkÃ¤mpfen gefunden`);
     return result;
 }
 
@@ -1603,11 +1627,11 @@ async function scrapeResults(page) {
     return results;
 }
 
-// ── Personen ─────────────────────────────────────────────────────────────────
+// â”€â”€ Personen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // pers.php verwendet das gleiche Detail-Format wie ver.php:
 // {"error":false,"rtc":0,"count":"421","idx":1,"data":{"persID":"...","persNACHNAME":"...","persVORNAME":"...","persGEBTAG":"...","persGESCHLECHT":"...","adrMAIL1":"...",...},"grp":[...]}
-// Kein separater Listen-XHR; man navigiert idx:1..N per next.png (analog zu Wettkämpfen).
+// Kein separater Listen-XHR; man navigiert idx:1..N per next.png (analog zu WettkÃ¤mpfen).
 
 function parsePersonDetail(body) {
     try {
@@ -1619,14 +1643,14 @@ function parsePersonDetail(body) {
         const firstname = (d.persVORNAME  ?? '').trim() || null;
         if (!lastname && !firstname) return null;
 
-        // grpswr enthält Gruppen-IDs als String-Array: ["14"] oder ["1", "9"]
-        // Kein Objekt, keine Namen – nur numerische IDs (WebClub-Format).
+        // grpswr enthÃ¤lt Gruppen-IDs als String-Array: ["14"] oder ["1", "9"]
+        // Kein Objekt, keine Namen â€“ nur numerische IDs (WebClub-Format).
         const grpswr = d.grpswr;
         const webclubGroupIds = Array.isArray(grpswr)
             ? grpswr.map(String).filter(Boolean)
             : [];
 
-        // persAUSTRITT "31.12.2099" = aktives Mitglied → null; echtes Datum = ausgetreten
+        // persAUSTRITT "31.12.2099" = aktives Mitglied â†’ null; echtes Datum = ausgetreten
         const resignedAt = (s) => (!s || s === '31.12.2099' || s === '01.01.2099') ? null : isoDate(s);
 
         return {
@@ -1660,7 +1684,7 @@ function parsePersonDetail(body) {
 }
 
 async function scrapePersons(page) {
-    log('Navigiere zu Personen/Mitgliedern…');
+    log('Navigiere zu Personen/Mitgliedernâ€¦');
     const persons = [];
     const errors  = [];
 
@@ -1680,7 +1704,7 @@ async function scrapePersons(page) {
                     log(`Pers-XHR: idx=${d.idx}/${d.count} id=${d.data?.persID} aktiv=${d.data?.swrAKTIV} ${d.data?.persNACHNAME}, ${d.data?.persVORNAME} grps=[${grpIds.join(',')}]`);
                 } catch (_) { log(`Pers-XHR Detail (${body.length}B) erfasst`); }
             } else if (body.trim().startsWith('{') || body.trim().startsWith('[')) {
-                // Große Responses vollständig loggen (können Gruppen-Definitionen enthalten)
+                // GroÃŸe Responses vollstÃ¤ndig loggen (kÃ¶nnen Gruppen-Definitionen enthalten)
                 const preview = body.length > 1000 ? body.slice(0, 4000) : body.slice(0, 300);
                 log(`Pers-XHR JSON (${body.length}B): ${preview.replace(/[\r\n]+/g, ' ')}`);
             }
@@ -1704,12 +1728,12 @@ async function scrapePersons(page) {
     }
 
     // "Nur aktive"-Filter deaktivieren, damit ALLE Mitglieder erscheinen (inkl. Bambini ohne DSV-Lizenz).
-    // optSWRACTONLY=1 im WebClub-Account würde sonst junge Schwimmer aus pers.php ausblenden.
+    // optSWRACTONLY=1 im WebClub-Account wÃ¼rde sonst junge Schwimmer aus pers.php ausblenden.
     try {
         await page.waitForTimeout(300);
         const allCbs = page.locator('input[type="checkbox"]');
         const cbCount = await allCbs.count();
-        if (cbCount > 0) log(`pers.php: ${cbCount} Checkbox(en) gefunden – prüfe auf Aktiv-Filter`);
+        if (cbCount > 0) log(`pers.php: ${cbCount} Checkbox(en) gefunden â€“ prÃ¼fe auf Aktiv-Filter`);
         for (let i = 0; i < cbCount; i++) {
             const cb = allCbs.nth(i);
             const labelText = await cb.evaluate(el => {
@@ -1726,25 +1750,25 @@ async function scrapePersons(page) {
                 log(`pers.php Aktiv-Filter-Checkbox: "${labelText}" (checked=${isChecked})`);
                 if (isChecked) {
                     await cb.uncheck({ force: true }).catch(() => {});
-                    log(`pers.php: Aktiv-Filter deaktiviert → zeige alle Mitglieder`);
+                    log(`pers.php: Aktiv-Filter deaktiviert â†’ zeige alle Mitglieder`);
                 }
             }
         }
-        // Diagnose: swrISSWR-Wert loggen (Server ignoriert DOM-Änderungen durch optSWRACTONLY serverseitig)
+        // Diagnose: swrISSWR-Wert loggen (Server ignoriert DOM-Ã„nderungen durch optSWRACTONLY serverseitig)
         const swrVal = await page.evaluate(() =>
             document.querySelector('select[name="swrISSWR"]')?.value ?? 'n/a'
         ).catch(() => 'n/a');
-        log(`pers.php: swrISSWR=${swrVal} (Server-Filter optSWRACTONLY überschreibt DOM-Wert)`);
+        log(`pers.php: swrISSWR=${swrVal} (Server-Filter optSWRACTONLY Ã¼berschreibt DOM-Wert)`);
     } catch (filterErr) {
         log(`pers.php Filter-Erkennung fehlgeschlagen (ignoriert): ${filterErr.message}`);
     }
 
-    // Suchen-Button klicken → löst Person idx:1 XHR aus
+    // Suchen-Button klicken â†’ lÃ¶st Person idx:1 XHR aus
     const searchBtn = page.locator(
         'input[type="submit"], button[type="submit"], button, input[type="button"]'
     ).filter({ hasText: /suchen|laden|anzeigen|filter|start|go/i }).first();
     if (await searchBtn.count() > 0) {
-        log('Personen-Seite: Suchen-Button gefunden – klicke');
+        log('Personen-Seite: Suchen-Button gefunden â€“ klicke');
         await searchBtn.click({ timeout: 3000 }).catch(() => {});
     }
 
@@ -1757,7 +1781,7 @@ async function scrapePersons(page) {
             const first = JSON.parse(detailBodies[0]);
             totalCount = parseInt(first.count ?? '0', 10);
             log(`Personen laut WebClub: ${totalCount}`);
-            // Ersten Person-Detail vollständig loggen (für Feldname-Entdeckung, inkl. grp-Format)
+            // Ersten Person-Detail vollstÃ¤ndig loggen (fÃ¼r Feldname-Entdeckung, inkl. grp-Format)
             log(`Erste Person raw (2500B): ${detailBodies[0].slice(0, 2500)}`);
         } catch (_) {}
     }
@@ -1770,13 +1794,13 @@ async function scrapePersons(page) {
     }
 
     // next.png-Klick-Navigation (gleiche Strategie wie Wettkampf-Details auf ver.php).
-    // pers_choose(idx) via page.evaluate() löst wie ver_choose() Seitennavigation aus
-    // und zerstört den Playwright-Kontext – daher immer next.png verwenden.
+    // pers_choose(idx) via page.evaluate() lÃ¶st wie ver_choose() Seitennavigation aus
+    // und zerstÃ¶rt den Playwright-Kontext â€“ daher immer next.png verwenden.
     if (totalCount > 1) {
-        log(`Navigiere via next.png für ${totalCount - 1} weitere Personen (~${Math.ceil((totalCount - 1) * 0.42)}s)`);
+        log(`Navigiere via next.png fÃ¼r ${totalCount - 1} weitere Personen (~${Math.ceil((totalCount - 1) * 0.42)}s)`);
 
-        // fileupload_dialog öffnet sich für jede Person ohne Profilbild und blockiert Klicks.
-        // Als No-Op patchen und das bereits offene Modal für idx:1 sofort schließen.
+        // fileupload_dialog Ã¶ffnet sich fÃ¼r jede Person ohne Profilbild und blockiert Klicks.
+        // Als No-Op patchen und das bereits offene Modal fÃ¼r idx:1 sofort schlieÃŸen.
         await page.evaluate(() => {
             if (typeof window.fileupload_dialog === 'function') window.fileupload_dialog = () => {};
             if (typeof window.mail_dialog_fileupload === 'function') window.mail_dialog_fileupload = () => {};
@@ -1799,12 +1823,12 @@ async function scrapePersons(page) {
                 await nextBtn.click({ timeout: 3000 });
                 await page.waitForTimeout(400);
                 consecutiveFails = 0;
-                if (i % 50 === 0) log(`Personen: ${i}/${totalCount} – ${detailBodies.length} XHRs erfasst`);
+                if (i % 50 === 0) log(`Personen: ${i}/${totalCount} â€“ ${detailBodies.length} XHRs erfasst`);
             } catch (e) {
                 consecutiveFails++;
                 log(`Person idx:${i}: ${e.message.split('\n')[0]} (Fehler ${consecutiveFails})`);
-                if (consecutiveFails >= 5) { log('Zu viele aufeinanderfolgende Fehler – breche ab'); break; }
-                // Modal schließen und weitermachen
+                if (consecutiveFails >= 5) { log('Zu viele aufeinanderfolgende Fehler â€“ breche ab'); break; }
+                // Modal schlieÃŸen und weitermachen
                 await page.evaluate(() => {
                     document.querySelectorAll('.modal.in, .modal.show').forEach(m => {
                         m.classList.remove('in', 'show'); m.style.display = 'none';
@@ -1832,12 +1856,12 @@ async function scrapePersons(page) {
     return { persons, errors };
 }
 
-// ── Stammdaten → Gruppen ─────────────────────────────────────────────────────
+// â”€â”€ Stammdaten â†’ Gruppen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // WebClub liefert Gruppen-IDs als reine Strings in grpswr (["14"]).
-// Diese Funktion crawlt grp.php und baut die ID→Name-Tabelle auf.
+// Diese Funktion crawlt grp.php und baut die IDâ†’Name-Tabelle auf.
 
 async function scrapeGroups(page) {
-    log('Navigiere zu Stammdaten → Gruppen (grp.php)…');
+    log('Navigiere zu Stammdaten â†’ Gruppen (grp.php)â€¦');
     const groups = [];
     const errors = [];
 
@@ -1885,7 +1909,7 @@ async function scrapeGroups(page) {
 
     // Durch alle Gruppen navigieren (gleiche next.png-Strategie wie bei Personen)
     if (totalCount > 1) {
-        log(`${totalCount} Gruppen – navigiere via next.png…`);
+        log(`${totalCount} Gruppen â€“ navigiere via next.pngâ€¦`);
         const nextBtn = page.locator('img[src*="ico24/next.png"]');
         for (let i = 2; i <= totalCount; i++) {
             try {
@@ -1905,7 +1929,7 @@ async function scrapeGroups(page) {
 
 async function navigateToNextPage(page) {
     try {
-        const next = page.getByRole('link', { name: /nächste|weiter|next|›|»/i })
+        const next = page.getByRole('link', { name: /nÃ¤chste|weiter|next|â€º|Â»/i })
             .or(page.locator('[rel="next"], .pagination a.next, [aria-label*="next"]'))
             .first();
         const exists  = await next.count() > 0;
@@ -1920,7 +1944,7 @@ async function navigateToNextPage(page) {
     }
 }
 
-// ── Hilfsfunktionen ──────────────────────────────────────────────────────────
+// â”€â”€ Hilfsfunktionen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function extractIdFromUrl(url) {
     if (!url) return null;
@@ -1930,7 +1954,7 @@ function extractIdFromUrl(url) {
     // /path/123 am Ende
     const pathNum = url.match(/\/(\d+)\/?(?:[?#].*)?$/);
     if (pathNum) return pathNum[1];
-    // Kein ID gefunden – URL-Hash als Fallback-Schlüssel
+    // Kein ID gefunden â€“ URL-Hash als Fallback-SchlÃ¼ssel
     let hash = 0;
     for (let i = 0; i < url.length; i++) { hash = (hash * 31 + url.charCodeAt(i)) >>> 0; }
     return 'url-' + hash.toString(16);
@@ -1939,8 +1963,8 @@ function extractIdFromUrl(url) {
 function normalizeGender(val) {
     if (!val) return null;
     val = val.toLowerCase().trim();
-    if (['m', 'männlich', 'male', 'man', 'herr', 'junge'].includes(val)) return 'M';
-    if (['w', 'f', 'weiblich', 'female', 'woman', 'frau', 'mädchen'].includes(val)) return 'F';
+    if (['m', 'mÃ¤nnlich', 'male', 'man', 'herr', 'junge'].includes(val)) return 'M';
+    if (['w', 'f', 'weiblich', 'female', 'woman', 'frau', 'mÃ¤dchen'].includes(val)) return 'F';
     return null;
 }
 
@@ -1959,7 +1983,7 @@ function parseTimeMs(str) {
     return null;
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 (async () => {
     const result = {
@@ -1988,7 +2012,7 @@ function parseTimeMs(str) {
             }
         });
         page.on('requestfailed', req => {
-            log(`Request FAILED: [${req.resourceType()}] ${req.url().replace(BASE_URL, '***')} – ${req.failure()?.errorText || 'unknown'}`);
+            log(`Request FAILED: [${req.resourceType()}] ${req.url().replace(BASE_URL, '***')} â€“ ${req.failure()?.errorText || 'unknown'}`);
         });
         page.on('console', msg => {
             if (msg.type() === 'error') log(`JS-Fehler: ${msg.text()}`);
