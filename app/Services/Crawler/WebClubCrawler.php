@@ -266,7 +266,6 @@ class WebClubCrawler
         // Bulk: alle Portal-Events dieser Veranstaltung
         $portalEvents     = CompetitionEvent::where('competition_id', $competition->id)->get();
         $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
-        $portalByNumber   = $portalEvents->keyBy('event_number');
 
         // Bulk-Duplikat-Check (kein N×DB-Query)
         $existingKeys = CompetitionEntry::where('competition_id', $competition->id)
@@ -315,47 +314,27 @@ class WebClubCrawler
             $distance    = null;
             $gender      = null;
 
+            // Primaer: WebClubs eigene Wettkampffolge (wkfLAGE / wkfLAENGE).
+            // Die Event-Nummerierung des Portals darf NICHT als Quelle dienen –
+            // sie kann von WebClub abweichen (z.B. nach einem DSV7-Import).
             if ($eventNumber > 0 && isset($wcEventDefs[$eventNumber])) {
-                $def         = $wcEventDefs[$eventNumber];
-                $discipline  = $def['discipline'];
-                $distance    = $def['distance'];
-                $gender      = $def['gender'];
-                $discDistKey = $discipline . '_' . $distance;
-                $candidates  = $portalByDiscDist->get($discDistKey);
-                if ($candidates) {
-                    $event = $candidates->count() === 1
-                        ? $candidates->first()
-                        : ($candidates->firstWhere('gender', $gender)
-                            ?? $candidates->firstWhere('gender', 'X')
-                            ?? $candidates->first());
-                }
-            } elseif ($eventNumber > 0 && empty($wcEventDefs)) {
-                $event = $portalByNumber->get($eventNumber);
+                $def        = $wcEventDefs[$eventNumber];
+                $discipline = $def['discipline'];
+                $distance   = (int) $def['distance'];
+                $gender     = $def['gender'];
             }
 
-            if (!$discipline && $event) {
-                $discipline = $event->discipline;
-                $distance   = $event->distance;
-                $gender     = $event->gender;
-            }
-
-            // Fallback: discipline+distance direkt aus dem XHR (Felder g+l), wcEventDefs nicht nötig
+            // Fallback: discipline+distance direkt aus dem XHR (Felder g+l)
             if (!$discipline && !empty($entry['discipline'])) {
-                $discipline  = $entry['discipline'];
-                $distance    = (int) ($entry['distance'] ?? 0) ?: null;
-                $discDistKey = $discipline . '_' . $distance;
-                $candidates  = $portalByDiscDist->get($discDistKey);
-                if ($candidates) {
-                    $gender = $entry['gender'] ?? null;
-                    $event  = $candidates->count() === 1
-                        ? $candidates->first()
-                        : ($candidates->firstWhere('gender', $gender)
-                            ?? $candidates->firstWhere('gender', 'X')
-                            ?? $candidates->first());
-                }
+                $discipline = $entry['discipline'];
+                $distance   = (int) ($entry['distance'] ?? 0) ?: null;
+                $gender     = $entry['gender'] ?? null;
             }
 
             if (!$discipline || !$distance) continue;
+
+            // Portal-Event nur zur Verknuepfung, nie als Quelle fuer Disziplin/Distanz
+            $event = $this->matchPortalEvent($portalByDiscDist, $discipline, (int) $distance, $gender);
 
             $key = "{$user->id}_{$discipline}_{$distance}";
             if (isset($existingKeys[$key])) continue;
@@ -412,18 +391,17 @@ class WebClubCrawler
         $portalEvents   = CompetitionEvent::where('competition_id', $competition->id)->get();
         // Gruppiert nach Disziplin+Distanz für systemübergreifendes Matching
         $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
-        // Als Fallback: direkt per event_number (nur korrekt wenn Portal-Events WebClub-Nummern haben)
-        $portalByNumber = $portalEvents->keyBy('event_number');
 
         // Bulk: bereits vorhandene Ergebnisse (1 Query statt N exists()-Queries)
         $existingKeys = CompetitionResult::where('competition_id', $competition->id)
             ->get(['user_id', 'discipline', 'distance'])
             ->mapWithKeys(fn($r) => ["{$r->user_id}_{$r->discipline}_{$r->distance}" => true]);
 
-        $synced      = 0;
-        $skipNoUser  = 0;
-        $skipNoEvent = 0;
-        $skipDup     = 0;
+        $synced         = 0;
+        $skipNoUser     = 0;
+        $skipNoEvent    = 0;
+        $skipNoEventDef = 0;
+        $skipDup        = 0;
 
         foreach ($results as $result) {
             if (empty($result['athlete_name']) || empty($result['time_ms'])) continue;
@@ -435,52 +413,49 @@ class WebClubCrawler
             }
 
             $eventNumber = isset($result['event_number']) ? (int) $result['event_number'] : 0;
-            $event       = null;
 
-            if ($eventNumber > 0 && isset($wcEventDefs[$eventNumber])) {
-                // Korrekte Methode: WebClub-Nummer → Disziplin+Distanz → Portal-Event
-                $def        = $wcEventDefs[$eventNumber];
-                $discDistKey = $def['discipline'] . '_' . $def['distance'];
-                $candidates = $portalByDiscDist->get($discDistKey);
-                if ($candidates) {
-                    if ($candidates->count() === 1) {
-                        $event = $candidates->first();
-                    } else {
-                        // Mehrere Events mit gleicher Disziplin+Distanz: per Geschlecht disambiguieren
-                        $gender = $result['gender'] ?? null;
-                        $event  = $gender
-                            ? ($candidates->firstWhere('gender', $gender)
-                                ?? $candidates->firstWhere('gender', 'X')
-                                ?? $candidates->first())
-                            : $candidates->first();
-                    }
-                }
-            } elseif ($eventNumber > 0 && empty($wcEventDefs)) {
-                // Fallback nur wenn WebClub keine Eventdefinitionen geliefert hat:
-                // Direktes Nachschlagen per event_number (korrekt wenn Portal-Events WebClub-Nummern haben)
-                $event = $portalByNumber->get($eventNumber);
-            }
-
-            if (!$event) {
-                $skipNoEvent++;
+            // Disziplin und Distanz stammen AUSSCHLIESSLICH aus WebClubs eigener
+            // Wettkampffolge (wkfLAGE / wkfLAENGE). Dort sind sie eindeutig kodiert.
+            //
+            // Frueher wurde stattdessen die Disziplin des Portal-Events uebernommen.
+            // Stimmte dessen Nummerierung nicht mit WebClub ueberein – etwa weil die
+            // Events aus einem DSV7-Import stammen – landete das Ergebnis unter der
+            // falschen Lage (Lagen als Freistil und umgekehrt).
+            $def = $eventNumber > 0 ? ($wcEventDefs[$eventNumber] ?? null) : null;
+            if (!$def) {
+                $skipNoEventDef++;
                 continue;
             }
 
+            $discipline = $def['discipline'];
+            $distance   = (int) $def['distance'];
+
+            // Das Portal-Event dient nur noch der Anreicherung (Altersklasse).
+            // Fehlt es, wird das Ergebnis trotzdem gespeichert – frueher ging es
+            // an dieser Stelle verloren.
+            $event = $this->matchPortalEvent(
+                $portalByDiscDist, $discipline, $distance, $result['gender'] ?? null
+            );
+            if (!$event) $skipNoEvent++;
+
             // Duplikat-Check aus In-Memory-Cache (kein DB-Query)
-            $key = "{$user->id}_{$event->discipline}_{$event->distance}";
+            $key = "{$user->id}_{$discipline}_{$distance}";
             if (isset($existingKeys[$key])) {
                 $skipDup++;
                 continue;
             }
             $existingKeys[$key] = true;
 
+            $gender = $result['gender'] ?? $def['gender'] ?? null;
+            if ($gender === 'X') $gender = null;
+
             $wcRek = trim((string) ($result['webclub_rek'] ?? ''));
             CompetitionResult::create(array_filter([
                 'competition_id' => $competition->id,
                 'user_id'        => $user->id,
-                'discipline'     => $event->discipline,
-                'distance'       => $event->distance,
-                'gender'         => $result['gender'] ?? $event->gender ?? null,
+                'discipline'     => $discipline,
+                'distance'       => $distance,
+                'gender'         => $gender,
                 'time_ms'        => (int) $result['time_ms'],
                 'placement'      => $result['placement'] ?? null,
                 'age_group'      => $event->age_group ?? null,
@@ -490,9 +465,10 @@ class WebClubCrawler
         }
 
         $parts = ["{$synced} neu importiert von {$total} WebClub-Einträgen"];
-        if ($skipDup > 0)     $parts[] = "{$skipDup} bereits vorhanden (übersprungen)";
-        if ($skipNoEvent > 0) $parts[] = "{$skipNoEvent} ohne passendes Portal-Event";
-        if ($skipNoUser > 0)  $parts[] = "{$skipNoUser} Schwimmer nicht im Portal gefunden";
+        if ($skipDup > 0)        $parts[] = "{$skipDup} bereits vorhanden (übersprungen)";
+        if ($skipNoEventDef > 0) $parts[] = "{$skipNoEventDef} ohne WebClub-Wettkampfdefinition (übersprungen)";
+        if ($skipNoEvent > 0)    $parts[] = "{$skipNoEvent} ohne Portal-Event importiert (ohne Altersklasse)";
+        if ($skipNoUser > 0)     $parts[] = "{$skipNoUser} Schwimmer nicht im Portal gefunden";
 
         ImportLog::create([
             'source'         => self::SOURCE,
@@ -543,6 +519,31 @@ class WebClubCrawler
                 ]
             );
         }
+    }
+
+    /**
+     * Sucht das passende Portal-Event zu Disziplin+Distanz – ausschliesslich zur
+     * Anreicherung (Altersklasse). Niemals als Quelle fuer Disziplin oder Distanz:
+     * die Event-Nummerierung im Portal muss nicht der von WebClub entsprechen.
+     */
+    private function matchPortalEvent(
+        \Illuminate\Support\Collection $portalByDiscDist,
+        string $discipline,
+        int $distance,
+        ?string $gender
+    ): ?CompetitionEvent {
+        $candidates = $portalByDiscDist->get($discipline . '_' . $distance);
+        if (!$candidates || $candidates->isEmpty()) return null;
+        if ($candidates->count() === 1) return $candidates->first();
+
+        // Mehrere Events mit gleicher Disziplin+Distanz: per Geschlecht disambiguieren
+        if ($gender) {
+            return $candidates->firstWhere('gender', $gender)
+                ?? $candidates->firstWhere('gender', 'X')
+                ?? $candidates->first();
+        }
+
+        return $candidates->first();
     }
 
     private function findOrSkipEvent(Competition $competition, array $item): ?CompetitionEvent
