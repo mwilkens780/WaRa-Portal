@@ -5,6 +5,7 @@ namespace App\Services\Crawler;
 use App\Models\Competition;
 use App\Models\CompetitionResult;
 use App\Models\ImportLog;
+use App\Models\RelayResult;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\WaScoringService;
@@ -28,6 +29,12 @@ class DsvDataCrawler
 
     // Default-StateID für Schleswig-Holstein; wird durch Admin-Einstellungen überschrieben
     private const DEFAULT_STATE_IDS = [14];
+
+    /** Ueberschreibbar per Setting 'crawler.own_club_names' (JSON-Array). */
+    private const DEFAULT_OWN_CLUB_NAMES = [
+        'SG Wasserratten Norderstedt',
+        'SG Wasserratten',
+    ];
 
     /**
      * Reihenfolge ist entscheidend: 'lagen' MUSS vor den Einzellagen stehen.
@@ -137,8 +144,11 @@ class DsvDataCrawler
             return 'errors';
         }
 
-        $meetData = $this->parsePdfText($rawText, $meetId, $year);
-        if (!$meetData || empty($meetData['results'])) {
+        $meetData   = $this->parsePdfText($rawText, $meetId, $year);
+        $individual = $meetData['results']['individual'] ?? [];
+        $relays     = $meetData['results']['relays']     ?? [];
+
+        if (!$meetData || (empty($individual) && empty($relays))) {
             if (!$existing) {
                 $this->logImport($meetId, $pdfUrl, null, 'skipped', 'Keine Ergebnisse im PDF erkannt');
             }
@@ -146,12 +156,17 @@ class DsvDataCrawler
         }
 
         // Competition erstellen (falls neu) oder vorhandene verwenden
-        $competition = $existing ?? $this->persistMeet($meetData, $pdfUrl, $importHash);
-        $count       = $this->persistResults($competition, $meetData['results']);
+        $competition  = $existing ?? $this->persistMeet($meetData, $pdfUrl, $importHash);
+        $count        = $this->persistResults($competition, $individual);
+        $relaysSynced = $this->persistRelayResults($competition, $relays);
 
-        if ($count > 0) {
+        if ($count > 0 || $relaysSynced > 0) {
+            $parts = [];
+            if ($count > 0)        $parts[] = "{$count} eigene Ergebnisse";
+            if ($relaysSynced > 0) $parts[] = "{$relaysSynced} eigene Staffeln";
+
             $this->logImport($meetId, $pdfUrl, $competition->id, 'success',
-                ($existing ? 'Nachgezogen: ' : '') . "{$count} eigene Ergebnisse importiert"
+                ($existing ? 'Nachgezogen: ' : '') . implode(' · ', $parts) . ' importiert'
             );
             return 'imported';
         }
@@ -236,99 +251,143 @@ class DsvDataCrawler
         ];
     }
 
+    /**
+     * Zerlegt den Protokolltext in Einzel- und Staffelergebnisse.
+     *
+     * Reales Format (verifiziert an DSV-Protokollen 2025, EasyWK/Synactis):
+     *   Wettkampf 2 - 200m Schmetterling männlich
+     *   Jahrgang 2017
+     *   Platz Schwimmer(in)<TAB>Jg. Verein<TAB>Endzeit WA
+     *   1. Leif Bennet Möller<TAB>2007 TSV RW Niebüll<TAB>02:27,35
+     *   100m: 01:11,03 (01:11,03) | 200m: 02:27,35 (01:16,32)   ← Zwischenzeiten
+     *
+     * Staffeln – Platz UND Mannschaftsnummer sind beide "N.":
+     *   Wettkampf 3 - 4x50m Lagen mixed
+     *   1. 1. Mannschaft<TAB>MTV von 1860 e.V. Heide 02:20,60
+     *   Mia Rehse<TAB>2011 (W)50m: 00:35,26 (00:35,26)          ← Staffelmitglied
+     *
+     * @return array{individual: list<array>, relays: list<array>}
+     */
     private function extractResults(array $lines): array
     {
-        $results         = [];
-        $currentEvent    = null;
-        $eventHasResults = false;
+        $individual   = [];
+        $relays       = [];
+        $currentEvent = null;
+        $ageGroup     = null;
+        $relayIndex   = null;
 
         foreach ($lines as $line) {
-            // 1) Ergebniszeilen haben Vorrang – sie dürfen nie als Header gelesen werden.
-            if ($currentEvent !== null) {
-                $result = $this->detectResultRow($line, $currentEvent);
-                if ($result) {
-                    $results[]       = $result;
-                    $eventHasResults = true;
-                    continue;
-                }
-            }
-
-            // 2) Überschrift erkannt. Kann sie nicht eindeutig klassifiziert werden
-            //    (Staffel, unbekannte Disziplin), wird currentEvent bewusst auf null
-            //    gesetzt. Sonst würden die folgenden Ergebnisse dem VORHERIGEN
-            //    Wettkampf zugeordnet – die Ursache für vertauschte Lagen/Freistil-Zeiten.
-            if ($this->looksLikeEventHeader($line)) {
-                $currentEvent    = $this->detectEventHeader($line);
-                $eventHasResults = false;
+            // Wettkampf-Überschrift
+            $event = $this->detectEventHeader($line);
+            if ($event !== null) {
+                $currentEvent = $event;
+                $ageGroup     = null;
+                $relayIndex   = null;
                 continue;
             }
 
-            // 3) Das Geschlecht steht oft erst in der Folgezeile der Überschrift
-            //    ("WK 12  200 m Lagen" / "weiblich  Jahrgang: 2009-2011").
-            //    Nur zwischen Überschrift und erstem Ergebnis nachtragen, damit
-            //    spätere Zeilen (Vereinsnamen, Fußzeilen) nichts überschreiben.
-            if ($currentEvent !== null && !$eventHasResults && $currentEvent['gender'] === 'X') {
-                $gender = $this->genderFromText($line);
-                if ($gender !== 'X') $currentEvent['gender'] = $gender;
+            // Sieht aus wie eine Überschrift, liess sich aber nicht klassifizieren:
+            // currentEvent bewusst verwerfen. Sonst landen die folgenden Zeilen beim
+            // VORHERIGEN Wettkampf – die Ursache vertauschter Lagen/Freistil-Zuordnungen.
+            if ($this->looksLikeEventHeader($line)) {
+                $currentEvent = null;
+                $relayIndex   = null;
+                continue;
             }
+
+            if ($currentEvent === null) continue;
+
+            // Wertungsgruppe ("Jahrgang 2017", "Offene Wertung", "AK 45")
+            $group = $this->detectAgeGroup($line);
+            if ($group !== null) {
+                $ageGroup   = $group;
+                $relayIndex = null;
+                continue;
+            }
+
+            // Tabellenkopf und reine Zwischenzeit-Zeilen tragen keine Ergebnisse
+            if ($this->isTableHeader($line) || $this->isSplitTimeLine($line)) continue;
+
+            if ($currentEvent['relay_legs'] !== null) {
+                $relay = $this->detectRelayRow($line, $currentEvent, $ageGroup);
+                if ($relay !== null) {
+                    $relays[]   = $relay;
+                    $relayIndex = count($relays) - 1;
+                    continue;
+                }
+                // Folgezeilen einer Staffel sind ihre Schwimmer
+                if ($relayIndex !== null) {
+                    $member = $this->detectRelayMemberRow($line, $currentEvent);
+                    if ($member !== null) $relays[$relayIndex]['members'][] = $member;
+                }
+                continue;
+            }
+
+            $result = $this->detectResultRow($line, $currentEvent, $ageGroup);
+            if ($result !== null) $individual[] = $result;
         }
 
-        return $results;
+        return ['individual' => $individual, 'relays' => $relays];
     }
 
     /**
-     * Erkennt, ob eine Zeile eine Wettkampf-Überschrift ankündigt – unabhängig
-     * davon, ob sie anschließend klassifiziert werden kann.
+     * "Wettkampf 3 - 4x50m Lagen mixed" / "Wettkampf 2 - 200m Schmetterling männlich"
+     * distance ist die Strecke PRO BAHN, relay_legs die Anzahl der Wiederholungen.
      */
-    private function looksLikeEventHeader(string $line): bool
-    {
-        if ($this->parseDistance($line) === null) return false;
-
-        // Staffeln gelten als Überschrift (und führen zum Reset).
-        if ($this->isRelay($line)) return true;
-
-        // "WK 12 ..." / "Wettkampf 12 ..." am Zeilenanfang
-        if (preg_match('/^\s*(WK|Wettkampf)\s*\d+/iu', $line)) return true;
-
-        return $this->disciplineFromText($line) !== null;
-    }
-
     private function detectEventHeader(string $line): ?array
     {
-        // Staffeln liefern keine Einzelergebnisse – bewusst verwerfen.
-        if ($this->isRelay($line)) return null;
+        if (!preg_match(
+            '/^\s*(?:Wettkampf|WK)\s*(\d+)\s*[-–—]\s*(?:(\d+)\s*[x×]\s*)?(\d{2,4})\s*m\b\s*(.*)$/iu',
+            $line, $m
+        )) {
+            return null;
+        }
 
-        $distance   = $this->parseDistance($line);
-        $discipline = $this->disciplineFromText($line);
+        $rest       = trim($m[4]);
+        $discipline = $this->disciplineFromText($rest);
+        $distance   = (int) $m[3];
+        $legs       = ($m[2] !== '') ? (int) $m[2] : null;
 
-        if (!$discipline || $distance === null) return null;
+        if (!$discipline || $distance <= 0) return null;
+        if ($legs !== null && $legs < 2)    return null;
 
         return [
-            'discipline' => $discipline,
-            'distance'   => $distance,
-            'gender'     => $this->genderFromText($line),
+            'event_number' => (int) $m[1],
+            'discipline'   => $discipline,
+            'distance'     => $distance,
+            'relay_legs'   => $legs,
+            'gender'       => $this->genderFromText($rest),
         ];
     }
 
-    /**
-     * Liest die Streckenangabe ("100 m", "100m", "1500 m").
-     * Das 'm' muss von Trennzeichen oder Zeilenende gefolgt sein, damit
-     * Vereinsnamen wie "SV 1900 München" nicht als Strecke gelesen werden.
-     * Geschützte Leerzeichen (U+00A0) kommen in PDF-Extrakten häufig vor.
-     */
-    private function parseDistance(string $line): ?int
+    private function looksLikeEventHeader(string $line): bool
     {
-        if (!preg_match('/\b(\d{2,4})[\s\x{00A0}]*m(?=[\s\x{00A0},.:;]|$)/iu', $line, $m)) {
-            return null;
-        }
-        $distance = (int) $m[1];
-        return $distance > 0 ? $distance : null;
+        return preg_match('/^\s*(?:Wettkampf|WK)\s*\d+\s*[-–—]/iu', $line) === 1;
     }
 
-    private function isRelay(string $line): bool
+    /** "Jahrgang 2017", "Jahrgang 2009-2011", "AK 45", "Offene Wertung" */
+    private function detectAgeGroup(string $line): ?string
     {
-        return mb_stripos($line, 'staffel') !== false
-            || preg_match('/\b\d\s*[x×]\s*\d+/iu', $line) === 1;
+        $t = trim($line);
+        if (preg_match('/^Jahrgang\s*:?\s*(\d{4}(?:\s*[-–]\s*\d{4})?)$/iu', $t, $m)) {
+            return 'JG ' . preg_replace('/\s+/', '', $m[1]);
+        }
+        if (preg_match('/^(AK\s*\d+)$/iu', $t, $m)) {
+            return strtoupper(preg_replace('/\s+/', '', $m[1]));
+        }
+        if (preg_match('/^Offene\s+Wertung$/iu', $t)) return 'Offen';
+        return null;
+    }
+
+    private function isTableHeader(string $line): bool
+    {
+        return preg_match('/^\s*Platz\b/iu', $line) === 1;
+    }
+
+    /** "100m: 01:11,03 (01:11,03) | 200m: 02:27,35 (01:16,32)" */
+    private function isSplitTimeLine(string $line): bool
+    {
+        return preg_match('/^\s*\d{2,4}\s*m\s*:/iu', $line) === 1;
     }
 
     private function disciplineFromText(string $text): ?string
@@ -340,42 +399,112 @@ class DsvDataCrawler
         return null;
     }
 
+    /** 'X' steht – wie in DSV7 – für gemischte Wertung (mixed). */
     private function genderFromText(string $line): string
     {
+        if (preg_match('/mixed|gemischt/iu', $line)) return 'X';
         // Weiblich zuerst: "female" enthält "male".
         if (preg_match('/weiblich|frauen|mädchen|maedchen|female/iu', $line)) return 'F';
         if (preg_match('/männlich|maennlich|männer|maenner|jungen|male/iu', $line)) return 'M';
         return 'X';
     }
 
-    private function detectResultRow(string $line, array $event): ?array
+    /**
+     * "1. Leif Bennet Möller<TAB>2007 TSV RW Niebüll<TAB>02:27,35"
+     * Masters kleben Altersklasse und Verein zusammen: "1980/AK 45SV Wiking Kiel".
+     * Optionale WA-Punkte am Zeilenende.
+     */
+    private function detectResultRow(string $line, array $event, ?string $ageGroup): ?array
     {
-        // Zeitformat: M:SS,cc oder SS,cc (deutsches Format mit Komma)
-        // Platz am Anfang der Zeile, dann Name, Jahrgang, Verein, Zeit
-        $timePattern = '(\d{1,2}:\d{2}[,\.]\d{2}|\d{2}[,\.]\d{2})';
-
-        if (!preg_match('/^(\d{1,3})\s+(.+?)\s+(\d{2})\s+(.+?)\s+' . $timePattern . '/u', $line, $m)) {
+        if (!preg_match(
+            '/^\s*(\d{1,3})\.\s+(.+?)[\s\t]+(\d{4})(?:\s*\/\s*AK\s*\d+)?\s*(.+?)[\s\t]+'
+            . '(\d{1,2}:\d{2}[,.]\d{2})(?:\s+\d+)?\s*$/u',
+            $line, $m
+        )) {
             return null;
         }
 
-        $place    = (int) $m[1];
-        $rawName  = trim($m[2]);
-        $timeMs   = $this->parseTimeString($m[5]);
+        $timeMs  = $this->parseTimeString($m[5]);
+        $rawName = trim($m[2]);
+        if ($timeMs <= 0 || $rawName === '') return null;
 
-        if ($timeMs <= 0 || !$rawName) return null;
-
-        // Name-Format: "Nachname, Vorname" oder "Vorname Nachname"
         [$firstname, $lastname] = $this->splitName($rawName);
         if (!$firstname || !$lastname) return null;
 
         return [
             'firstname'  => $firstname,
             'lastname'   => $lastname,
-            'place'      => $place,
+            'place'      => (int) $m[1],
+            'birth_year' => (int) $m[3],
+            'club'       => trim($m[4]),
             'time_ms'    => $timeMs,
             'discipline' => $event['discipline'],
             'distance'   => $event['distance'],
             'gender'     => $event['gender'],
+            'age_group'  => $ageGroup,
+        ];
+    }
+
+    /** "1. 1. Mannschaft<TAB>MTV von 1860 e.V. Heide 02:20,60" */
+    private function detectRelayRow(string $line, array $event, ?string $ageGroup): ?array
+    {
+        if (!preg_match(
+            '/^\s*(\d{1,3})\.\s+(.+?)[\s\t]+(\d{1,2}:\d{2}[,.]\d{2})(?:\s+\d+)?\s*$/u',
+            $line, $m
+        )) {
+            return null;
+        }
+
+        $timeMs = $this->parseTimeString($m[3]);
+        if ($timeMs <= 0) return null;
+
+        // Mannschaftsbezeichnung ("1. Mannschaft") vom Vereinsnamen trennen
+        $teamRaw  = trim($m[2]);
+        $clubName = trim(preg_replace('/^\d+\.\s*Mannschaft\s*/iu', '', $teamRaw));
+        if ($clubName === '') $clubName = $teamRaw;
+
+        return [
+            'place'      => (int) $m[1],
+            'club'       => $clubName,
+            'team_raw'   => $teamRaw,
+            'time_ms'    => $timeMs,
+            'discipline' => $event['discipline'],
+            'distance'   => $event['distance'],
+            'relay_legs' => $event['relay_legs'],
+            'gender'     => $event['gender'],
+            'age_group'  => $ageGroup,
+            'members'    => [],
+        ];
+    }
+
+    /**
+     * "Mia Rehse<TAB>2011 (W)50m: 00:35,26 (00:35,26)"
+     * Die Streckenangabe ist kumuliert – daraus ergibt sich die Bahnnummer.
+     */
+    private function detectRelayMemberRow(string $line, array $event): ?array
+    {
+        if (!preg_match(
+            '/^\s*(.+?)[\s\t]+(\d{4})\s*\(([MWmw])\)\s*(\d{2,4})\s*m\s*:/u',
+            $line, $m
+        )) {
+            return null;
+        }
+
+        $rawName = trim($m[1]);
+        if ($rawName === '') return null;
+
+        [$firstname, $lastname] = $this->splitName($rawName);
+        if (!$firstname || !$lastname) return null;
+
+        $legDistance = max(1, (int) $event['distance']);
+        $leg         = (int) round((int) $m[4] / $legDistance);
+
+        return [
+            'firstname'  => $firstname,
+            'lastname'   => $lastname,
+            'birth_year' => (int) $m[2],
+            'gender'     => strtoupper($m[3]) === 'W' ? 'F' : 'M',
+            'leg'        => max(1, $leg),
         ];
     }
 
@@ -445,6 +574,7 @@ class DsvDataCrawler
                 'placement'        => $result['place'] ?? null,
                 'is_personal_best' => $isPb,
                 'gender'           => $gender,
+                'age_group'        => $result['age_group'] ?? null,
                 'is_final'         => true,
                 'wa_points'        => $waPoints,
                 'wa_table_year'    => $usedYear,
@@ -454,6 +584,58 @@ class DsvDataCrawler
         }
 
         return $count;
+    }
+
+    /**
+     * Speichert Staffelergebnisse des eigenen Vereins.
+     * Konvention wie im DSV7-Pfad: distance = Strecke pro Bahn, 'L' = Lagenstaffel,
+     * Geschlecht 'X' (mixed) wird als NULL abgelegt.
+     */
+    private function persistRelayResults(Competition $competition, array $relays): int
+    {
+        if (empty($relays)) return 0;
+
+        $ownClubNames = Setting::getJson('crawler.own_club_names', self::DEFAULT_OWN_CLUB_NAMES);
+
+        $existingKeys = RelayResult::where('competition_id', $competition->id)
+            ->get(['discipline', 'distance', 'club_name', 'time_ms'])
+            ->mapWithKeys(fn($r) => ["{$r->discipline}_{$r->distance}_{$r->club_name}_{$r->time_ms}" => true]);
+
+        $count = 0;
+        foreach ($relays as $relay) {
+            if (!$this->isOwnClub($relay['club'] ?? '', $ownClubNames)) continue;
+
+            $key = "{$relay['discipline']}_{$relay['distance']}_{$relay['club']}_{$relay['time_ms']}";
+            if (isset($existingKeys[$key])) continue;
+            $existingKeys[$key] = true;
+
+            $gender = $relay['gender'] ?? null;
+            if ($gender === 'X') $gender = null;
+
+            RelayResult::create([
+                'competition_id' => $competition->id,
+                'discipline'     => $relay['discipline'],
+                'distance'       => $relay['distance'],
+                'club_name'      => $relay['club'],
+                'time_ms'        => $relay['time_ms'],
+                'placement'      => $relay['place'] ?? null,
+                'age_group'      => $relay['age_group'] ?? null,
+                'gender'         => $gender,
+                'status'         => 'OK',
+            ]);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    private function isOwnClub(string $clubName, array $ownClubNames): bool
+    {
+        foreach ($ownClubNames as $own) {
+            $own = trim((string) $own);
+            if ($own !== '' && mb_stripos($clubName, $own) !== false) return true;
+        }
+        return false;
     }
 
     private function matchSwimmer(array $result, \Illuminate\Support\Collection $swimmers): ?int
@@ -471,16 +653,37 @@ class DsvDataCrawler
 
     // ── Hilfsmethoden ───────────────────────────────────────────────────────────
 
+    /** Namenszusätze gehören zum Nachnamen ("Lea von der Heide"). */
+    private const NAME_PARTICLES = [
+        'von', 'van', 'de', 'der', 'den', 'del', 'di', 'da', 'dos',
+        'le', 'la', 'zu', 'zur', 'ten', 'ter',
+    ];
+
     private function splitName(string $raw): array
     {
         $raw = trim($raw);
+
+        // "Nachname, Vorname"
         if (str_contains($raw, ',')) {
             [$last, $first] = array_map('trim', explode(',', $raw, 2));
             return [$first, $last];
         }
-        // "Vorname Nachname" – letztes Wort = Nachname
-        $parts = preg_split('/\s+/', $raw, 2);
-        return [$parts[0] ?? '', $parts[1] ?? ''];
+
+        // "Vorname(n) Nachname" – das LETZTE Wort ist der Nachname.
+        // Mehrteilige Vornamen sind hier die Regel ("Leif Bennet Möller",
+        // "Estelle Milou Joost"), daher darf nicht nach dem ersten Wort getrennt werden.
+        $parts = preg_split('/\s+/', $raw, -1, PREG_SPLIT_NO_EMPTY);
+        if (count($parts) < 2) return ['', ''];
+
+        $lastParts = [array_pop($parts)];
+        while ($parts && in_array(mb_strtolower(end($parts)), self::NAME_PARTICLES, true)) {
+            array_unshift($lastParts, array_pop($parts));
+        }
+
+        $firstname = implode(' ', $parts);
+        if ($firstname === '') return ['', ''];
+
+        return [$firstname, implode(' ', $lastParts)];
     }
 
     private function parseTimeString(string $time): int
