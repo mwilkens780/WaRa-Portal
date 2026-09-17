@@ -662,35 +662,56 @@ async function collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedHtml) 
         };
     }
 
-    // Saison-Selector suchen: <select> mit Jahres-Optionen (z.B. "2024/25", "2024", "alle")
-    const selEl = page.locator('select').filter({
-        has: page.locator('option').filter({ hasText: /20\d{2}|alle|all/i }),
-    }).first();
+    // Saison-Selector suchen.
+    //
+    // Frueher wurde schlicht das erste <select> mit irgendeiner Jahreszahl genommen.
+    // Auf der Veranstaltungsseite liegen aber 16 Dropdowns, und das erste passende
+    // war "tabFINASCM" – der Selektor fuer die FINA-Punktetabelle. Dessen Umschalten
+    // loest natuerlich keine Nachladung der Wettkampfliste aus, weshalb jede
+    // vergangene Saison mit "KEIN Request" abbrach und nur das laufende Jahr ankam.
+    //
+    // WebClub benennt Saisons als "2026/2027" (siehe saisonname in der pers-XHR),
+    // die Option-Values sind interne IDs. Darauf wird jetzt gezielt gefiltert.
+    const selectInfos = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('select')).map((s, idx) => ({
+            idx,
+            id:      s.id || '',
+            name:    s.name || '',
+            count:   s.options.length,
+            options: Array.from(s.options).slice(0, 10).map(o => o.text.trim()),
+        }))
+    );
 
-    if (await selEl.count() === 0) {
+    log(`${selectInfos.length} select-Elemente auf der Seite:`);
+    for (const s of selectInfos) {
+        log(`    [${s.idx}] name="${s.name}" id="${s.id}" (${s.count}) → ${s.options.join(' | ')}`);
+    }
+
+    const SEASON_RE = /^\s*20\d{2}\s*[\/\-]\s*\d{2,4}\s*$/;   // "2026/2027", "2026/27"
+    let picked =
+        // 1. Saison-Format in mindestens zwei Optionen – das eindeutige Merkmal
+        selectInfos.find(s => s.options.filter(t => SEASON_RE.test(t)).length >= 2)
+        // 2. Benennung: WebClub nutzt intern "SAS" fuer Saison (optAKTSAS, aktsaison)
+        ?? selectInfos.find(s => /sas\b|saison|season/i.test(`${s.name} ${s.id}`))
+        // 3. Notnagel: Jahreszahlen, aber bekannte Fremd-Dropdowns ausschliessen
+        ?? selectInfos.find(s =>
+              !/fina|masters|lcm|scm|punkt/i.test(`${s.name} ${s.id}`)
+              && s.options.filter(t => /^\s*20\d{2}\s*$/.test(t)).length >= 2);
+
+    if (!picked) {
         log('Kein Saison-Selector gefunden – ein Pass mit aktueller Anzeige');
         return collectEventLinks(page, dateFrom, dateTo, capturedHtml);
     }
+
+    const selEl = page.locator('select').nth(picked.idx);
 
     const options = await selEl.evaluate(s =>
         Array.from(s.options).map(o => ({ value: o.value, text: o.text.trim() }))
     );
     const currentVal = await selEl.evaluate(s => s.value);
-    log(`Saison-Selector gefunden (aktuell: "${options.find(o => o.value === currentVal)?.text ?? currentVal}"): ${options.map(o => o.text).join(', ')}`);
-
-    // Diagnose: Identität des Elements – belegt, ob wirklich der Saison-Filter
-    // bedient wird und nicht irgendein anderes Jahres-Dropdown der Seite.
-    try {
-        const info = await selEl.evaluate(s => ({
-            id:       s.id || '(ohne)',
-            name:     s.name || '(ohne)',
-            cls:      s.className || '(ohne)',
-            onchange: (s.getAttribute('onchange') || '(ohne)').slice(0, 120),
-            selects:  document.querySelectorAll('select').length,
-        }));
-        log(`Saison-Selector: id="${info.id}" name="${info.name}" class="${info.cls}" `
-            + `onchange="${info.onchange}" (${info.selects} select-Elemente auf der Seite)`);
-    } catch (_) {}
+    log(`Saison-Selector: [${picked.idx}] name="${picked.name}" id="${picked.id}" `
+        + `(aktuell: "${options.find(o => o.value === currentVal)?.text ?? currentVal}")`);
+    log(`Saisons: ${options.map(o => `${o.text}=${o.value}`).join(', ')}`);
 
     const allLinks = new Map(); // url → link-Objekt, dedupliziert
 
