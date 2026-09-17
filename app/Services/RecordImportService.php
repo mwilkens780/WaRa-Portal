@@ -16,19 +16,12 @@ use App\Models\SwimmingTime;
  */
 class RecordImportService
 {
-    /**
-     * Reihenfolge ist bindend – der erste Treffer gewinnt (break 2).
-     * 'L' MUSS vorne stehen: Lagen-Wettkämpfe zählen im Titel oft die
-     * Einzelstrecken auf ("200 m Lagen (S-R-B-F)"), sonst gewinnt Freistil.
-     * 'im ' und 'mixed' wurden entfernt: "im" ist im Deutschen eine Präposition
-     * und "mixed" bezeichnet die Geschlechtermischung, nicht die Lage.
-     */
     const DISCIPLINE_MAP = [
-        'L' => ['lagen', 'medley'],
-        'S' => ['schmetterling', 'butterfly', 'fly', 'delphin'],
+        'F' => ['frei', 'crawl', 'free', 'freestyle'],
         'B' => ['brust', 'breast'],
         'R' => ['rück', 'rueck', 'back'],
-        'F' => ['frei', 'crawl', 'free', 'freestyle'],
+        'S' => ['schmetterling', 'butterfly', 'fly', 'delphin'],
+        'L' => ['lagen', 'medley', 'mixed', 'im '],
     ];
 
     const STANDARD_DISTANCES = [25, 50, 100, 200, 400, 800, 1500];
