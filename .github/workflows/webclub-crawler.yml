@@ -13,11 +13,18 @@ on:
         required: false
         default: '90'
         type: string
+      season:
+        description: 'Genau eine Saison verarbeiten, z.B. "2024/2025". Leer = laufende Saison. Für den Historien-Aufbau je Saison einmal starten.'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Ein Saison-Lauf klappert bis zu ~45 Wettkämpfe im Tab-Pass ab.
+    # Der taegliche 90-Tage-Lauf bleibt davon unberuehrt, er endet frueher.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -47,16 +54,19 @@ jobs:
           WEBCLUB_USERNAME: ${{ secrets.WEBCLUB_USERNAME }}
           WEBCLUB_PASSWORD: ${{ secrets.WEBCLUB_PASSWORD }}
           LOOKBACK_DAYS: ${{ inputs.lookback_days || '90' }}
+          SEASON: ${{ inputs.season || '' }}
         run: |
           jq -n \
             --arg base_url      "$WEBCLUB_BASE_URL" \
             --arg username      "$WEBCLUB_USERNAME" \
             --arg password      "$WEBCLUB_PASSWORD" \
+            --arg season        "$SEASON" \
             --argjson lookback  "${LOOKBACK_DAYS}" \
             '{
               base_url:              $base_url,
               username:              $username,
               password:              $password,
+              season:                $season,
               lookback_days:         $lookback,
               lookahead_days:        365,
               scrape_competitions:   true,

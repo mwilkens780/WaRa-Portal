@@ -287,11 +287,38 @@ async function waitForAjaxContent(page, timeoutMs = 20000) {
     await page.waitForTimeout(300);
 }
 
+// Liest das Ergebnis-Kennzeichen eines Listeneintrags.
+// Die Veranstaltungsliste hat eine Spalte "Ergebnisse" mit ja/nein. Welches
+// JSON-Feld das traegt, ist nicht dokumentiert – daher werden Felder mit
+// "erg" im Namen bevorzugt und ja/nein bzw. 1/0 als Wert akzeptiert.
+// Rueckgabe: true, false oder null (unbekannt – dann wird nicht gefiltert).
+function readResultsFlag(item) {
+    const truthy = v => /^(ja|yes|1|true)$/i.test(String(v).trim());
+    const falsy  = v => /^(nein|no|0|false)$/i.test(String(v).trim());
+
+    for (const key of Object.keys(item)) {
+        if (!/erg/i.test(key)) continue;
+        const v = item[key];
+        if (truthy(v)) return true;
+        if (falsy(v))  return false;
+    }
+    return null;
+}
+
+let loggedListSample = false;
+
 // Parst die WebClub-JSON-Veranstaltungsliste: {"list":[{"id":"...","d":"...","n":"...","o":"..."}]}
 function parseCompetitionListJson(body, dateFrom, dateTo) {
     try {
         const data = JSON.parse(body);
         if (!data || data.error || !Array.isArray(data.list)) return null;
+
+        // Einmalig einen Rohdatensatz protokollieren – belegt, welche Felder die
+        // Liste liefert und unter welchem Namen das Ergebnis-Kennzeichen steht.
+        if (!loggedListSample && data.list.length > 0) {
+            loggedListSample = true;
+            log(`Veranstaltungslisten-Eintrag (Rohdaten): ${JSON.stringify(data.list[0])}`);
+        }
 
         const links = [];
         for (const item of data.list) {
@@ -307,6 +334,7 @@ function parseCompetitionListJson(body, dateFrom, dateTo) {
                 date_end:     date_end || null,
                 location:     item.o  || null,
                 meldeschluss: item.md ? isoDate(item.md) : null,
+                has_results:  readResultsFlag(item),
             });
         }
         return links;
@@ -519,8 +547,34 @@ async function scrapeCompetitions(page) {
     const dateFrom = new Date(today); dateFrom.setDate(today.getDate() - LOOKBACK_DAYS);
     const dateTo   = new Date(today); dateTo.setDate(today.getDate() + LOOKAHEAD_DAYS);
 
-    const eventLinks = await collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedCompHtml);
-    log(`${eventLinks.length} Veranstaltungslinks gefunden (saisonübergreifend).`);
+    // Eine-Saison-Modus: VOR dem Sammeln umschalten. Der nachfolgende Tab-Pass
+    // laeuft ueber den Server-Session-Kontext und sieht dadurch automatisch die
+    // Wettkaempfe dieser Saison samt Ergebnissen und Meldungen. Ohne Umschaltung
+    // liefert er immer nur die laufende Saison – unabhaengig davon, wie viele
+    // Veranstaltungslinks vorher saisonuebergreifend eingesammelt wurden.
+    let seasonToRestore = null;
+    if (TARGET_SEASON) {
+        const current = await readCurrentSeasonLabel(page);
+        if (current && current !== TARGET_SEASON) seasonToRestore = current;
+
+        const sw = await switchToSeason(page, TARGET_SEASON);
+        if (!sw.ok) {
+            const msg = `Saison "${TARGET_SEASON}" konnte nicht gesetzt werden – Lauf abgebrochen.`;
+            errors.push({ type: 'season', message: msg });
+            log('WARNUNG: ' + msg);
+            return { competitions, errors };
+        }
+        // Liste der neuen Saison verwenden; die der vorherigen verwerfen.
+        capturedCompHtml = sw.listBody;
+    }
+
+    const eventLinks = TARGET_SEASON
+        ? await collectEventLinks(page, dateFrom, dateTo, capturedCompHtml)
+        : await collectLinksFromAllSeasons(page, dateFrom, dateTo, capturedCompHtml);
+
+    log(TARGET_SEASON
+        ? `${eventLinks.length} Veranstaltungslinks in Saison "${TARGET_SEASON}".`
+        : `${eventLinks.length} Veranstaltungslinks gefunden (saisonübergreifend).`);
 
     // ── Detail-Daten laden ────────────────────────────────────────────────────
     // ver.php zeigt automatisch die Session-aktuelle Veranstaltung (idx:1 aus Suche).
@@ -616,6 +670,26 @@ async function scrapeCompetitions(page) {
         });
     }
 
+    // Ursprungssaison wiederherstellen: Die Saison ist eine benutzerbezogene
+    // Einstellung im WebClub-Konto. Bliebe sie verstellt, arbeitet der Verein
+    // anschliessend im falschen Jahr weiter.
+    if (seasonToRestore) {
+        try {
+            await page.goto(BASE_URL + '/verc.php', { waitUntil: 'load' });
+            await page.waitForTimeout(1500);
+            if ((await switchToSeason(page, seasonToRestore)).ok) {
+                log(`Saison auf "${seasonToRestore}" zurueckgesetzt.`);
+            } else {
+                const msg = `Saison konnte NICHT auf "${seasonToRestore}" zurueckgesetzt werden `
+                          + '– bitte in WebClub manuell pruefen.';
+                errors.push({ type: 'season', message: msg });
+                log('WARNUNG: ' + msg);
+            }
+        } catch (e) {
+            log('WARNUNG: Zuruecksetzen der Saison fehlgeschlagen: ' + e.message);
+        }
+    }
+
     return { competitions, errors };
 }
 
@@ -704,36 +778,57 @@ async function confirmSeason(page, value) {
 
 
 // Schaltet die WebClub-Saison auf die angegebene Beschriftung, z.B. "2024/2025".
-// Liefert true, wenn umgeschaltet wurde (oder die Saison bereits aktiv war).
+//
+// Liefert { ok, listBody }. listBody ist die beim Umschalten nachgeladene
+// Veranstaltungsliste (JSON). Sie wird mitgeschnitten, weil nur dort das
+// Ergebnis-Kennzeichen je Wettkampf steht – der DOM-Fallback kennt es nicht.
 async function switchToSeason(page, label) {
     const current = await readCurrentSeasonLabel(page);
     if (current === label) {
         log(`Saison "${label}" ist bereits aktiv.`);
-        return true;
+        return { ok: true, listBody: null };
     }
 
     const seasons = await openSeasonDialog(page);
     if (!seasons) {
         log(`Saison-Dialog liess sich nicht oeffnen – Wechsel auf "${label}" nicht moeglich.`);
-        return false;
+        return { ok: false, listBody: null };
     }
 
     const target = seasons.find(s => s.text === label);
     if (!target) {
         log(`Saison "${label}" nicht in der Auswahl. Verfuegbar: ${seasons.map(s => s.text).join(', ')}`);
-        return false;
+        return { ok: false, listBody: null };
     }
+
+    let listBody = null;
+    const handler = async (res) => {
+        if (listBody) return;
+        try {
+            if (!['xhr', 'fetch'].includes(res.request().resourceType())) return;
+            if (res.status() < 200 || res.status() >= 300) return;
+            const text = await res.text();
+            if (text.includes('"list"') && text.includes('"id"') && text.includes('"d"')) {
+                listBody = text;
+            }
+        } catch (_) {}
+    };
+    page.on('response', handler);
 
     const err = await confirmSeason(page, target.value);
     if (err) {
+        page.off('response', handler);
         log(`Wechsel auf Saison "${label}" fehlgeschlagen: ${err}`);
-        return false;
+        return { ok: false, listBody: null };
     }
 
     await page.waitForTimeout(2500);
     try { await waitForAjaxContent(page, 10000); } catch (_) {}
-    log(`Saison auf "${label}" umgeschaltet (vorher "${current ?? '?'}").`);
-    return true;
+    page.off('response', handler);
+
+    log(`Saison auf "${label}" umgeschaltet (vorher "${current ?? '?'}")`
+        + (listBody ? `, Liste erfasst (${listBody.length}B).` : ', keine Liste erfasst.'));
+    return { ok: true, listBody };
 }
 
 // Iteriert durch alle Saison-Optionen im WebClub-Veranstaltungsfilter und sammelt
@@ -1476,8 +1571,11 @@ async function scrapeCompetitionTabs(page, eventLinks) {
 
     // IDs der Wettkämpfe die wir brauchen (aus der JSON-Liste, entsprechen verID)
     const neededIds = new Set(eventLinks.map(l => extractIdFromUrl(l.url)));
+    // verID → Ergebnis-Kennzeichen der Veranstaltungsliste (true/false/null)
+    const resultsFlag = new Map(eventLinks.map(l => [extractIdFromUrl(l.url), l.has_results ?? null]));
     const result    = new Map();
     const xhrBucket = [];
+    let skippedNoResults = 0;
 
     const captureTabXhr = async (res) => {
         try {
@@ -1545,9 +1643,18 @@ async function scrapeCompetitionTabs(page, eventLinks) {
             const beforeTab = [...xhrBucket];
             xhrBucket.length = 0;
 
-            // Ergebnisse-Tab aktivieren → löst dorek-XHR aus
-            const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
-            if (hasErgebnisse) await page.waitForTimeout(2000);
+            // Ergebnis-Tab nur oeffnen, wenn die Veranstaltungsliste ueberhaupt
+            // Ergebnisse ausweist. Bei "nein" ist dort per Definition nichts zu
+            // holen – das spart pro Wettkampf mehrere Sekunden, ohne Daten zu
+            // verlieren. Ist das Kennzeichen unbekannt (null), wird geoeffnet.
+            const flag = resultsFlag.get(verID);
+            if (flag === false) {
+                skippedNoResults++;
+                log(`Tab-Pass: verID=${verID} laut Liste ohne Ergebnisse – Ergebnis-Tab übersprungen`);
+            } else {
+                const hasErgebnisse = await activateTab(page, /ergebnis|result|auswertung/i);
+                if (hasErgebnisse) await page.waitForTimeout(2000);
+            }
 
             const allBodies = [...beforeTab, ...xhrBucket];
             const sessions  = parseAbschnitte(allBodies);
