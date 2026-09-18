@@ -422,6 +422,7 @@ class WebClubCrawler
         $skipNoEvent    = 0;
         $skipNoEventDef = 0;
         $skipDup        = 0;
+        $skipRelayLeg   = 0;
         $conflicts      = 0;
 
         foreach ($results as $result) {
@@ -450,6 +451,16 @@ class WebClubCrawler
 
             $discipline = $def['discipline'];
             $distance   = (int) $def['distance'];
+
+            // Lagen unter 100 m gibt es als Einzelstrecke nicht – vier Lagen
+            // brauchen mindestens 100 m. Solche Zeilen sind Abschnitte einer
+            // Lagenstaffel, die WebClub in der Ergebnisliste mit auffuehrt.
+            // Erkennbar auch am Geschlecht X (Mixed) der zugehoerigen Events.
+            // Sie gehoeren nach relay_results, nicht in competition_results.
+            if ($discipline === 'L' && $distance < 100) {
+                $skipRelayLeg++;
+                continue;
+            }
 
             // Das Portal-Event dient nur noch der Anreicherung (Altersklasse).
             // Fehlt es, wird das Ergebnis trotzdem gespeichert – frueher ging es
@@ -500,6 +511,7 @@ class WebClubCrawler
 
         $parts = ["{$synced} neu importiert von {$total} WebClub-Einträgen"];
         if ($conflicts > 0)      $parts[] = "{$conflicts} Abweichungen zu anderen Quellen erfasst";
+        if ($skipRelayLeg > 0)   $parts[] = "{$skipRelayLeg} Lagen-Staffelabschnitte (kein Einzelergebnis)";
         if ($skipDup > 0)        $parts[] = "{$skipDup} bereits vorhanden (abgeglichen)";
         if ($skipNoEventDef > 0) $parts[] = "{$skipNoEventDef} ohne WebClub-Wettkampfdefinition (übersprungen)";
         if ($skipNoEvent > 0)    $parts[] = "{$skipNoEvent} ohne Portal-Event importiert (ohne Altersklasse)";

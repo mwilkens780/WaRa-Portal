@@ -568,6 +568,10 @@ class DsvDataCrawler
             $userId = $this->matchSwimmer($result, $swimmers);
             if (!$userId) continue;
 
+            // Lagen unter 100 m gibt es als Einzelstrecke nicht – das sind
+            // Abschnitte einer Lagenstaffel und gehoeren nach relay_results.
+            if ($result['discipline'] === 'L' && $result['distance'] < 100) continue;
+
             $existing = CompetitionResult::where([
                 'competition_id' => $competition->id,
                 'user_id'        => $userId,
