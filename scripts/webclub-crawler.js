@@ -287,20 +287,26 @@ async function waitForAjaxContent(page, timeoutMs = 20000) {
     await page.waitForTimeout(300);
 }
 
-// Liest das Ergebnis-Kennzeichen eines Listeneintrags.
-// Die Veranstaltungsliste hat eine Spalte "Ergebnisse" mit ja/nein. Welches
-// JSON-Feld das traegt, ist nicht dokumentiert – daher werden Felder mit
-// "erg" im Namen bevorzugt und ja/nein bzw. 1/0 als Wert akzeptiert.
+// Liest aus einem Listeneintrag, ob der Wettkampf Ergebnisse hat.
+//
+// Belegt an echten Daten: das Feld heisst "erg" und enthaelt die ANZAHL der
+// Ergebnisse, nicht ja/nein – z.B. {"id":"353","erg":232,...}. In der Oberflaeche
+// wird daraus die Spalte "Ergebnisse" mit ja/nein.
 // Rueckgabe: true, false oder null (unbekannt – dann wird nicht gefiltert).
 function readResultsFlag(item) {
-    const truthy = v => /^(ja|yes|1|true)$/i.test(String(v).trim());
-    const falsy  = v => /^(nein|no|0|false)$/i.test(String(v).trim());
-
     for (const key of Object.keys(item)) {
         if (!/erg/i.test(key)) continue;
         const v = item[key];
-        if (truthy(v)) return true;
-        if (falsy(v))  return false;
+
+        // Zahl = Anzahl der Ergebnisse
+        if (typeof v === 'number') return v > 0;
+        if (typeof v === 'string' && /^\d+$/.test(v.trim())) return parseInt(v, 10) > 0;
+
+        // Sicherheitshalber auch boolesche bzw. ja/nein-Schreibweisen abdecken
+        if (typeof v === 'boolean') return v;
+        const s = String(v).trim();
+        if (/^(ja|yes|true)$/i.test(s))  return true;
+        if (/^(nein|no|false)$/i.test(s)) return false;
     }
     return null;
 }
