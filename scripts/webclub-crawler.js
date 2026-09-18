@@ -311,7 +311,8 @@ function readResultsFlag(item) {
     return null;
 }
 
-let loggedListSample = false;
+let loggedListSample  = false;
+let loggedEventSample = false;
 
 // Parst die WebClub-JSON-Veranstaltungsliste: {"list":[{"id":"...","d":"...","n":"...","o":"..."}]}
 function parseCompetitionListJson(body, dateFrom, dateTo) {
@@ -1379,6 +1380,22 @@ function parseWettkampffolge(bodies) {
             const list = data.list ?? data.data ?? data.wettkampf ?? data.events ?? data.wettkaempfe;
             if (!Array.isArray(list) || list.length === 0) continue;
             const events = [];
+
+            // Einmalig einen Rohdatensatz protokollieren. Offen ist, welches Feld
+            // die Bahnanzahl einer Staffel traegt: relay_legs bleibt derzeit immer
+            // NULL, wodurch eine 4x50 Lagen im Portal wie eine – unmoegliche –
+            // Einzelstrecke ueber 50 m Lagen aussieht.
+            if (!loggedEventSample && list.length > 0) {
+                loggedEventSample = true;
+                log(`Wettkampffolge-Eintrag (Rohdaten): ${JSON.stringify(list[0])}`);
+                const relayLike = list.find(it =>
+                    mapDiscipline(it.wkfLAGE ?? null) === 'L'
+                    && parseInt(it.wkfLAENGE ?? '0', 10) < 100);
+                if (relayLike) {
+                    log(`Verdaechtiger Lagen-Wettkampf unter 100 m (Rohdaten): ${JSON.stringify(relayLike)}`);
+                }
+            }
+
             for (const item of list) {
                 // WebClub: wkfLAGE = Disziplin (1=S,2=R,3=B,4=F,5=L; 11-15 = 25m-Varianten), wkfLAENGE = Distanz
                 //          wkfNUMMER = Event-Nr, wkfABS = Abschnitt-Nr, wkfGESCHLECHT = M/W
