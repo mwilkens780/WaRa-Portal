@@ -1385,14 +1385,23 @@ function parseWettkampffolge(bodies) {
             // die Bahnanzahl einer Staffel traegt: relay_legs bleibt derzeit immer
             // NULL, wodurch eine 4x50 Lagen im Portal wie eine – unmoegliche –
             // Einzelstrecke ueber 50 m Lagen aussieht.
-            if (!loggedEventSample && list.length > 0) {
+            //
+            // Nur Listen protokollieren, die wirklich Wettkampfdefinitionen sind:
+            // an dieser Stelle laufen auch andere listenfoermige Antworten durch
+            // (z.B. Startzeiten je Abschnitt), die kein wkfLAGE tragen.
+            const defs = list.filter(it => it && it.wkfLAGE !== undefined);
+            if (!loggedEventSample && defs.length > 0) {
                 loggedEventSample = true;
-                log(`Wettkampffolge-Eintrag (Rohdaten): ${JSON.stringify(list[0])}`);
-                const relayLike = list.find(it =>
+                log(`Wettkampffolge-Eintrag (Rohdaten): ${JSON.stringify(defs[0])}`);
+
+                const relayLike = defs.find(it =>
                     mapDiscipline(it.wkfLAGE ?? null) === 'L'
                     && parseInt(it.wkfLAENGE ?? '0', 10) < 100);
                 if (relayLike) {
-                    log(`Verdaechtiger Lagen-Wettkampf unter 100 m (Rohdaten): ${JSON.stringify(relayLike)}`);
+                    log(`Lagen-Wettkampf unter 100 m – das MUSS eine Staffel sein (Rohdaten): `
+                        + JSON.stringify(relayLike));
+                } else {
+                    log('Kein Lagen-Wettkampf unter 100 m in dieser Wettkampffolge.');
                 }
             }
 
