@@ -33,6 +33,11 @@ class WebClubCrawler
 
     private ResultReconciler $reconciler;
 
+    /** Staffel-Zaehler, damit die Action-Antwort den Erfolg direkt ausweist. */
+    private int $relayCount       = 0;
+    private int $relayMemberCount = 0;
+    private int $leadoffCount     = 0;
+
     public function __construct(?ResultReconciler $reconciler = null)
     {
         $this->reconciler = $reconciler ?? new ResultReconciler();
@@ -78,8 +83,10 @@ class WebClubCrawler
      */
     public function processPayload(array $output): array
     {
-        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'entries_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0, 'persons_reactivated' => 0];
+        $stats  = ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'groups_synced' => 0, 'results_synced' => 0, 'entries_synced' => 0, 'relays_synced' => 0, 'relay_members_synced' => 0, 'leadoffs_synced' => 0, 'persons_synced' => 0, 'persons_created' => 0, 'persons_deactivated' => 0, 'persons_reactivated' => 0];
         $config = $this->buildConfig();
+
+        $this->relayCount = $this->relayMemberCount = $this->leadoffCount = 0;
 
         $stats['groups_synced'] = $this->syncGroups($output['groups'] ?? []);
 
@@ -147,6 +154,10 @@ class WebClubCrawler
             Log::warning('WebClubCrawler (JS): ' . ($err['type'] ?? '?') . ' – ' . ($err['message'] ?? ''));
             $stats['errors']++;
         }
+
+        $stats['relays_synced']        = $this->relayCount;
+        $stats['relay_members_synced'] = $this->relayMemberCount;
+        $stats['leadoffs_synced']      = $this->leadoffCount;
 
         return $stats;
     }
@@ -625,19 +636,22 @@ class WebClubCrawler
         $portalEvents     = CompetitionEvent::where('competition_id', $competition->id)->get();
         $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
 
-        $synced      = 0;
-        $skipForeign = 0;
-        $skipNoDef   = 0;
-        $leadoffs    = 0;
+        $synced    = 0;
+        $skipNoDef = 0;
+        $leadoffs  = 0;
 
         foreach ($relays as $relay) {
-            $teamName = trim((string) ($relay['team_name'] ?? ''));
-            if ($teamName === '' || empty($relay['time_ms'])) continue;
+            $rawTeam = trim((string) ($relay['team_name'] ?? ''));
+            if ($rawTeam === '' || empty($relay['time_ms'])) continue;
 
-            if (!$this->isOwnClub($teamName, $ownClubNames)) {
-                $skipForeign++;
-                continue;
-            }
+            // WebClub liefert in p nur die Mannschaftsbezeichnung ("1. Mannschaft"),
+            // nicht den Verein – die Daten stammen ohnehin aus dem eigenen Konto.
+            // Eine Vereinspruefung wie im DSV-Pfad, wo beides in der Zeile steht,
+            // wuerde hier jede Staffel verwerfen. Fehlt der Verein, wird er ergaenzt.
+            $ownClub  = trim((string) ($ownClubNames[0] ?? 'SG Wasserratten Norderstedt'));
+            $teamName = $this->isOwnClub($rawTeam, $ownClubNames)
+                ? $rawTeam
+                : trim($ownClub . ' ' . $rawTeam);
 
             $eventNumber = (int) ($relay['event_number'] ?? 0);
             $def         = $eventNumber > 0 ? ($wcEventDefs[$eventNumber] ?? null) : null;
@@ -685,22 +699,25 @@ class WebClubCrawler
                     'status'         => 'OK',
                 ]);
                 $synced++;
+                $this->relayCount++;
             }
 
             $members = $relay['members'] ?? [];
             $splits  = $relay['splits']  ?? [];
 
-            $this->persistRelayMembers($relayResult, $members, $gender);
-            $leadoffs += $this->persistLeadoffResult(
+            $this->relayMemberCount += $this->persistRelayMembers($relayResult, $members, $gender);
+
+            $made      = $this->persistLeadoffResult(
                 $competition, $relayResult, $members, $splits, $discipline, $distance, $event
             );
+            $leadoffs += $made;
+            $this->leadoffCount += $made;
         }
 
-        if ($synced > 0 || $skipForeign > 0 || $skipNoDef > 0) {
+        if ($synced > 0 || $skipNoDef > 0 || $this->relayMemberCount > 0) {
             $parts = ["{$synced} Staffel-Ergebnisse importiert"];
-            if ($leadoffs > 0)    $parts[] = "{$leadoffs} Startabschnitte als Einzelzeit gewertet";
-            if ($skipForeign > 0) $parts[] = "{$skipForeign} fremde Vereine (übersprungen)";
-            if ($skipNoDef > 0)   $parts[] = "{$skipNoDef} ohne Disziplin/Distanz";
+            if ($leadoffs > 0)  $parts[] = "{$leadoffs} Startabschnitte als Einzelzeit gewertet";
+            if ($skipNoDef > 0) $parts[] = "{$skipNoDef} ohne Disziplin/Distanz";
 
             ImportLog::create([
                 'source'         => self::SOURCE,
@@ -718,8 +735,10 @@ class WebClubCrawler
      * nicht auf users – fehlende Athleten werden angelegt und, sofern ein Portal-
      * Schwimmer zum Namen passt, mit dessen user_id verknuepft.
      */
-    private function persistRelayMembers(RelayResult $relayResult, array $members, ?string $relayGender): void
+    private function persistRelayMembers(RelayResult $relayResult, array $members, ?string $relayGender): int
     {
+        $written = 0;
+
         foreach ($members as $member) {
             $leg = (int) ($member['leg'] ?? 0);
             if ($leg < 1) continue;
@@ -757,7 +776,10 @@ class WebClubCrawler
                 ['relay_result_id' => $relayResult->id, 'leg' => $leg],
                 ['athlete_id' => $athlete->id]
             );
+            $written++;
         }
+
+        return $written;
     }
 
     /**
