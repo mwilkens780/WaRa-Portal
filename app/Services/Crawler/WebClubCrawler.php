@@ -6,6 +6,7 @@ use App\Models\Competition;
 use App\Models\CompetitionEntry;
 use App\Models\CompetitionEvent;
 use App\Models\CompetitionResult;
+use App\Models\Athlete;
 use App\Models\ImportLog;
 use App\Models\RelayResult;
 use App\Models\Season;
@@ -627,6 +628,7 @@ class WebClubCrawler
         $synced      = 0;
         $skipForeign = 0;
         $skipNoDef   = 0;
+        $leadoffs    = 0;
 
         foreach ($relays as $relay) {
             $teamName = trim((string) ($relay['team_name'] ?? ''));
@@ -660,7 +662,7 @@ class WebClubCrawler
 
             $event = $this->matchPortalEvent($portalByDiscDist, $discipline, $distance, $gender);
 
-            RelayResult::create([
+            $relayResult = RelayResult::create([
                 'competition_id' => $competition->id,
                 'discipline'     => $discipline,
                 'distance'       => $distance,
@@ -672,10 +674,19 @@ class WebClubCrawler
                 'status'         => 'OK',
             ]);
             $synced++;
+
+            $members = $relay['members'] ?? [];
+            $splits  = $relay['splits']  ?? [];
+
+            $this->persistRelayMembers($relayResult, $members, $gender);
+            $leadoffs += $this->persistLeadoffResult(
+                $competition, $relayResult, $members, $splits, $discipline, $distance, $event
+            );
         }
 
         if ($synced > 0 || $skipForeign > 0 || $skipNoDef > 0) {
             $parts = ["{$synced} Staffel-Ergebnisse importiert"];
+            if ($leadoffs > 0)    $parts[] = "{$leadoffs} Startabschnitte als Einzelzeit gewertet";
             if ($skipForeign > 0) $parts[] = "{$skipForeign} fremde Vereine (übersprungen)";
             if ($skipNoDef > 0)   $parts[] = "{$skipNoDef} ohne Disziplin/Distanz";
 
@@ -688,6 +699,156 @@ class WebClubCrawler
         }
 
         return $synced;
+    }
+
+    /**
+     * Speichert die Besetzung einer Staffel. relay_members verweist auf athletes,
+     * nicht auf users – fehlende Athleten werden angelegt und, sofern ein Portal-
+     * Schwimmer zum Namen passt, mit dessen user_id verknuepft.
+     */
+    private function persistRelayMembers(RelayResult $relayResult, array $members, ?string $relayGender): void
+    {
+        foreach ($members as $member) {
+            $leg = (int) ($member['leg'] ?? 0);
+            if ($leg < 1) continue;
+
+            [$firstname, $lastname] = $this->splitMemberName((string) ($member['name'] ?? ''));
+            if ($firstname === '' || $lastname === '') continue;
+
+            $birthYear = (int) ($member['birth_year'] ?? 0);
+            if ($birthYear <= 0) continue;
+
+            // Bei Mixed-Staffeln ist das Geschlecht der Staffel nicht das des
+            // Schwimmers; dann lieber offen lassen als falsch raten.
+            $gender = in_array($relayGender, ['M', 'F'], true) ? $relayGender : 'X';
+
+            $athlete = Athlete::firstOrCreate(
+                [
+                    'lastname'   => $lastname,
+                    'firstname'  => $firstname,
+                    'birth_year' => $birthYear,
+                    'gender'     => $gender,
+                ],
+                ['club_name' => $relayResult->club_name]
+            );
+
+            // Verknuepfung zum Portal-Schwimmer nachtragen, falls noch offen
+            if (!$athlete->user_id) {
+                $user = $this->findUserByName($firstname, $lastname, $birthYear);
+                if ($user) $athlete->update(['user_id' => $user->id]);
+            }
+
+            // relay_members hat keine id-Spalte, sondern den zusammengesetzten
+            // Primaerschluessel (relay_result_id, leg). Eloquents updateOrCreate
+            // wuerde eine Auto-Increment-Spalte voraussetzen – daher Query Builder.
+            DB::table('relay_members')->updateOrInsert(
+                ['relay_result_id' => $relayResult->id, 'leg' => $leg],
+                ['athlete_id' => $athlete->id]
+            );
+        }
+    }
+
+    /**
+     * Legt die Zeit des Startschwimmers als regulaeres Einzelergebnis an.
+     *
+     * Der Startschwimmer startet vom Block – seine Zeit ist eine offizielle
+     * Einzelzeit und zaehlt fuer Bestzeiten und Rekorde. Die Abloeser starten
+     * fliegend und werden bewusst nicht uebernommen.
+     *
+     * Die Disziplin richtet sich nach der Staffelart: Bei einer Lagenstaffel
+     * schwimmt der Startschwimmer Ruecken (Reihenfolge R, B, S, F), bei allen
+     * anderen Staffeln die Disziplin der Staffel selbst.
+     */
+    private function persistLeadoffResult(
+        Competition $competition,
+        RelayResult $relayResult,
+        array $members,
+        array $splits,
+        string $relayDiscipline,
+        int $legDistance,
+        ?CompetitionEvent $event
+    ): int {
+        $leadMember = null;
+        foreach ($members as $m) {
+            if ((int) ($m['leg'] ?? 0) === 1) { $leadMember = $m; break; }
+        }
+        if (!$leadMember) return 0;
+
+        $leadTime = null;
+        foreach ($splits as $s) {
+            if ((int) ($s['leg'] ?? 0) === 1) { $leadTime = $s['time_ms'] ?? null; break; }
+        }
+        if (!$leadTime || $leadTime <= 0) return 0;
+
+        [$firstname, $lastname] = $this->splitMemberName((string) ($leadMember['name'] ?? ''));
+        $birthYear = (int) ($leadMember['birth_year'] ?? 0);
+        $user      = $this->findUserByName($firstname, $lastname, $birthYear);
+        if (!$user) return 0;   // fremder Verein oder nicht im Portal
+
+        $discipline = $relayDiscipline === 'L' ? 'R' : $relayDiscipline;
+
+        // Dedup schliesst relay_leadoff ein: ein echter Einzelstart ueber dieselbe
+        // Strecke im selben Wettkampf ist ein anderes Rennen und darf bleiben.
+        $exists = CompetitionResult::where('competition_id', $competition->id)
+            ->where('user_id', $user->id)
+            ->where('discipline', $discipline)
+            ->where('distance', $legDistance)
+            ->where('relay_leadoff', true)
+            ->exists();
+        if ($exists) return 0;
+
+        CompetitionResult::create(array_filter([
+            'competition_id' => $competition->id,
+            'user_id'        => $user->id,
+            'source'         => self::SOURCE,
+            'relay_leadoff'  => true,
+            'discipline'     => $discipline,
+            'distance'       => $legDistance,
+            'gender'         => $user->gender ?: null,
+            'time_ms'        => (int) $leadTime,
+            'age_group'      => $event->age_group ?? null,
+            'notes'          => 'Startabschnitt ' . $relayResult->club_name,
+        ], fn($v) => $v !== null));
+
+        return 1;
+    }
+
+    /** "Ben Buchholz" → ["Ben", "Buchholz"]; Namenszusaetze bleiben beim Nachnamen. */
+    private function splitMemberName(string $raw): array
+    {
+        $parts = preg_split('/\s+/', trim($raw), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (count($parts) < 2) return ['', ''];
+
+        $particles = ['von', 'van', 'de', 'der', 'den', 'del', 'di', 'da', 'le', 'la', 'zu', 'zur', 'ten', 'ter'];
+        $lastParts = [array_pop($parts)];
+        while ($parts && in_array(mb_strtolower(end($parts)), $particles, true)) {
+            array_unshift($lastParts, array_pop($parts));
+        }
+
+        return [implode(' ', $parts), implode(' ', $lastParts)];
+    }
+
+    /** Portal-Schwimmer ueber Name und – falls vorhanden – Jahrgang finden. */
+    private function findUserByName(string $firstname, string $lastname, int $birthYear): ?User
+    {
+        if ($firstname === '' || $lastname === '') return null;
+
+        $candidates = User::where('role', 'schwimmer')
+            ->whereRaw('LOWER(firstname) = ?', [mb_strtolower($firstname)])
+            ->whereRaw('LOWER(lastname) = ?',  [mb_strtolower($lastname)])
+            ->get();
+
+        if ($candidates->isEmpty()) return null;
+        if ($candidates->count() === 1) return $candidates->first();
+
+        // Mehrere Namensgleiche: ueber den Jahrgang entscheiden
+        if ($birthYear > 0) {
+            $match = $candidates->first(fn($u) => $u->birth_date
+                && (int) substr((string) $u->birth_date, 0, 4) === $birthYear);
+            if ($match) return $match;
+        }
+
+        return null;   // nicht eindeutig – lieber nichts zuordnen
     }
 
     private function isOwnClub(string $teamName, array $ownClubNames): bool

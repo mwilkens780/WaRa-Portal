@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CompetitionResult extends Model
 {
     protected $fillable = [
-        'competition_id', 'user_id', 'source', 'discipline', 'distance', 'time_ms',
+        'competition_id', 'user_id', 'source', 'relay_leadoff', 'discipline', 'distance', 'time_ms',
         'placement', 'is_personal_best', 'is_season_best', 'age_group', 'wertungen', 'gender', 'notes',
         'breaks_vereinsrekord', 'breaks_landesrekord', 'is_final', 'wa_points', 'wa_table_year',
         'webclub_rek',
@@ -16,6 +16,7 @@ class CompetitionResult extends Model
     protected function casts(): array
     {
         return [
+            'relay_leadoff'        => 'boolean',
             'is_personal_best'     => 'boolean',
             'is_season_best'       => 'boolean',
             'breaks_vereinsrekord' => 'boolean',
