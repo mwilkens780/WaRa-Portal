@@ -654,26 +654,38 @@ class WebClubCrawler
 
             $timeMs = (int) $relay['time_ms'];
             $key    = "{$discipline}_{$distance}_{$teamName}_{$timeMs}";
-            if (isset($existingKeys[$key])) continue;
-            $existingKeys[$key] = true;
 
             $gender = $relay['gender'] ?? $def['gender'] ?? null;
             if ($gender === 'X') $gender = null;
 
             $event = $this->matchPortalEvent($portalByDiscDist, $discipline, $distance, $gender);
 
-            $relayResult = RelayResult::create([
-                'competition_id' => $competition->id,
-                'discipline'     => $discipline,
-                'distance'       => $distance,
-                'club_name'      => $teamName,
-                'time_ms'        => $timeMs,
-                'placement'      => $relay['placement'] ?? null,
-                'age_group'      => $event->age_group ?? null,
-                'gender'         => $gender,
-                'status'         => 'OK',
-            ]);
-            $synced++;
+            // Bereits vorhandene Staffel NICHT einfach ueberspringen: Besetzung und
+            // Startabschnitt muessen auch dann nachgetragen werden. Sonst bleiben sie
+            // fuer alle Staffeln leer, die aus frueheren Laeufen schon existieren.
+            if (isset($existingKeys[$key])) {
+                $relayResult = RelayResult::where('competition_id', $competition->id)
+                    ->where('discipline', $discipline)
+                    ->where('distance', $distance)
+                    ->where('club_name', $teamName)
+                    ->where('time_ms', $timeMs)
+                    ->first();
+                if (!$relayResult) continue;
+            } else {
+                $existingKeys[$key] = true;
+                $relayResult = RelayResult::create([
+                    'competition_id' => $competition->id,
+                    'discipline'     => $discipline,
+                    'distance'       => $distance,
+                    'club_name'      => $teamName,
+                    'time_ms'        => $timeMs,
+                    'placement'      => $relay['placement'] ?? null,
+                    'age_group'      => $event->age_group ?? null,
+                    'gender'         => $gender,
+                    'status'         => 'OK',
+                ]);
+                $synced++;
+            }
 
             $members = $relay['members'] ?? [];
             $splits  = $relay['splits']  ?? [];
