@@ -1475,6 +1475,37 @@ function parseWebClubTime(z) {
     return (minutes * 60 + seconds) * 1000 + cs * 10;
 }
 
+// Staffel-Besetzung aus dem Feld r:
+//   "(1) Ben Buchholz - 2009<br>(2) Marie Prignitz - 2010<br>…"
+function parseRelayMembersField(raw) {
+    if (!raw) return [];
+    const members = [];
+    const re = /\((\d+)\)\s*([^<]+?)\s*-\s*(\d{4})/g;
+    let m;
+    while ((m = re.exec(String(raw))) !== null) {
+        const name = m[2].replace(/\s+/g, ' ').trim();
+        if (!name) continue;
+        members.push({ leg: parseInt(m[1], 10), name, birth_year: m[3] });
+    }
+    return members;
+}
+
+// Zwischenzeiten aus dem Feld sp:
+//   ["50m: 00:28,09", "100m: 00:57,84 (00:29,75)", …]
+// Die Klammer enthaelt die Einzelzeit der jeweiligen Bahn; beim ersten Abschnitt
+// fehlt sie, weil kumulierte Zeit und Bahnzeit dort identisch sind. Genau diese
+// erste Zeit ist die offizielle Zeit des Startschwimmers.
+function parseRelaySplits(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((entry, idx) => {
+        const s        = String(entry);
+        const bracket  = s.match(/\((\d{1,2}:\d{2}[.,]\d{1,2})\)/);
+        const cumulate = s.match(/:\s*(\d{1,2}:\d{2}[.,]\d{1,2})/);
+        const raw2     = bracket ? bracket[1] : (cumulate ? cumulate[1] : null);
+        return { leg: idx + 1, time_ms: raw2 ? parseTimeToMs(raw2) : null };
+    });
+}
+
 // Parst Meldungen-XHR aus dem Tab-Bucket.
 // Erkennungsmerkmal: "pauschal"-Feld (Gebühren-Zusammenfassung) OHNE dorek:true.
 // Die XHR feuert automatisch bei jeder Navigation – suche daher in allBodies, nicht nur meldungenBodies.
@@ -1583,6 +1614,10 @@ function parseResultsFromXhr(bodies) {
                         time_ms:      timeMs,
                         event_number: parseInt(item.n ?? '0', 10) || null,
                         webclub_rek:  String(item.rek ?? '').trim(),
+                        // r = Besetzung mit Bahnnummer, sp = Zwischenzeiten.
+                        // Daraus ergibt sich die offizielle Zeit des Startschwimmers.
+                        members:      parseRelayMembersField(item.r),
+                        splits:       parseRelaySplits(item.sp),
                     });
                     continue;
                 }
