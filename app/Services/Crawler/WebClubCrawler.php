@@ -279,6 +279,7 @@ class WebClubCrawler
                     'discipline' => $ev['discipline'],
                     'distance'   => (int) $ev['distance'],
                     'gender'     => $ev['gender'] ?? 'X',
+                    'relay_legs' => isset($ev['relay_legs']) ? (int) $ev['relay_legs'] : 0,
                 ];
             }
         }
@@ -333,6 +334,7 @@ class WebClubCrawler
             $discipline  = null;
             $distance    = null;
             $gender      = null;
+            $eventLegs   = 0;
 
             // Primaer: WebClubs eigene Wettkampffolge (wkfLAGE / wkfLAENGE).
             // Die Event-Nummerierung des Portals darf NICHT als Quelle dienen –
@@ -342,6 +344,7 @@ class WebClubCrawler
                 $discipline = $def['discipline'];
                 $distance   = (int) $def['distance'];
                 $gender     = $def['gender'];
+                $eventLegs  = (int) ($def['relay_legs'] ?? 0);
             }
 
             // Fallback: discipline+distance direkt aus dem XHR (Felder g+l)
@@ -352,6 +355,10 @@ class WebClubCrawler
             }
 
             if (!$discipline || !$distance) continue;
+
+            // Staffelmeldungen gehoeren nicht in competition_entries – gleiche
+            // Begruendung wie bei den Ergebnissen.
+            if ($eventLegs > 1 || ($discipline === 'L' && $distance < 100)) continue;
 
             // Portal-Event nur zur Verknuepfung, nie als Quelle fuer Disziplin/Distanz
             $event = $this->matchPortalEvent($portalByDiscDist, $discipline, (int) $distance, $gender);
@@ -403,6 +410,7 @@ class WebClubCrawler
                     'discipline' => $ev['discipline'],
                     'distance'   => (int) $ev['distance'],
                     'gender'     => $ev['gender'] ?? 'X',
+                    'relay_legs' => isset($ev['relay_legs']) ? (int) $ev['relay_legs'] : 0,
                 ];
             }
         }
@@ -452,12 +460,19 @@ class WebClubCrawler
             $discipline = $def['discipline'];
             $distance   = (int) $def['distance'];
 
-            // Lagen unter 100 m gibt es als Einzelstrecke nicht – vier Lagen
-            // brauchen mindestens 100 m. Solche Zeilen sind Abschnitte einer
-            // Lagenstaffel, die WebClub in der Ergebnisliste mit auffuehrt.
-            // Erkennbar auch am Geschlecht X (Mixed) der zugehoerigen Events.
-            // Sie gehoeren nach relay_results, nicht in competition_results.
-            if ($discipline === 'L' && $distance < 100) {
+            // Staffelabschnitte gehoeren nicht in competition_results.
+            //
+            // Primaer ueber wkfANZAHL (relay_legs > 1) erkannt – das greift auch
+            // bei einer 4x50 Freistil, die sich sonst nicht von einer echten
+            // 50 m Freistil unterscheiden laesst. WebClub fuehrt die Abschnitts-
+            // schwimmer in der Ergebnisliste mit auf; sie tragen a=1 und werden
+            // deshalb von der Staffel-Erkennung im JS nicht erfasst.
+            //
+            // Zusaetzlich die physikalische Schranke: Lagen unter 100 m kann es
+            // als Einzelstrecke nicht geben. Sie greift auch dann, wenn die
+            // Wettkampffolge fehlt und relay_legs unbekannt bleibt.
+            $eventLegs = (int) ($def['relay_legs'] ?? 0);
+            if ($eventLegs > 1 || ($discipline === 'L' && $distance < 100)) {
                 $skipRelayLeg++;
                 continue;
             }
@@ -552,6 +567,11 @@ class WebClubCrawler
             $meta      = $sessionMeta[$sessionNr] ?? [];
             $evNr      = (int) ($ev['number'] ?? 0);
 
+            // relay_legs stammt aus wkfANZAHL: 1 = Einzelstrecke, >1 = Staffel.
+            // Erst damit ist eine 4x50 Lagen von einer Einzelstrecke ueber 50 m
+            // Lagen unterscheidbar – und eine 4x50 Freistil von einer 50 m Freistil.
+            $legs = isset($ev['relay_legs']) ? (int) $ev['relay_legs'] : 0;
+
             CompetitionEvent::updateOrCreate(
                 ['competition_id' => $competition->id, 'event_number' => $evNr],
                 [
@@ -560,6 +580,7 @@ class WebClubCrawler
                     'session_name'       => $meta['name'] ?? null,
                     'discipline'         => $ev['discipline'],
                     'distance'           => (int) $ev['distance'],
+                    'relay_legs'         => $legs > 1 ? $legs : null,
                     'gender'             => $ev['gender'] ?? 'X',
                     'age_group'          => $ev['age_group'] ?? null,
                     'qualifying_time_ms' => $ev['qualifying_time_ms'] ?? null,
@@ -588,6 +609,7 @@ class WebClubCrawler
                     'discipline' => $ev['discipline'],
                     'distance'   => (int) $ev['distance'],
                     'gender'     => $ev['gender'] ?? 'X',
+                    'relay_legs' => isset($ev['relay_legs']) ? (int) $ev['relay_legs'] : 0,
                 ];
             }
         }

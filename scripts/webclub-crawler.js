@@ -1421,12 +1421,19 @@ function parseWettkampffolge(bodies) {
                 if (!ageGroup && jg && jg !== '0') {
                     ageGroup = ag === '0' ? `Jg. ${jg} u.j.` : `Jg. ${jg}–${ag}`;
                 }
+                // wkfANZAHL = Anzahl der Starter bzw. Bahnen: 1 = Einzelstrecke,
+                // >1 = Staffel (4x50 → 4). Entspricht starter_or_legs aus DSV7.
+                // Ohne dieses Feld war eine 4x50 Lagen im Portal nicht von einer
+                // Einzelstrecke ueber 50 m Lagen zu unterscheiden.
+                const legs = parseInt(item.wkfANZAHL ?? item.wkANZ ?? item.anzahl ?? '1', 10) || 1;
+
                 events.push({
                     number:             parseInt(item.wkfNUMMER ?? item.wkNR ?? item.nr ?? '0', 10),
                     session:            parseInt(item.wkfABS    ?? item.wkABS ?? item.abs ?? '1', 10),
                     discipline,
                     distance,
                     gender,
+                    relay_legs:         legs > 1 ? legs : null,
                     age_group:          ageGroup,
                     qualifying_time_ms: pzMs || null,
                 });
