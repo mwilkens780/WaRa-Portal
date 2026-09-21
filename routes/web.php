@@ -33,6 +33,7 @@ use App\Http\Controllers\Swimmer\DashboardController as SwimmerDashboard;
 use App\Http\Controllers\Swimmer\GoalController as SwimmerGoalController;
 use App\Http\Controllers\Trainer\GoalController as TrainerGoalController;
 use App\Http\Controllers\Trainer\HallBookingController;
+use App\Http\Controllers\Trainer\HallPlanImportController;
 use App\Http\Controllers\ParentArea\DashboardController as ParentDashboard;
 use App\Http\Controllers\ParentArea\TrainingController as ParentTrainingController;
 use App\Http\Controllers\ParentArea\SignupController as ParentSignupController;
@@ -339,6 +340,12 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     Route::put('/hall/bookings/{booking}', [HallBookingController::class, 'update'])->name('hall.bookings.update');
     Route::delete('/hall/bookings/{booking}', [HallBookingController::class, 'destroy'])->name('hall.bookings.destroy');
     Route::get('/hall/conflicts', [HallBookingController::class, 'conflicts'])->name('hall.conflicts');
+
+    // Hallenbelegungsplan aus Excel importieren
+    Route::get('/hall/import', [HallPlanImportController::class, 'index'])->name('hall.import.index');
+    Route::post('/hall/import/upload', [HallPlanImportController::class, 'upload'])->name('hall.import.upload');
+    Route::get('/hall/import/vorschau', [HallPlanImportController::class, 'preview'])->name('hall.import.preview');
+    Route::post('/hall/import/speichern', [HallPlanImportController::class, 'execute'])->name('hall.import.execute');
     Route::get('/hall/sessions/search', [HallBookingController::class, 'searchSessions'])->name('hall.sessions.search');
 
     // Trainingseinheit → Bahnbelegung
