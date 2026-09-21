@@ -242,6 +242,9 @@ class HallPlanReader
                 $cells[$r][$col] = [
                     'v'      => trim($value),
                     'fill'   => $fill['pattern'] === 'none' ? null : $fill['color'],
+                    // Der Mustertyp unterscheidet z.B. "Wara" (weiss MIT Raster)
+                    // von den vielen gewoehnlichen weissen Zellen.
+                    'pattern' => $fill['pattern'],
                     'font'   => $this->fontColors[$this->xfFont[$s] ?? 0] ?? null,
                     'top'    => isset($borders['top']),
                     'bottom' => isset($borders['bottom']),
