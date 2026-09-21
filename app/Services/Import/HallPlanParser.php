@@ -45,7 +45,9 @@ class HallPlanParser
         '33CCCC' => ['key' => 'svf',            'label' => 'SVF',            'booking' => 'external', 'session' => false],
     ];
 
-    private const SYNCHRO = ['key' => 'synchro', 'label' => 'Synchro', 'booking' => 'training', 'session' => true];
+    // Synchronschwimmen ist im Portal keine Trainingsgruppe: nur Belegung,
+    // keine Trainingsserie.
+    private const SYNCHRO = ['key' => 'synchro', 'label' => 'Synchro', 'booking' => 'course', 'session' => false];
     private const WARA    = ['key' => 'kurs',    'label' => 'Kurs',    'booking' => 'course',   'session' => false];
 
     /** Nur dieses Label aus dem Zusatzbereich wird uebernommen. */
