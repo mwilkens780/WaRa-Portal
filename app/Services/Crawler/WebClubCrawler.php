@@ -792,6 +792,11 @@ class WebClubCrawler
      * Die Disziplin richtet sich nach der Staffelart: Bei einer Lagenstaffel
      * schwimmt der Startschwimmer Ruecken (Reihenfolge R, B, S, F), bei allen
      * anderen Staffeln die Disziplin der Staffel selbst.
+     *
+     * Die Zeit ist die aufgelaufene Zwischenzeit bei genau der Abschnitts-
+     * strecke. WebClub protokolliert die Marken in Bahnlaengen, nicht in
+     * Abschnitten: eine 4x200 hat 16 Marken. Wer die erste Marke fuer den
+     * ersten Abschnitt haelt, traegt eine 50-m-Zeit als 200-m-Ergebnis ein.
      */
     private function persistLeadoffResult(
         Competition $competition,
@@ -810,8 +815,16 @@ class WebClubCrawler
 
         $leadTime = null;
         foreach ($splits as $s) {
-            if ((int) ($s['leg'] ?? 0) === 1) { $leadTime = $s['time_ms'] ?? null; break; }
+            if ((int) ($s['distance_m'] ?? 0) === $legDistance) {
+                $leadTime = (int) ($s['cumulative_ms'] ?? 0);
+                break;
+            }
         }
+
+        // Keine Marke auf der Abschnittsstrecke: dann ist die Zeit des Start-
+        // schwimmers aus den Rohdaten nicht ableitbar. Lieber kein Ergebnis als
+        // ein falsches - eine erfundene Einzelzeit wuerde in Rekorde und
+        // Bestenlisten wandern.
         if (!$leadTime || $leadTime <= 0) return 0;
 
         [$firstname, $lastname] = $this->splitMemberName((string) ($leadMember['name'] ?? ''));

@@ -1501,18 +1501,41 @@ function parseRelayMembersField(raw) {
 
 // Zwischenzeiten aus dem Feld sp:
 //   ["50m: 00:28,09", "100m: 00:57,84 (00:29,75)", …]
-// Die Klammer enthaelt die Einzelzeit der jeweiligen Bahn; beim ersten Abschnitt
-// fehlt sie, weil kumulierte Zeit und Bahnzeit dort identisch sind. Genau diese
-// erste Zeit ist die offizielle Zeit des Startschwimmers.
+// Vor dem Doppelpunkt steht die zurueckgelegte Gesamtstrecke, dahinter die
+// aufgelaufene Zeit; die Klammer enthaelt die Zeit des einzelnen Abschnitts.
+//
+// Die Marken folgen NICHT den Staffelabschnitten, sondern der Bahnlaenge:
+// eine 4x200 wird in 50-m-Schritten protokolliert (16 Marken), eine 4x100 je
+// nach Veranstaltung in 50- oder 100-m-Schritten. Der Index einer Marke sagt
+// also nichts ueber den Abschnitt aus - frueher wurde er dafuer gehalten,
+// wodurch die erste 50-m-Zwischenzeit als Zeit des Startschwimmers galt und
+// z.B. eine 30-Sekunden-Zeit als 200-m-Ergebnis im Portal landete.
+//
+// Deshalb wird die Streckenmarke mitgegeben: die Zeit des Startschwimmers ist
+// die aufgelaufene Zeit bei genau seiner Abschnittsstrecke.
 function parseRelaySplits(raw) {
     if (!Array.isArray(raw)) return [];
-    return raw.map((entry, idx) => {
-        const s        = String(entry);
-        const bracket  = s.match(/\((\d{1,2}:\d{2}[.,]\d{1,2})\)/);
+
+    const splits = [];
+    for (const entry of raw) {
+        const s = String(entry);
+
+        const marker   = s.match(/(\d+)\s*m\s*:/i);
         const cumulate = s.match(/:\s*(\d{1,2}:\d{2}[.,]\d{1,2})/);
-        const raw2     = bracket ? bracket[1] : (cumulate ? cumulate[1] : null);
-        return { leg: idx + 1, time_ms: raw2 ? parseTimeToMs(raw2) : null };
-    });
+        if (!marker || !cumulate) continue;
+
+        const bracket = s.match(/\((\d{1,2}:\d{2}[.,]\d{1,2})\)/);
+        const cumMs   = parseTimeToMs(cumulate[1]);
+        if (!cumMs) continue;
+
+        splits.push({
+            distance_m:    parseInt(marker[1], 10),
+            cumulative_ms: cumMs,
+            segment_ms:    bracket ? parseTimeToMs(bracket[1]) || null : null,
+        });
+    }
+
+    return splits;
 }
 
 // Parst Meldungen-XHR aus dem Tab-Bucket.
