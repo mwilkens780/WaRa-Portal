@@ -39,7 +39,12 @@
                         <span class="text-xs font-medium text-blue-700">Jahrgang {{ $birthYear }} — Langbahn</span>
                     </div>
                     <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    {{-- Feste Spaltenbreiten wie in der Rekordliste: alle Jahrgaenge stehen exakt untereinander --}}
+                    <table class="w-full text-sm table-fixed min-w-[720px]">
+                        <colgroup>
+                            <col class="w-12"><col class="w-20"><col class="w-24"><col><col class="w-24"><col class="w-44">
+                            @if($isAdmin) <col class="w-20"> @endif
+                        </colgroup>
                         <thead>
                             <tr class="border-b border-gray-50">
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium w-8">#</th>
@@ -60,12 +65,12 @@
                                     <td class="text-right tabular-nums px-5 py-2 font-mono font-bold {{ $rank === 0 ? 'text-primary' : 'text-gray-700' }}">
                                         {{ $entry->formatted_time }}
                                     </td>
-                                    <td class="px-5 py-2 text-gray-700">
+                                    <td class="px-5 py-2 text-gray-700 truncate" title="{{ $entry->swimmer_name }}">
                                         {{ $entry->swimmer_name }}
                                         @if($entry->user) <span class="text-xs text-green-600 ml-1">✓</span> @endif
                                     </td>
                                     <td class="px-5 py-2 text-gray-500 text-xs">{{ $entry->set_date?->format('d.m.Y') ?? '–' }}</td>
-                                    <td class="px-5 py-2 text-gray-400 text-xs max-w-[140px] truncate">{{ $entry->location ?? '–' }}</td>
+                                    <td class="px-5 py-2 text-gray-400 text-xs truncate" title="{{ $entry->location }}">{{ $entry->location ?? '–' }}</td>
                                     @if($isAdmin)
                                     <td class="px-3 py-2 text-right">
                                         <form method="POST" action="{{ route('admin.bestlist.destroy', $entry) }}"
@@ -90,7 +95,12 @@
                         <span class="text-xs font-medium text-teal-700">Jahrgang {{ $birthYear }} — Kurzbahn</span>
                     </div>
                     <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    {{-- Feste Spaltenbreiten wie in der Rekordliste: alle Jahrgaenge stehen exakt untereinander --}}
+                    <table class="w-full text-sm table-fixed min-w-[720px]">
+                        <colgroup>
+                            <col class="w-12"><col class="w-20"><col class="w-24"><col><col class="w-24"><col class="w-44">
+                            @if($isAdmin) <col class="w-20"> @endif
+                        </colgroup>
                         <thead>
                             <tr class="border-b border-gray-50">
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium w-8">#</th>
@@ -111,12 +121,12 @@
                                     <td class="text-right tabular-nums px-5 py-2 font-mono font-bold {{ $rank === 0 ? 'text-primary' : 'text-gray-700' }}">
                                         {{ $entry->formatted_time }}
                                     </td>
-                                    <td class="px-5 py-2 text-gray-700">
+                                    <td class="px-5 py-2 text-gray-700 truncate" title="{{ $entry->swimmer_name }}">
                                         {{ $entry->swimmer_name }}
                                         @if($entry->user) <span class="text-xs text-green-600 ml-1">✓</span> @endif
                                     </td>
                                     <td class="px-5 py-2 text-gray-500 text-xs">{{ $entry->set_date?->format('d.m.Y') ?? '–' }}</td>
-                                    <td class="px-5 py-2 text-gray-400 text-xs max-w-[140px] truncate">{{ $entry->location ?? '–' }}</td>
+                                    <td class="px-5 py-2 text-gray-400 text-xs truncate" title="{{ $entry->location }}">{{ $entry->location ?? '–' }}</td>
                                     @if($isAdmin)
                                     <td class="px-3 py-2 text-right">
                                         <form method="POST" action="{{ route('admin.bestlist.destroy', $entry) }}"

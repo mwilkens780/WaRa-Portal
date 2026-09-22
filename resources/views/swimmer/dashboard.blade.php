@@ -465,7 +465,8 @@
                     <p class="text-sm text-gray-400 px-5 py-6 text-center">Noch keine Zeiten erfasst.</p>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
+                        <table class="w-full text-sm table-fixed">
+                        <colgroup><col><col class="w-28"><col class="w-40"></colgroup>
                             <thead class="bg-gray-50 border-b border-gray-100">
                                 <tr>
                                     <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
@@ -477,7 +478,7 @@
                                 @foreach($allBests as $row)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
-                                        <td class="px-5 py-2.5 text-right font-mono font-bold text-primary">{{ $row->formatted }}</td>
+                                        <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
                                         <td class="px-5 py-2.5 text-right">
                                             @if($row->source === 'competition')
                                                 <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Wettkampf</span>
@@ -501,7 +502,8 @@
                     <p class="text-sm text-gray-400 px-5 py-6 text-center">Keine Zeiten in {{ now()->year }}.</p>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
+                        <table class="w-full text-sm table-fixed">
+                        <colgroup><col><col class="w-28"><col class="w-40"></colgroup>
                             <thead class="bg-gray-50 border-b border-gray-100">
                                 <tr>
                                     <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
@@ -513,7 +515,7 @@
                                 @foreach($yearBests as $row)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
-                                        <td class="px-5 py-2.5 text-right font-mono font-bold text-primary">{{ $row->formatted }}</td>
+                                        <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
                                         <td class="px-5 py-2.5 text-right">
                                             @if($row->source === 'competition')
                                                 <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Wettkampf</span>
@@ -537,7 +539,8 @@
                     <p class="text-sm text-gray-400 px-5 py-6 text-center">Keine Zeiten in der aktuellen Saison.</p>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
+                        <table class="w-full text-sm table-fixed">
+                        <colgroup><col><col class="w-28"><col class="w-40"></colgroup>
                             <thead class="bg-gray-50 border-b border-gray-100">
                                 <tr>
                                     <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
@@ -549,7 +552,7 @@
                                 @foreach($seasonBests as $row)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
-                                        <td class="px-5 py-2.5 text-right font-mono font-bold text-primary">{{ $row->formatted }}</td>
+                                        <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
                                         <td class="px-5 py-2.5 text-right">
                                             @if($row->source === 'competition')
                                                 <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Wettkampf</span>

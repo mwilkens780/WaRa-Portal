@@ -49,7 +49,18 @@
                 </p>
             </div>
             <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            {{-- Feste Spaltenbreiten: alle Abschnitte der Liste stehen exakt untereinander --}}
+            <table class="w-full text-sm table-fixed min-w-[760px]">
+                <colgroup>
+                    <col class="w-20">      {{-- Strecke --}}
+                    <col class="w-24">      {{-- Bahn --}}
+                    <col class="w-24">      {{-- Zeit --}}
+                    <col>                   {{-- Name: Rest --}}
+                    <col class="w-24">      {{-- Datum --}}
+                    <col class="w-44">      {{-- Ort --}}
+                    <col class="w-24">      {{-- System --}}
+                    @if($isAdmin) <col class="w-20"> @endif
+                </colgroup>
                 <thead>
                     <tr class="border-b border-gray-50">
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Strecke</th>
@@ -71,7 +82,7 @@
                             <td class="px-5 py-2.5 text-xs text-gray-500">{{ $course }}</td>
                             @if($record)
                                 <td class="text-right tabular-nums px-5 py-2.5 font-mono font-bold text-primary">{{ $record->formatted_time }}</td>
-                                <td class="px-5 py-2.5 text-gray-700">
+                                <td class="px-5 py-2.5 text-gray-700 truncate" title="{{ $record->swimmer_name }}">
                                     {{ $record->swimmer_name }}
                                     @if($record->user)
                                         <span class="text-xs text-green-600 ml-1">✓</span>
@@ -80,7 +91,7 @@
                                 <td class="px-5 py-2.5 text-gray-500 text-xs">
                                     {{ $record->set_date?->format('d.m.Y') ?? '–' }}
                                 </td>
-                                <td class="px-5 py-2.5 text-gray-400 text-xs max-w-[160px] truncate">
+                                <td class="px-5 py-2.5 text-gray-400 text-xs truncate" title="{{ $record->location }}">
                                     {{ $record->location ?? '–' }}
                                 </td>
                                 <td class="px-5 py-2.5">

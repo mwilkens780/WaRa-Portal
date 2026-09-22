@@ -617,15 +617,25 @@
                                     {{ $first->distance }} m {{ $first->discipline_label }}
                                 </p>
                             </div>
-                            <table class="w-full text-sm">
+                            {{-- Feste Spaltenbreiten: alle Strecken stehen exakt untereinander --}}
+                            <div class="overflow-x-auto">
+                            <table class="w-full text-sm table-fixed min-w-[720px]">
+                                <colgroup>
+                                    <col class="w-12">   {{-- Rang --}}
+                                    <col>                {{-- Name: Rest --}}
+                                    <col class="w-28">   {{-- Zeit --}}
+                                    <col class="w-40">   {{-- Platzierungen --}}
+                                    <col class="w-56">   {{-- Kennzeichen --}}
+                                    @if(auth()->user()->role === 'admin') <col class="w-20"> @endif
+                                </colgroup>
                                 <tbody class="divide-y divide-gray-50">
                                     @foreach($group as $swim)
                                         @php if (!$swim->is_dns) $rank++; @endphp
                                         <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
-                                            <td class="px-5 py-2.5 text-gray-400 w-8 text-xs">
+                                            <td class="px-5 py-2.5 text-gray-400 text-xs">
                                                 {{ !$swim->is_dns ? $rank . '.' : '–' }}
                                             </td>
-                                            <td class="px-5 py-2.5 font-medium text-gray-800">{{ $swim->user?->name }}</td>
+                                            <td class="px-5 py-2.5 font-medium text-gray-800 truncate" title="{{ $swim->user?->name }}">{{ $swim->user?->name }}</td>
                                             <td class="text-right tabular-nums px-5 py-2.5">
                                                 @if(!$swim->is_dns)
                                                     <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
@@ -684,6 +694,7 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     @endforeach
                 </div>
@@ -720,11 +731,21 @@
                                     @endif
                                 </div>
                             </div>
-                            <table class="w-full text-sm">
+                            {{-- Feste Spaltenbreiten: alle Sportler stehen exakt untereinander --}}
+                            <div class="overflow-x-auto">
+                            <table class="w-full text-sm table-fixed min-w-[760px]">
+                                <colgroup>
+                                    <col class="w-40">   {{-- Strecke --}}
+                                    <col class="w-28">   {{-- Zeit --}}
+                                    <col class="w-40">   {{-- Platzierungen --}}
+                                    <col>                {{-- Kennzeichen: Rest --}}
+                                    <col class="w-44">   {{-- Wertungen --}}
+                                    @if(auth()->user()->role === 'admin') <col class="w-20"> @endif
+                                </colgroup>
                                 <tbody class="divide-y divide-gray-50">
                                     @foreach($swimsSorted as $swim)
                                         <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
-                                            <td class="px-5 py-2.5 text-gray-700 font-medium w-40">
+                                            <td class="px-5 py-2.5 text-gray-700 font-medium">
                                                 {{ $swim->distance }} m {{ $swim->discipline_label }}
                                             </td>
                                             <td class="text-right tabular-nums px-5 py-2.5">
@@ -796,6 +817,7 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     @endforeach
                 </div>

@@ -329,11 +329,18 @@
             {{-- ── Ergebnisse ───────────────────────────────────────── --}}
             @if($hasResults)
             <div x-show="tab === 'results'" x-cloak class="p-5">
-                <table class="w-full text-sm">
+                {{-- Gleiches Spaltenraster wie "Meine Wettkaempfe" --}}
+                <table class="w-full text-sm table-fixed">
+                    <colgroup>
+                        <col>                                   {{-- Strecke: Rest --}}
+                        <col class="w-24">                      {{-- Zeit --}}
+                        <col class="w-28">                      {{-- Kennzeichen --}}
+                        <col class="w-52 hidden sm:table-column"> {{-- Platzierung --}}
+                    </colgroup>
                     <tbody class="divide-y divide-gray-50">
                         @foreach($comp->processedResults as $swim)
                             <tr class="{{ $swim->is_dns ? 'opacity-60' : 'hover:bg-gray-50' }}">
-                                <td class="py-2.5 pr-3 text-gray-700 w-1/3">
+                                <td class="py-2.5 pr-3 text-gray-700">
                                     {{ $swim->distance }} m {{ $swim->discipline_label }}
                                     @if($swim->is_final)
                                         <span class="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Finale</span>
@@ -342,14 +349,16 @@
                                 <td class="text-right tabular-nums py-2.5">
                                     @if(!$swim->is_dns)
                                         <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
-                                        @if($swim->is_personal_best ?? false)
-                                            <span class="ml-1.5 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">PB</span>
-                                        @endif
                                     @elseif($swim->notes)
                                         <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
                                     @endif
                                 </td>
-                                <td class="py-2.5 text-gray-500 text-xs hidden sm:table-cell">
+                                <td class="py-2.5 pl-3 whitespace-nowrap">
+                                    @if(!$swim->is_dns && ($swim->is_personal_best ?? false))
+                                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">PB</span>
+                                    @endif
+                                </td>
+                                <td class="py-2.5 pl-3 text-gray-500 text-xs hidden sm:table-cell">
                                     @if(!empty($swim->placements) && !$swim->is_dns)
                                         @foreach($swim->placements as $p)
                                             <span class="{{ $p->placement <= 3 ? 'font-bold text-amber-600' : '' }}">

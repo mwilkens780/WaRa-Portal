@@ -329,12 +329,20 @@
             {{-- ── Ergebnisse ───────────────────────────────────────── --}}
             @if($hasResults)
             <div x-show="tab === 'results'" x-cloak class="p-5">
-                <table class="w-full text-sm">
+                {{-- Feste Spaltenbreiten: alle Wettkaempfe stehen exakt untereinander.
+                     Kennzeichen in eigener Spalte, sonst verschieben sie die Zeiten. --}}
+                <table class="w-full text-sm table-fixed">
+                    <colgroup>
+                        <col>                                   {{-- Strecke: Rest --}}
+                        <col class="w-24">                      {{-- Zeit --}}
+                        <col class="w-28">                      {{-- Kennzeichen --}}
+                        <col class="w-52 hidden sm:table-column"> {{-- Platzierung --}}
+                    </colgroup>
                     <tbody class="divide-y divide-gray-50">
                         @foreach($comp->processedResults as $swim)
                             @php $conflicts = $swim->discrepancies ?? collect(); @endphp
                             <tr class="{{ $swim->is_dns ? 'opacity-60' : 'hover:bg-gray-50' }} {{ $conflicts->isNotEmpty() ? 'bg-red-50/60' : '' }}">
-                                <td class="py-2.5 pr-3 text-gray-700 w-1/3">
+                                <td class="py-2.5 pr-3 text-gray-700">
                                     {{ $swim->distance }} m {{ $swim->discipline_label }}
                                     @if($swim->is_final)
                                         <span class="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Finale</span>
@@ -364,18 +372,22 @@
                                 <td class="text-right tabular-nums py-2.5">
                                     @if(!$swim->is_dns)
                                         <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
-                                        @if($swim->pb_badge)
-                                            @php $pbColors = match($swim->pb_badge) { 'PB' => 'bg-green-100 text-green-700', 'JB' => 'bg-teal-100 text-teal-700', 'SB' => 'bg-cyan-100 text-cyan-700', default => 'bg-gray-100 text-gray-600' }; @endphp
-                                            <span class="ml-1.5 text-xs {{ $pbColors }} px-1.5 py-0.5 rounded-full font-bold">{{ $swim->pb_badge }}</span>
-                                        @endif
-                                        @foreach($swim->beaten_records ?? [] as $rec)
-                                            <span class="ml-1 text-xs {{ $rec === 'VR' ? 'bg-primary text-white' : 'bg-amber-500 text-white' }} px-1.5 py-0.5 rounded-full font-bold">{{ $rec }}</span>
-                                        @endforeach
                                     @elseif($swim->notes)
                                         <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
                                     @endif
                                 </td>
-                                <td class="py-2.5 text-gray-500 text-xs hidden sm:table-cell">
+                                <td class="py-2.5 pl-3 whitespace-nowrap">
+                                    @if(!$swim->is_dns)
+                                        @if($swim->pb_badge)
+                                            @php $pbColors = match($swim->pb_badge) { 'PB' => 'bg-green-100 text-green-700', 'JB' => 'bg-teal-100 text-teal-700', 'SB' => 'bg-cyan-100 text-cyan-700', default => 'bg-gray-100 text-gray-600' }; @endphp
+                                            <span class="text-xs {{ $pbColors }} px-1.5 py-0.5 rounded-full font-bold">{{ $swim->pb_badge }}</span>
+                                        @endif
+                                        @foreach($swim->beaten_records ?? [] as $rec)
+                                            <span class="text-xs {{ $rec === 'VR' ? 'bg-primary text-white' : 'bg-amber-500 text-white' }} px-1.5 py-0.5 rounded-full font-bold">{{ $rec }}</span>
+                                        @endforeach
+                                    @endif
+                                </td>
+                                <td class="py-2.5 pl-3 text-gray-500 text-xs hidden sm:table-cell">
                                     @if(!empty($swim->placements) && !$swim->is_dns)
                                         @foreach($swim->placements as $p)
                                             <span class="{{ $p->placement <= 3 ? 'font-bold text-amber-600' : '' }}">
