@@ -146,6 +146,17 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/rekorde/export', [RecordController::class, 'export'])->name('records.export');
     Route::get('/bestenliste/export', [RecordController::class, 'exportBestList'])->name('bestlist.export');
 
+    // Import-Log & Crawler – steuert Datenimporte, deshalb ausschliesslich Admin
+    Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');
+    Route::post('/import-log/run/{source}', [ImportLogController::class, 'run'])->name('import-log.run');
+    Route::post('/import-log/config/{source}', [ImportLogController::class, 'saveConfig'])->name('import-log.config');
+
+    // WA Punktetabellen – erreichbar ueber Einstellungen, kein eigener Menuepunkt
+    Route::get('/wa-scoring',             [WaScoringController::class, 'index'])->name('wa-scoring.index');
+    Route::post('/wa-scoring',            [WaScoringController::class, 'store'])->name('wa-scoring.store');
+    Route::post('/wa-scoring/bulk',       [WaScoringController::class, 'bulkStore'])->name('wa-scoring.bulk-store');
+    Route::delete('/wa-scoring/{waScoringTable}', [WaScoringController::class, 'destroy'])->name('wa-scoring.destroy');
+
     // Protokoll (Transaction Log + Traces + Settings)
     Route::get('/protokoll', [LogController::class, 'index'])->name('logs.index');
     Route::post('/protokoll/einstellungen', [LogController::class, 'updateSettings'])->name('logs.settings');
@@ -177,7 +188,7 @@ Route::get('/impressum', [LegalController::class, 'impressum'])->name('legal.imp
 Route::get('/datenschutz', [LegalController::class, 'datenschutz'])->name('legal.datenschutz');
 
 // Trainingsgruppen – Index, Show, Edit: Trainer + Admin
-Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:trainer,admin', 'menu:training_groups'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/trainingsgruppen', [TrainingGroupController::class, 'index'])->name('training-groups.index');
     Route::get('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'show'])->name('training-groups.show');
     Route::get('/trainingsgruppen/{trainingGroup}/bearbeiten', [TrainingGroupController::class, 'edit'])->name('training-groups.edit');
@@ -202,7 +213,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('admin')->name('admin.
 });
 
 // Wettkämpfe – Ansicht & Import auch für Trainer, Vorstand, Kampfrichter zugänglich
-Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin', 'menu:competitions'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
     Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
     Route::post('/wettkaempfe/{competition}/auswertung', [AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
@@ -238,17 +249,6 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
     Route::get('/wettkaempfe/{competition}/dokumente/{document}/download', [CompetitionDocumentController::class, 'download'])->name('competitions.documents.download');
     Route::delete('/wettkaempfe/{competition}/dokumente/{document}', [CompetitionDocumentController::class, 'destroy'])->name('competitions.documents.destroy');
 
-    // Import-Log & Crawler
-    Route::get('/import-log', [ImportLogController::class, 'index'])->name('import-log.index');
-    Route::post('/import-log/run/{source}', [ImportLogController::class, 'run'])->name('import-log.run');
-    Route::post('/import-log/config/{source}', [ImportLogController::class, 'saveConfig'])->name('import-log.config');
-
-    // WA Punktetabellen
-    Route::get('/wa-scoring',             [WaScoringController::class, 'index'])->name('wa-scoring.index');
-    Route::post('/wa-scoring',            [WaScoringController::class, 'store'])->name('wa-scoring.store');
-    Route::post('/wa-scoring/bulk',       [WaScoringController::class, 'bulkStore'])->name('wa-scoring.bulk-store');
-    Route::delete('/wa-scoring/{waScoringTable}', [WaScoringController::class, 'destroy'])->name('wa-scoring.destroy');
-
     // Anmeldeabfrage (Signup-Workflow)
     Route::post('/wettkaempfe/{competition}/anmeldung', [CompetitionSignupController::class, 'store'])->name('competitions.signup.store');
     Route::put('/wettkaempfe/{competition}/anmeldung/{signupRequest}', [CompetitionSignupController::class, 'update'])->name('competitions.signup.update');
@@ -262,7 +262,7 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin'])->prefix(
 });
 
 // Rekorde – Ansicht für Trainer, Vorstand und Admin
-Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:trainer,vorstand,admin', 'menu:records'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/rekorde', [RecordController::class, 'index'])->name('records.index');
 });
 
@@ -270,93 +270,106 @@ Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('admin')->nam
 Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trainer.')->group(function () {
     Route::get('/dashboard', [TrainerDashboard::class, 'index'])->name('dashboard');
 
+    // DSV6/7 Ergebnisimport – gehoert fachlich zu den Wettkaempfen
+    Route::middleware('menu:competitions')->group(function () {
+        Route::get('/dsv-import', [DsvImportController::class, 'index'])->name('dsv-import.index');
+        Route::post('/dsv-import/upload', [DsvImportController::class, 'upload'])->name('dsv-import.upload');
+        Route::get('/dsv-import/preview', [DsvImportController::class, 'preview'])->name('dsv-import.preview');
+        Route::post('/dsv-import/execute', [DsvImportController::class, 'execute'])->name('dsv-import.execute');
+    });
+
     // Trainingseinheiten
-    Route::get('/training', [TrainingSessionController::class, 'index'])->name('sessions.index');
-    Route::get('/training/neu', [TrainingSessionController::class, 'create'])->name('sessions.create');
-    Route::post('/training', [TrainingSessionController::class, 'store'])->name('sessions.store');
+    Route::middleware('menu:training')->group(function () {
+        Route::get('/training', [TrainingSessionController::class, 'index'])->name('sessions.index');
+        Route::get('/training/neu', [TrainingSessionController::class, 'create'])->name('sessions.create');
+        Route::post('/training', [TrainingSessionController::class, 'store'])->name('sessions.store');
 
-    // Trainingsserien (Gruppenrouten vor {session}-Wildcard)
-    Route::get('/training/serie/{group}/bearbeiten', [TrainingSessionController::class, 'editSeries'])->name('sessions.series.edit');
-    Route::put('/training/serie/{group}', [TrainingSessionController::class, 'updateSeries'])->name('sessions.series.update');
-    Route::get('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'generateSeason'])->name('sessions.series.generate');
-    Route::post('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'storeSeason'])->name('sessions.series.store-season');
+        // Trainingsserien (Gruppenrouten vor {session}-Wildcard)
+        Route::get('/training/serie/{group}/bearbeiten', [TrainingSessionController::class, 'editSeries'])->name('sessions.series.edit');
+        Route::put('/training/serie/{group}', [TrainingSessionController::class, 'updateSeries'])->name('sessions.series.update');
+        Route::get('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'generateSeason'])->name('sessions.series.generate');
+        Route::post('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'storeSeason'])->name('sessions.series.store-season');
 
-    Route::get('/training/{session}', [TrainingSessionController::class, 'show'])->name('sessions.show');
-    Route::get('/training/{session}/bearbeiten', [TrainingSessionController::class, 'edit'])->name('sessions.edit');
-    Route::put('/training/{session}', [TrainingSessionController::class, 'update'])->name('sessions.update');
-    Route::delete('/training/{session}', [TrainingSessionController::class, 'destroy'])->name('sessions.destroy');
+        Route::get('/training/{session}', [TrainingSessionController::class, 'show'])->name('sessions.show');
+        Route::get('/training/{session}/bearbeiten', [TrainingSessionController::class, 'edit'])->name('sessions.edit');
+        Route::put('/training/{session}', [TrainingSessionController::class, 'update'])->name('sessions.update');
+        Route::delete('/training/{session}', [TrainingSessionController::class, 'destroy'])->name('sessions.destroy');
 
-    // Anwesenheit & Zeiten
-    Route::post('/training/{session}/anwesenheit', [TrainingSessionController::class, 'saveAttendance'])->name('sessions.attendance');
-    Route::post('/training/{session}/zeit', [TrainingSessionController::class, 'saveTime'])->name('sessions.time');
-    Route::delete('/zeiten/{time}', [TrainingSessionController::class, 'destroyTime'])->name('times.destroy');
+        // Anwesenheit & Zeiten
+        Route::post('/training/{session}/anwesenheit', [TrainingSessionController::class, 'saveAttendance'])->name('sessions.attendance');
+        Route::post('/training/{session}/zeit', [TrainingSessionController::class, 'saveTime'])->name('sessions.time');
+        Route::delete('/zeiten/{time}', [TrainingSessionController::class, 'destroyTime'])->name('times.destroy');
 
-    // Wiederholungsgruppe löschen
-    Route::delete('/training/{session}/gruppe', [TrainingSessionController::class, 'destroyGroup'])->name('sessions.destroy-group');
+        // Wiederholungsgruppe löschen
+        Route::delete('/training/{session}/gruppe', [TrainingSessionController::class, 'destroyGroup'])->name('sessions.destroy-group');
 
-    // Druckansicht
-    Route::get('/training/{session}/drucken', [TrainingSessionController::class, 'printView'])->name('sessions.print');
+        // Druckansicht
+        Route::get('/training/{session}/drucken', [TrainingSessionController::class, 'printView'])->name('sessions.print');
 
-    // Trainingspläne hochladen
-    Route::post('/training/{session}/teamplan', [TrainingSessionController::class, 'uploadTeamPlan'])->name('sessions.plan.team');
-    Route::post('/training/{session}/einzelplan', [TrainingSessionController::class, 'uploadIndividualPlan'])->name('sessions.plan.individual');
+        // Trainingspläne hochladen
+        Route::post('/training/{session}/teamplan', [TrainingSessionController::class, 'uploadTeamPlan'])->name('sessions.plan.team');
+        Route::post('/training/{session}/einzelplan', [TrainingSessionController::class, 'uploadIndividualPlan'])->name('sessions.plan.individual');
 
-    // DSV6/7 Ergebnisimport
-    Route::get('/dsv-import', [DsvImportController::class, 'index'])->name('dsv-import.index');
-    Route::post('/dsv-import/upload', [DsvImportController::class, 'upload'])->name('dsv-import.upload');
-    Route::get('/dsv-import/preview', [DsvImportController::class, 'preview'])->name('dsv-import.preview');
-    Route::post('/dsv-import/execute', [DsvImportController::class, 'execute'])->name('dsv-import.execute');
+        // Trainingsplan-Builder
+        Route::get('/training/{session}/trainingsplan', [TrainingPlanController::class, 'edit'])->name('sessions.plan.builder');
+        Route::post('/training/{session}/trainingsplan', [TrainingPlanController::class, 'save'])->name('sessions.plan.save');
+        Route::delete('/training/{session}/trainingsplan/anhang', [TrainingPlanController::class, 'deleteAttachment'])->name('sessions.plan.attachment.delete');
+        Route::post('/training/{session}/block-zeiten', [TrainingPlanController::class, 'saveBlockTime'])->name('sessions.block-times.save');
 
-    // Trainingsplan-Builder
-    Route::get('/training/{session}/trainingsplan', [TrainingPlanController::class, 'edit'])->name('sessions.plan.builder');
-    Route::post('/training/{session}/trainingsplan', [TrainingPlanController::class, 'save'])->name('sessions.plan.save');
-    Route::delete('/training/{session}/trainingsplan/anhang', [TrainingPlanController::class, 'deleteAttachment'])->name('sessions.plan.attachment.delete');
-    Route::post('/training/{session}/block-zeiten', [TrainingPlanController::class, 'saveBlockTime'])->name('sessions.block-times.save');
+        // Live-Zeitnahme am Beckenrand (Handy)
+        Route::get('/training/{session}/live', [LiveTimingController::class, 'index'])->name('sessions.live');
+        Route::post('/training/{session}/live/zeiten', [LiveTimingController::class, 'saveBulk'])->name('sessions.live.save');
+        Route::patch('/training/{session}/live/welle', [LiveTimingController::class, 'saveWave'])->name('sessions.live.wave');
 
-    // Live-Zeitnahme am Beckenrand (Handy)
-    Route::get('/training/{session}/live', [LiveTimingController::class, 'index'])->name('sessions.live');
-    Route::post('/training/{session}/live/zeiten', [LiveTimingController::class, 'saveBulk'])->name('sessions.live.save');
-    Route::patch('/training/{session}/live/welle', [LiveTimingController::class, 'saveWave'])->name('sessions.live.wave');
+        // Trainereinschätzung innerhalb einer Einheit (gehoert zur Einheit, nicht zur Uebersicht)
+        Route::post('/training/{session}/einschaetzung/{user}', [TrainingSessionController::class, 'saveTrainerScore'])->name('sessions.trainer-score');
 
-    // Trainingstagebuch (Trainereinschätzung + Übersicht)
-    Route::post('/training/{session}/einschaetzung/{user}', [TrainingSessionController::class, 'saveTrainerScore'])->name('sessions.trainer-score');
-    Route::get('/tagebuch', [TrainingSessionController::class, 'diaryOverview'])->name('diary.overview');
+        // Trainingseinheit → Bahnbelegung
+        Route::post('/training/{session}/bahnen', [TrainingSessionController::class, 'bookLanes'])->name('sessions.book-lanes');
+        Route::delete('/training/{session}/bahnen/{booking}', [TrainingSessionController::class, 'removeLane'])->name('sessions.remove-lane');
+
+        // Individuelle Schwimmer-Zuweisung zu Einheit oder Serie
+        Route::post('/training/{session}/schwimmer', [SessionSwimmerController::class, 'addToSession'])->name('sessions.swimmer.add');
+        Route::delete('/training/{session}/schwimmer/{user}', [SessionSwimmerController::class, 'removeFromSession'])->name('sessions.swimmer.remove');
+        Route::post('/training-serien/{recurrenceGroupId}/schwimmer', [SessionSwimmerController::class, 'addToSeries'])->name('sessions.series.swimmer.add');
+        Route::delete('/training-serien/{recurrenceGroupId}/schwimmer/{user}', [SessionSwimmerController::class, 'removeFromSeries'])->name('sessions.series.swimmer.remove');
+    }); // Ende menu:training
+
+    // Einschätzungen (Uebersicht ueber alle Gruppen)
+    Route::middleware('menu:diary')->group(function () {
+        Route::get('/tagebuch', [TrainingSessionController::class, 'diaryOverview'])->name('diary.overview');
+    });
 
     // Motto der Woche (Trainer)
-    Route::get('/motto', [TrainerMottoController::class, 'index'])->name('motto.index');
-    Route::post('/motto/{week}/speichern', [TrainerMottoController::class, 'saveMotto'])->name('motto.save');
-    Route::post('/motto/{week}/aktivieren', [TrainerMottoController::class, 'activateGenerated'])->name('motto.activate');
+    Route::middleware('menu:motto')->group(function () {
+        Route::get('/motto', [TrainerMottoController::class, 'index'])->name('motto.index');
+        Route::post('/motto/{week}/speichern', [TrainerMottoController::class, 'saveMotto'])->name('motto.save');
+        Route::post('/motto/{week}/aktivieren', [TrainerMottoController::class, 'activateGenerated'])->name('motto.activate');
+    });
 
     // Ziele
-    Route::get('/ziele', [TrainerGoalController::class, 'index'])->name('goals.index');
-    Route::post('/ziele/{goal}/kommentar', [TrainerGoalController::class, 'storeComment'])->name('goals.comment');
-    Route::post('/gruppen-ziele', [TrainerGoalController::class, 'storeGroupGoal'])->name('group-goals.store');
-    Route::put('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'updateGroupGoal'])->name('group-goals.update');
-    Route::delete('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'destroyGroupGoal'])->name('group-goals.destroy');
+    Route::middleware('menu:goals')->group(function () {
+        Route::get('/ziele', [TrainerGoalController::class, 'index'])->name('goals.index');
+        Route::post('/ziele/{goal}/kommentar', [TrainerGoalController::class, 'storeComment'])->name('goals.comment');
+        Route::post('/gruppen-ziele', [TrainerGoalController::class, 'storeGroupGoal'])->name('group-goals.store');
+        Route::put('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'updateGroupGoal'])->name('group-goals.update');
+        Route::delete('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'destroyGroupGoal'])->name('group-goals.destroy');
+    });
 
-    // Hallenbelegung
-    Route::get('/hall', [HallBookingController::class, 'index'])->name('hall.index');
-    Route::post('/hall/bookings', [HallBookingController::class, 'store'])->name('hall.bookings.store');
-    Route::put('/hall/bookings/{booking}', [HallBookingController::class, 'update'])->name('hall.bookings.update');
-    Route::delete('/hall/bookings/{booking}', [HallBookingController::class, 'destroy'])->name('hall.bookings.destroy');
-    Route::get('/hall/conflicts', [HallBookingController::class, 'conflicts'])->name('hall.conflicts');
+    // Hallenbelegung inkl. Excel-Import des Belegungsplans
+    Route::middleware('menu:hall')->group(function () {
+        Route::get('/hall', [HallBookingController::class, 'index'])->name('hall.index');
+        Route::post('/hall/bookings', [HallBookingController::class, 'store'])->name('hall.bookings.store');
+        Route::put('/hall/bookings/{booking}', [HallBookingController::class, 'update'])->name('hall.bookings.update');
+        Route::delete('/hall/bookings/{booking}', [HallBookingController::class, 'destroy'])->name('hall.bookings.destroy');
+        Route::get('/hall/conflicts', [HallBookingController::class, 'conflicts'])->name('hall.conflicts');
 
-    // Hallenbelegungsplan aus Excel importieren
-    Route::get('/hall/import', [HallPlanImportController::class, 'index'])->name('hall.import.index');
-    Route::post('/hall/import/upload', [HallPlanImportController::class, 'upload'])->name('hall.import.upload');
-    Route::get('/hall/import/vorschau', [HallPlanImportController::class, 'preview'])->name('hall.import.preview');
-    Route::post('/hall/import/speichern', [HallPlanImportController::class, 'execute'])->name('hall.import.execute');
-    Route::get('/hall/sessions/search', [HallBookingController::class, 'searchSessions'])->name('hall.sessions.search');
-
-    // Trainingseinheit → Bahnbelegung
-    Route::post('/training/{session}/bahnen', [TrainingSessionController::class, 'bookLanes'])->name('sessions.book-lanes');
-    Route::delete('/training/{session}/bahnen/{booking}', [TrainingSessionController::class, 'removeLane'])->name('sessions.remove-lane');
-
-    // Individuelle Schwimmer-Zuweisung zu Einheit oder Serie
-    Route::post('/training/{session}/schwimmer', [SessionSwimmerController::class, 'addToSession'])->name('sessions.swimmer.add');
-    Route::delete('/training/{session}/schwimmer/{user}', [SessionSwimmerController::class, 'removeFromSession'])->name('sessions.swimmer.remove');
-    Route::post('/training-serien/{recurrenceGroupId}/schwimmer', [SessionSwimmerController::class, 'addToSeries'])->name('sessions.series.swimmer.add');
-    Route::delete('/training-serien/{recurrenceGroupId}/schwimmer/{user}', [SessionSwimmerController::class, 'removeFromSeries'])->name('sessions.series.swimmer.remove');
+        Route::get('/hall/import', [HallPlanImportController::class, 'index'])->name('hall.import.index');
+        Route::post('/hall/import/upload', [HallPlanImportController::class, 'upload'])->name('hall.import.upload');
+        Route::get('/hall/import/vorschau', [HallPlanImportController::class, 'preview'])->name('hall.import.preview');
+        Route::post('/hall/import/speichern', [HallPlanImportController::class, 'execute'])->name('hall.import.execute');
+        Route::get('/hall/sessions/search', [HallBookingController::class, 'searchSessions'])->name('hall.sessions.search');
+    });
 });
 
 // Trainingsplan-Download & Tagebuch (alle eingeloggten Rollen)
@@ -371,10 +384,10 @@ Route::middleware('auth')->group(function () {
 });
 
 // Kalender (alle eingeloggten Rollen können lesen; Trainer+Admin dürfen Termine anlegen/bearbeiten)
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'menu:calendar'])->group(function () {
     Route::get('/kalender', [CalendarController::class, 'index'])->name('calendar.index');
 });
-Route::middleware(['auth', 'role:trainer,admin'])->group(function () {
+Route::middleware(['auth', 'role:trainer,admin', 'menu:calendar'])->group(function () {
     Route::get('/kalender/termin/neu', [CalendarEventController::class, 'create'])->name('calendar.events.create');
     Route::post('/kalender/termin', [CalendarEventController::class, 'store'])->name('calendar.events.store');
     Route::get('/kalender/termin/{calendarEvent}/bearbeiten', [CalendarEventController::class, 'edit'])->name('calendar.events.edit');
@@ -399,7 +412,7 @@ Route::post('/api/webclub-import', [\App\Http\Controllers\Api\WebClubImportContr
     ->name('api.webclub-import');
 
 // Benutzerverwaltung Lite (Trainer + Vorstand)
-Route::middleware(['auth', 'role:trainer,vorstand,admin'])->prefix('benutzer')->name('users-lite.')->group(function () {
+Route::middleware(['auth', 'role:trainer,vorstand,admin', 'menu:users_lite'])->prefix('benutzer')->name('users-lite.')->group(function () {
     Route::get('/',                    [UserLiteController::class, 'index'])->name('index');
     Route::get('/neu',                 [UserLiteController::class, 'create'])->name('create');
     Route::post('/',                   [UserLiteController::class, 'store'])->name('store');
@@ -427,9 +440,9 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::get('/dashboard', [SwimmerDashboard::class, 'index'])->name('dashboard');
     Route::post('/anmeldung/{signupRequest}/antworten', [SwimmerSignupController::class, 'respond'])->name('signup.respond');
     Route::post('/anmeldung/{signupRequest}/bus', [SwimmerSignupController::class, 'toggleBus'])->name('signup.bus');
-    Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->name('times');
-    Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->name('competitions');
-    Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->name('sessions');
+    Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->middleware('menu:swimmer_times')->name('times');
+    Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->middleware('menu:swimmer_comps')->name('competitions');
+    Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->middleware('menu:swimmer_sessions')->name('sessions');
     Route::get('/training/{session}', [SwimmerDashboard::class, 'sessionDetail'])->name('session.show');
     Route::post('/training/{session}/absage', [SwimmerDashboard::class, 'cancelSession'])->name('session.cancel');
     Route::post('/training/{session}/gastbuchung', [SwimmerDashboard::class, 'bookGuestSlot'])->name('session.book-guest');
@@ -445,20 +458,26 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::post('/training/{session}/einzel-beitreten', [SessionPlanningController::class, 'punctualJoin'])->name('session.punctual.join');
 
     // Gruppenziele (Qualifikationskriterien & Eigenbewertung)
-    Route::get('/trainingsgruppen-ziele', [SwimmerDashboard::class, 'groupGoals'])->name('group-goals.index');
-    Route::post('/gruppen-ziel/{goal}/eigenbewertung', [SwimmerDashboard::class, 'storeGroupGoalEvaluation'])->name('group-goal.self-eval');
+    Route::middleware('menu:swimmer_group_goals')->group(function () {
+        Route::get('/trainingsgruppen-ziele', [SwimmerDashboard::class, 'groupGoals'])->name('group-goals.index');
+        Route::post('/gruppen-ziel/{goal}/eigenbewertung', [SwimmerDashboard::class, 'storeGroupGoalEvaluation'])->name('group-goal.self-eval');
+    });
 
     // Motto der Woche (Schwimmer)
-    Route::get('/motto', [SwimmerMottoController::class, 'index'])->name('motto.index');
-    Route::post('/motto/{week}/speichern', [SwimmerMottoController::class, 'save'])->name('motto.save');
-    Route::get('/motto/{week}/ki-generieren', [SwimmerMottoController::class, 'generateAi'])->name('motto.generate-ai');
+    Route::middleware('menu:swimmer_motto')->group(function () {
+        Route::get('/motto', [SwimmerMottoController::class, 'index'])->name('motto.index');
+        Route::post('/motto/{week}/speichern', [SwimmerMottoController::class, 'save'])->name('motto.save');
+        Route::get('/motto/{week}/ki-generieren', [SwimmerMottoController::class, 'generateAi'])->name('motto.generate-ai');
+    });
 
     // Ziele
-    Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');
-    Route::post('/meine-ziele', [SwimmerGoalController::class, 'store'])->name('goals.store');
-    Route::delete('/meine-ziele/{goal}', [SwimmerGoalController::class, 'destroy'])->name('goals.destroy');
-    Route::post('/meine-ziele/{goal}/bewerten', [SwimmerGoalController::class, 'evaluate'])->name('goals.evaluate');
-    Route::patch('/meine-ziele/{goal}/fortschritt', [SwimmerGoalController::class, 'updateProgress'])->name('goals.progress');
+    Route::middleware('menu:swimmer_goals')->group(function () {
+        Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');
+        Route::post('/meine-ziele', [SwimmerGoalController::class, 'store'])->name('goals.store');
+        Route::delete('/meine-ziele/{goal}', [SwimmerGoalController::class, 'destroy'])->name('goals.destroy');
+        Route::post('/meine-ziele/{goal}/bewerten', [SwimmerGoalController::class, 'evaluate'])->name('goals.evaluate');
+        Route::patch('/meine-ziele/{goal}/fortschritt', [SwimmerGoalController::class, 'updateProgress'])->name('goals.progress');
+    });
 });
 
 // Elternteil-Bereich

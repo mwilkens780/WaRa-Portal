@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->alias([
             'role'                    => \App\Http\Middleware\CheckRole::class,
+            'menu'                    => \App\Http\Middleware\CheckMenuPermission::class,
             'maintenance'             => \App\Http\Middleware\MaintenanceModeCheck::class,
             'ensure.password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
         ]);

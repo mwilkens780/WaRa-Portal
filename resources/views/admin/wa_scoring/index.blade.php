@@ -5,6 +5,14 @@
 @section('content')
 <div class="space-y-6">
 
+    <a href="{{ route('admin.settings.index') }}"
+       class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Zurück zu den Einstellungen
+    </a>
+
     {{-- Filter / Jahr-Auswahl --}}
     <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div class="flex flex-wrap gap-4 items-end">

@@ -9,7 +9,20 @@
     $editableRoles = array_filter(array_keys($roleLabels), fn($r) => $r !== 'admin');
 @endphp
 <div class="mt-2">
-    <p class="text-sm text-gray-500 mb-4">Der <strong>Administrator</strong> hat immer Zugriff auf alle Bereiche. Die Matrix gilt für alle anderen Rollen.</p>
+    <div class="mb-5 space-y-2 text-sm text-gray-500 max-w-3xl">
+        <p>
+            Ein Haken steuert beides: Der Menüpunkt erscheint in der Seitenleiste
+            <strong>und</strong> der Bereich ist aufrufbar. Ohne Haken führt auch der
+            direkte Aufruf der Adresse zu „Zugriff verweigert“.
+        </p>
+        <p>
+            Der <strong>Administrator</strong> hat immer Zugriff auf alle Bereiche.
+            Reine Systemwerkzeuge – Berechtigungs-Matrix, Protokoll, Crawler &amp; Import-Log,
+            DSGVO-Anfragen, Einstellungen und die vollständige Benutzerverwaltung – stehen
+            deshalb nicht in dieser Tabelle. Sie sind fest auf die Administrator-Rolle
+            beschränkt und lassen sich nicht freischalten.
+        </p>
+    </div>
 
     <form method="POST" action="{{ route('admin.permissions.update') }}">
         @csrf @method('PUT')
