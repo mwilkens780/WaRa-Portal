@@ -35,10 +35,14 @@
 
                     @if(!empty($rows))
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm table-fixed min-w-[640px]">
+                        {{-- Letzte Spalte bleibt leer und nimmt den Rest der Breite auf,
+                             damit die Namensspalte nicht ins Riesenhafte waechst.
+                             Die Spaltenbreiten sind zugleich die Mindestbreite. --}}
+                        <table class="w-full text-sm table-fixed">
                             <colgroup>
-                                <col class="w-12"><col><col class="w-20"><col class="w-24"><col class="w-20"><col class="w-28">
-                                @if($isAdmin) <col class="w-24"> @endif
+                                <col class="w-12"><col class="w-64"><col class="w-24"><col class="w-28"><col class="w-20"><col class="w-28">
+                                @if($isAdmin) <col class="w-40"> @endif
+                                <col>
                             </colgroup>
                             <thead>
                                 <tr class="border-b border-gray-50">
@@ -49,6 +53,7 @@
                                     <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Jahr</th>
                                     <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Quelle</th>
                                     @if($isAdmin) <th class="px-3 py-1.5"></th> @endif
+                                    <th></th>
                                 </tr>
                             </thead>
                             {{-- openRow: Knopf und Bearbeiten-Formular stehen in verschiedenen <tr> --}}
@@ -86,12 +91,13 @@
                                             @endif
                                         </td>
                                         @endif
+                                        <td></td>
                                     </tr>
 
                                     @if($isAdmin && $row['entry_id'])
                                     {{-- Bearbeiten: nur historische / manuelle Eintraege --}}
                                     <tr x-show="openRow === {{ $row['entry_id'] }}" x-cloak class="bg-blue-50/40">
-                                        <td colspan="{{ $isAdmin ? 7 : 6 }}" class="px-5 py-3">
+                                        <td colspan="{{ $isAdmin ? 8 : 7 }}" class="px-5 py-3">
                                             <form method="POST" action="{{ route('admin.bestlist.update', ['bestListEntry' => $row['entry_id'], 'tab' => $tab]) }}"
                                                   class="flex flex-wrap items-end gap-3">
                                                 @csrf @method('PUT')

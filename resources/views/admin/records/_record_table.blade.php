@@ -49,17 +49,22 @@
                 </p>
             </div>
             <div class="overflow-x-auto">
-            {{-- Feste Spaltenbreiten: alle Abschnitte der Liste stehen exakt untereinander --}}
-            <table class="w-full text-sm table-fixed min-w-[760px]">
+            {{-- Feste Spaltenbreiten: alle Abschnitte stehen exakt untereinander.
+                 Die letzte Spalte ist leer und nimmt den Rest der Breite auf -
+                 sonst wuerde der Name auf grossen Bildschirmen riesig. Die
+                 Spaltenbreiten geben zugleich die Mindestbreite der Tabelle vor,
+                 ein zusaetzliches min-w waere nur irrefuehrend. --}}
+            <table class="w-full text-sm table-fixed">
                 <colgroup>
                     <col class="w-20">      {{-- Strecke --}}
                     <col class="w-24">      {{-- Bahn --}}
-                    <col class="w-24">      {{-- Zeit --}}
-                    <col>                   {{-- Name: Rest --}}
-                    <col class="w-24">      {{-- Datum --}}
-                    <col class="w-44">      {{-- Ort --}}
+                    <col class="w-28">      {{-- Zeit --}}
+                    <col class="w-64">      {{-- Name --}}
+                    <col class="w-28">      {{-- Datum --}}
+                    <col class="w-48">      {{-- Ort --}}
                     <col class="w-24">      {{-- System --}}
-                    @if($isAdmin) <col class="w-20"> @endif
+                    @if($isAdmin) <col class="w-40"> @endif
+                    <col>                   {{-- Fuellspalte --}}
                 </colgroup>
                 <thead>
                     <tr class="border-b border-gray-50">
@@ -71,6 +76,7 @@
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Ort</th>
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">System</th>
                         @if($isAdmin) <th class="px-3 py-2"></th> @endif
+                        <th></th>
                     </tr>
                 </thead>
                 {{-- openRow haelt fest, welche Zeile gerade bearbeitet wird -
@@ -120,13 +126,14 @@
                                 <td class="px-5 py-2.5 text-xs text-gray-300 italic" colspan="4">noch kein Rekord</td>
                                 @if($isAdmin) <td></td> @endif
                             @endif
+                            <td></td>
                         </tr>
 
                         @if($isAdmin && $record)
                         {{-- Bearbeiten: Korrektur von Name, Zeit, Datum und Ort.
                              Strecke, Bahn und Geschlecht bleiben fest. --}}
                         <tr x-show="openRow === {{ $record->id }} && activeCourse === '{{ $course }}'" x-cloak class="bg-blue-50/40">
-                            <td colspan="{{ $isAdmin ? 8 : 7 }}" class="px-5 py-3">
+                            <td colspan="{{ $isAdmin ? 9 : 8 }}" class="px-5 py-3">
                                 <form method="POST" action="{{ route('admin.records.update', $record) }}"
                                       class="flex flex-wrap items-end gap-3">
                                     @csrf @method('PUT')
