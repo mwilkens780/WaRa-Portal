@@ -248,8 +248,9 @@ class RecordController extends Controller
                 ->with('error', 'Sitzung abgelaufen. Bitte Datei erneut hochladen.');
         }
 
-        $rows = $request->input('rows', []);
-        $saved = 0;
+        $rows       = $request->input('rows', []);
+        $saved      = 0;
+        $implausible = [];
 
         foreach ($rows as $row) {
             if (empty($row['include'])) continue;
@@ -267,6 +268,12 @@ class RecordController extends Controller
             if (!$discipline || !$distance || !$gender || !$swimmerName || $timeMs <= 0) continue;
             if (!in_array($discipline, ['F', 'B', 'R', 'S', 'L'])) continue;
             if (!in_array($gender, ['M', 'F'])) continue;
+
+            // Zahlendreher in der Liste nicht uebernehmen
+            if (TimePlausibility::isImplausible($discipline, $distance, $timeMs)) {
+                $implausible[] = "{$swimmerName} ({$distance} m {$discipline})";
+                continue;
+            }
 
             // Vereinsrekorde: nur offene Wertung und nur Strecken der VR-Liste.
             // Enthaelt die Importliste Altersklassen, gewinnt die schnellste
@@ -314,8 +321,14 @@ class RecordController extends Controller
             $this->checkService->recheckAll();
         }
 
-        return redirect()->route('admin.records.index')
-            ->with('success', "{$saved} Rekord(e) importiert und alle Wettkampfergebnisse geprüft.");
+        $msg = "{$saved} Rekord(e) importiert und alle Wettkampfergebnisse geprüft.";
+        if ($implausible) {
+            $msg .= ' ' . count($implausible) . ' Zeile(n) übersprungen, weil die Zeit über ihre Strecke '
+                  . 'nicht möglich ist: ' . implode(', ', array_slice($implausible, 0, 5))
+                  . (count($implausible) > 5 ? ' …' : '') . '.';
+        }
+
+        return redirect()->route('admin.records.index')->with('success', $msg);
     }
 
     // ── Re-check all results ──────────────────────────────────────────────────
@@ -473,9 +486,15 @@ class RecordController extends Controller
                 ->with('error', 'Sitzung abgelaufen. Bitte Datei erneut hochladen.');
         }
 
-        $entries = collect($parsed['entries']);
-        $courses = $entries->pluck('course')->unique();
+        $all     = collect($parsed['entries']);
+        $courses = $all->pluck('course')->unique();
         $replace = $request->boolean('replace', true);
+
+        // Ueber ihre Strecke unmoegliche Zeiten gar nicht erst anlegen
+        $implausible = $all->filter(fn($e) => TimePlausibility::isImplausible(
+            $e['discipline'], (int) $e['distance'], (int) $e['time_ms']));
+        $entries = $all->reject(fn($e) => TimePlausibility::isImplausible(
+            $e['discipline'], (int) $e['distance'], (int) $e['time_ms']));
 
         $removed = 0;
         if ($replace) {
@@ -507,6 +526,12 @@ class RecordController extends Controller
 
         $msg = "{$entries->count()} Einträge importiert (" . $courses->implode(', ') . ").";
         if ($removed > 0) $msg .= " {$removed} frühere importierte Einträge ersetzt.";
+        if ($implausible->isNotEmpty()) {
+            $msg .= ' ' . $implausible->count() . ' Zeile(n) übersprungen, weil die Zeit über ihre Strecke '
+                  . 'nicht möglich ist: '
+                  . $implausible->take(5)->map(fn($e) => "{$e['swimmer_name']} ({$e['distance']} m {$e['discipline']})")->implode(', ')
+                  . ($implausible->count() > 5 ? ' …' : '') . '.';
+        }
 
         return redirect()->route('admin.records.index', ['tab' => 'eternal'])->with('success', $msg);
     }
