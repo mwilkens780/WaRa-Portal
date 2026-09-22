@@ -10,6 +10,7 @@ use App\Models\TrainingGroup;
 use App\Models\TrainingGroupGoal;
 use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\User;
+use App\Services\GroupRoster;
 use Illuminate\Http\Request;
 
 /**
@@ -25,6 +26,8 @@ use Illuminate\Http\Request;
  */
 class GoalController extends Controller
 {
+    public function __construct(private GroupRoster $roster) {}
+
     public function index(Request $request)
     {
         $trainer  = auth()->user();
@@ -34,15 +37,18 @@ class GoalController extends Controller
             ? $seasons->firstWhere('id', $request->get('season_id'))
             : (view()->shared('appCurrentSeason') ?? Season::current() ?? $seasons->first());
 
-        $swimmerScope = fn($q) => $q->where('active', true)->orderBy('lastname')->orderBy('firstname');
-
         $groups = $trainer->isAdmin()
-            ? TrainingGroup::with(['swimmers' => $swimmerScope])->orderBy('name')->get()
+            ? TrainingGroup::with('swimmers:id')->orderBy('name')->get()
             : TrainingGroup::whereHas('trainers', fn($q) => $q->where('users.id', $trainer->id))
-                ->with(['swimmers' => $swimmerScope])
+                ->with('swimmers:id')
                 ->orderBy('name')->get();
 
-        $swimmerIds = $groups->flatMap(fn($g) => $g->swimmers->pluck('id'))->unique();
+        // Wer in der gewaehlten Saison zur Gruppe gehoerte. Fuer vergangene
+        // Saisons der eingefrorene Stand zum Saisonende - nicht die heutige Gruppe.
+        $rosters = $groups->mapWithKeys(fn($g) => [$g->id => $this->roster->swimmersFor($g, $activeSeason)]);
+        $isPast  = $this->roster->isPast($activeSeason);
+
+        $swimmerIds = $rosters->flatMap(fn($r) => $r['swimmers']->pluck('id'))->unique();
 
         $goalsBySwimmer = SwimmerGoal::whereIn('user_id', $swimmerIds)
             ->where('season_id', $activeSeason?->id)
@@ -52,8 +58,7 @@ class GoalController extends Controller
             ->get()
             ->groupBy('user_id');
 
-        $criteria = TrainingGroupGoal::whereIn('training_group_id', $groups->pluck('id'))
-            ->where('active', true)
+        $criteria = $this->roster->criteriaQuery($groups->pluck('id'), $activeSeason)
             ->with(['evaluations' => function ($q) use ($swimmerIds, $activeSeason) {
                 $q->whereIn('user_id', $swimmerIds)
                   ->where('season_id', $activeSeason?->id);
@@ -63,7 +68,7 @@ class GoalController extends Controller
             ->groupBy('training_group_id');
 
         return view('trainer.goals', compact(
-            'groups', 'goalsBySwimmer', 'criteria', 'seasons', 'activeSeason'
+            'groups', 'rosters', 'isPast', 'goalsBySwimmer', 'criteria', 'seasons', 'activeSeason'
         ));
     }
 
@@ -128,9 +133,9 @@ class GoalController extends Controller
     {
         $this->authorizeGroup($groupGoal->group);
 
-        $groupGoal->delete();
-
-        return back()->with('success', 'Leistungskriterium gelöscht.');
+        return back()->with('success', $groupGoal->retire() === 'archived'
+            ? 'Leistungskriterium entfernt. Die Bewertungen vergangener Saisons bleiben erhalten.'
+            : 'Leistungskriterium gelöscht.');
     }
 
     public function evaluate(Request $request, TrainingGroupGoal $groupGoal, User $user)

@@ -11,6 +11,7 @@ use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\GroupImportService;
+use App\Services\GroupRoster;
 use App\Services\MottoWeekService;
 use Illuminate\Http\Request;
 
@@ -103,16 +104,24 @@ class TrainingGroupController extends Controller
         // Jede Saison beginnt leer - keine Uebernahme aus der Vorsaison.
         $season = view()->shared('appCurrentSeason') ?? Season::current();
 
-        $goals = $trainingGroup->goals()
-            ->where('active', true)
-            ->with(['evaluations' => function ($q) use ($activeSwimmers, $season) {
-                $q->whereIn('user_id', $activeSwimmers->pluck('id'))
+        // Fuer abgeschlossene Saisons die Aufstellung zum Saisonende statt der
+        // heutigen Gruppe - Wechsel, Aus- und Eintritte veraendern sie nicht.
+        $roster           = app(GroupRoster::class);
+        $criteriaRoster   = $roster->swimmersFor($trainingGroup, $season);
+        $criteriaSwimmers = $criteriaRoster['swimmers'];
+        $criteriaPast     = $roster->isPast($season);
+
+        $goals = $roster->criteriaQuery(collect([$trainingGroup->id]), $season)
+            ->with(['evaluations' => function ($q) use ($criteriaSwimmers, $season) {
+                $q->whereIn('user_id', $criteriaSwimmers->pluck('id'))
                   ->where('season_id', $season?->id);
             }])
+            ->orderBy('sort_order')->orderBy('id')
             ->get();
 
         return view('admin.training-groups.show', compact(
-            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions', 'goals', 'season'
+            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions', 'goals', 'season',
+            'criteriaSwimmers', 'criteriaRoster', 'criteriaPast'
         ));
     }
 
@@ -165,9 +174,9 @@ class TrainingGroupController extends Controller
         $this->authorizeGroup($trainingGroup);
         abort_if($goal->training_group_id !== $trainingGroup->id, 404);
 
-        $goal->delete();
-
-        return back()->with('success', 'Ziel gelöscht.');
+        return back()->with('success', $goal->retire() === 'archived'
+            ? 'Leistungskriterium entfernt. Die Bewertungen vergangener Saisons bleiben erhalten.'
+            : 'Leistungskriterium gelöscht.');
     }
 
     public function storeTrainerEvaluation(Request $request, TrainingGroup $trainingGroup, TrainingGroupGoal $goal, User $user)

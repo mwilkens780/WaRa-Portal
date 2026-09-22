@@ -48,6 +48,25 @@ class TrainingGroupGoal extends Model
         return $this->hasMany(TrainingGroupGoalEvaluation::class, 'training_group_goal_id');
     }
 
+    /**
+     * Entfernt das Kriterium, ohne vergangene Saisons zu beschaedigen: Gibt es
+     * Bewertungen, wird es nur archiviert (active = false) und bleibt in den
+     * Saisons sichtbar, in denen es bewertet wurde. Nur ein nie bewertetes
+     * Kriterium wird tatsaechlich geloescht.
+     *
+     * @return string 'archived' oder 'deleted'
+     */
+    public function retire(): string
+    {
+        if ($this->evaluations()->exists()) {
+            $this->update(['active' => false]);
+            return 'archived';
+        }
+
+        $this->delete();
+        return 'deleted';
+    }
+
     // Beide Helfer arbeiten auf den geladenen Bewertungen. Die Aufrufer laden
     // nur eine Saison; die Saison-ID hier ist die zweite Sicherung dagegen,
     // dass eine Vorjahresbewertung als aktuelle durchrutscht.

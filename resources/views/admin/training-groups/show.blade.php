@@ -142,12 +142,27 @@
                     {{ $season ? $season->label : 'aktuellen Saison' }}, jede Saison beginnt neu
                 </p>
             </div>
+            @unless($criteriaPast)
             <button @click="showAddGoal = !showAddGoal" type="button"
                     class="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Kriterium hinzufügen
             </button>
+            @endunless
         </div>
+
+        @if($criteriaPast)
+            <div class="mx-5 mt-4 px-4 py-3 rounded-lg text-sm border
+                        {{ $criteriaRoster['source'] === 'snapshot' ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800' }}">
+                @if($criteriaRoster['source'] === 'snapshot')
+                    Abgeschlossene Saison: Gruppe mit <strong>{{ $criteriaSwimmers->count() }} Sportlern</strong> zum Saisonende
+                    ({{ $season->end_date->format('d.m.Y') }}).
+                @else
+                    Für diese Saison ist keine Gruppenaufstellung gespeichert. Angezeigt werden nur die
+                    <strong>{{ $criteriaSwimmers->count() }} Sportler</strong>, die damals bewertet wurden.
+                @endif
+            </div>
+        @endif
 
         {{-- Neues Kriterium --}}
         <div x-show="showAddGoal" x-cloak x-transition class="p-5 border-b border-gray-100 bg-gray-50">
@@ -180,15 +195,17 @@
         </div>
 
         @if($goals->isEmpty())
-            <p class="text-sm text-gray-400 px-5 py-6 text-center">Noch keine Leistungskriterien festgelegt.</p>
+            <p class="text-sm text-gray-400 px-5 py-6 text-center">
+                {{ $criteriaPast ? 'In dieser Saison galten für die Gruppe keine Leistungskriterien.' : 'Noch keine Leistungskriterien festgelegt.' }}
+            </p>
         @else
         <div class="divide-y divide-gray-50">
             @foreach($goals as $goal)
             @php
                 $trainerEvs = $goal->evaluations->where('evaluation_type', 'trainer')->keyBy('user_id');
                 $selfEvs    = $goal->evaluations->where('evaluation_type', 'self')->keyBy('user_id');
-                $cntYes = $activeSwimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === true)->count();
-                $cntNo  = $activeSwimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === false)->count();
+                $cntYes = $criteriaSwimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === true)->count();
+                $cntNo  = $criteriaSwimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === false)->count();
             @endphp
             <div x-data="{ editing: false, showEvals: false }" class="p-5">
                 <div class="flex items-start gap-3">
@@ -206,24 +223,26 @@
                         @endif
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        @if($activeSwimmers->isNotEmpty() && $season)
+                        @if($criteriaSwimmers->isNotEmpty() && $season)
                         <button @click="showEvals = !showEvals" type="button"
                                 class="text-xs px-2.5 py-1 border rounded-lg transition-colors"
                                 :class="showEvals ? 'border-indigo-300 text-indigo-600 bg-indigo-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'">
                             Bewertungen
                         </button>
                         @endif
+                        @unless($criteriaPast)
                         <button @click="editing = !editing" type="button"
                                 class="text-xs text-gray-400 hover:text-gray-600 transition-colors" title="Bearbeiten">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </button>
                         <form method="POST" action="{{ route('admin.training-groups.goals.destroy', [$trainingGroup, $goal]) }}"
-                              onsubmit="return confirm('Leistungskriterium löschen?\n\nDamit werden auch alle Bewertungen aus allen Saisons gelöscht.')">
+                              onsubmit="return confirm('Leistungskriterium entfernen?\n\nBewertungen vergangener Saisons bleiben erhalten.')">
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-xs text-red-400 hover:text-red-600" title="Löschen">
+                            <button type="submit" class="text-xs text-red-400 hover:text-red-600" title="Entfernen">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </form>
+                        @endunless
                     </div>
                 </div>
 
@@ -256,9 +275,9 @@
                 </div>
 
                 {{-- Bewertungen der Saison --}}
-                @if($activeSwimmers->isNotEmpty() && $season)
+                @if($criteriaSwimmers->isNotEmpty() && $season)
                 <div x-show="showEvals" x-cloak x-transition class="mt-3 space-y-2">
-                    @foreach($activeSwimmers as $swimmer)
+                    @foreach($criteriaSwimmers as $swimmer)
                     @php
                         $se = $selfEvs->get($swimmer->id);
                         $te = $trainerEvs->get($swimmer->id);

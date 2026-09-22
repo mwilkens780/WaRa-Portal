@@ -54,10 +54,36 @@
     @foreach($groups as $group)
         @php
             $groupCriteria = $criteria[$group->id] ?? collect();
-            $swimmers      = $group->swimmers;
+            // Aufstellung der gewaehlten Saison - bei vergangenen Saisons der
+            // Stand zum Saisonende, nicht die heutige Gruppe
+            $roster        = $rosters[$group->id];
+            $swimmers      = $roster['swimmers'];
             $swimmerCount  = $swimmers->count();
+            $currentIds    = $group->swimmers->pluck('id')->all();
+
+            // Hinweis hinter dem Namen, wenn sich seit der Saison etwas geaendert hat
+            $memberNote = function ($s) use ($isPast, $currentIds) {
+                if (!$isPast) return null;
+                if (!$s->active) return 'ausgeschieden';
+                if (!in_array($s->id, $currentIds, true)) return 'nicht mehr in der Gruppe';
+                return null;
+            };
         @endphp
         <div x-show="open === {{ $group->id }}" x-cloak class="space-y-4">
+
+            @if($isPast)
+                <div class="px-4 py-3 rounded-lg text-sm border
+                            {{ $roster['source'] === 'snapshot' ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800' }}">
+                    @if($roster['source'] === 'snapshot')
+                        Abgeschlossene Saison: Gruppe mit <strong>{{ $swimmerCount }} Sportlern</strong> zum Saisonende
+                        ({{ $activeSeason->end_date->format('d.m.Y') }}). Spätere Wechsel, Aus- und Eintritte ändern diese Ansicht nicht.
+                    @else
+                        Für diese Saison ist keine Gruppenaufstellung gespeichert – sie wird erst seit September 2026 erfasst.
+                        Angezeigt werden nur die <strong>{{ $swimmerCount }} Sportler</strong>, die damals bewertet wurden;
+                        Gruppengröße und „nicht bewertet“ sind deshalb nicht vollständig.
+                    @endif
+                </div>
+            @endif
 
             {{-- ═══ Leistungskriterien ═══════════════════════════════════════ --}}
             <section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
@@ -81,7 +107,9 @@
 
                 <div x-show="open" x-cloak class="border-t border-gray-100">
 
-                    {{-- Neues Kriterium --}}
+                    {{-- Neues Kriterium – nur in der laufenden Saison; eine abgeschlossene
+                         Saison zeigt, was damals galt --}}
+                    @unless($isPast)
                     <div class="px-5 py-3 bg-gray-50/60 border-b border-gray-100" x-data="{ add: false }">
                         <button type="button" @click="add = !add" x-show="!add"
                                 class="text-xs px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors font-semibold">
@@ -115,9 +143,12 @@
                             </div>
                         </form>
                     </div>
+                    @endunless
 
                     @if($groupCriteria->isEmpty())
-                        <p class="px-5 py-6 text-sm text-gray-400 text-center">Für diese Gruppe sind noch keine Leistungskriterien festgelegt.</p>
+                        <p class="px-5 py-6 text-sm text-gray-400 text-center">
+                            {{ $isPast ? 'In dieser Saison galten für die Gruppe keine Leistungskriterien.' : 'Für diese Gruppe sind noch keine Leistungskriterien festgelegt.' }}
+                        </p>
                     @endif
 
                     <div class="divide-y divide-gray-100">
@@ -179,19 +210,25 @@
                                 {{-- Beschreibung + Verwaltung --}}
                                 <div class="flex items-start gap-3 mb-3">
                                     <p class="flex-1 text-xs text-gray-500">{{ $crit->description }}</p>
+                                    @if(!$crit->active)
+                                        <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">inzwischen entfernt</span>
+                                    @endif
+                                    @unless($isPast)
                                     <button type="button" @click="edit = !edit"
                                             class="text-xs px-2.5 py-1 border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition-colors">
                                         Bearbeiten
                                     </button>
                                     <form method="POST" action="{{ route('trainer.group-goals.destroy', $crit) }}"
-                                          onsubmit="return confirm('Leistungskriterium „{{ addslashes($crit->title) }}“ löschen?\n\nDamit werden auch alle Bewertungen aus allen Saisons gelöscht.')">
+                                          onsubmit="return confirm('Leistungskriterium „{{ addslashes($crit->title) }}“ entfernen?\n\nBewertungen vergangener Saisons bleiben erhalten.')">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-xs px-2.5 py-1 border border-gray-200 text-gray-400 rounded-lg hover:text-red-500 hover:border-red-200 transition-colors">
-                                            Löschen
+                                            Entfernen
                                         </button>
                                     </form>
+                                    @endunless
                                 </div>
 
+                                @unless($isPast)
                                 <form x-show="edit" x-cloak method="POST" action="{{ route('trainer.group-goals.update', $crit) }}"
                                       class="mb-4 p-3 bg-gray-50 rounded-lg space-y-2">
                                     @csrf @method('PUT')
@@ -205,6 +242,7 @@
                                               class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-none">{{ $crit->description }}</textarea>
                                     <button type="submit" class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold">Speichern</button>
                                 </form>
+                                @endunless
 
                                 {{-- Kreisdiagramme: Sportler- und Trainersicht --}}
                                 @if($swimmerCount > 0)
@@ -270,7 +308,12 @@
                                             @endphp
                                             <tr class="hover:bg-gray-50/50"
                                                 x-show="(!filter.self || filter.self === '{{ $seStatus }}') && (!filter.trainer || filter.trainer === '{{ $teStatus }}')">
-                                                <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $swimmer->lastname }}, {{ $swimmer->firstname }}</td>
+                                                <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
+                                                    {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
+                                                    @if($note = $memberNote($swimmer))
+                                                        <span class="ml-1 text-[10px] font-normal text-gray-400 italic">{{ $note }}</span>
+                                                    @endif
+                                                </td>
                                                 <td class="px-3 py-2">
                                                     <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $statusBadges[$seStatus] }}">{{ $statusLabels[$seStatus] }}</span>
                                                     @if($se?->notes)
@@ -368,7 +411,12 @@
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                 </svg>
-                                <span class="flex-1 text-sm font-medium {{ $total ? 'text-gray-800' : 'text-gray-400' }}">{{ $swimmer->lastname }}, {{ $swimmer->firstname }}</span>
+                                <span class="flex-1 text-sm font-medium {{ $total ? 'text-gray-800' : 'text-gray-400' }}">
+                                    {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
+                                    @if($note = $memberNote($swimmer))
+                                        <span class="ml-1 text-[10px] font-normal text-gray-400 italic">{{ $note }}</span>
+                                    @endif
+                                </span>
                                 @if($total > 0)
                                     <div class="w-20 bg-gray-200 rounded-full h-1.5 flex-shrink-0">
                                         <div class="bg-green-500 h-1.5 rounded-full" style="width: {{ round($achieved / $total * 100) }}%"></div>

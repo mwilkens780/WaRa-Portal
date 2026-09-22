@@ -6,6 +6,7 @@ use App\Services\Crawler\DsvDataCrawler;
 use App\Services\Crawler\NsvCrawler;
 use App\Services\Crawler\ShsvCrawler;
 use App\Services\Crawler\WebClubCrawler;
+use App\Services\GroupRoster;
 use App\Services\Ranking\SaisonAuswertungService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -56,6 +57,18 @@ foreach ($crawlerDefs as $source => $def) {
             ->withoutOverlapping();
     }
 }
+
+// Gruppenaufstellung der laufenden Saison fortschreiben. Spaet am Abend,
+// damit der Lauf am letzten Saisontag den Stand zum Saisonende einfriert.
+Artisan::command('groups:snapshot-roster', function () {
+    $n = app(GroupRoster::class)->snapshotRunningSeason();
+    $this->info("{$n} Gruppenzugehoerigkeiten fuer die laufende Saison gespeichert.");
+})->purpose('Gruppenaufstellung der laufenden Saison fuer die Leistungskriterien sichern');
+
+Schedule::call(fn() => app(GroupRoster::class)->snapshotRunningSeason())
+    ->dailyAt('23:45')
+    ->name('group-roster-snapshot')
+    ->withoutOverlapping();
 
 // Saison-Score-Cache wöchentlich neu berechnen
 Schedule::call(function () {
