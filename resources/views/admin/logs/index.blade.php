@@ -87,7 +87,6 @@
                             <th class="px-4 py-2.5 text-left font-semibold">Aktion</th>
                             <th class="px-4 py-2.5 text-left font-semibold">Objekt</th>
                             <th class="px-4 py-2.5 text-left font-semibold">Änderungen</th>
-                            <th class="px-4 py-2.5 text-left font-semibold hidden lg:table-cell">IP</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -134,10 +133,9 @@
                                         <span class="text-gray-400">–</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2.5 text-gray-400 text-xs hidden lg:table-cell">{{ $tx->ip_address }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Keine Einträge gefunden.</td></tr>
+                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Keine Einträge gefunden.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

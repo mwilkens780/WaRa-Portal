@@ -1,21 +1,37 @@
 @extends('layouts.legal')
 @section('title', 'Datenschutzerklärung')
 
+{{-- Verantwortlicher, Zugriffsdaten und Cookies abgeglichen mit
+     https://www.wasserratten.de/index.php/datenschutzhinweise (Stand dort 28.05.2018).
+     Die portalspezifischen Abschnitte beschreiben, was der Code tatsaechlich tut -
+     bei Aenderungen an Protokoll, Gesundheitsdaten oder Zugriffsrechten hier nachziehen. --}}
+
 @section('content')
 <h1 class="text-2xl font-bold text-gray-900 mb-2">Datenschutzerklärung</h1>
-<p class="text-sm text-gray-500 mb-8">Gemäß Art. 13, 14 DSGVO – Stand: Juni 2026</p>
+<p class="text-sm text-gray-500 mb-8">Gemäß Art. 13, 14 DSGVO – Stand: September 2026</p>
 
 <div class="space-y-8 text-sm text-gray-700">
+
+    <p>
+        Diese Datenschutzerklärung gilt für das WaRa-Portal. Sie ergänzt die Datenschutzerklärung des Vereins
+        (gemäß § 23 unserer Satzung) und die
+        <a href="https://www.wasserratten.de/index.php/datenschutzhinweise" class="text-primary hover:underline" target="_blank" rel="noopener">Datenschutzhinweise für Mitarbeiter, Mitglieder und andere Betroffene</a>
+        auf der Vereinsseite um die Verarbeitungen, die nur im Portal stattfinden.
+    </p>
 
     {{-- 1. Verantwortlicher --}}
     <section>
         <h2 class="text-base font-semibold text-gray-800 mb-2">1. Verantwortlicher</h2>
         <p>
-            Verantwortlich für die Verarbeitung personenbezogener Daten in diesem Portal ist:<br><br>
+            Verantwortlicher im Sinne der Datenschutz-Grundverordnung, sonstiger in den Mitgliedstaaten der
+            Europäischen Union geltenden Datenschutzgesetze und anderer Bestimmungen mit datenschutzrechtlichem
+            Charakter ist die:<br><br>
             <strong>SG Wasserratten Norderstedt e.V.</strong><br>
-            {{-- ↓ BITTE ANPASSEN ↓ --}}
-            [Straße], 22844 Norderstedt<br>
-            E-Mail: <a href="mailto:[email@wasserratten.de]" class="text-primary hover:underline">[email@wasserratten.de]</a>
+            Wiesenstraße 50 a<br>
+            22850 Norderstedt<br>
+            Deutschland<br>
+            E-Mail: <a href="mailto:info@wasserratten.de" class="text-primary hover:underline">info@wasserratten.de</a><br>
+            Webseite: <a href="https://www.wasserratten.de" class="text-primary hover:underline" target="_blank" rel="noopener">www.wasserratten.de</a>
         </p>
         <p class="mt-2">
             Bei Fragen zum Datenschutz oder zur Geltendmachung Ihrer Rechte wenden Sie sich bitte an die oben genannte Adresse
@@ -52,7 +68,7 @@
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <h3 class="font-semibold text-gray-800 mb-1">3.2 Trainingsaufzeichnungen</h3>
-                <p><strong>Daten:</strong> Anwesenheit bei Trainingseinheiten (Datum, Einheit, Anwesenheitsstatus), Trainingstagebucheinträge, Schwimmzeiten im Training, Ziele und Fortschritte.</p>
+                <p><strong>Daten:</strong> Anwesenheit bei Trainingseinheiten (Datum, Einheit, Anwesenheitsstatus), Selbst- und Trainereinschätzungen zu Trainingseinheiten, Schwimmzeiten im Training, persönliche Ziele und Fortschritte, Bewertungen der Leistungskriterien der Trainingsgruppe je Saison sowie die Zugehörigkeit zu Trainingsgruppen je Saison.</p>
                 <p class="mt-1"><strong>Zweck:</strong> Dokumentation der sportlichen Entwicklung, Trainingsplanung, Leistungsanalyse.</p>
                 <p class="mt-1"><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO (Berechtigte Interessen des Vereins an der Trainingsorganisation und Mitgliederförderung).</p>
                 <p class="mt-1"><strong>Speicherdauer:</strong> Anwesenheitsdaten 3 Jahre nach der jeweiligen Saison, Bestzeiten und Ziele für die Dauer der Mitgliedschaft.</p>
@@ -84,11 +100,56 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.6 Protokoll- und Zugriffsdaten</h3>
-                <p><strong>Daten:</strong> Systemprotokoll (Änderungen an Datensätzen mit Zeitstempel und Benutzer-ID), keine IP-Adressen oder Web-Server-Logs durch dieses Portal.</p>
+                <h3 class="font-semibold text-gray-800 mb-1">3.6 Änderungsprotokoll</h3>
+                <p><strong>Daten:</strong> Änderungen an Datensätzen mit Zeitstempel, Name und Benutzer-ID der ändernden Person sowie den geänderten Werten. Das Portal selbst speichert dabei keine IP-Adressen.</p>
                 <p class="mt-1"><strong>Zweck:</strong> Nachvollziehbarkeit von Datenänderungen, Schutz vor unberechtigten Zugriffen, Fehleranalyse.</p>
                 <p class="mt-1"><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO.</p>
-                <p class="mt-1"><strong>Speicherdauer:</strong> 6 Monate, danach automatische Löschung.</p>
+                <p class="mt-1"><strong>Speicherdauer:</strong> Die Einträge werden nicht automatisch gelöscht. Sie bleiben gespeichert, bis ein Administrator das Protokoll leert. Nur Administratoren haben Zugriff.</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-1">3.7 Zugriffsdaten des Webservers</h3>
+                <p>
+                    Bei jedem Zugriff auf eine Seite des Portals werden Zugriffsdaten in einer Protokolldatei
+                    (Log-Datei) auf dem Server gespeichert. Diese Daten beinhalten z. B. den Browsertyp und
+                    -version, das verwendete Betriebssystem, die Seite, von der aus die Daten angefordert wurden
+                    (Referrer-URL), die IP-Adresse des anfragenden Rechners, Zugriffsdatum und -uhrzeit der
+                    Serveranfrage sowie Dateinamen und URL.
+                </p>
+                <p class="mt-1">
+                    Diese Daten werden ausschließlich zu statistischen Zwecken und zur Sicherstellung des Betriebs
+                    ausgewertet. Eine Weitergabe an Dritte, zu kommerziellen oder nichtkommerziellen Zwecken, findet
+                    nicht statt. Der Betreiber darf Server-Logfiles nur dann länger speichern, herausgeben oder
+                    nachträglich auf diese zugreifen, wenn dies im rechtlichen Rahmen gestattet ist (z. B. bei
+                    Verdacht auf rechtswidrige Aktivitäten).
+                </p>
+                <p class="mt-1"><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO.</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 border border-red-200">
+                <h3 class="font-semibold text-gray-800 mb-1">3.8 Gesundheitsdaten (Ernährungsberatung und Sportmedizin)</h3>
+                <p>
+                    <strong>Daten:</strong> Dokumente im PDF-Format aus der Ernährungsberatung und aus
+                    sportmedizinischen Untersuchungen, jeweils mit Titel, Dateiname, optionalen Schlagworten,
+                    Zeitpunkt des Hochladens und der hochladenden Person. Es handelt sich um Gesundheitsdaten und
+                    damit um besondere Kategorien personenbezogener Daten nach Art. 9 DSGVO.
+                </p>
+                <p class="mt-1">
+                    <strong>Voraussetzung:</strong> Dokumente werden nur erfasst, wenn die betroffene Person in ihrem
+                    Profil eingewilligt hat – getrennt für Ernährungsberatung und für sportmedizinische Untersuchungen.
+                </p>
+                <p class="mt-1"><strong>Zweck:</strong> Ernährungsberatung und Beurteilung der Leistungssporteignung.</p>
+                <p class="mt-1"><strong>Zugriff:</strong></p>
+                <ul class="list-disc list-inside mt-0.5 space-y-0.5">
+                    <li>die betroffene Person selbst,</li>
+                    <li>die Ernährungsberatung auf Dokumente der Ernährungsberatung,</li>
+                    <li>der Teamarzt auf sportmedizinische Dokumente,</li>
+                    <li>die Trainer der Trainingsgruppen, denen die betroffene Person angehört, auf beide Arten von Dokumenten,</li>
+                    <li>Administratoren.</li>
+                </ul>
+                <p class="mt-1"><strong>Rechtsgrundlage:</strong> Ausdrückliche Einwilligung, Art. 9 Abs. 2 lit. a DSGVO i. V. m. Art. 6 Abs. 1 lit. a DSGVO.</p>
+                <p class="mt-1"><strong>Widerruf:</strong> Die Einwilligung kann jederzeit im Profil widerrufen werden. Der Widerruf wirkt für die Zukunft; die Rechtmäßigkeit der bis dahin erfolgten Verarbeitung bleibt unberührt.</p>
+                <p class="mt-1"><strong>Speicherung:</strong> Die Dateien liegen auf dem Server des Portals und sind nicht öffentlich abrufbar. Sie werden nicht an Dritte übermittelt.</p>
             </div>
         </div>
     </section>

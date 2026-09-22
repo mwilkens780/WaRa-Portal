@@ -51,7 +51,9 @@ class AuditService
                 'model_id'    => $model->getKey(),
                 'model_label' => $label,
                 'changes'     => $changes,
-                'ip_address'  => request()->ip(),
+                // Bewusst keine IP-Adresse: Benutzer + Zeitstempel reichen fuer
+                // die Nachvollziehbarkeit, und die Datenschutzerklaerung sagt zu,
+                // dass das Portal keine IP-Adressen speichert.
             ]);
         } catch (\Throwable) {
             // Audit logging must never break the main operation
