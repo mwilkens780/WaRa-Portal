@@ -54,15 +54,27 @@ class HealthDataController extends Controller
             abort(403);
         }
 
-        $documents = $user->healthDocuments()->with('uploader')->latest()->get();
+        // Nur Kategorien mit bestehender Einwilligung - nach einem Widerruf
+        // sieht der Trainer die Dokumente nicht mehr
+        $documents = $user->healthDocuments()
+            ->whereIn('category', HealthDocument::consentedCategories($user))
+            ->with('uploader')->latest()->get();
         return view('health.user', compact('user', 'documents'));
     }
 
     public function download(HealthDocument $doc)
     {
         $authUser = auth()->user();
+        $isOwner  = $authUser->id === $doc->user_id;
 
-        $canAccess = match ($authUser->role) {
+        // Download-Sperre nach Widerruf: Ohne bestehende Einwilligung kommt nur
+        // noch die betroffene Person selbst an ihr Dokument (Auskunftsrecht) -
+        // auch Admins, Trainer, Ernaehrungsberatung und Teamarzt nicht.
+        if (!$isOwner && !$doc->hasConsent()) {
+            abort(403, 'Die Einwilligung für diese Dokumente wurde widerrufen.');
+        }
+
+        $canAccess = $isOwner || match ($authUser->role) {
             'admin'              => true,
             'ernaehrungsberater' => $doc->category === 'nutrition',
             'teamarzt'           => $doc->category === 'sports_medicine',
@@ -72,7 +84,7 @@ class HealthDataController extends Controller
                 ->flatMap(fn($g) => $g->swimmers->pluck('id'))
                 ->unique()
                 ->contains($doc->user_id),
-            default => $authUser->id === $doc->user_id,
+            default => false,
         };
 
         if (!$canAccess) abort(403);

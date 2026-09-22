@@ -148,7 +148,7 @@
                     <li>Administratoren.</li>
                 </ul>
                 <p class="mt-1"><strong>Rechtsgrundlage:</strong> Ausdrückliche Einwilligung, Art. 9 Abs. 2 lit. a DSGVO i. V. m. Art. 6 Abs. 1 lit. a DSGVO.</p>
-                <p class="mt-1"><strong>Widerruf:</strong> Die Einwilligung kann jederzeit im Profil widerrufen werden. Der Widerruf wirkt für die Zukunft; die Rechtmäßigkeit der bis dahin erfolgten Verarbeitung bleibt unberührt.</p>
+                <p class="mt-1"><strong>Widerruf:</strong> Die Einwilligung kann jederzeit im Profil widerrufen werden, getrennt je Bereich. Ab dem Widerruf kann außer der betroffenen Person niemand mehr – auch nicht Trainer, Ernährungsberatung, Teamarzt oder Administratoren – auf die Dokumente dieses Bereichs zugreifen, und es können keine neuen hochgeladen werden. Der Widerruf wirkt für die Zukunft; die Rechtmäßigkeit der bis dahin erfolgten Verarbeitung bleibt unberührt.</p>
                 <p class="mt-1"><strong>Speicherung:</strong> Die Dateien liegen auf dem Server des Portals und sind nicht öffentlich abrufbar. Sie werden nicht an Dritte übermittelt.</p>
             </div>
         </div>

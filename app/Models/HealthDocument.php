@@ -19,6 +19,32 @@ class HealthDocument extends Model
         ];
     }
 
+    /** Welche Einwilligung im Profil eine Dokumentkategorie abdeckt */
+    public const CONSENT_FIELDS = [
+        'nutrition'       => 'opt_nutrition',
+        'sports_medicine' => 'opt_sports_medicine',
+    ];
+
+    /** Kategorien, fuer die die Person aktuell eingewilligt hat */
+    public static function consentedCategories(User $user): array
+    {
+        return array_keys(array_filter(
+            self::CONSENT_FIELDS,
+            fn($field) => (bool) $user->{$field}
+        ));
+    }
+
+    /**
+     * Besteht die Einwilligung fuer dieses Dokument noch? Nach einem Widerruf
+     * darf ausser der betroffenen Person niemand mehr darauf zugreifen.
+     */
+    public function hasConsent(): bool
+    {
+        $field = self::CONSENT_FIELDS[$this->category] ?? null;
+
+        return $field !== null && (bool) $this->user?->{$field};
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
