@@ -349,5 +349,37 @@
         </a>
     </div>
 
+    {{-- Korrekturen: Sammelaenderungen fuer Datenluecken --}}
+    @php $missingCourse = \App\Models\Competition::whereNull('course')->count(); @endphp
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            <h2 class="text-base font-semibold text-gray-800">Korrekturen</h2>
+        </div>
+
+        <a href="{{ route('admin.corrections.course.index') }}"
+           class="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
+            <svg class="w-5 h-5 {{ $missingCourse ? 'text-amber-500' : 'text-green-500' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+            </svg>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-800">Bahnlängen nachtragen</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Wettkämpfe ohne Bahnlänge in einem Schritt auf Kurz- oder Langbahn setzen
+                </p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0
+                         {{ $missingCourse ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700' }}">
+                {{ $missingCourse ? $missingCourse . ' offen' : 'alles gesetzt' }}
+            </span>
+            <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+
 </div>
 @endsection

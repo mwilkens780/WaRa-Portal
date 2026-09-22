@@ -404,6 +404,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/einstellungen', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/einstellungen', [SettingsController::class, 'update'])->name('admin.settings.update');
     Route::put('/admin/einstellungen/webclub', [SettingsController::class, 'updateWebClub'])->name('admin.settings.webclub');
+
+    // Korrekturen (erreichbar ueber Einstellungen)
+    Route::get('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'index'])->name('admin.corrections.course.index');
+    Route::put('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'update'])->name('admin.corrections.course.update');
 });
 
 // Webhook-Endpunkt für GitHub Actions WebClub-Crawler (kein CSRF, Bearer-Token-Auth)
