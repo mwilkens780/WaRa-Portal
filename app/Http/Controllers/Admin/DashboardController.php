@@ -23,7 +23,7 @@ class DashboardController extends Controller
             'sessions_this_month' => TrainingSession::whereMonth('date', now()->month)
                 ->whereYear('date', now()->year)->count(),
             'competitions_total' => Competition::count(),
-            'upcoming_competitions' => Competition::where('date', '>=', now())->count(),
+            'upcoming_competitions' => Competition::upcomingOrRunning()->count(),
         ];
 
         $recent_sessions = TrainingSession::with('coTrainers:id,firstname,lastname')
@@ -31,7 +31,7 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $upcoming_competitions = Competition::where('date', '>=', now())
+        $upcoming_competitions = Competition::upcomingOrRunning()
             ->orderBy('date')
             ->limit(3)
             ->get();

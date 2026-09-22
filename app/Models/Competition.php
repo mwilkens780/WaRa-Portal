@@ -53,6 +53,19 @@ class Competition extends Model
         return $this->belongsToMany(TrainingGroup::class, 'competition_training_group');
     }
 
+    /**
+     * Wettkaempfe, die noch bevorstehen ODER heute laufen - auch am zweiten
+     * Tag eines mehrtaegigen Wettkampfs. Vergleich immer mit today(), nicht
+     * now(): date ist 00:00 Uhr, mit now() fiele der heutige Wettkampf schon
+     * am Morgen heraus.
+     */
+    public function scopeUpcomingOrRunning(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        return $q->where(fn($w) => $w
+            ->whereDate('date', '>=', today())
+            ->orWhereDate('date_end', '>=', today()));
+    }
+
     public function results()
     {
         return $this->hasMany(CompetitionResult::class);

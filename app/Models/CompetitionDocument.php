@@ -22,9 +22,11 @@ class CompetitionDocument extends Model
     }
 
     const CATEGORIES = [
+        // Reihenfolge = Reihenfolge in der Anzeige und im Upload-Formular:
+        // so, wie die Dokumente im Ablauf eines Wettkampfs entstehen
         'ausschreibung' => 'Ausschreibung',
-        'protokoll'     => 'Protokoll',
         'meldeergebnis' => 'Meldeergebnis',
+        'protokoll'     => 'Protokoll',
         'sonstige'      => 'Sonstige',
     ];
 

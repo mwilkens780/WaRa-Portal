@@ -156,7 +156,8 @@ class DashboardController extends Controller
         )->take(5);
 
         // Nächster anstehender Wettkampf: Trainingsgruppen-Zuweisung ODER direkte Signup-Einladung
-        $next_competition = Competition::where('date', '>=', today())
+        // upcomingOrRunning: auch ein heute bzw. noch laufender (mehrtaegiger) Wettkampf
+        $next_competition = Competition::upcomingOrRunning()
             ->where(function ($q) use ($swimmerGroupIds, $swimmer) {
                 if ($swimmerGroupIds->isNotEmpty()) {
                     $q->whereHas('trainingGroups', fn($inner) =>
@@ -189,7 +190,10 @@ class DashboardController extends Controller
             ->pluck('pre_absent_note', 'training_session_id');
 
         // Offene Anmeldeabfragen für diesen Schwimmer
+        // Banner nur bis zum Ende des Wettkampfs - eine nicht geschlossene
+        // Abfrage blieb sonst fuer immer auf dem Dashboard stehen
         $pendingSignups = CompetitionSignupRequest::where('status', 'active')
+            ->whereHas('competition', fn($q) => $q->upcomingOrRunning())
             ->whereHas('responses', fn($q) => $q->where('user_id', $swimmer->id)->where('status', 'pending'))
             ->with('competition')
             ->get();
@@ -197,6 +201,7 @@ class DashboardController extends Controller
         // Aktive Abfragen mit Bus-Option, bei denen der Schwimmer bereits zugesagt hat
         $busSignups = CompetitionSignupRequest::where('status', 'active')
             ->where('bus_available', true)
+            ->whereHas('competition', fn($q) => $q->upcomingOrRunning())
             ->whereHas('responses', fn($q) => $q->where('user_id', $swimmer->id)->where('status', 'attending'))
             ->with(['competition', 'responses' => fn($q) => $q->where('user_id', $swimmer->id)])
             ->get();

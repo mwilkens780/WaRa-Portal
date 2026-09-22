@@ -16,6 +16,7 @@ class SignupController extends Controller
 
         // Active signup requests that have a response record for the child
         $signupRequests = CompetitionSignupRequest::where('status', 'active')
+            ->whereHas('competition', fn($q) => $q->upcomingOrRunning())
             ->whereHas('responses', fn($q) => $q->where('user_id', $child->id))
             ->with(['competition', 'responses' => fn($q) => $q->where('user_id', $child->id)])
             ->orderBy('deadline')

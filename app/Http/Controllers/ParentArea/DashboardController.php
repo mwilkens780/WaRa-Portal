@@ -20,6 +20,7 @@ class DashboardController extends Controller
         $childData = [];
         foreach ($children as $child) {
             $pendingSignups = CompetitionSignupRequest::where('status', 'active')
+                ->whereHas('competition', fn($q) => $q->upcomingOrRunning())
                 ->whereHas('responses', fn($q) => $q->where('user_id', $child->id)->where('status', 'pending'))
                 ->count();
 
