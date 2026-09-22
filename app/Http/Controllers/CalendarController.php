@@ -269,8 +269,8 @@ class CalendarController extends Controller
             // Admin: all sessions
             $sessionDetailRoute = 'trainer';
         } elseif ($isTrainer) {
-            // Trainer: sessions where they are a co-trainer (trainer_id column was removed)
-            $sessionQuery->whereHas('coTrainers', fn($q2) => $q2->where('users.id', $user->id));
+            // Trainer: eigene Einheiten und Einheiten der betreuten Gruppen
+            $sessionQuery->manageableBy($user);
             $sessionDetailRoute = 'trainer';
         } elseif ($role === 'schwimmer') {
             // Swimmer: sessions from their training groups or individual assignments

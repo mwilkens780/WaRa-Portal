@@ -121,6 +121,33 @@ class TrainingSession extends Model
         return $this->belongsToMany(User::class, 'training_session_trainers');
     }
 
+    /**
+     * Einheiten, die ein Benutzer als Trainer sehen und bearbeiten darf:
+     * Admins alle; Trainer die, bei denen sie als Co-Trainer eingetragen sind
+     * ODER die zu einer Trainingsgruppe gehoeren, die sie betreuen.
+     *
+     * Bisher zaehlte nur der Co-Trainer-Eintrag - ein Gruppentrainer kam an
+     * Einheiten seiner eigenen Gruppe nicht heran, sobald dort ein anderer
+     * Trainer eingetragen war. Einzige Quelle fuer diese Regel; alle
+     * Zugriffspruefungen auf Einheiten gehen hierueber.
+     */
+    public function scopeManageableBy(\Illuminate\Database\Eloquent\Builder $q, User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        if ($user->isAdmin()) {
+            return $q;
+        }
+
+        return $q->where(fn($w) => $w
+            ->whereHas('coTrainers', fn($c) => $c->where('users.id', $user->id))
+            ->orWhereHas('trainingGroups.trainers', fn($t) => $t->where('users.id', $user->id)));
+    }
+
+    public function isManageableBy(User $user): bool
+    {
+        return $user->isAdmin()
+            || static::whereKey($this->getKey())->manageableBy($user)->exists();
+    }
+
     // Backward-compat accessor: returns first assigned trainer (or null)
     public function getTrainerAttribute(): ?\App\Models\User
     {

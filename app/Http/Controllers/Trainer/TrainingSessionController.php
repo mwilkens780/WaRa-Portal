@@ -28,18 +28,20 @@ class TrainingSessionController extends Controller
 
         $groupQuery = TrainingGroup::with(['sessions' => function ($q) use ($user) {
             $q->with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color', 'trainingPlan:id,training_session_id'])
-              ->when(!$user->isAdmin(), fn($q2) => $q2->whereHas('coTrainers', fn($q3) => $q3->where('user_id', $user->id)))
+              ->manageableBy($user)
               ->orderBy('date');
         }])->orderBy('name');
 
+        // Jede Gruppe mit mindestens einer Einheit, die der Trainer bearbeiten
+        // darf - auch fremde Gruppen, in denen er als Co-Trainer eingetragen ist
         if (!$user->isAdmin()) {
-            $groupQuery->whereHas('trainers', fn($q) => $q->where('users.id', $user->id));
+            $groupQuery->whereHas('sessions', fn($q) => $q->manageableBy($user));
         }
 
         $groups = $groupQuery->get()->filter(fn($g) => $g->sessions->isNotEmpty());
 
         $ungroupedSessions = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color', 'trainingPlan:id,training_session_id'])
-            ->when(!$user->isAdmin(), fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', $user->id)))
+            ->manageableBy($user)
             ->whereDoesntHave('trainingGroups')
             ->orderBy('date')
             ->get();
@@ -1070,10 +1072,7 @@ class TrainingSessionController extends Controller
 
     private function authorizeSeriesAccess(TrainingSession $anySession): void
     {
-        if (auth()->user()->isAdmin()) return;
-        if (!$anySession->coTrainers()->where('user_id', auth()->id())->exists()) {
-            abort(403);
-        }
+        $this->authorizeSession($anySession);
     }
 
     private function generateSeriesDates(Carbon $start, string $recurrenceType, Carbon $until): array
@@ -1101,10 +1100,8 @@ class TrainingSessionController extends Controller
 
     private function authorizeSession(TrainingSession $session): void
     {
-        if (auth()->user()->isAdmin()) return;
-        if (!$session->coTrainers()->where('user_id', auth()->id())->exists()) {
-            abort(403);
-        }
+        abort_unless($session->isManageableBy(auth()->user()), 403,
+            'Diese Einheit gehört zu keiner deiner Trainingsgruppen und du bist nicht als Trainer eingetragen.');
     }
 
     private function availableGroups()

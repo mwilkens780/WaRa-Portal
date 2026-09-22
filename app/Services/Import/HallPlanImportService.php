@@ -161,8 +161,11 @@ class HallPlanImportService
                     $session->trainer_id = $trainerId;
                     $session->save();
 
-                    if ($groupId) $session->trainingGroups()->sync([$groupId]);
-                    $session->coTrainers()->sync([$trainerId]);
+                    // Alle Gruppen und alle Trainer der Zeile - bei "LG/WG" oder
+                    // zwei Trainern fehlte sonst die zweite Gruppe bzw. der zweite
+                    // Trainer hatte keinen Zugriff auf die Einheit.
+                    $session->trainingGroups()->sync(array_values(array_unique($entry['group_ids'] ?? [])));
+                    $session->coTrainers()->sync(array_values(array_unique($entry['trainer_ids'] ?? [])));
                     $sessions++;
                 }
             });

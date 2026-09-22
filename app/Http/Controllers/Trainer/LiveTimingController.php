@@ -181,7 +181,7 @@ class LiveTimingController extends Controller
 
     private function authorizeSession(TrainingSession $session): void
     {
-        if (!auth()->user()->isAdmin() && !$session->coTrainers()->where('users.id', auth()->id())->exists()) {
+        if (!$session->isManageableBy(auth()->user())) {
             abort(403);
         }
     }

@@ -197,7 +197,7 @@ class HallBookingController extends Controller
             ->whereRaw('WEEKDAY(date) = ?', [$weekday])
             ->where('start_time', '<=', $request->end_time)
             ->where(fn($q) => $q->whereNull('end_time')->orWhere('end_time', '>=', $request->start_time))
-            ->when(!auth()->user()->isAdmin(), fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', auth()->id())))
+            ->manageableBy(auth()->user())
             ->orderBy('date')
             ->limit(15)
             ->get();

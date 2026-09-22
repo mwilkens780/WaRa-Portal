@@ -301,10 +301,8 @@ class TrainingGroupController extends Controller
         // Sessions not yet linked to this group (trainer-scoped for non-admins)
         $linkedIds = $trainingGroup->sessions()->pluck('training_sessions.id')->toArray();
 
-        $availableSessions = TrainingSession::when(
-            !auth()->user()->isAdmin(),
-            fn($q) => $q->whereHas('coTrainers', fn($q2) => $q2->where('user_id', auth()->id()))
-        )->whereNotIn('id', $linkedIds)
+        $availableSessions = TrainingSession::manageableBy(auth()->user())
+            ->whereNotIn('id', $linkedIds)
             ->orderByDesc('date')->limit(30)->get();
 
         $linkedSessions = $trainingGroup->sessions()->orderByDesc('date')->limit(20)->get();
