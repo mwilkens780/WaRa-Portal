@@ -111,9 +111,12 @@ class TrainingGroupController extends Controller
         $criteriaSwimmers = $criteriaRoster['swimmers'];
         $criteriaPast     = $roster->isPast($season);
 
+        $evalUserIds = $criteriaSwimmers->pluck('id')
+            ->merge($criteriaRoster['leavers']->map(fn($l) => $l->user->id));
+
         $goals = $roster->criteriaQuery(collect([$trainingGroup->id]), $season)
-            ->with(['evaluations' => function ($q) use ($criteriaSwimmers, $season) {
-                $q->whereIn('user_id', $criteriaSwimmers->pluck('id'))
+            ->with(['evaluations' => function ($q) use ($evalUserIds, $season) {
+                $q->whereIn('user_id', $evalUserIds)
                   ->where('season_id', $season?->id);
             }])
             ->orderBy('sort_order')->orderBy('id')

@@ -156,7 +156,7 @@
                         {{ $criteriaRoster['source'] === 'snapshot' ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800' }}">
                 @if($criteriaRoster['source'] === 'snapshot')
                     Abgeschlossene Saison: Gruppe mit <strong>{{ $criteriaSwimmers->count() }} Sportlern</strong> zum Saisonende
-                    ({{ $season->end_date->format('d.m.Y') }}).
+                    ({{ $season->end_date->format('d.m.Y') }}){{ $criteriaRoster['leavers']->isNotEmpty() ? ', dazu ' . $criteriaRoster['leavers']->count() . ' während der Saison ausgeschieden' : '' }}.
                 @else
                     Für diese Saison ist keine Gruppenaufstellung gespeichert. Angezeigt werden nur die
                     <strong>{{ $criteriaSwimmers->count() }} Sportler</strong>, die damals bewertet wurden.
@@ -223,7 +223,7 @@
                         @endif
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        @if($criteriaSwimmers->isNotEmpty() && $season)
+                        @if(($criteriaSwimmers->isNotEmpty() || $criteriaRoster['leavers']->isNotEmpty()) && $season)
                         <button @click="showEvals = !showEvals" type="button"
                                 class="text-xs px-2.5 py-1 border rounded-lg transition-colors"
                                 :class="showEvals ? 'border-indigo-300 text-indigo-600 bg-indigo-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'">
@@ -275,18 +275,37 @@
                 </div>
 
                 {{-- Bewertungen der Saison --}}
-                @if($criteriaSwimmers->isNotEmpty() && $season)
+                @php
+                    // Gruppe zuerst, danach die waehrend der Saison Ausgeschiedenen
+                    // (sichtbar mit Bewertung, aber nicht in den Zaehlern)
+                    $evalRows = $criteriaSwimmers->map(fn($s) => (object) ['user' => $s, 'left_at' => null])
+                        ->concat($criteriaRoster['leavers']);
+                @endphp
+                @if($evalRows->isNotEmpty() && $season)
                 <div x-show="showEvals" x-cloak x-transition class="mt-3 space-y-2">
-                    @foreach($criteriaSwimmers as $swimmer)
+                    @foreach($evalRows as $row)
                     @php
+                        $swimmer  = $row->user;
+                        $isLeaver = $row->left_at !== null;
                         $se = $selfEvs->get($swimmer->id);
                         $te = $trainerEvs->get($swimmer->id);
                         $seStatus = $se?->status ?? 'open';
                         $teStatus = $te?->status ?? 'open';
                     @endphp
-                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    @if($isLeaver && $loop->index === $criteriaSwimmers->count())
+                        <p class="pt-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                            Während der Saison ausgeschieden
+                            <span class="normal-case font-normal tracking-normal text-gray-400">· zählen nicht zur Gruppengröße</span>
+                        </p>
+                    @endif
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 {{ $isLeaver ? 'opacity-70' : '' }}">
                         <div class="flex flex-wrap items-center gap-3">
-                            <span class="text-sm font-medium text-gray-800">{{ $swimmer->firstname }} {{ $swimmer->lastname }}</span>
+                            <span class="text-sm font-medium text-gray-800">
+                                {{ $swimmer->firstname }} {{ $swimmer->lastname }}
+                                @if($isLeaver)
+                                    <span class="ml-1 text-[10px] font-normal text-gray-400 italic">ausgeschieden am {{ $row->left_at->format('d.m.Y') }}</span>
+                                @endif
+                            </span>
                             <span class="text-xs text-gray-400">Eigenbewertung:</span>
                             <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $statusBadges[$seStatus] }}">{{ $statusLabels[$seStatus] }}</span>
                             <span class="text-xs text-gray-400">Trainer:</span>

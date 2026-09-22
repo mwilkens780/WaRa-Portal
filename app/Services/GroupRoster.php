@@ -7,6 +7,7 @@ use App\Models\TrainingGroup;
 use App\Models\TrainingGroupGoal;
 use App\Models\TrainingGroupGoalEvaluation;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -48,19 +49,30 @@ class GroupRoster
             $current = $group->swimmers->pluck('id')->all();
 
             DB::transaction(function () use ($group, $season, $current, &$written) {
-                // Wer die Gruppe waehrend der Saison verlassen hat, gehoert
-                // nicht zur Aufstellung am Saisonende.
-                DB::table('training_group_season_members')
+                $now   = now();
+                $scope = fn() => DB::table('training_group_season_members')
                     ->where('training_group_id', $group->id)
-                    ->where('season_id', $season->id)
-                    ->whereNotIn('user_id', $current ?: [0])
-                    ->delete();
+                    ->where('season_id', $season->id);
 
-                $now  = now();
+                // Nicht mehr in der Gruppe (gewechselt, deaktiviert, ausgetreten):
+                // Zeile bleibt, bekommt aber das Austrittsdatum - so bleibt die
+                // Person samt Bewertung in der Rueckschau sichtbar.
+                $scope()->whereNull('left_at')
+                    ->whereNotIn('user_id', $current ?: [0])
+                    ->update(['left_at' => today(), 'updated_at' => $now]);
+
+                // Zurueckgekehrt: wieder regulaeres Mitglied
+                if ($current) {
+                    $scope()->whereNotNull('left_at')
+                        ->whereIn('user_id', $current)
+                        ->update(['left_at' => null, 'updated_at' => $now]);
+                }
+
                 $rows = array_map(fn($uid) => [
                     'training_group_id' => $group->id,
                     'season_id'         => $season->id,
                     'user_id'           => $uid,
+                    'left_at'           => null,
                     'created_at'        => $now,
                     'updated_at'        => $now,
                 ], $current);
@@ -83,26 +95,40 @@ class GroupRoster
     /**
      * Sportler der Gruppe in der Saison.
      *
-     * @return array{swimmers: Collection<User>, source: string}
+     * swimmers: die Gruppe (laufend: heute, vergangen: am Saisonende) - sie
+     *           bestimmt die Gruppengroesse.
+     * leavers:  waehrend der Saison ausgeschieden, jeweils mit ->left_at.
+     *           Sichtbar mit Bewertung, zaehlen aber nicht zur Gruppe.
+     *
+     * @return array{swimmers: Collection<User>, leavers: Collection<User>, source: string}
      */
     public function swimmersFor(TrainingGroup $group, ?Season $season): array
     {
+        $rows = $season
+            ? DB::table('training_group_season_members')
+                ->where('training_group_id', $group->id)
+                ->where('season_id', $season->id)
+                ->get(['user_id', 'left_at'])
+            : collect();
+
         if (!$this->isPast($season)) {
+            $swimmers = $group->swimmers()->where('active', true)
+                ->orderBy('lastname')->orderBy('firstname')->get();
+
             return [
-                'swimmers' => $group->swimmers()->where('active', true)->orderBy('lastname')->orderBy('firstname')->get(),
+                'swimmers' => $swimmers,
+                'leavers'  => $this->leavers($rows, $swimmers->pluck('id')),
                 'source'   => self::SOURCE_LIVE,
             ];
         }
 
-        $ids = DB::table('training_group_season_members')
-            ->where('training_group_id', $group->id)
-            ->where('season_id', $season->id)
-            ->pluck('user_id');
+        if ($rows->isNotEmpty()) {
+            $memberIds = $rows->whereNull('left_at')->pluck('user_id');
 
-        if ($ids->isNotEmpty()) {
-            // Ohne active-Filter: ausgeschiedene Sportler bleiben sichtbar
+            // Ohne active-Filter: wer den Verein inzwischen verlassen hat, bleibt sichtbar
             return [
-                'swimmers' => User::whereIn('id', $ids)->orderBy('lastname')->orderBy('firstname')->get(),
+                'swimmers' => User::whereIn('id', $memberIds)->orderBy('lastname')->orderBy('firstname')->get(),
+                'leavers'  => $this->leavers($rows, $memberIds),
                 'source'   => self::SOURCE_SNAPSHOT,
             ];
         }
@@ -115,8 +141,37 @@ class GroupRoster
 
         return [
             'swimmers' => User::whereIn('id', $evaluated)->orderBy('lastname')->orderBy('firstname')->get(),
+            'leavers'  => collect(),
             'source'   => self::SOURCE_EVALUATIONS,
         ];
+    }
+
+    /**
+     * Ausgeschiedene aus den Saisonzeilen - ohne die, die (wieder) Mitglied
+     * sind.
+     *
+     * Bewusst eigene Objekte statt eines Zusatzattributs am User: ein
+     * versehentliches save() wuerde sonst versuchen, left_at in users zu
+     * schreiben.
+     *
+     * @return Collection<object{user: User, left_at: Carbon}>
+     */
+    private function leavers(Collection $rows, Collection $memberIds): Collection
+    {
+        $left = $rows->whereNotNull('left_at')
+            ->reject(fn($r) => $memberIds->contains($r->user_id))
+            ->keyBy('user_id');
+
+        if ($left->isEmpty()) {
+            return collect();
+        }
+
+        return User::whereIn('id', $left->keys())
+            ->orderBy('lastname')->orderBy('firstname')->get()
+            ->map(fn($u) => (object) [
+                'user'    => $u,
+                'left_at' => Carbon::parse($left[$u->id]->left_at),
+            ]);
     }
 
     /**

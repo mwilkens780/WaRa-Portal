@@ -48,7 +48,11 @@ class GoalController extends Controller
         $rosters = $groups->mapWithKeys(fn($g) => [$g->id => $this->roster->swimmersFor($g, $activeSeason)]);
         $isPast  = $this->roster->isPast($activeSeason);
 
-        $swimmerIds = $rosters->flatMap(fn($r) => $r['swimmers']->pluck('id'))->unique();
+        // Inklusive waehrend der Saison Ausgeschiedener - deren Bewertungen
+        // bleiben sichtbar, auch wenn sie nicht mehr zur Gruppe zaehlen
+        $swimmerIds = $rosters->flatMap(fn($r) => $r['swimmers']->pluck('id')
+                ->merge($r['leavers']->map(fn($l) => $l->user->id)))
+            ->unique();
 
         $goalsBySwimmer = SwimmerGoal::whereIn('user_id', $swimmerIds)
             ->where('season_id', $activeSeason?->id)

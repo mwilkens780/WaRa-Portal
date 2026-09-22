@@ -58,6 +58,7 @@
             // Stand zum Saisonende, nicht die heutige Gruppe
             $roster        = $rosters[$group->id];
             $swimmers      = $roster['swimmers'];
+            $leavers       = $roster['leavers'];
             $swimmerCount  = $swimmers->count();
             $currentIds    = $group->swimmers->pluck('id')->all();
 
@@ -76,7 +77,8 @@
                             {{ $roster['source'] === 'snapshot' ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800' }}">
                     @if($roster['source'] === 'snapshot')
                         Abgeschlossene Saison: Gruppe mit <strong>{{ $swimmerCount }} Sportlern</strong> zum Saisonende
-                        ({{ $activeSeason->end_date->format('d.m.Y') }}). Spätere Wechsel, Aus- und Eintritte ändern diese Ansicht nicht.
+                        ({{ $activeSeason->end_date->format('d.m.Y') }}){{ $leavers->isNotEmpty() ? ', dazu ' . $leavers->count() . ' während der Saison ausgeschieden' : '' }}.
+                        Spätere Wechsel, Aus- und Eintritte ändern diese Ansicht nicht.
                     @else
                         Für diese Saison ist keine Gruppenaufstellung gespeichert – sie wird erst seit September 2026 erfasst.
                         Angezeigt werden nur die <strong>{{ $swimmerCount }} Sportler</strong>, die damals bewertet wurden;
@@ -283,8 +285,13 @@
                                 </div>
                                 @endif
 
-                                {{-- Bewertung je Schwimmer --}}
-                                @if($swimmers->isEmpty())
+                                {{-- Bewertung je Schwimmer: erst die Gruppe, dann die waehrend
+                                     der Saison Ausgeschiedenen (zaehlen nicht in Diagramme/Zaehler) --}}
+                                @php
+                                    $tableRows = $swimmers->map(fn($s) => (object) ['user' => $s, 'left_at' => null])
+                                        ->concat($leavers);
+                                @endphp
+                                @if($tableRows->isEmpty())
                                     <p class="text-sm text-gray-400">Keine aktiven Schwimmer in dieser Gruppe.</p>
                                 @else
                                 <div class="overflow-x-auto rounded-lg border border-gray-100">
@@ -299,18 +306,34 @@
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-gray-50">
-                                        @foreach($swimmers as $swimmer)
+                                        @foreach($tableRows as $row)
                                             @php
+                                                $swimmer  = $row->user;
+                                                $isLeaver = $row->left_at !== null;
                                                 $se = $selfEvs->get($swimmer->id);
                                                 $te = $trainerEvs->get($swimmer->id);
                                                 $seStatus = $se?->status ?? 'open';
                                                 $teStatus = $te?->status ?? 'open';
+                                                // Ausgeschiedene stecken nicht in den Diagrammen -
+                                                // bei aktivem Filter deshalb ausblenden
+                                                $rowShow = $isLeaver
+                                                    ? '!filter.self && !filter.trainer'
+                                                    : "(!filter.self || filter.self === '{$seStatus}') && (!filter.trainer || filter.trainer === '{$teStatus}')";
                                             @endphp
-                                            <tr class="hover:bg-gray-50/50"
-                                                x-show="(!filter.self || filter.self === '{{ $seStatus }}') && (!filter.trainer || filter.trainer === '{{ $teStatus }}')">
+                                            @if($isLeaver && $loop->index === $swimmerCount)
+                                                <tr x-show="!filter.self && !filter.trainer" class="bg-gray-50">
+                                                    <td colspan="5" class="px-3 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                                        Während der Saison ausgeschieden
+                                                        <span class="normal-case font-normal tracking-normal text-gray-400">· zählen nicht zur Gruppengröße</span>
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                            <tr class="hover:bg-gray-50/50 {{ $isLeaver ? 'opacity-70' : '' }}" x-show="{{ $rowShow }}">
                                                 <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
                                                     {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
-                                                    @if($note = $memberNote($swimmer))
+                                                    @if($isLeaver)
+                                                        <span class="ml-1 text-[10px] font-normal text-gray-400 italic">ausgeschieden am {{ $row->left_at->format('d.m.Y') }}</span>
+                                                    @elseif($note = $memberNote($swimmer))
                                                         <span class="ml-1 text-[10px] font-normal text-gray-400 italic">{{ $note }}</span>
                                                     @endif
                                                 </td>
@@ -336,7 +359,7 @@
                                                 </td>
                                             </tr>
                                             @if($activeSeason)
-                                            <tr x-show="evaluating === {{ $swimmer->id }} && (!filter.self || filter.self === '{{ $seStatus }}') && (!filter.trainer || filter.trainer === '{{ $teStatus }}')" x-cloak class="bg-primary/5">
+                                            <tr x-show="evaluating === {{ $swimmer->id }} && {{ $rowShow }}" x-cloak class="bg-primary/5">
                                                 <td colspan="5" class="px-3 py-3">
                                                     <form method="POST" action="{{ route('trainer.group-goals.evaluate', [$crit, $swimmer]) }}"
                                                           class="flex flex-wrap items-center gap-3">
