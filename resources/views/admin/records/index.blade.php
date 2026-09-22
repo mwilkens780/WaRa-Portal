@@ -6,6 +6,11 @@
 @php
     $initTab = request('tab', session('active_record_tab', 'vr'));
     $userIsAdmin = auth()->user()->role === 'admin';
+
+    // Zaehler in den Reitern: Zeilen ueber alle Strecken und beide Bahnen
+    $countRows = fn($lists) => collect($lists)->flatten(2)->count();
+    $eternalCount = $countRows($eternal);
+    $annualCount  = $countRows($annual);
 @endphp
 <div class="mt-2 space-y-4" x-data="{
     activeTab: '{{ $initTab }}',
@@ -355,16 +360,16 @@
                     :class="activeTab === 'eternal' ? 'border-primary text-primary bg-blue-50/40' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Ewige Bestenlisten
-                @if($eternalEntries->isNotEmpty())
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $eternalEntries->count() }}</span>
+                @if($eternalCount > 0)
+                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $eternalCount }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'annual'"
                     :class="activeTab === 'annual' ? 'border-primary text-primary bg-blue-50/40' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Jahresbestenlisten
-                @if($annualEntries->isNotEmpty())
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $annualEntries->count() }}</span>
+                @if($annualCount > 0)
+                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $annualCount }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'lr'"
