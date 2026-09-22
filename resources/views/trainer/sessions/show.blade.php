@@ -61,13 +61,11 @@
                     </button>
                 </form>
                 @if($session->recurrence_group_id)
-                    <form method="POST" action="{{ route('trainer.sessions.destroy-group', $session) }}"
-                          onsubmit="return confirm('Alle {{ $siblings->count() + 1 }} Einheiten der Wiederholungsgruppe löschen?')">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="px-3 py-2 border border-red-200 rounded-lg text-sm text-red-700 hover:bg-red-50 transition-colors">
-                            Gruppe löschen
-                        </button>
-                    </form>
+                    {{-- Bestaetigungsseite: ab Datum oder ganze Serie, mit Folgenuebersicht --}}
+                    <a href="{{ route('trainer.sessions.series.delete', $session->recurrence_group_id) }}"
+                       class="px-3 py-2 border border-red-200 rounded-lg text-sm text-red-700 hover:bg-red-50 transition-colors">
+                        Serie löschen…
+                    </a>
                 @endif
             </div>
         </div>

@@ -504,24 +504,100 @@ class TrainingSessionController extends Controller
             ->with('success', 'Trainingseinheit gelöscht.');
     }
 
-    public function destroyGroup(TrainingSession $session)
-    {
-        $this->authorizeSession($session);
-        $groupId = $session->recurrence_group_id;
+    // ── Serie loeschen ──────────────────────────────────────────────────────
+    //
+    // Frueher loeschte "Gruppe loeschen" die ganze Serie samt Vergangenheit -
+    // per Cascade verschwanden damit Anwesenheiten, Einschaetzungen,
+    // Trainingsplaene und Anmeldungen. Jetzt mit Bestaetigungsseite:
+    //  - future: nur Einheiten ab einem Datum; die Vergangenheit bleibt
+    //  - all:    ganze Serie, erst nach Uebersicht, was verloren geht
 
-        if ($groupId) {
-            $sessionIds = TrainingSession::where('recurrence_group_id', $groupId)->pluck('id');
-            $count      = $sessionIds->count();
-            \App\Models\HallBooking::whereIn('training_session_id', $sessionIds)->delete();
-            TrainingSession::whereIn('id', $sessionIds)->delete();
-            return redirect()->route('trainer.sessions.index')
-                ->with('success', "{$count} Einheiten der Wiederholungsgruppe gelöscht.");
+    public function confirmDestroySeries(string $group)
+    {
+        $sessions = TrainingSession::where('recurrence_group_id', $group)->orderBy('date')->get();
+        if ($sessions->isEmpty()) abort(404);
+        $this->authorizeSeriesAccess($sessions->first());
+
+        $from = today();
+        $rep  = $sessions->first()->load('trainingGroups:id,name', 'coTrainers:id,firstname,lastname');
+
+        // Je Einheit: sind schon Daten erfasst? (fuer die Warnung bei "ab Datum")
+        $ids      = $sessions->pluck('id');
+        $withData = collect()
+            ->merge(DB::table('training_attendances')->whereIn('training_session_id', $ids)->distinct()->pluck('training_session_id'))
+            ->merge(DB::table('training_diaries')->whereIn('training_session_id', $ids)->distinct()->pluck('training_session_id'))
+            ->merge(DB::table('swimming_times')->whereIn('training_session_id', $ids)->distinct()->pluck('training_session_id'))
+            ->map(fn($id) => (int) $id)->unique()->flip();
+
+        return view('trainer.sessions.delete-series', [
+            'group'    => $group,
+            'rep'      => $rep,
+            'sessions' => $sessions,
+            'from'     => $from,
+            'history'  => $this->seriesHistory($ids),
+            'dates'    => $sessions->map(fn($s) => [
+                'date'    => $s->date->format('Y-m-d'),
+                'hasData' => $withData->has($s->id),
+            ])->values(),
+        ]);
+    }
+
+    public function destroySeries(Request $request, string $group)
+    {
+        $sessions = TrainingSession::where('recurrence_group_id', $group)->orderBy('date')->get();
+        if ($sessions->isEmpty()) abort(404);
+        $this->authorizeSeriesAccess($sessions->first());
+
+        $data = $request->validate([
+            'scope' => ['required', 'in:future,all'],
+            'from'  => ['required_if:scope,future', 'nullable', 'date'],
+        ]);
+
+        $targets = $data['scope'] === 'all'
+            ? $sessions
+            : $sessions->filter(fn($s) => $s->date->gte(Carbon::parse($data['from'])->startOfDay()));
+
+        if ($targets->isEmpty()) {
+            return back()->withErrors(['from' => 'Ab diesem Datum gibt es keine Einheiten der Serie.'])->withInput();
         }
 
-        $session->hallBookings()->delete();
-        $session->delete();
-        return redirect()->route('trainer.sessions.index')
-            ->with('success', 'Trainingseinheit gelöscht.');
+        $title = $sessions->first()->title;
+
+        DB::transaction(function () use ($targets, $sessions, $data, $group) {
+            \App\Models\HallBooking::whereIn('training_session_id', $targets->pluck('id'))->delete();
+
+            // Einzeln loeschen, damit jede Einheit im Aenderungsprotokoll steht
+            $targets->each->delete();
+
+            if ($data['scope'] === 'all' || $targets->count() === $sessions->count()) {
+                // Serie existiert nicht mehr: serienbezogene Zuordnungen mit weg
+                TrainingSessionSwimmer::where('recurrence_group_id', $group)->delete();
+                \App\Models\SwimmerSeriesExclusion::where('recurrence_group_id', $group)->delete();
+            } else {
+                // Serie endet vorzeitig: Enddatum der verbleibenden Einheiten anpassen
+                $remaining = $sessions->diff($targets);
+                TrainingSession::whereIn('id', $remaining->pluck('id'))
+                    ->update(['recurrence_until' => $remaining->max('date')->format('Y-m-d')]);
+            }
+        });
+
+        $msg = $data['scope'] === 'all'
+            ? "Serie „{$title}“ vollständig gelöscht ({$targets->count()} Einheiten)."
+            : "{$targets->count()} Einheiten der Serie „{$title}“ ab {$targets->min('date')->format('d.m.Y')} gelöscht. Frühere Einheiten bleiben erhalten.";
+
+        return redirect()->route('trainer.sessions.index')->with('success', $msg);
+    }
+
+    /** Was an einer Menge Einheiten haengt - fuer die Warnung vor dem Loeschen */
+    private function seriesHistory($sessionIds): array
+    {
+        return [
+            'attendances'   => DB::table('training_attendances')->whereIn('training_session_id', $sessionIds)->count(),
+            'diaries'       => DB::table('training_diaries')->whereIn('training_session_id', $sessionIds)->count(),
+            'times'         => DB::table('swimming_times')->whereIn('training_session_id', $sessionIds)->count(),
+            'plans'         => DB::table('training_plans')->whereIn('training_session_id', $sessionIds)->count(),
+            'registrations' => DB::table('training_session_registrations')->whereIn('training_session_id', $sessionIds)->count(),
+        ];
     }
 
     // ── Anwesenheit ─────────────────────────────────────────────────────────

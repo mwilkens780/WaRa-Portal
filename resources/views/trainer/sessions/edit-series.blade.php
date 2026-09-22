@@ -268,12 +268,18 @@ function seriesEditForm() {
                 </button>
                 <a href="{{ route('trainer.sessions.index') }}"
                    class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>
-                @if(!$isExpired)
-                    <a href="{{ route('trainer.sessions.series.generate', $group) }}"
-                       class="ml-auto text-sm text-green-600 hover:text-green-800 font-medium">
-                        + Neue Saison generieren
+                <div class="ml-auto flex items-center gap-4">
+                    @if(!$isExpired)
+                        <a href="{{ route('trainer.sessions.series.generate', $group) }}"
+                           class="text-sm text-green-600 hover:text-green-800 font-medium">
+                            + Neue Saison generieren
+                        </a>
+                    @endif
+                    <a href="{{ route('trainer.sessions.series.delete', $group) }}"
+                       class="text-sm text-red-600 hover:text-red-800 font-medium">
+                        Serie löschen…
                     </a>
-                @endif
+                </div>
             </div>
         </form>
     </div>

@@ -300,8 +300,10 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
         Route::post('/training/{session}/zeit', [TrainingSessionController::class, 'saveTime'])->name('sessions.time');
         Route::delete('/zeiten/{time}', [TrainingSessionController::class, 'destroyTime'])->name('times.destroy');
 
-        // Wiederholungsgruppe löschen
-        Route::delete('/training/{session}/gruppe', [TrainingSessionController::class, 'destroyGroup'])->name('sessions.destroy-group');
+        // Serie loeschen: Bestaetigungsseite mit Folgenuebersicht, dann Loeschen
+        // (ersetzt das fruehere "Gruppe loeschen", das die Vergangenheit mitnahm)
+        Route::get('/training/serie/{group}/loeschen', [TrainingSessionController::class, 'confirmDestroySeries'])->name('sessions.series.delete');
+        Route::delete('/training/serie/{group}', [TrainingSessionController::class, 'destroySeries'])->name('sessions.series.destroy');
 
         // Druckansicht
         Route::get('/training/{session}/drucken', [TrainingSessionController::class, 'printView'])->name('sessions.print');

@@ -123,6 +123,10 @@
                                        class="text-xs text-gray-500 hover:text-primary underline transition-colors">
                                         Serie bearbeiten
                                     </a>
+                                    <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
+                                       class="text-xs text-red-500 hover:text-red-700 underline transition-colors">
+                                       Löschen…
+                                    </a>
                                 </span>
                             @endif
 
@@ -249,6 +253,10 @@
                                     <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
                                        class="text-xs text-gray-500 hover:text-primary underline transition-colors">
                                         Serie bearbeiten
+                                    </a>
+                                    <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
+                                       class="text-xs text-red-500 hover:text-red-700 underline transition-colors">
+                                       Löschen…
                                     </a>
                                 </span>
                             @endif
