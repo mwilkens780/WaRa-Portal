@@ -9,6 +9,7 @@ use App\Services\BestListService;
 use App\Services\Import\BestListWorkbookParser;
 use App\Services\RecordCheckService;
 use App\Services\RecordImportService;
+use App\Services\TimePlausibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -149,9 +150,18 @@ class RecordController extends Controller
             'notes'        => ['nullable', 'string'],
         ]);
 
+        $timeMs = (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10;
+
+        if (TimePlausibility::isImplausible($record->discipline, (int) $record->distance, $timeMs)) {
+            return back()->withErrors(['time_seconds' =>
+                'Diese Zeit ist über ' . $record->distance . ' m nicht möglich (schneller als '
+                . \App\Models\SwimmingTime::formatMs(TimePlausibility::minTimeMs($record->discipline, (int) $record->distance)) . ').',
+            ])->withInput();
+        }
+
         $record->update([
             'swimmer_name' => $data['swimmer_name'],
-            'time_ms'      => (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10,
+            'time_ms'      => $timeMs,
             'set_date'     => $data['set_date'] ?: null,
             'location'     => $data['location'] ?: null,
             'notes'        => $data['notes'] ?: null,
@@ -380,6 +390,14 @@ class RecordController extends Controller
             abort(422, "{$data['distance']} m {$data['discipline']} ({$data['course']}) gehört nicht zur Streckenliste.");
         }
 
+        $timeMs = (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10;
+
+        // Faengt den Zahlendreher ab, bevor er in der Liste steht
+        if (TimePlausibility::isImplausible($data['discipline'], (int) $data['distance'], $timeMs)) {
+            abort(422, 'Diese Zeit ist über ' . $data['distance'] . ' m nicht möglich (schneller als '
+                . \App\Models\SwimmingTime::formatMs(TimePlausibility::minTimeMs($data['discipline'], (int) $data['distance'])) . ').');
+        }
+
         return [
             'discipline'   => $data['discipline'],
             'distance'     => (int) $data['distance'],
@@ -388,7 +406,7 @@ class RecordController extends Controller
             'birth_year'   => $data['birth_year'] ?: null,
             'set_year'     => (int) $data['set_year'],
             'swimmer_name' => $data['swimmer_name'],
-            'time_ms'      => (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10,
+            'time_ms'      => $timeMs,
             'location'     => $data['location'] ?: null,
             'notes'        => $data['notes'] ?: null,
         ];

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CompetitionResult;
 use App\Models\Record;
+use App\Services\TimePlausibility;
 use Illuminate\Support\Facades\DB;
 
 class RecordCheckService
@@ -18,6 +19,11 @@ class RecordCheckService
         // Kurzbahnergebnisse in Langbahnrekorden, wenn die Bahn fehlte.
         $course = $result->competition?->course;
         if (!$course) return;
+
+        // Ueber diese Strecke unmoegliche Zeit: immer ein Datenfehler, nie ein Rekord
+        if (TimePlausibility::isImplausible($result->discipline, (int) $result->distance, (int) $result->time_ms)) {
+            return;
+        }
 
         $ageGroup = $result->age_group ?: null;
 
@@ -112,12 +118,14 @@ class RecordCheckService
 
             Record::where('type', 'vereinsrekord')->update(['competition_result_id' => null]);
 
-            // Nur Ergebnisse aus Wettkaempfen mit bekannter Bahnlaenge
+            // Nur Ergebnisse aus Wettkaempfen mit bekannter Bahnlaenge, und
+            // keine ueber ihre Strecke unmoeglichen Zeiten
             $results = CompetitionResult::with(['user', 'competition'])
                 ->where('time_ms', '>', 0)
                 ->whereNotNull('gender')
                 ->whereIn('gender', ['M', 'F'])
                 ->whereHas('competition', fn($q) => $q->whereIn('course', ['Kurzbahn', 'Langbahn']))
+                ->whereRaw('NOT (' . TimePlausibility::sqlCondition('competition_results') . ')')
                 ->get();
 
             // ── Vereinsrekorde: offene Wertung, eine Bestzeit je Strecke ──────

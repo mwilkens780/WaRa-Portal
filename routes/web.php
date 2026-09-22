@@ -412,6 +412,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Korrekturen (erreichbar ueber Einstellungen)
     Route::get('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'index'])->name('admin.corrections.course.index');
     Route::put('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'update'])->name('admin.corrections.course.update');
+    Route::get('/admin/korrekturen/zeiten',      [\App\Http\Controllers\Admin\TimeCheckController::class, 'index'])->name('admin.corrections.times.index');
+    Route::delete('/admin/korrekturen/zeiten',   [\App\Http\Controllers\Admin\TimeCheckController::class, 'destroy'])->name('admin.corrections.times.destroy');
 });
 
 // Webhook-Endpunkt für GitHub Actions WebClub-Crawler (kein CSRF, Bearer-Token-Auth)

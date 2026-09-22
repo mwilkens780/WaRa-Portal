@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BestListEntry;
 use App\Models\CompetitionResult;
 use App\Models\Record;
+use App\Services\TimePlausibility;
 use Illuminate\Support\Collection;
 
 /**
@@ -112,6 +113,8 @@ class BestListService
             ->where('competitions.course', $course)
             // Nicht angetreten (DNS) hat keine eigene Spalte, sondern time_ms = 0
             ->where('competition_results.time_ms', '>', 0)
+            // Ueber ihre Strecke unmoegliche Zeiten gehoeren in keine Bestenliste
+            ->whereRaw('NOT (' . TimePlausibility::sqlCondition('competition_results') . ')')
             ->whereIn('competition_results.gender', ['M', 'F'])
             ->selectRaw('competition_results.id, competition_results.user_id, competition_results.discipline,
                          competition_results.distance, competition_results.gender, competition_results.time_ms,
@@ -153,7 +156,8 @@ class BestListService
             ->where('course', $course)
             ->when($year, fn($q) => $q->where('set_year', $year))
             ->get()
-            ->filter(fn($e) => Record::isVrEvent($e->discipline, (int) $e->distance, $course))
+            ->filter(fn($e) => Record::isVrEvent($e->discipline, (int) $e->distance, $course)
+                && !TimePlausibility::isImplausible($e->discipline, (int) $e->distance, (int) $e->time_ms))
             ->map(fn($e) => [
                 'swimmer_key' => $this->nameKey($e->swimmer_name),
                 'name'        => $e->swimmer_name,

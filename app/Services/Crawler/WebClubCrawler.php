@@ -14,6 +14,7 @@ use App\Models\Setting;
 use App\Models\TrainingGroup;
 use App\Models\User;
 use App\Services\Import\ResultReconciler;
+use App\Services\TimePlausibility;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
@@ -437,13 +438,14 @@ class WebClubCrawler
             ->get(['user_id', 'discipline', 'distance'])
             ->mapWithKeys(fn($r) => ["{$r->user_id}_{$r->discipline}_{$r->distance}" => true]);
 
-        $synced         = 0;
-        $skipNoUser     = 0;
-        $skipNoEvent    = 0;
-        $skipNoEventDef = 0;
-        $skipDup        = 0;
-        $skipRelayLeg   = 0;
-        $conflicts      = 0;
+        $synced          = 0;
+        $skipNoUser      = 0;
+        $skipNoEvent     = 0;
+        $skipNoEventDef  = 0;
+        $skipDup         = 0;
+        $skipRelayLeg    = 0;
+        $conflicts       = 0;
+        $skipImplausible = [];
 
         foreach ($results as $result) {
             if (empty($result['athlete_name']) || empty($result['time_ms'])) continue;
@@ -486,6 +488,15 @@ class WebClubCrawler
             $eventLegs = (int) ($def['relay_legs'] ?? 0);
             if ($eventLegs > 1 || ($discipline === 'L' && $distance < 100)) {
                 $skipRelayLeg++;
+                continue;
+            }
+
+            // Unmoegliche Zeiten gar nicht erst speichern: sie stammen immer aus
+            // einer falschen Zuordnung und schlagen sonst in Rekorde und
+            // Bestenlisten durch.
+            if (TimePlausibility::isImplausible($discipline, $distance, (int) $result['time_ms'])) {
+                $skipImplausible[] = sprintf('%s (%s)', $result['athlete_name'],
+                    TimePlausibility::reason($discipline, $distance, (int) $result['time_ms']));
                 continue;
             }
 
@@ -539,6 +550,9 @@ class WebClubCrawler
         $parts = ["{$synced} neu importiert von {$total} WebClub-Einträgen"];
         if ($conflicts > 0)      $parts[] = "{$conflicts} Abweichungen zu anderen Quellen erfasst";
         if ($skipRelayLeg > 0)   $parts[] = "{$skipRelayLeg} Lagen-Staffelabschnitte (kein Einzelergebnis)";
+        if ($skipImplausible)    $parts[] = count($skipImplausible) . ' unmögliche Zeiten übersprungen: '
+                                          . implode('; ', array_slice($skipImplausible, 0, 5))
+                                          . (count($skipImplausible) > 5 ? ' …' : '');
         if ($skipDup > 0)        $parts[] = "{$skipDup} bereits vorhanden (abgeglichen)";
         if ($skipNoEventDef > 0) $parts[] = "{$skipNoEventDef} ohne WebClub-Wettkampfdefinition (übersprungen)";
         if ($skipNoEvent > 0)    $parts[] = "{$skipNoEvent} ohne Portal-Event importiert (ohne Altersklasse)";
@@ -826,6 +840,10 @@ class WebClubCrawler
         // ein falsches - eine erfundene Einzelzeit wuerde in Rekorde und
         // Bestenlisten wandern.
         if (!$leadTime || $leadTime <= 0) return 0;
+
+        // Zweite Sicherung, falls WebClub die Marken einmal anders aufbaut
+        $leadDiscipline = $relayDiscipline === 'L' ? 'R' : $relayDiscipline;
+        if (TimePlausibility::isImplausible($leadDiscipline, $legDistance, $leadTime)) return 0;
 
         [$firstname, $lastname] = $this->splitMemberName((string) ($leadMember['name'] ?? ''));
         $birthYear = (int) ($leadMember['birth_year'] ?? 0);

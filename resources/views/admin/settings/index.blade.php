@@ -379,6 +379,34 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
         </a>
+
+        @php
+            $cond = \App\Services\TimePlausibility::sqlCondition('competition_results');
+            $implausible = \App\Models\CompetitionResult::whereRaw($cond)->count()
+                + \App\Models\Record::whereRaw(\App\Services\TimePlausibility::sqlCondition('records'))->count()
+                + \App\Models\BestListEntry::whereNull('competition_result_id')
+                    ->whereRaw(\App\Services\TimePlausibility::sqlCondition('best_list_entries'))->count();
+        @endphp
+        <a href="{{ route('admin.corrections.times.index') }}"
+           class="flex items-center gap-4 px-6 py-4 border-t border-gray-100 hover:bg-gray-50 transition-colors">
+            <svg class="w-5 h-5 {{ $implausible ? 'text-red-500' : 'text-green-500' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-800">Unmögliche Zeiten prüfen</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Zeiten, die über ihre Strecke nicht möglich sind – meist falsch zugeordnete Zwischenzeiten
+                </p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0
+                         {{ $implausible ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                {{ $implausible ? $implausible . ' gefunden' : 'nichts gefunden' }}
+            </span>
+            <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
     </div>
 
 </div>
