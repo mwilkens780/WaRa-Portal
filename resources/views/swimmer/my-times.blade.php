@@ -93,7 +93,7 @@
                                         <span class="ml-1 text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-medium">LB</span>
                                     @endif
                                 </td>
-                                <td class="px-5 py-3 w-28">
+                                <td class="text-right tabular-nums px-5 py-3 w-28">
                                     <span class="font-mono font-bold text-primary">{{ $best->formatted }}</span>
                                 </td>
                                 <td class="px-5 py-3 text-gray-500 text-xs w-28">

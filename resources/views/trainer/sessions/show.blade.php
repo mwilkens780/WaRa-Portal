@@ -874,7 +874,7 @@
                             <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Schwimmer</th>
                             <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Disziplin</th>
                             <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Distanz</th>
-                            <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Zeit</th>
+                            <th class="text-right px-4 py-2.5 font-semibold text-gray-600">Zeit</th>
                             <th class="px-4 py-2.5"></th>
                         </tr>
                     </thead>
@@ -884,7 +884,7 @@
                                 <td class="px-4 py-2.5 font-medium text-gray-800">{{ $time->user->name }}</td>
                                 <td class="px-4 py-2.5 text-gray-600">{{ $time->discipline_label }}</td>
                                 <td class="px-4 py-2.5 text-gray-600">{{ $time->distance }} m</td>
-                                <td class="px-4 py-2.5 font-mono font-semibold text-primary">
+                                <td class="text-right tabular-nums px-4 py-2.5 font-mono font-semibold text-primary">
                                     {{ $time->formatted_time }}
                                     @if($time->is_personal_best)
                                         <span class="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-sans font-medium">PB</span>

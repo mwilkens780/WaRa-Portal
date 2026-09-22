@@ -32,12 +32,6 @@ class ExtCompetitionResult extends Model
     public function getFormattedTimeAttribute(): string
     {
         if (!$this->time_ms) return '–';
-        $ms  = $this->time_ms;
-        $min = intdiv($ms, 60_000);
-        $sec = intdiv($ms % 60_000, 1_000);
-        $hun = intdiv($ms % 1_000, 10);
-        return $min > 0
-            ? sprintf('%d:%02d,%02d', $min, $sec, $hun)
-            : sprintf('%d,%02d', $sec, $hun);
+        return SwimmingTime::formatMs($this->time_ms);
     }
 }

@@ -1092,14 +1092,14 @@ function liveTiming() {
             return null;
         },
 
+        // Portalweites Zeitformat MM:SS,hh (wie SwimmingTime::formatMs)
         fmt(cs) {
             if (cs === null || cs === undefined) return '';
             const min  = Math.floor(cs / 6000);
             const sec  = Math.floor((cs % 6000) / 100);
             const hund = cs % 100;
-            const h = String(hund).padStart(2, '0');
-            if (min > 0) return min + ':' + String(sec).padStart(2, '0') + ',' + h;
-            return sec + ',' + h;
+            const p2   = n => String(n).padStart(2, '0');
+            return p2(min) + ':' + p2(sec) + ',' + p2(hund);
         },
 
         say(msg, ok) {

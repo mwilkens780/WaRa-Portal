@@ -27,7 +27,7 @@
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Strecke</th>
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Wertung</th>
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Bahn</th>
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Zeit</th>
+                        <th class="px-5 py-2 text-right text-xs text-gray-400 font-medium">Zeit</th>
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Name</th>
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Datum</th>
                         <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Ort</th>
@@ -48,7 +48,7 @@
                                 </span>
                             </td>
                             <td class="px-5 py-2.5 text-xs text-gray-500">{{ $record->course }}</td>
-                            <td class="px-5 py-2.5 font-mono font-bold text-primary">{{ $record->formatted_time }}</td>
+                            <td class="text-right tabular-nums px-5 py-2.5 font-mono font-bold text-primary">{{ $record->formatted_time }}</td>
                             <td class="px-5 py-2.5 text-gray-700">
                                 {{ $record->swimmer_name }}
                                 @if($record->user)

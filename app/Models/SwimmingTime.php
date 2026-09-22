@@ -76,15 +76,20 @@ class SwimmingTime extends Model
         return self::formatMs($this->time_ms);
     }
 
+    /**
+     * Einziges Format fuer Schwimmzeiten im ganzen Portal: MM:SS,hh –
+     * Minuten immer zweistellig mit fuehrender 0, immer Zehntel und
+     * Hundertstel. Beispiele: 00:27,35 · 01:02,48 · 16:05,12.
+     * Alle Zeiten sind damit gleich breit und stehen rechtsbuendig sauber
+     * untereinander. Bitte keine eigenen Formatierer mehr anlegen.
+     */
     public static function formatMs(int $ms): string
     {
-        $minutes = intdiv($ms, 60000);
-        $seconds = intdiv($ms % 60000, 1000);
+        $minutes      = intdiv($ms, 60000);
+        $seconds      = intdiv($ms % 60000, 1000);
         $centiseconds = intdiv($ms % 1000, 10);
-        if ($minutes > 0) {
-            return sprintf('%d:%02d,%02d', $minutes, $seconds, $centiseconds);
-        }
-        return sprintf('%d,%02d', $seconds, $centiseconds);
+
+        return sprintf('%02d:%02d,%02d', $minutes, $seconds, $centiseconds);
     }
 
     public function getDisciplineLabelAttribute(): string

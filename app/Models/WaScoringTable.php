@@ -36,13 +36,6 @@ class WaScoringTable extends Model
 
     public function getFormattedBaseTimeAttribute(): string
     {
-        $ms  = $this->base_time_ms;
-        $min = intdiv($ms, 60000);
-        $sec = intdiv($ms % 60000, 1000);
-        $cs  = intdiv($ms % 1000, 10);
-        if ($min > 0) {
-            return sprintf('%d:%02d,%02d', $min, $sec, $cs);
-        }
-        return sprintf('%d,%02d', $sec, $cs);
+        return SwimmingTime::formatMs($this->base_time_ms);
     }
 }

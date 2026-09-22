@@ -361,7 +361,7 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="py-2.5">
+                                <td class="text-right tabular-nums py-2.5">
                                     @if(!$swim->is_dns)
                                         <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                         @if($swim->pb_badge)

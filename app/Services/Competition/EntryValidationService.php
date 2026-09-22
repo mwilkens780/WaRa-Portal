@@ -98,8 +98,6 @@ class EntryValidationService
 
     private function formatMs(int $ms): string
     {
-        $sec = intdiv($ms, 1_000);
-        $hun = intdiv($ms % 1_000, 10);
-        return sprintf('%d,%02d s', $sec, $hun);
+        return \App\Models\SwimmingTime::formatMs($ms);
     }
 }

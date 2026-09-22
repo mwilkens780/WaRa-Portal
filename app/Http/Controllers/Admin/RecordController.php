@@ -77,6 +77,16 @@ class RecordController extends Controller
 
         $ageGroup = $data['age_group'] ?: null;
 
+        // Vereinsrekorde: nur offene Wertung und nur Strecken der VR-Liste
+        if ($data['type'] === 'vereinsrekord') {
+            $ageGroup = null;
+            if (!Record::isVrEvent($data['discipline'], (int) $data['distance'], $data['course'])) {
+                return back()->withErrors([
+                    'distance' => "{$data['distance']} m {$data['discipline']} ({$data['course']}) gehört nicht zur Vereinsrekordliste.",
+                ])->withInput();
+            }
+        }
+
         $existing = Record::where('type', $data['type'])
             ->where('discipline', $data['discipline'])
             ->where('distance', $data['distance'])
@@ -212,6 +222,14 @@ class RecordController extends Controller
             if (!$discipline || !$distance || !$gender || !$swimmerName || $timeMs <= 0) continue;
             if (!in_array($discipline, ['F', 'B', 'R', 'S', 'L'])) continue;
             if (!in_array($gender, ['M', 'F'])) continue;
+
+            // Vereinsrekorde: nur offene Wertung und nur Strecken der VR-Liste.
+            // Enthaelt die Importliste Altersklassen, gewinnt die schnellste
+            // Zeit ueber alle Klassen (Pruefung "besser als bestehend" unten).
+            if ($type === 'vereinsrekord') {
+                if (!Record::isVrEvent($discipline, $distance, $rowCourse)) continue;
+                $ageGroup = null;
+            }
 
             $existing = Record::where('type', $type)
                 ->where('discipline', $discipline)

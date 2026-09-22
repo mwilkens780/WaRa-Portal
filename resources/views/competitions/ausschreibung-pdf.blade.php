@@ -148,7 +148,7 @@
           <th style="width:40%">Disziplin</th>
           <th style="width:22%">Wertungsklasse</th>
           <th style="width:15%">Geschlecht</th>
-          <th style="width:15%">Pflichtzeit</th>
+          <th style="width:15%; text-align:right">Pflichtzeit</th>
         </tr>
       </thead>
       <tbody>
@@ -158,7 +158,7 @@
           <td>{{ $event->distance }}m {{ $event->discipline_label }}</td>
           <td>{{ $event->age_group ?: 'Offene Klasse' }}</td>
           <td>{{ $event->gender_label }}</td>
-          <td>{{ $event->formatted_qualifying_time ?? '–' }}</td>
+          <td style="text-align:right; font-family:monospace">{{ $event->formatted_qualifying_time ?? '–' }}</td>
         </tr>
         @endforeach
       </tbody>
@@ -205,7 +205,7 @@
         <th>Disziplin</th>
         <th>Geschlecht</th>
         <th>Wertungsklasse</th>
-        <th>Pflichtzeit</th>
+        <th style="text-align:right">Pflichtzeit</th>
         <th>Meldegeld</th>
       </tr>
     </thead>
@@ -216,7 +216,7 @@
         <td>{{ $event->discipline_label }}</td>
         <td>{{ $event->gender_label }}</td>
         <td>{{ $event->age_group ?: 'OK' }}</td>
-        <td>{{ $event->formatted_qualifying_time ?? '–' }}</td>
+        <td style="text-align:right; font-family:monospace">{{ $event->formatted_qualifying_time ?? '–' }}</td>
         <td>{{ $event->meldegeld ? number_format($event->meldegeld, 2, ',', '.') . ' €' : '–' }}</td>
       </tr>
       @endforeach

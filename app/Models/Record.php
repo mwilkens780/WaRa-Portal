@@ -21,6 +21,36 @@ class Record extends Model
         ];
     }
 
+    /**
+     * Strecken der Vereinsrekordliste, je Geschlecht und Bahn.
+     *
+     * Nur Einzelstrecken ab 50 m, keine Staffeln. 100 m Lagen gibt es nur auf
+     * der Kurzbahn. Vereinsrekorde kennen ausschliesslich die offene Wertung
+     * (age_group = NULL) - jede Zeit gilt jahrgangsuebergreifend.
+     * Festgelegt mit dem Verein; nicht ohne Ruecksprache erweitern.
+     */
+    public const VR_EVENTS = [
+        'Langbahn' => [
+            'F' => [50, 100, 200, 400, 800, 1500],
+            'R' => [50, 100, 200],
+            'B' => [50, 100, 200],
+            'S' => [50, 100, 200],
+            'L' => [200, 400],
+        ],
+        'Kurzbahn' => [
+            'F' => [50, 100, 200, 400, 800, 1500],
+            'R' => [50, 100, 200],
+            'B' => [50, 100, 200],
+            'S' => [50, 100, 200],
+            'L' => [100, 200, 400],
+        ],
+    ];
+
+    public static function isVrEvent(?string $discipline, ?int $distance, ?string $course): bool
+    {
+        return in_array((int) $distance, self::VR_EVENTS[$course][$discipline] ?? [], true);
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

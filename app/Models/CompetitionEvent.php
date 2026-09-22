@@ -29,13 +29,7 @@ class CompetitionEvent extends Model
     public function getFormattedQualifyingTimeAttribute(): ?string
     {
         if (!$this->qualifying_time_ms) return null;
-        $ms  = $this->qualifying_time_ms;
-        $min = intdiv($ms, 60_000);
-        $sec = intdiv($ms % 60_000, 1_000);
-        $cs  = intdiv($ms % 1_000, 10);
-        return $min > 0
-            ? sprintf('%d:%02d,%02d', $min, $sec, $cs)
-            : sprintf('%d,%02d', $sec, $cs);
+        return SwimmingTime::formatMs($this->qualifying_time_ms);
     }
 
     public function competition()

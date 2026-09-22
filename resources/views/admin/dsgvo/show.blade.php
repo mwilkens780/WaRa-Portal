@@ -183,7 +183,7 @@
                                 <tr>
                                     <td class="px-2 py-1 text-gray-500">{{ $r['competition']['name'] ?? '—' }}</td>
                                     <td class="px-2 py-1 text-gray-700">{{ $r['discipline'] ?? '' }} {{ $r['distance'] ?? '' }}m</td>
-                                    <td class="px-2 py-1">{{ $r['time_ms'] ? number_format($r['time_ms'] / 1000, 2) . 's' : '—' }}</td>
+                                    <td class="px-2 py-1 text-right font-mono tabular-nums">{{ $r['time_ms'] ? \App\Models\SwimmingTime::formatMs($r['time_ms']) : '—' }}</td>
                                 </tr>
                                 @endforeach
                                 @if(count($userData['wettkampf_ergebnisse']) > 50)

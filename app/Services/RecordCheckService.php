@@ -19,18 +19,28 @@ class RecordCheckService
         $course   = $result->competition->course ?? 'Langbahn';
         $ageGroup = $result->age_group ?: null;
 
-        $this->checkVr($result, $course, $ageGroup);
+        $this->checkVr($result, $course);
         $this->checkLr($result, $course, $ageGroup);
         $this->checkBestLists($result, $course);
     }
 
-    private function checkVr(CompetitionResult $result, string $course, ?string $ageGroup): void
+    /**
+     * Vereinsrekorde gibt es nur in der offenen Wertung: Jede Zeit wird
+     * jahrgangsuebergreifend gegen den einen Rekord ihrer Strecke geprueft,
+     * unabhaengig von der Altersklasse, in der sie geschwommen wurde.
+     * Nur Strecken aus Record::VR_EVENTS (ab 50 m, 100 L nur Kurzbahn).
+     */
+    private function checkVr(CompetitionResult $result, string $course): void
     {
+        if (!Record::isVrEvent($result->discipline, $result->distance, $course)) {
+            return;
+        }
+
         $vr = Record::where('type', 'vereinsrekord')
             ->where('discipline', $result->discipline)
             ->where('distance', $result->distance)
             ->where('gender', $result->gender)
-            ->where('age_group', $ageGroup)
+            ->whereNull('age_group')
             ->where('course', $course)
             ->first();
 
@@ -41,7 +51,7 @@ class RecordCheckService
                     'discipline' => $result->discipline,
                     'distance'   => $result->distance,
                     'gender'     => $result->gender,
-                    'age_group'  => $ageGroup,
+                    'age_group'  => null,
                     'course'     => $course,
                 ],
                 [
@@ -54,12 +64,12 @@ class RecordCheckService
                 ]
             );
 
+            // Der alte Rekordhalter der Strecke - egal aus welcher Altersklasse
             CompetitionResult::where('breaks_vereinsrekord', true)
                 ->where('id', '!=', $result->id)
                 ->where('discipline', $result->discipline)
                 ->where('distance', $result->distance)
                 ->where('gender', $result->gender)
-                ->where('age_group', $ageGroup)
                 ->whereHas('competition', fn($q) => $q->where('course', $course))
                 ->update(['breaks_vereinsrekord' => false]);
 
@@ -154,24 +164,25 @@ class RecordCheckService
                 ->whereIn('gender', ['M', 'F'])
                 ->get();
 
-            $grouped = $results->groupBy(fn($r) => implode('§', [
-                $r->discipline,
-                $r->distance,
-                $r->gender,
-                $r->age_group ?? '',
-                $r->competition?->course ?? 'Langbahn',
-            ]));
+            // ── Vereinsrekorde: offene Wertung, eine Bestzeit je Strecke ──────
+            $vrGroups = $results
+                ->filter(fn($r) => Record::isVrEvent($r->discipline, $r->distance, $r->competition?->course ?? 'Langbahn'))
+                ->groupBy(fn($r) => implode('§', [
+                    $r->discipline,
+                    $r->distance,
+                    $r->gender,
+                    $r->competition?->course ?? 'Langbahn',
+                ]));
 
-            foreach ($grouped as $key => $group) {
+            foreach ($vrGroups as $key => $group) {
                 $best = $group->sortBy('time_ms')->first();
-                [$discipline, $distance, $gender, $ag, $course] = explode('§', $key, 5);
-                $ageGroup = $ag === '' ? null : $ag;
+                [$discipline, $distance, $gender, $course] = explode('§', $key, 4);
 
                 $vr = Record::where('type', 'vereinsrekord')
                     ->where('discipline', $discipline)
                     ->where('distance', (int)$distance)
                     ->where('gender', $gender)
-                    ->where('age_group', $ageGroup)
+                    ->whereNull('age_group')
                     ->where('course', $course)
                     ->first();
 
@@ -193,7 +204,7 @@ class RecordCheckService
                         'discipline'            => $discipline,
                         'distance'              => (int)$distance,
                         'gender'                => $gender,
-                        'age_group'             => $ageGroup,
+                        'age_group'             => null,
                         'course'                => $course,
                         'swimmer_name'          => $best->user?->name ?? '–',
                         'user_id'               => $best->user_id,
@@ -204,6 +215,21 @@ class RecordCheckService
                     ]);
                     $best->update(['breaks_vereinsrekord' => true]);
                 }
+            }
+
+            // ── Landesrekorde: unveraendert je Altersklasse ───────────────────
+            $lrGroups = $results->groupBy(fn($r) => implode('§', [
+                $r->discipline,
+                $r->distance,
+                $r->gender,
+                $r->age_group ?? '',
+                $r->competition?->course ?? 'Langbahn',
+            ]));
+
+            foreach ($lrGroups as $key => $group) {
+                $best = $group->sortBy('time_ms')->first();
+                [$discipline, $distance, $gender, $ag, $course] = explode('§', $key, 5);
+                $ageGroup = $ag === '' ? null : $ag;
 
                 $lr = Record::where('type', 'landesrekord')
                     ->where('discipline', $discipline)

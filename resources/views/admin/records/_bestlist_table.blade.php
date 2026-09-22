@@ -44,7 +44,7 @@
                             <tr class="border-b border-gray-50">
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium w-8">#</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Strecke</th>
-                                <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Zeit</th>
+                                <th class="px-5 py-1.5 text-right text-xs text-gray-400 font-medium">Zeit</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Name</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Datum</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Ort</th>
@@ -57,7 +57,7 @@
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-5 py-2 text-xs text-gray-400 font-medium">{{ $rank + 1 }}</td>
                                     <td class="px-5 py-2 font-medium text-gray-800">{{ $dist }} m</td>
-                                    <td class="px-5 py-2 font-mono font-bold {{ $rank === 0 ? 'text-primary' : 'text-gray-700' }}">
+                                    <td class="text-right tabular-nums px-5 py-2 font-mono font-bold {{ $rank === 0 ? 'text-primary' : 'text-gray-700' }}">
                                         {{ $entry->formatted_time }}
                                     </td>
                                     <td class="px-5 py-2 text-gray-700">
@@ -95,7 +95,7 @@
                             <tr class="border-b border-gray-50">
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium w-8">#</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Strecke</th>
-                                <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Zeit</th>
+                                <th class="px-5 py-1.5 text-right text-xs text-gray-400 font-medium">Zeit</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Name</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Datum</th>
                                 <th class="px-5 py-1.5 text-left text-xs text-gray-400 font-medium">Ort</th>
@@ -108,7 +108,7 @@
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-5 py-2 text-xs text-gray-400 font-medium">{{ $rank + 1 }}</td>
                                     <td class="px-5 py-2 font-medium text-gray-800">{{ $dist }} m</td>
-                                    <td class="px-5 py-2 font-mono font-bold {{ $rank === 0 ? 'text-primary' : 'text-gray-700' }}">
+                                    <td class="text-right tabular-nums px-5 py-2 font-mono font-bold {{ $rank === 0 ? 'text-primary' : 'text-gray-700' }}">
                                         {{ $entry->formatted_time }}
                                     </td>
                                     <td class="px-5 py-2 text-gray-700">

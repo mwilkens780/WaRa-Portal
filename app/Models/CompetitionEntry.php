@@ -35,13 +35,7 @@ class CompetitionEntry extends Model
     public function getEntryTimeFormattedAttribute(): string
     {
         if (!$this->entry_time_ms) return '–';
-        $ms  = $this->entry_time_ms;
-        $min = intdiv($ms, 60_000);
-        $sec = intdiv($ms % 60_000, 1_000);
-        $hun = intdiv($ms % 1_000, 10);
-        return $min > 0
-            ? sprintf('%d:%02d,%02d', $min, $sec, $hun)
-            : sprintf('%d,%02d', $sec, $hun);
+        return SwimmingTime::formatMs($this->entry_time_ms);
     }
 
     public function isEntered(): bool

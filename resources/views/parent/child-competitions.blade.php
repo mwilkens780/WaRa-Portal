@@ -339,7 +339,7 @@
                                         <span class="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Finale</span>
                                     @endif
                                 </td>
-                                <td class="py-2.5">
+                                <td class="text-right tabular-nums py-2.5">
                                     @if(!$swim->is_dns)
                                         <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                         @if($swim->is_personal_best ?? false)

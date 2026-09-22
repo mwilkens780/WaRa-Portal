@@ -332,11 +332,6 @@ class WebClubResultsCsvParser
 
     private function formatTime(int $ms): string
     {
-        $min   = intdiv($ms, 60_000);
-        $sec   = intdiv($ms % 60_000, 1_000);
-        $centi = intdiv($ms % 1_000, 10);
-        return $min > 0
-            ? sprintf('%d:%02d,%02d', $min, $sec, $centi)
-            : sprintf('%d,%02d', $sec, $centi);
+        return \App\Models\SwimmingTime::formatMs($ms);
     }
 }

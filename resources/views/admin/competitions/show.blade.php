@@ -407,7 +407,7 @@
                             <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">WK</th>
                             <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Disziplin</th>
                             <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Wertung</th>
-                            <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pflichtzeit</th>
+                            <th class="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Pflichtzeit</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -430,7 +430,7 @@
                                             @endif
                                         </td>
                                         <td class="px-5 py-2.5 text-gray-600">{{ $ev->age_group ?: 'Offene Klasse' }}</td>
-                                        <td class="px-5 py-2.5 font-mono font-semibold text-gray-800">{{ $ev->formatted_qualifying_time }}</td>
+                                        <td class="text-right tabular-nums px-5 py-2.5 font-mono font-semibold text-gray-800">{{ $ev->formatted_qualifying_time }}</td>
                                     </tr>
                                 @endforeach
                             @endforeach
@@ -618,7 +618,7 @@
                                                 {{ !$swim->is_dns ? $rank . '.' : '–' }}
                                             </td>
                                             <td class="px-5 py-2.5 font-medium text-gray-800">{{ $swim->user?->name }}</td>
-                                            <td class="px-5 py-2.5">
+                                            <td class="text-right tabular-nums px-5 py-2.5">
                                                 @if(!$swim->is_dns)
                                                     <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                                 @elseif($swim->notes)
@@ -719,7 +719,7 @@
                                             <td class="px-5 py-2.5 text-gray-700 font-medium w-40">
                                                 {{ $swim->distance }} m {{ $swim->discipline_label }}
                                             </td>
-                                            <td class="px-5 py-2.5">
+                                            <td class="text-right tabular-nums px-5 py-2.5">
                                                 @if(!$swim->is_dns)
                                                     <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                                 @elseif($swim->notes)
@@ -1369,7 +1369,7 @@
                                 <th class="px-4 py-2.5 text-left">Strecke</th>
                                 <th class="px-4 py-2.5 text-left">Geschlecht</th>
                                 <th class="px-4 py-2.5 text-left">Wertung</th>
-                                <th class="px-4 py-2.5 text-left">Pflichtzeit</th>
+                                <th class="px-4 py-2.5 text-right">Pflichtzeit</th>
                                 <th class="px-4 py-2.5 text-left">Meldeschluss PZ</th>
                             </tr>
                         </thead>
@@ -1380,7 +1380,7 @@
                                 <td class="px-4 py-2 font-medium text-gray-800">{{ $qev->distance_label }} m {{ $qev->discipline_label }}</td>
                                 <td class="px-4 py-2 text-gray-600">{{ $qev->gender_label }}</td>
                                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->age_group ?: '–' }}</td>
-                                <td class="px-4 py-2 font-mono font-semibold text-blue-700">{{ $qev->formatted_qualifying_time }}</td>
+                                <td class="text-right tabular-nums px-4 py-2 font-mono font-semibold text-blue-700">{{ $qev->formatted_qualifying_time }}</td>
                                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->qualifying_deadline?->format('d.m.Y') ?? '–' }}</td>
                             </tr>
                             @endforeach
