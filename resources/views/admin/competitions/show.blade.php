@@ -1162,10 +1162,17 @@
                     <div>
                         <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-200 text-gray-600 px-3 py-1 rounded-full">
                             Geschlossen
+                            @if($signupRequest->close_reason === \App\Models\CompetitionSignupRequest::CLOSE_COMPETITION_ENDED)
+                                <span class="font-normal">· automatisch</span>
+                            @endif
                         </span>
                         <p class="text-sm text-gray-500 mt-1">
                             Abfrage geschlossen am {{ $signupRequest->closed_at->deBerlin('d.m.Y H:i') }} Uhr.
                         </p>
+                        {{-- Vermerk: wer/warum, Antwortstand beim Schliessen --}}
+                        @if($signupRequest->close_note)
+                            <p class="text-xs text-gray-400 mt-0.5">{{ $signupRequest->close_note }}</p>
+                        @endif
                     </div>
                 </div>
                 @php

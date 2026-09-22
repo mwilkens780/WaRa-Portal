@@ -70,6 +70,19 @@ Schedule::call(fn() => app(GroupRoster::class)->snapshotRunningSeason())
     ->name('group-roster-snapshot')
     ->withoutOverlapping();
 
+// Anmeldeabfragen nach Wettkampfende automatisch schliessen - kurz nach
+// Mitternacht, dann ist der letzte Wettkampftag vorbei. Jede geschlossene
+// Abfrage bekommt einen Vermerk (close_reason / close_note).
+Artisan::command('signups:close-expired', function () {
+    $n = \App\Models\CompetitionSignupRequest::closeAfterCompetitionEnd();
+    $this->info("{$n} Anmeldeabfrage(n) nach Wettkampfende geschlossen.");
+})->purpose('Aktive Anmeldeabfragen vergangener Wettkaempfe schliessen');
+
+Schedule::call(fn() => \App\Models\CompetitionSignupRequest::closeAfterCompetitionEnd())
+    ->dailyAt('00:15')
+    ->name('signups-close-expired')
+    ->withoutOverlapping();
+
 // Saison-Score-Cache wöchentlich neu berechnen
 Schedule::call(function () {
     $year    = now()->month >= 9 ? now()->year : now()->year - 1;

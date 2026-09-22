@@ -187,10 +187,7 @@ class CompetitionSignupController extends Controller
             return back()->with('error', 'Nur aktive Abfragen können geschlossen werden.');
         }
 
-        $signupRequest->update([
-            'status'    => 'closed',
-            'closed_at' => now(),
-        ]);
+        $signupRequest->closeManually(auth()->user());
 
         return back()->with('success', 'Anmeldeabfrage geschlossen.');
     }
