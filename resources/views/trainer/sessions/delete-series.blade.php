@@ -60,14 +60,22 @@
                     </p>
                     <div class="mt-3 flex flex-wrap items-center gap-3" x-show="scope === 'future'">
                         <label class="text-sm text-gray-600">Ab</label>
-                        <input type="date" name="from" x-model="from"
-                               min="{{ $first->date->format('Y-m-d') }}" max="{{ $last->date->format('Y-m-d') }}"
+                        {{-- :disabled statt nur ausblenden: Ein ausgeblendetes, aber
+                             ungueltiges Feld blockierte sonst still das Absenden von
+                             "Gesamte Serie" (Browser-Validierung ohne sichtbare Meldung). --}}
+                        <input type="date" name="from" x-model="from" :disabled="scope !== 'future'"
+                               min="{{ $first->date->format('Y-m-d') }}"
                                class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
                         <span class="text-sm text-gray-600">
                             → <strong x-text="futureCount()"></strong> Einheiten werden gelöscht,
                             <strong x-text="{{ $sessions->count() }} - futureCount()"></strong> bleiben.
                         </span>
                     </div>
+                    <p x-show="scope === 'future' && futureCount() === 0" x-cloak
+                       class="mt-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        Ab diesem Datum gibt es keine Einheiten mehr – die Serie endete am {{ $last->date->format('d.m.Y') }}.
+                        Zum Entfernen einer abgelaufenen Serie „Gesamte Serie löschen" wählen.
+                    </p>
                     <p x-show="scope === 'future' && futureWithData() > 0" x-cloak
                        class="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         Achtung: <strong x-text="futureWithData()"></strong> der zu löschenden Einheiten haben bereits
@@ -111,8 +119,8 @@
         </p>
 
         <div class="flex items-center gap-3">
-            <button type="submit"
-                    class="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors"
+            <button type="submit" :disabled="scope === 'future' && futureCount() === 0"
+                    class="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     :class="scope === 'all' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary-dark'"
                     x-text="scope === 'all' ? 'Gesamte Serie löschen' : 'Einheiten ab Datum löschen'"></button>
             <a href="{{ route('trainer.sessions.series.edit', $group) }}" class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>

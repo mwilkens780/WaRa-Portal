@@ -518,7 +518,8 @@ class TrainingSessionController extends Controller
         if ($sessions->isEmpty()) abort(404);
         $this->authorizeSeriesAccess($sessions->first());
 
-        $from = today();
+        // Vorbelegung heute - aber nie vor der ersten Einheit (min des Feldes)
+        $from = today()->max($sessions->first()->date);
         $rep  = $sessions->first()->load('trainingGroups:id,name', 'coTrainers:id,firstname,lastname');
 
         // Je Einheit: sind schon Daten erfasst? (fuer die Warnung bei "ab Datum")
