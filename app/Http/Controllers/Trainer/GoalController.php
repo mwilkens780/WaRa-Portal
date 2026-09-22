@@ -3,14 +3,26 @@
 namespace App\Http\Controllers\Trainer;
 
 use App\Http\Controllers\Controller;
-use App\Models\GroupGoal;
 use App\Models\Season;
 use App\Models\SwimmerGoal;
 use App\Models\SwimmerGoalComment;
 use App\Models\TrainingGroup;
 use App\Models\TrainingGroupGoal;
+use App\Models\TrainingGroupGoalEvaluation;
+use App\Models\User;
 use Illuminate\Http\Request;
 
+/**
+ * Ziele-Seite der Trainer.
+ *
+ * Zwei Kategorien je Trainingsgruppe:
+ *  - Leistungskriterien: von der Gruppe festgelegt, je Schwimmer und Saison
+ *    mit erreicht / nicht erreicht bewertet. Entscheiden ueber Verbleib oder
+ *    Wechsel der Gruppe.
+ *  - Persoenliche Ziele: legt jeder Schwimmer selbst an, Trainer kommentieren.
+ *
+ * Beides ist saisonbezogen; eine neue Saison beginnt ohne Bewertungen.
+ */
 class GoalController extends Controller
 {
     public function index(Request $request)
@@ -22,11 +34,12 @@ class GoalController extends Controller
             ? $seasons->firstWhere('id', $request->get('season_id'))
             : (view()->shared('appCurrentSeason') ?? Season::current() ?? $seasons->first());
 
+        $swimmerScope = fn($q) => $q->where('active', true)->orderBy('lastname')->orderBy('firstname');
+
         $groups = $trainer->isAdmin()
-            ? TrainingGroup::with(['swimmers' => fn($q) => $q->where('active', true)->orderBy('lastname')->orderBy('firstname')])
-                ->orderBy('name')->get()
+            ? TrainingGroup::with(['swimmers' => $swimmerScope])->orderBy('name')->get()
             : TrainingGroup::whereHas('trainers', fn($q) => $q->where('users.id', $trainer->id))
-                ->with(['swimmers' => fn($q) => $q->where('active', true)->orderBy('lastname')->orderBy('firstname')])
+                ->with(['swimmers' => $swimmerScope])
                 ->orderBy('name')->get();
 
         $swimmerIds = $groups->flatMap(fn($g) => $g->swimmers->pluck('id'))->unique();
@@ -39,25 +52,18 @@ class GoalController extends Controller
             ->get()
             ->groupBy('user_id');
 
-        $groupGoals = GroupGoal::whereIn('training_group_id', $groups->pluck('id'))
-            ->where('season_id', $activeSeason?->id)
-            ->with('createdBy')
-            ->orderBy('achieved')
-            ->orderBy('created_at')
-            ->get()
-            ->groupBy('training_group_id');
-
-        $trainingGroupGoals = TrainingGroupGoal::whereIn('training_group_id', $groups->pluck('id'))
+        $criteria = TrainingGroupGoal::whereIn('training_group_id', $groups->pluck('id'))
             ->where('active', true)
-            ->with(['evaluations' => function ($q) use ($swimmerIds) {
-                $q->whereIn('user_id', $swimmerIds)->with('user:id,firstname,lastname');
+            ->with(['evaluations' => function ($q) use ($swimmerIds, $activeSeason) {
+                $q->whereIn('user_id', $swimmerIds)
+                  ->where('season_id', $activeSeason?->id);
             }])
             ->orderBy('training_group_id')->orderBy('sort_order')->orderBy('id')
             ->get()
             ->groupBy('training_group_id');
 
         return view('trainer.goals', compact(
-            'groups', 'goalsBySwimmer', 'groupGoals', 'trainingGroupGoals', 'seasons', 'activeSeason'
+            'groups', 'goalsBySwimmer', 'criteria', 'seasons', 'activeSeason'
         ));
     }
 
@@ -73,39 +79,80 @@ class GoalController extends Controller
         return back()->with('success', 'Kommentar gespeichert.');
     }
 
+    // ── Leistungskriterien ───────────────────────────────────────────────
+
     public function storeGroupGoal(Request $request)
     {
         $data = $request->validate([
             'training_group_id' => ['required', 'exists:training_groups,id'],
-            'season_id'         => ['required', 'exists:seasons,id'],
             'title'             => ['required', 'string', 'max:255'],
             'description'       => ['nullable', 'string', 'max:1000'],
-            'target_count'      => ['nullable', 'integer', 'min:1'],
+            'target_value'      => ['nullable', 'string', 'max:255'],
         ]);
 
-        GroupGoal::create([...$data, 'created_by_id' => auth()->id()]);
+        $group = TrainingGroup::findOrFail($data['training_group_id']);
+        $this->authorizeGroup($group);
 
-        return back()->with('success', 'Gruppenziel gespeichert.');
+        TrainingGroupGoal::create([
+            'training_group_id' => $group->id,
+            'title'             => $data['title'],
+            'description'       => $data['description'] ?? null,
+            'target_value'      => $data['target_value'] ?? null,
+            'type'              => filled($data['target_value'] ?? null) ? 'quantitative' : 'qualitative',
+            'sort_order'        => (int) $group->goals()->max('sort_order') + 1,
+            'active'            => true,
+        ]);
+
+        return back()->with('success', 'Leistungskriterium angelegt.');
     }
 
-    public function updateGroupGoal(Request $request, GroupGoal $groupGoal)
+    public function updateGroupGoal(Request $request, TrainingGroupGoal $groupGoal)
     {
+        $this->authorizeGroup($groupGoal->group);
+
         $data = $request->validate([
-            'achieved_count' => ['nullable', 'integer', 'min:0'],
-            'achieved'       => ['nullable', 'boolean'],
+            'title'        => ['required', 'string', 'max:255'],
+            'description'  => ['nullable', 'string', 'max:1000'],
+            'target_value' => ['nullable', 'string', 'max:255'],
         ]);
 
         $groupGoal->update([
-            'achieved_count' => $data['achieved_count'] ?? $groupGoal->achieved_count,
-            'achieved'       => isset($data['achieved']) ? (bool)$data['achieved'] : $groupGoal->achieved,
+            ...$data,
+            'type' => filled($data['target_value'] ?? null) ? 'quantitative' : 'qualitative',
         ]);
 
-        return back()->with('success', 'Gruppenziel aktualisiert.');
+        return back()->with('success', 'Leistungskriterium aktualisiert.');
     }
 
-    public function destroyGroupGoal(GroupGoal $groupGoal)
+    public function destroyGroupGoal(TrainingGroupGoal $groupGoal)
     {
+        $this->authorizeGroup($groupGoal->group);
+
         $groupGoal->delete();
-        return back()->with('success', 'Gruppenziel gelöscht.');
+
+        return back()->with('success', 'Leistungskriterium gelöscht.');
+    }
+
+    public function evaluate(Request $request, TrainingGroupGoal $groupGoal, User $user)
+    {
+        $this->authorizeGroup($groupGoal->group);
+
+        $data = $request->validate([
+            'season_id' => ['required', 'integer', 'exists:seasons,id'],
+            'achieved'  => ['nullable', 'in:0,1'],
+            'notes'     => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        TrainingGroupGoalEvaluation::record(
+            $groupGoal, $user->id, 'trainer', (int) $data['season_id'],
+            $data['achieved'] ?? null, $data['notes'] ?? null, auth()->id(),
+        );
+
+        return back()->with('success', 'Bewertung gespeichert.');
+    }
+
+    private function authorizeGroup(?TrainingGroup $group): void
+    {
+        abort_if(!$group || !$group->canEdit(auth()->user()), 403, 'Kein Zugriff auf diese Trainingsgruppe.');
     }
 }

@@ -17,25 +17,25 @@ class TrainingGroupGoal extends Model
         return ['active' => 'boolean'];
     }
 
+    // Fachlich: Leistungskriterium der Trainingsgruppe. Die Erfuellung wird je
+    // Saison und Schwimmer mit erreicht / nicht erreicht bewertet und entscheidet
+    // ueber Verbleib oder Wechsel der Gruppe.
+
     public static array $typeLabels = [
         'quantitative' => 'Messbar',
         'qualitative'  => 'Qualitativ',
     ];
 
-    public static array $ratingLabels = [
-        1 => 'Nicht begonnen',
-        2 => 'Erste Schritte',
-        3 => 'In Arbeit',
-        4 => 'Gut auf dem Weg',
-        5 => 'Erreicht',
+    public static array $statusLabels = [
+        'achieved' => 'Erreicht',
+        'missed'   => 'Nicht erreicht',
+        'open'     => 'Offen',
     ];
 
-    public static array $ratingColors = [
-        1 => 'text-gray-500',
-        2 => 'text-orange-500',
-        3 => 'text-yellow-500',
-        4 => 'text-blue-500',
-        5 => 'text-green-600',
+    public static array $statusBadges = [
+        'achieved' => 'bg-green-100 text-green-700',
+        'missed'   => 'bg-red-100 text-red-700',
+        'open'     => 'bg-gray-100 text-gray-500',
     ];
 
     public function group(): BelongsTo
@@ -48,19 +48,26 @@ class TrainingGroupGoal extends Model
         return $this->hasMany(TrainingGroupGoalEvaluation::class, 'training_group_goal_id');
     }
 
-    public function selfEvaluationFor(int $userId): ?TrainingGroupGoalEvaluation
+    // Beide Helfer arbeiten auf den geladenen Bewertungen. Die Aufrufer laden
+    // nur eine Saison; die Saison-ID hier ist die zweite Sicherung dagegen,
+    // dass eine Vorjahresbewertung als aktuelle durchrutscht.
+
+    public function selfEvaluationFor(int $userId, ?int $seasonId = null): ?TrainingGroupGoalEvaluation
     {
-        return $this->evaluations
-            ->where('user_id', $userId)
-            ->where('evaluation_type', 'self')
-            ->first();
+        return $this->evaluationFor($userId, 'self', $seasonId);
     }
 
-    public function trainerEvaluationFor(int $userId): ?TrainingGroupGoalEvaluation
+    public function trainerEvaluationFor(int $userId, ?int $seasonId = null): ?TrainingGroupGoalEvaluation
+    {
+        return $this->evaluationFor($userId, 'trainer', $seasonId);
+    }
+
+    private function evaluationFor(int $userId, string $type, ?int $seasonId): ?TrainingGroupGoalEvaluation
     {
         return $this->evaluations
             ->where('user_id', $userId)
-            ->where('evaluation_type', 'trainer')
+            ->where('evaluation_type', $type)
+            ->when($seasonId !== null, fn($c) => $c->where('season_id', $seasonId))
             ->first();
     }
 }

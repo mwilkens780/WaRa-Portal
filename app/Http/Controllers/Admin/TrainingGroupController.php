@@ -99,16 +99,20 @@ class TrainingGroupController extends Controller
         $recentSessions   = $trainingGroup->sessions()->orderByDesc('date')->limit(10)->get();
         $upcomingSessions = $trainingGroup->sessions()->where('date', '>=', now())->orderBy('date')->limit(5)->get();
 
-        // Goals with all evaluations for the group's swimmers
+        // Leistungskriterien mit den Bewertungen der gewaehlten Saison.
+        // Jede Saison beginnt leer - keine Uebernahme aus der Vorsaison.
+        $season = view()->shared('appCurrentSeason') ?? Season::current();
+
         $goals = $trainingGroup->goals()
             ->where('active', true)
-            ->with(['evaluations' => function ($q) use ($activeSwimmers) {
-                $q->whereIn('user_id', $activeSwimmers->pluck('id'));
+            ->with(['evaluations' => function ($q) use ($activeSwimmers, $season) {
+                $q->whereIn('user_id', $activeSwimmers->pluck('id'))
+                  ->where('season_id', $season?->id);
             }])
             ->get();
 
         return view('admin.training-groups.show', compact(
-            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions', 'goals'
+            'trainingGroup', 'activeSwimmers', 'recentSessions', 'upcomingSessions', 'goals', 'season'
         ));
     }
 
@@ -121,9 +125,12 @@ class TrainingGroupController extends Controller
         $data = $request->validate([
             'title'        => ['required', 'string', 'max:255'],
             'description'  => ['nullable', 'string'],
-            'type'         => ['required', 'in:quantitative,qualitative'],
             'target_value' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Bewertet wird nur noch erreicht / nicht erreicht; die Art ergibt
+        // sich allein daraus, ob ein Zielwert angegeben ist.
+        $data['type'] = filled($data['target_value'] ?? null) ? 'quantitative' : 'qualitative';
 
         $data['training_group_id'] = $trainingGroup->id;
         $data['sort_order'] = $trainingGroup->goals()->max('sort_order') + 1;
@@ -141,9 +148,12 @@ class TrainingGroupController extends Controller
         $data = $request->validate([
             'title'        => ['required', 'string', 'max:255'],
             'description'  => ['nullable', 'string'],
-            'type'         => ['required', 'in:quantitative,qualitative'],
             'target_value' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Bewertet wird nur noch erreicht / nicht erreicht; die Art ergibt
+        // sich allein daraus, ob ein Zielwert angegeben ist.
+        $data['type'] = filled($data['target_value'] ?? null) ? 'quantitative' : 'qualitative';
 
         $goal->update($data);
 
@@ -166,21 +176,14 @@ class TrainingGroupController extends Controller
         abort_if($goal->training_group_id !== $trainingGroup->id, 404);
 
         $data = $request->validate([
-            'rating'        => ['nullable', 'integer', 'min:1', 'max:5'],
-            'current_value' => ['nullable', 'string', 'max:100'],
-            'notes'         => ['nullable', 'string', 'max:1000'],
+            'season_id' => ['required', 'integer', 'exists:seasons,id'],
+            'achieved'  => ['nullable', 'in:0,1'],
+            'notes'     => ['nullable', 'string', 'max:1000'],
         ]);
 
-        TrainingGroupGoalEvaluation::updateOrCreate(
-            [
-                'training_group_goal_id' => $goal->id,
-                'user_id'                => $user->id,
-                'evaluation_type'        => 'trainer',
-            ],
-            array_merge($data, [
-                'evaluator_id' => auth()->id(),
-                'evaluated_at' => today(),
-            ])
+        TrainingGroupGoalEvaluation::record(
+            $goal, $user->id, 'trainer', (int) $data['season_id'],
+            $data['achieved'] ?? null, $data['notes'] ?? null, auth()->id(),
         );
 
         return back()->with('success', 'Bewertung gespeichert.');

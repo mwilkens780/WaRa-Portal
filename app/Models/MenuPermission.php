@@ -34,7 +34,7 @@ class MenuPermission extends Model
         'swimmer_comps'  => ['label' => 'Meine Wettkämpfe',       'section' => 'swimmer'],
         'swimmer_goals'  => ['label' => 'Meine Ziele',            'section' => 'swimmer'],
         'swimmer_sessions'    => ['label' => 'Mein Training',     'section' => 'swimmer'],
-        'swimmer_group_goals' => ['label' => 'Gruppenziele',      'section' => 'swimmer'],
+        'swimmer_group_goals' => ['label' => 'Leistungskriterien', 'section' => 'swimmer'],
         'swimmer_motto'       => ['label' => 'Motto der Woche',   'section' => 'swimmer'],
         'parent_area'    => ['label' => 'Meine Kinder',           'section' => 'parent'],
     ];

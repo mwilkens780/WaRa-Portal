@@ -128,85 +128,85 @@
         </div>
     </div>
 
-    {{-- Gruppenziele ────────────────────────────────────────────────────── --}}
+    {{-- Leistungskriterien ──────────────────────────────────────────────── --}}
+    @php
+        $statusLabels = \App\Models\TrainingGroupGoal::$statusLabels;
+        $statusBadges = \App\Models\TrainingGroupGoal::$statusBadges;
+    @endphp
     <div class="bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ showAddGoal: false }">
         <div class="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
-                <h2 class="font-semibold text-gray-800">Gruppenziele</h2>
-                <p class="text-xs text-gray-400 mt-0.5">Qualifikationskriterien und Trainingsziele für diese Gruppe</p>
+                <h2 class="font-semibold text-gray-800">Leistungskriterien</h2>
+                <p class="text-xs text-gray-400 mt-0.5">
+                    Entscheiden über Verbleib oder Wechsel der Gruppe · Bewertungen der
+                    {{ $season ? $season->label : 'aktuellen Saison' }}, jede Saison beginnt neu
+                </p>
             </div>
             <button @click="showAddGoal = !showAddGoal" type="button"
                     class="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Ziel hinzufügen
+                Kriterium hinzufügen
             </button>
         </div>
 
-        {{-- Neues Ziel hinzufügen --}}
-        <div x-show="showAddGoal" x-transition class="p-5 border-b border-gray-100 bg-gray-50">
+        {{-- Neues Kriterium --}}
+        <div x-show="showAddGoal" x-cloak x-transition class="p-5 border-b border-gray-100 bg-gray-50">
             <form method="POST" action="{{ route('admin.training-groups.goals.store', $trainingGroup) }}" class="space-y-3">
                 @csrf
-                <div class="grid sm:grid-cols-2 gap-3">
+                <div class="grid sm:grid-cols-3 gap-3">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Ziel <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Kriterium <span class="text-red-500">*</span></label>
                         <input type="text" name="title" required maxlength="255"
                                placeholder="z.B. 1x NDM Norm schwimmen"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Art</label>
-                        <select name="type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="quantitative">Messbar (Quantitativ)</option>
-                            <option value="qualitative">Qualitativ</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Zielwert <span class="text-gray-400">(optional, z.B. "80%", "1x")</span></label>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Zielwert <span class="text-gray-400">(optional)</span></label>
                         <input type="text" name="target_value" maxlength="255"
-                               placeholder="z.B. 80% oder 1x NDM Norm"
+                               placeholder="z.B. 80 % oder 1x"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
-                    <div class="sm:col-span-2">
+                    <div class="sm:col-span-3">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Beschreibung <span class="text-gray-400">(optional)</span></label>
                         <textarea name="description" rows="2" maxlength="1000"
-                                  placeholder="Genauere Erläuterung des Ziels..."
                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button type="submit" class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">Ziel speichern</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">Speichern</button>
                     <button type="button" @click="showAddGoal = false" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Abbrechen</button>
                 </div>
             </form>
         </div>
 
-        {{-- Zielliste --}}
         @if($goals->isEmpty())
-            <p class="text-sm text-gray-400 px-5 py-6 text-center">Noch keine Ziele definiert.</p>
+            <p class="text-sm text-gray-400 px-5 py-6 text-center">Noch keine Leistungskriterien festgelegt.</p>
         @else
         <div class="divide-y divide-gray-50">
             @foreach($goals as $goal)
+            @php
+                $trainerEvs = $goal->evaluations->where('evaluation_type', 'trainer')->keyBy('user_id');
+                $selfEvs    = $goal->evaluations->where('evaluation_type', 'self')->keyBy('user_id');
+                $cntYes = $activeSwimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === true)->count();
+                $cntNo  = $activeSwimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === false)->count();
+            @endphp
             <div x-data="{ editing: false, showEvals: false }" class="p-5">
-                {{-- Ziel-Header --}}
                 <div class="flex items-start gap-3">
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-2 mb-0.5">
-                            @if($goal->type === 'quantitative')
-                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Messbar</span>
-                            @else
-                                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Qualitativ</span>
-                            @endif
                             <span class="text-sm font-semibold text-gray-800">{{ $goal->title }}</span>
                             @if($goal->target_value)
                                 <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Ziel: {{ $goal->target_value }}</span>
                             @endif
+                            <span class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700" title="Erreicht">✓ {{ $cntYes }}</span>
+                            <span class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700" title="Nicht erreicht">✗ {{ $cntNo }}</span>
                         </div>
                         @if($goal->description)
                             <p class="text-xs text-gray-500 mt-1">{{ $goal->description }}</p>
                         @endif
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        @if($activeSwimmers->isNotEmpty())
+                        @if($activeSwimmers->isNotEmpty() && $season)
                         <button @click="showEvals = !showEvals" type="button"
                                 class="text-xs px-2.5 py-1 border rounded-lg transition-colors"
                                 :class="showEvals ? 'border-indigo-300 text-indigo-600 bg-indigo-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'">
@@ -218,7 +218,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </button>
                         <form method="POST" action="{{ route('admin.training-groups.goals.destroy', [$trainingGroup, $goal]) }}"
-                              onsubmit="return confirm('Ziel löschen?')">
+                              onsubmit="return confirm('Leistungskriterium löschen?\n\nDamit werden auch alle Bewertungen aus allen Saisons gelöscht.')">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-xs text-red-400 hover:text-red-600" title="Löschen">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -227,29 +227,22 @@
                     </div>
                 </div>
 
-                {{-- Inline-Bearbeitungsformular --}}
-                <div x-show="editing" x-transition class="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {{-- Bearbeiten --}}
+                <div x-show="editing" x-cloak x-transition class="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <form method="POST" action="{{ route('admin.training-groups.goals.update', [$trainingGroup, $goal]) }}" class="space-y-3">
                         @csrf @method('PUT')
-                        <div class="grid sm:grid-cols-2 gap-3">
+                        <div class="grid sm:grid-cols-3 gap-3">
                             <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Titel</label>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Kriterium</label>
                                 <input type="text" name="title" value="{{ $goal->title }}" required maxlength="255"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Art</label>
-                                <select name="type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                    <option value="quantitative" {{ $goal->type === 'quantitative' ? 'selected' : '' }}>Messbar</option>
-                                    <option value="qualitative" {{ $goal->type === 'qualitative' ? 'selected' : '' }}>Qualitativ</option>
-                                </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Zielwert</label>
                                 <input type="text" name="target_value" value="{{ $goal->target_value }}" maxlength="255"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
-                            <div class="sm:col-span-2">
+                            <div class="sm:col-span-3">
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Beschreibung</label>
                                 <textarea name="description" rows="2" maxlength="1000"
                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ $goal->description }}</textarea>
@@ -262,100 +255,57 @@
                     </form>
                 </div>
 
-                {{-- Bewertungsübersicht --}}
-                @if($activeSwimmers->isNotEmpty())
-                <div x-show="showEvals" x-transition class="mt-3">
-                    <p class="text-xs text-gray-500 mb-2 font-medium">Zielgespräch – Bewertungen der Schwimmer:</p>
-                    <div class="space-y-2">
-                        @foreach($activeSwimmers as $swimmer)
-                        @php
-                            $selfEval    = $goal->selfEvaluationFor($swimmer->id);
-                            $trainerEval = $goal->trainerEvaluationFor($swimmer->id);
-                        @endphp
-                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                            <div class="flex flex-wrap items-center gap-3 mb-2">
-                                <span class="text-sm font-medium text-gray-800">{{ $swimmer->firstname }} {{ $swimmer->lastname }}</span>
-                                {{-- Eigenbewertung --}}
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs text-gray-400">Eigenbewertung:</span>
-                                    @if($selfEval)
-                                        <span class="text-xs font-semibold {{ $selfEval->rating_color }}">
-                                            {{ str_repeat('★', $selfEval->rating) }}{{ str_repeat('☆', 5 - $selfEval->rating) }}
-                                            {{ $selfEval->rating_label }}
-                                        </span>
-                                        @if($selfEval->current_value)
-                                            <span class="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{{ $selfEval->current_value }}</span>
-                                        @endif
-                                    @else
-                                        <span class="text-xs text-gray-300">Noch nicht bewertet</span>
-                                    @endif
-                                </div>
-                                {{-- Trainerbewertung --}}
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs text-gray-400">Trainer:</span>
-                                    @if($trainerEval)
-                                        <span class="text-xs font-semibold {{ $trainerEval->rating_color }}">
-                                            {{ str_repeat('★', $trainerEval->rating) }}{{ str_repeat('☆', 5 - $trainerEval->rating) }}
-                                            {{ $trainerEval->rating_label }}
-                                        </span>
-                                        @if($trainerEval->current_value)
-                                            <span class="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{{ $trainerEval->current_value }}</span>
-                                        @endif
-                                    @else
-                                        <span class="text-xs text-gray-300">Noch nicht bewertet</span>
-                                    @endif
-                                </div>
-                            </div>
-                            {{-- Notizen --}}
-                            @if($selfEval?->notes || $trainerEval?->notes)
-                            <div class="flex flex-wrap gap-3 mb-2">
-                                @if($selfEval?->notes)
-                                    <p class="text-xs text-gray-500 italic">"{{ $selfEval->notes }}"</p>
-                                @endif
-                                @if($trainerEval?->notes)
-                                    <p class="text-xs text-gray-600 border-l-2 border-primary/30 pl-2">{{ $trainerEval->notes }}</p>
-                                @endif
-                            </div>
-                            @endif
-                            {{-- Trainerbewertung erfassen --}}
-                            <details class="mt-1">
-                                <summary class="text-xs text-primary cursor-pointer hover:underline select-none">Trainerbewertung {{ $trainerEval ? 'aktualisieren' : 'erfassen' }}</summary>
-                                <form method="POST" action="{{ route('admin.training-groups.goals.trainer-eval', [$trainingGroup, $goal, $swimmer]) }}"
-                                      class="mt-2 flex flex-wrap gap-2 items-end">
-                                    @csrf
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Bewertung</label>
-                                        <select name="rating" class="px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none">
-                                            <option value="">– keine –</option>
-                                            @foreach(\App\Models\TrainingGroupGoal::$ratingLabels as $val => $label)
-                                                <option value="{{ $val }}" {{ $trainerEval?->rating == $val ? 'selected' : '' }}>{{ $val }}★ {{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    @if($goal->type === 'quantitative')
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Aktueller Stand</label>
-                                        <input type="text" name="current_value" maxlength="100"
-                                               value="{{ $trainerEval?->current_value }}"
-                                               placeholder="z.B. 72%"
-                                               class="px-2 py-1.5 border border-gray-300 rounded text-xs w-24 focus:ring-1 focus:ring-blue-400 outline-none">
-                                    </div>
-                                    @endif
-                                    <div class="flex-1 min-w-[160px]">
-                                        <label class="block text-xs text-gray-500 mb-1">Notiz</label>
-                                        <input type="text" name="notes" maxlength="1000"
-                                               value="{{ $trainerEval?->notes }}"
-                                               placeholder="Kommentar..."
-                                               class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none">
-                                    </div>
-                                    <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-                                        Speichern
-                                    </button>
-                                </form>
-                            </details>
+                {{-- Bewertungen der Saison --}}
+                @if($activeSwimmers->isNotEmpty() && $season)
+                <div x-show="showEvals" x-cloak x-transition class="mt-3 space-y-2">
+                    @foreach($activeSwimmers as $swimmer)
+                    @php
+                        $se = $selfEvs->get($swimmer->id);
+                        $te = $trainerEvs->get($swimmer->id);
+                        $seStatus = $se?->status ?? 'open';
+                        $teStatus = $te?->status ?? 'open';
+                    @endphp
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span class="text-sm font-medium text-gray-800">{{ $swimmer->firstname }} {{ $swimmer->lastname }}</span>
+                            <span class="text-xs text-gray-400">Eigenbewertung:</span>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $statusBadges[$seStatus] }}">{{ $statusLabels[$seStatus] }}</span>
+                            <span class="text-xs text-gray-400">Trainer:</span>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $statusBadges[$teStatus] }}">{{ $statusLabels[$teStatus] }}</span>
                         </div>
-                        @endforeach
+                        @if($se?->notes || $te?->notes)
+                        <div class="flex flex-wrap gap-3 mt-1.5">
+                            @if($se?->notes)
+                                <p class="text-xs text-gray-500 italic">„{{ $se->notes }}“</p>
+                            @endif
+                            @if($te?->notes)
+                                <p class="text-xs text-gray-600 border-l-2 border-primary/30 pl-2">{{ $te->notes }}</p>
+                            @endif
+                        </div>
+                        @endif
+                        <details class="mt-1.5">
+                            <summary class="text-xs text-primary cursor-pointer hover:underline select-none">Trainerbewertung {{ $te ? 'ändern' : 'erfassen' }}</summary>
+                            <form method="POST" action="{{ route('admin.training-groups.goals.trainer-eval', [$trainingGroup, $goal, $swimmer]) }}"
+                                  class="mt-2 flex flex-wrap items-center gap-3">
+                                @csrf
+                                <input type="hidden" name="season_id" value="{{ $season->id }}">
+                                <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+                                    @foreach(['1' => ['Erreicht', 'peer-checked:bg-green-600'], '0' => ['Nicht erreicht', 'peer-checked:bg-red-600'], '' => ['Offen', 'peer-checked:bg-gray-500']] as $val => [$lbl, $on])
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="achieved" value="{{ $val }}" class="peer sr-only"
+                                                   {{ ($val === '1' && $teStatus === 'achieved') || ($val === '0' && $teStatus === 'missed') || ($val === '' && $teStatus === 'open') ? 'checked' : '' }}>
+                                            <span class="block px-3 py-1.5 bg-white text-gray-600 {{ $on }} peer-checked:text-white transition-colors">{{ $lbl }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <input type="text" name="notes" maxlength="1000" value="{{ $te?->notes }}"
+                                       placeholder="Trainer-Notiz"
+                                       class="flex-1 min-w-[160px] px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none">
+                                <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">Speichern</button>
+                            </form>
+                        </details>
                     </div>
+                    @endforeach
                 </div>
                 @endif
             </div>

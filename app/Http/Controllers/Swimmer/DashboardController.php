@@ -898,22 +898,20 @@ class DashboardController extends Controller
         // All goal IDs across all groups
         $allGoalIds = $allGroups->flatMap(fn($g) => $g->goals->pluck('id'));
 
-        // Self-evaluations by this swimmer
-        $selfEvals = TrainingGroupGoalEvaluation::where('user_id', $swimmer->id)
-            ->where('evaluation_type', 'self')
-            ->whereIn('training_group_goal_id', $allGoalIds)
-            ->get()
-            ->keyBy('training_group_goal_id');
+        // Leistungskriterien gelten je Saison. Schwimmer sehen und bewerten
+        // immer die laufende Saison - unabhaengig vom Saison-Umschalter.
+        $season = Season::current();
 
-        // Trainer evaluations for this swimmer
-        $trainerEvals = TrainingGroupGoalEvaluation::where('user_id', $swimmer->id)
-            ->where('evaluation_type', 'trainer')
+        $evals = TrainingGroupGoalEvaluation::where('user_id', $swimmer->id)
+            ->where('season_id', $season?->id)
             ->whereIn('training_group_goal_id', $allGoalIds)
-            ->get()
-            ->keyBy('training_group_goal_id');
+            ->get();
+
+        $selfEvals    = $evals->where('evaluation_type', 'self')->keyBy('training_group_goal_id');
+        $trainerEvals = $evals->where('evaluation_type', 'trainer')->keyBy('training_group_goal_id');
 
         return view('swimmer.group-goals', compact(
-            'allGroups', 'myGroupIds', 'selfEvals', 'trainerEvals'
+            'allGroups', 'myGroupIds', 'selfEvals', 'trainerEvals', 'season'
         ));
     }
 
@@ -925,21 +923,18 @@ class DashboardController extends Controller
         // (We allow all swimmers to self-evaluate on all group goals)
 
         $data = $request->validate([
-            'rating'        => ['nullable', 'integer', 'min:1', 'max:5'],
-            'current_value' => ['nullable', 'string', 'max:100'],
-            'notes'         => ['nullable', 'string', 'max:1000'],
+            'achieved' => ['nullable', 'in:0,1'],
+            'notes'    => ['nullable', 'string', 'max:1000'],
         ]);
 
-        TrainingGroupGoalEvaluation::updateOrCreate(
-            [
-                'training_group_goal_id' => $goal->id,
-                'user_id'                => $swimmer->id,
-                'evaluation_type'        => 'self',
-            ],
-            array_merge($data, [
-                'evaluator_id' => $swimmer->id,
-                'evaluated_at' => today(),
-            ])
+        $season = Season::current();
+        if (!$season) {
+            return back()->withErrors(['achieved' => 'Es ist keine laufende Saison angelegt.']);
+        }
+
+        TrainingGroupGoalEvaluation::record(
+            $goal, $swimmer->id, 'self', $season->id,
+            $data['achieved'] ?? null, $data['notes'] ?? null, $swimmer->id,
         );
 
         return back()->with('success', 'Eigenbewertung gespeichert.');

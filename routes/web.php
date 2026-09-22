@@ -354,6 +354,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
         Route::post('/gruppen-ziele', [TrainerGoalController::class, 'storeGroupGoal'])->name('group-goals.store');
         Route::put('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'updateGroupGoal'])->name('group-goals.update');
         Route::delete('/gruppen-ziele/{groupGoal}', [TrainerGoalController::class, 'destroyGroupGoal'])->name('group-goals.destroy');
+        Route::post('/gruppen-ziele/{groupGoal}/bewertung/{user}', [TrainerGoalController::class, 'evaluate'])->name('group-goals.evaluate');
     });
 
     // Hallenbelegung inkl. Excel-Import des Belegungsplans
