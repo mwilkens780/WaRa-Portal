@@ -156,6 +156,12 @@ class RecordCheckService
                 'breaks_landesrekord'  => false,
             ]);
 
+            // Bisherige Rekordhalter merken, bevor die Verknuepfungen geloescht
+            // werden: Bei Gleichstand bleibt der Rekord beim bisherigen Halter.
+            $previousHolder = Record::where('type', 'vereinsrekord')
+                ->whereNotNull('competition_result_id')
+                ->pluck('competition_result_id', 'id');
+
             Record::where('type', 'vereinsrekord')->update(['competition_result_id' => null]);
 
             $results = CompetitionResult::with(['user', 'competition'])
@@ -175,7 +181,12 @@ class RecordCheckService
                 ]));
 
             foreach ($vrGroups as $key => $group) {
-                $best = $group->sortBy('time_ms')->first();
+                // Schnellste Zeit; bei gleicher Zeit die fruehere - wer eine
+                // Rekordzeit nur einstellt, uebernimmt den Rekord nicht.
+                $best = $group->sort(fn($a, $b) =>
+                    [(int) $a->time_ms, $a->competition?->date?->timestamp ?? PHP_INT_MAX, (int) $a->id]
+                    <=> [(int) $b->time_ms, $b->competition?->date?->timestamp ?? PHP_INT_MAX, (int) $b->id]
+                )->first();
                 [$discipline, $distance, $gender, $course] = explode('§', $key, 4);
 
                 $vr = Record::where('type', 'vereinsrekord')
@@ -187,7 +198,17 @@ class RecordCheckService
                     ->first();
 
                 if ($vr) {
-                    if ($best->time_ms <= $vr->time_ms) {
+                    // Gleichstand: Der Rekord bleibt beim bisherigen Halter. War
+                    // das ein Portal-Ergebnis, bekommt es seine Verknuepfung und
+                    // Markierung zurueck; ein externer Halter bleibt unveraendert.
+                    // (int): je nach DB-Treiber kommen Zahlen als String zurueck
+                    if ((int) $best->time_ms === (int) $vr->time_ms) {
+                        $holder = $group->firstWhere('id', $previousHolder[$vr->id] ?? null);
+                        if ($holder && (int) $holder->time_ms === (int) $vr->time_ms) {
+                            $vr->update(['competition_result_id' => $holder->id]);
+                            $holder->update(['breaks_vereinsrekord' => true]);
+                        }
+                    } elseif ((int) $best->time_ms < (int) $vr->time_ms) {
                         $vr->update([
                             'swimmer_name'          => $best->user?->name ?? $vr->swimmer_name,
                             'user_id'               => $best->user_id,
