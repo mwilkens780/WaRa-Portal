@@ -128,6 +128,31 @@
                             $cntYes  = $swimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === true)->count();
                             $cntNo   = $swimmers->filter(fn($s) => $trainerEvs->get($s->id)?->achieved === false)->count();
                             $cntOpen = $swimmerCount - $cntYes - $cntNo;
+
+                            // Kreisdiagramme: Anteil der Gruppe je Status, getrennt nach
+                            // Sportler- und Trainersicht. Basis ist immer die ganze Gruppe,
+                            // "nicht bewertet" schliesst die Luecke.
+                            $pie = function ($evs) use ($swimmers, $swimmerCount) {
+                                $counts = ['achieved' => 0, 'missed' => 0, 'open' => 0];
+                                foreach ($swimmers as $s) {
+                                    $counts[$evs->get($s->id)?->status ?? 'open']++;
+                                }
+                                $colors = ['achieved' => '#22c55e', 'missed' => '#ef4444', 'open' => '#e5e7eb'];
+                                $parts = []; $cum = 0;
+                                foreach ($counts as $k => $n) {
+                                    if ($n === 0 || $swimmerCount === 0) continue;
+                                    $p = $n / $swimmerCount * 100;
+                                    $parts[] = $colors[$k] . ' ' . round($cum, 2) . '% ' . round($cum + $p, 2) . '%';
+                                    $cum += $p;
+                                }
+                                return [
+                                    'counts'   => $counts,
+                                    'colors'   => $colors,
+                                    'gradient' => $parts ? implode(', ', $parts) : '#e5e7eb 0% 100%',
+                                    'pct'      => $swimmerCount ? round($counts['achieved'] / $swimmerCount * 100) : 0,
+                                ];
+                            };
+                            $pies = ['self' => $pie($selfEvs), 'trainer' => $pie($trainerEvs)];
                         @endphp
                         <div x-data="keep('goals-c-{{ $crit->id }}', false)">
                             <button type="button" @click="open = !open"
@@ -149,7 +174,7 @@
                                 </div>
                             </button>
 
-                            <div x-show="open" x-cloak class="px-5 pb-4" x-data="{ edit: false, evaluating: null }">
+                            <div x-show="open" x-cloak class="px-5 pb-4" x-data="{ edit: false, evaluating: null, filter: { self: null, trainer: null } }">
 
                                 {{-- Beschreibung + Verwaltung --}}
                                 <div class="flex items-start gap-3 mb-3">
@@ -181,6 +206,45 @@
                                     <button type="submit" class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold">Speichern</button>
                                 </form>
 
+                                {{-- Kreisdiagramme: Sportler- und Trainersicht --}}
+                                @if($swimmerCount > 0)
+                                <div class="flex flex-wrap gap-x-10 gap-y-4 mb-4">
+                                    @foreach(['self' => 'Sportler-Sicht', 'trainer' => 'Trainer-Sicht'] as $view => $viewLabel)
+                                        @php $pd = $pies[$view]; @endphp
+                                        <div class="flex items-center gap-4">
+                                            <div class="relative flex-shrink-0 rounded-full"
+                                                 style="width:84px;height:84px;background:conic-gradient({{ $pd['gradient'] }})">
+                                                <div class="absolute bg-white rounded-full flex flex-col items-center justify-center"
+                                                     style="width:52px;height:52px;top:16px;left:16px">
+                                                    <span class="text-sm font-black text-gray-800 leading-none">{{ $pd['pct'] }}%</span>
+                                                    <span class="text-[9px] text-gray-400 leading-none mt-0.5">erreicht</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{{ $viewLabel }}</p>
+                                                <div class="flex flex-col gap-1">
+                                                    @foreach(['achieved' => 'Erreicht', 'missed' => 'Nicht erreicht', 'open' => 'Nicht bewertet'] as $st => $stLabel)
+                                                        <button type="button"
+                                                                @click="filter.{{ $view }} = filter.{{ $view }} === '{{ $st }}' ? null : '{{ $st }}'"
+                                                                :class="filter.{{ $view }} === '{{ $st }}' ? 'ring-1 ring-offset-1 ring-gray-400 bg-gray-50' : 'hover:bg-gray-50'"
+                                                                class="flex items-center gap-2 px-2 py-0.5 rounded text-xs text-left transition-all">
+                                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $pd['colors'][$st] }}"></span>
+                                                            <span class="text-gray-600 w-24">{{ $stLabel }}</span>
+                                                            <span class="font-semibold text-gray-800 tabular-nums">{{ $pd['counts'][$st] }}</span>
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                    <button type="button" x-show="filter.self || filter.trainer" x-cloak
+                                            @click="filter.self = null; filter.trainer = null"
+                                            class="self-center text-xs text-gray-400 hover:text-gray-600 underline">
+                                        Filter aufheben
+                                    </button>
+                                </div>
+                                @endif
+
                                 {{-- Bewertung je Schwimmer --}}
                                 @if($swimmers->isEmpty())
                                     <p class="text-sm text-gray-400">Keine aktiven Schwimmer in dieser Gruppe.</p>
@@ -204,7 +268,8 @@
                                                 $seStatus = $se?->status ?? 'open';
                                                 $teStatus = $te?->status ?? 'open';
                                             @endphp
-                                            <tr class="hover:bg-gray-50/50">
+                                            <tr class="hover:bg-gray-50/50"
+                                                x-show="(!filter.self || filter.self === '{{ $seStatus }}') && (!filter.trainer || filter.trainer === '{{ $teStatus }}')">
                                                 <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $swimmer->lastname }}, {{ $swimmer->firstname }}</td>
                                                 <td class="px-3 py-2">
                                                     <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $statusBadges[$seStatus] }}">{{ $statusLabels[$seStatus] }}</span>
@@ -228,7 +293,7 @@
                                                 </td>
                                             </tr>
                                             @if($activeSeason)
-                                            <tr x-show="evaluating === {{ $swimmer->id }}" x-cloak class="bg-primary/5">
+                                            <tr x-show="evaluating === {{ $swimmer->id }} && (!filter.self || filter.self === '{{ $seStatus }}') && (!filter.trainer || filter.trainer === '{{ $teStatus }}')" x-cloak class="bg-primary/5">
                                                 <td colspan="5" class="px-3 py-3">
                                                     <form method="POST" action="{{ route('trainer.group-goals.evaluate', [$crit, $swimmer]) }}"
                                                           class="flex flex-wrap items-center gap-3">
