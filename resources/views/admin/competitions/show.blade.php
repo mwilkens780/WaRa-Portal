@@ -25,6 +25,14 @@
                 @endif
                 @if($competition->course)
                     <p class="text-xs text-gray-400">Bahnlänge: {{ $competition->course_label }}</p>
+                @else
+                    {{-- Ohne Bahnlaenge zaehlen die Ergebnisse weder fuer Rekorde noch fuer Bestenlisten --}}
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block">
+                        Bahnlänge nicht angegeben – die Ergebnisse zählen nicht für Rekorde und Bestenlisten.
+                        @if(auth()->user()->role === 'admin')
+                            <a href="{{ route('admin.competitions.edit', $competition) }}" class="underline font-medium">Jetzt festlegen</a>
+                        @endif
+                    </p>
                 @endif
                 @if($competition->description)
                     <p class="text-sm text-gray-600 mt-2">{{ $competition->description }}</p>

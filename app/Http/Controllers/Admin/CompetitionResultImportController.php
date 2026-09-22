@@ -149,6 +149,14 @@ class CompetitionResultImportController extends Controller
             return back()->withErrors(['meet_index' => 'Ungültiger Wettkampf-Index.']);
         }
 
+        // Bahnlaenge aus der Ergebnisdatei uebernehmen, wenn der Wettkampf
+        // noch keine hat (DSV7: Veranstaltungsdatensatz, Lenex: LCM/SCM).
+        // Eine vorhandene Angabe wird nie ueberschrieben.
+        if (empty($competition->course) && in_array($meet['course'] ?? null, ['Kurzbahn', 'Langbahn'], true)) {
+            $competition->update(['course' => $meet['course']]);
+            $competition->refresh();
+        }
+
         $imported      = 0;
         $skipped       = 0;
         $relayImported = 0;

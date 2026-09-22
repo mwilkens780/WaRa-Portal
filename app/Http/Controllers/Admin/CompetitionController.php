@@ -434,10 +434,21 @@ class CompetitionController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
+        $courseChanged = ($data['course'] ?? null) !== $competition->course;
+
         $competition->update($data);
 
+        // Die Bahn entscheidet, gegen welche Rekorde und Bestenlisten die
+        // Ergebnisse zaehlen - nach einer Korrektur alles neu berechnen,
+        // sonst bleiben z.B. Kurzbahnzeiten als Langbahnrekorde stehen.
+        $msg = 'Wettkampf wurde aktualisiert.';
+        if ($courseChanged && $competition->results()->exists()) {
+            app(\App\Services\RecordCheckService::class)->recheckAll();
+            $msg .= ' Bahnlänge geändert – Rekorde und Bestenlisten wurden neu berechnet.';
+        }
+
         return redirect()->route('admin.competitions.show', $competition)
-            ->with('success', 'Wettkampf wurde aktualisiert.');
+            ->with('success', $msg);
     }
 
     public function destroy(Competition $competition)

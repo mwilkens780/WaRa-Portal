@@ -791,12 +791,20 @@ class DashboardController extends Controller
                 $isBestSeason => 'SB',
                 default       => null,
             };
-            $course    = $swim->competition?->course ?? 'Langbahn';
+            // Ohne bekannte Bahn keine Rekord-Badges - lieber keine als falsche
+            $course = $swim->competition?->course;
+            if (!$course) {
+                $swim->beaten_records = [];
+                return $swim;
+            }
             $gender    = $swim->gender ?? '';
             $ageGroups = collect($swim->result_ids)->map(fn($id) => $resultAgeGroupMap->get($id))->unique()->values();
             $beatenRecords = [];
             foreach (['vereinsrekord', 'landesrekord'] as $type) {
-                foreach ($ageGroups as $ag) {
+                // Vereinsrekorde gibt es nur offen (ohne Altersklasse),
+                // Landesrekorde je Altersklasse
+                $groupsToCheck = $type === 'vereinsrekord' ? collect([null]) : $ageGroups;
+                foreach ($groupsToCheck as $ag) {
                     $rKey     = $type . '|' . $swim->discipline . '|' . $swim->distance . '|' . $gender . '|' . ($ag ?? '') . '|' . $course;
                     $recordMs = $allRecords->get($rKey);
                     if ($recordMs !== null && $swim->time_ms <= $recordMs) {

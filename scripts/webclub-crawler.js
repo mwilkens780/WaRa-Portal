@@ -644,6 +644,15 @@ async function scrapeCompetitions(page) {
         const d  = detailMap.get(id);
         const ev = eventsMap.get(id)
             || { sessions: [], events: [], results: [], entries: [], relayResults: [], relayEntries: [] };
+
+        // Bahnlaenge: WebClub liefert verBAHN; bekannt sind '1' und '2'. Alles
+        // andere protokollieren, damit fehlende oder unerwartete Werte im Log
+        // der Action auffallen, statt spaeter als falsche Rekorde.
+        const course = d?.verBAHN === '1' ? 'Kurzbahn' : d?.verBAHN === '2' ? 'Langbahn' : null;
+        if (!course) {
+            log(`Bahnlaenge unbekannt: "${d?.verNAME || link.name}" (id=${id}) verBAHN=${JSON.stringify(d?.verBAHN ?? null)}${d ? '' : ' – Detaildaten fehlen'}`);
+        }
+
         competitions.push({
             webclub_id:        id,
             webclub_url:       link.url,
@@ -656,7 +665,7 @@ async function scrapeCompetitions(page) {
             meldeschluss:      isoDate(d?.verMELDESCHLUSS) || link.meldeschluss || null,
             meldeschluss_time: d?.verMELDESCHLUSSZEIT   || null,
             description:       d?.verAUSSCHREIBUNG       || d?.verBESONDERES  || null,
-            course:            d?.verBAHN === '1' ? 'Kurzbahn' : d?.verBAHN === '2' ? 'Langbahn' : null,
+            course,
             venue_name:        d?.verBADNAME             || null,
             venue_street:      d?.verBADSTRASSE          || null,
             venue_postal:      d?.verBADPLZ              || null,

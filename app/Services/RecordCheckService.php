@@ -16,7 +16,12 @@ class RecordCheckService
         if ($result->time_ms <= 0) return;
         if (!$result->gender || $result->gender === 'X') return;
 
-        $course   = $result->competition->course ?? 'Langbahn';
+        // Ohne bekannte Bahnlaenge keine Rekord- oder Bestenlistenwertung.
+        // Bisher wurde stillschweigend Langbahn angenommen - so landeten
+        // Kurzbahnergebnisse in Langbahnrekorden, wenn die Bahn fehlte.
+        $course = $result->competition?->course;
+        if (!$course) return;
+
         $ageGroup = $result->age_group ?: null;
 
         $this->checkVr($result, $course);
@@ -164,20 +169,22 @@ class RecordCheckService
 
             Record::where('type', 'vereinsrekord')->update(['competition_result_id' => null]);
 
+            // Nur Ergebnisse aus Wettkaempfen mit bekannter Bahnlaenge
             $results = CompetitionResult::with(['user', 'competition'])
                 ->where('time_ms', '>', 0)
                 ->whereNotNull('gender')
                 ->whereIn('gender', ['M', 'F'])
+                ->whereHas('competition', fn($q) => $q->whereIn('course', ['Kurzbahn', 'Langbahn']))
                 ->get();
 
             // ── Vereinsrekorde: offene Wertung, eine Bestzeit je Strecke ──────
             $vrGroups = $results
-                ->filter(fn($r) => Record::isVrEvent($r->discipline, $r->distance, $r->competition?->course ?? 'Langbahn'))
+                ->filter(fn($r) => Record::isVrEvent($r->discipline, $r->distance, $r->competition->course))
                 ->groupBy(fn($r) => implode('§', [
                     $r->discipline,
                     $r->distance,
                     $r->gender,
-                    $r->competition?->course ?? 'Langbahn',
+                    $r->competition->course,
                 ]));
 
             foreach ($vrGroups as $key => $group) {
@@ -244,7 +251,7 @@ class RecordCheckService
                 $r->distance,
                 $r->gender,
                 $r->age_group ?? '',
-                $r->competition?->course ?? 'Langbahn',
+                $r->competition->course,
             ]));
 
             foreach ($lrGroups as $key => $group) {
@@ -288,7 +295,8 @@ class RecordCheckService
             $setYear   = $compDate?->year;
             if (!$setYear) continue;
 
-            $course = $result->competition?->course ?? 'Langbahn';
+            $course = $result->competition?->course;
+            if (!$course) continue;   // Bahnlaenge unbekannt - nicht werten
 
             $baseKey = [
                 'discipline' => $result->discipline,
