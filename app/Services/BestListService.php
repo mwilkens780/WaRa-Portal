@@ -110,9 +110,9 @@ class BestListService
             ->join('competitions', 'competitions.id', '=', 'competition_results.competition_id')
             ->leftJoin('users', 'users.id', '=', 'competition_results.user_id')
             ->where('competitions.course', $course)
+            // Nicht angetreten (DNS) hat keine eigene Spalte, sondern time_ms = 0
             ->where('competition_results.time_ms', '>', 0)
             ->whereIn('competition_results.gender', ['M', 'F'])
-            ->where('competition_results.is_dns', false)
             ->selectRaw('competition_results.id, competition_results.user_id, competition_results.discipline,
                          competition_results.distance, competition_results.gender, competition_results.time_ms,
                          competitions.date as comp_date, competitions.name as comp_name,
