@@ -15,17 +15,9 @@ class MottoController extends Controller
         $user   = auth()->user();
         $monday = now()->startOfWeek(Carbon::MONDAY)->startOfDay();
 
-        // Groups where motto_week is enabled and user is a swimmer member
-        $swimmerGroupIds = $user->trainingGroups()
-            ->where('motto_week_enabled', true)
-            ->pluck('training_groups.id');
-
-        // Also check if user is a trainer in any motto-enabled group
-        $trainerGroupIds = $user->trainerGroups()
-            ->where('motto_week_enabled', true)
-            ->pluck('training_groups.id');
-
-        $groupIds = $swimmerGroupIds->merge($trainerGroupIds)->unique()->values();
+        // Zyklen, die diesen Benutzer betreffen: die seiner Gruppen und die,
+        // in denen eine seiner Gruppen als Partnergruppe mitlaeuft.
+        $groupIds = app(\App\Services\MottoWeekService::class)->cycleGroupIdsFor($user);
 
         // All motto weeks for user's groups (full schedule)
         $weeks = GroupMottoWeek::whereIn('training_group_id', $groupIds)

@@ -211,6 +211,9 @@ Route::middleware(['auth', 'role:trainer,admin', 'menu:training_groups'])->prefi
     Route::post('/trainingsgruppen/{trainingGroup}/motto/umschalten', [TrainingGroupController::class, 'mottoToggle'])->name('training-groups.motto-toggle');
     Route::post('/trainingsgruppen/{trainingGroup}/motto/generieren', [TrainingGroupController::class, 'mottoGenerate'])->name('training-groups.motto-generate');
     Route::put('/trainingsgruppen/{trainingGroup}/motto-wochen/{week}', [TrainingGroupController::class, 'mottoUpdateWeek'])->name('training-groups.motto-week-update');
+    Route::put('/trainingsgruppen/{trainingGroup}/motto/definition', [TrainingGroupController::class, 'mottoSettings'])->name('training-groups.motto-settings');
+    Route::put('/trainingsgruppen/{trainingGroup}/motto/reihenfolge', [TrainingGroupController::class, 'mottoOrder'])->name('training-groups.motto-order');
+    Route::put('/trainingsgruppen/{trainingGroup}/motto-wochen', [TrainingGroupController::class, 'mottoWeeksBulk'])->name('training-groups.motto-weeks-bulk');
     Route::post('/trainingsgruppen/{trainingGroup}/motto/zuruecksetzen', [TrainingGroupController::class, 'mottoReset'])->name('training-groups.motto-reset');
 });
 

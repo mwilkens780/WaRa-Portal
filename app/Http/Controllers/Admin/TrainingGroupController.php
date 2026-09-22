@@ -14,6 +14,7 @@ use App\Services\GroupImportService;
 use App\Services\GroupRoster;
 use App\Services\MottoWeekService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TrainingGroupController extends Controller
 {
@@ -387,20 +388,134 @@ class TrainingGroupController extends Controller
             ->orderBy('week_start')
             ->get();
 
-        $allMembers = $trainingGroup->swimmers()
+        // Beteiligte in der eingestellten Reihenfolge - inklusive Partnergruppe
+        $allMembers = $trainingGroup->mottoParticipants();
+
+        // Welche Gruppen kommen als Partner in Frage? Nicht diese selbst, und
+        // keine, die bereits in einem anderen Zyklus haengt.
+        $partnerOptions = TrainingGroup::where('id', '!=', $trainingGroup->id)
             ->where('active', true)
-            ->orderBy('lastname')->orderBy('firstname')
-            ->get(['users.id', 'users.firstname', 'users.lastname'])
-            ->merge(
-                $trainingGroup->trainers()
-                    ->where('active', true)
-                    ->orderBy('lastname')->orderBy('firstname')
-                    ->get(['users.id', 'users.firstname', 'users.lastname'])
-            );
+            ->where(function ($q) use ($trainingGroup) {
+                $q->whereNull('motto_partner_group_id')
+                  ->orWhere('id', $trainingGroup->motto_partner_group_id);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'color', 'motto_week_enabled']);
+
+        // Laeuft diese Gruppe selbst im Zyklus einer anderen?
+        $ledBy = TrainingGroup::where('motto_partner_group_id', $trainingGroup->id)
+            ->where('motto_week_enabled', true)
+            ->first(['id', 'name']);
 
         return view('admin.training-groups.motto-weeks', compact(
-            'trainingGroup', 'weeks', 'season', 'allMembers'
+            'trainingGroup', 'weeks', 'season', 'allMembers', 'partnerOptions', 'ledBy'
         ));
+    }
+
+    /**
+     * Definition des Zyklus: Partnergruppe und Trainerbeteiligung.
+     *
+     * Die Partnergruppe fuehrt danach keinen eigenen Zyklus mehr - sonst
+     * stuende dieselbe Person in zwei Wochenplaenen.
+     */
+    public function mottoSettings(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'motto_partner_group_id' => ['nullable', 'integer', 'exists:training_groups,id',
+                                         Rule::notIn([$trainingGroup->id])],
+            'motto_include_trainers' => ['nullable', 'boolean'],
+        ]);
+
+        $partnerId = $data['motto_partner_group_id'] ?? null;
+        $partner   = $partnerId ? TrainingGroup::find($partnerId) : null;
+
+        // Eine Gruppe, die selbst schon einen Partner fuehrt, kann nicht
+        // zusaetzlich Partner sein - das waere eine Kette ohne klaren Zyklus.
+        if ($partner && $partner->motto_partner_group_id) {
+            return back()->with('error',
+                "{$partner->name} führt bereits einen eigenen Zyklus mit einer Partnergruppe.");
+        }
+
+        $trainingGroup->update([
+            'motto_partner_group_id' => $partnerId,
+            'motto_include_trainers' => $request->boolean('motto_include_trainers'),
+        ]);
+
+        $msg = 'Definition gespeichert.';
+        if ($partner && $partner->motto_week_enabled) {
+            $partner->update(['motto_week_enabled' => false]);
+            $msg .= " {$partner->name} führt keinen eigenen Zyklus mehr, die Mitglieder laufen jetzt hier mit.";
+        }
+        $msg .= ' Mit „Neu verteilen" wirkt die Änderung auf die kommenden Wochen.';
+
+        return back()->with('success', $msg);
+    }
+
+    /** Reihenfolge der Beteiligten festlegen, auf Wunsch gleich anwenden. */
+    public function mottoOrder(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'order'   => ['required', 'array'],
+            'order.*' => ['integer', 'exists:users,id'],
+            'apply'   => ['nullable', 'boolean'],
+        ]);
+
+        $trainingGroup->update(['motto_order' => array_values(array_map('intval', $data['order']))]);
+
+        $msg = 'Reihenfolge gespeichert.';
+        if ($request->boolean('apply')) {
+            $changed = app(MottoWeekService::class)->redistributeMembers($trainingGroup);
+            $msg .= " {$changed} kommende Wochen neu zugeordnet"
+                  . ' (Wochen mit eingetragenem Motto blieben unverändert).';
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Wochenplan in einem Rutsch: wer ist wann dran, und der Motto-Text dazu.
+     * So lassen sich Personen gezielt in die passende Woche schieben.
+     */
+    public function mottoWeeksBulk(Request $request, TrainingGroup $trainingGroup)
+    {
+        $this->authorizeGroup($trainingGroup);
+
+        $data = $request->validate([
+            'assign'   => ['array'],
+            'assign.*' => ['nullable', 'integer', 'exists:users,id'],
+            'motto'    => ['array'],
+            'motto.*'  => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $touched = array_unique(array_merge(
+            array_keys($data['assign'] ?? []),
+            array_keys($data['motto'] ?? [])
+        ));
+
+        $weeks = GroupMottoWeek::where('training_group_id', $trainingGroup->id)
+            ->whereIn('id', $touched)
+            ->get();
+
+        $changed = 0;
+        foreach ($weeks as $week) {
+            $newUser  = array_key_exists($week->id, $data['assign'] ?? []) ? ($data['assign'][$week->id] ?: null) : $week->user_id;
+            $newMotto = array_key_exists($week->id, $data['motto'] ?? [])  ? (trim((string) $data['motto'][$week->id]) ?: null) : $week->motto;
+
+            if ((int) $newUser !== (int) $week->user_id || $newMotto !== $week->motto) {
+                $week->update(['user_id' => $newUser, 'motto' => $newMotto]);
+                $changed++;
+            }
+        }
+
+        return back()->with('success', $changed === 1
+            ? '1 Woche aktualisiert.'
+            : "{$changed} Wochen aktualisiert.");
     }
 
     public function mottoToggle(Request $request, TrainingGroup $trainingGroup)

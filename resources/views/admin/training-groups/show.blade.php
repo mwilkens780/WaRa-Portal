@@ -447,7 +447,19 @@
                 <h2 class="font-semibold text-gray-800 text-sm">Motto der Woche</h2>
                 <p class="text-xs text-gray-500 mt-0.5">
                     {{ $trainingGroup->motto_week_enabled ? 'Aktiviert – Schwimmer und Trainer können Mottos verfassen.' : 'Deaktiviert.' }}
+                    @if($trainingGroup->motto_week_enabled && $trainingGroup->mottoPartnerGroup)
+                        Gemeinsamer Zyklus mit <strong>{{ $trainingGroup->mottoPartnerGroup->name }}</strong>,
+                        {{ $trainingGroup->motto_include_trainers ? 'Trainer machen mit' : 'nur Sportler' }}.
+                    @elseif($trainingGroup->motto_week_enabled)
+                        {{ $trainingGroup->motto_include_trainers ? 'Trainer machen mit.' : 'Nur Sportler.' }}
+                    @endif
                 </p>
+                @php $mottoLedBy = $trainingGroup->mottoLedBy; @endphp
+                @if($mottoLedBy)
+                    <p class="text-xs text-blue-700 mt-1">
+                        Diese Gruppe läuft im Zyklus von <strong>{{ $mottoLedBy->name }}</strong> mit.
+                    </p>
+                @endif
             </div>
             <form method="POST" action="{{ route('admin.training-groups.motto-toggle', $trainingGroup) }}">
                 @csrf

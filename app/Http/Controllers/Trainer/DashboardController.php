@@ -108,7 +108,7 @@ class DashboardController extends Controller
         $nextMonday    = now()->startOfWeek(Carbon::MONDAY)->addWeek()->startOfDay();
         $mottoGroupIds = $trainer->isAdmin()
             ? TrainingGroup::where('motto_week_enabled', true)->pluck('id')
-            : $trainer->trainerGroups()->where('motto_week_enabled', true)->pluck('training_groups.id');
+            : app(\App\Services\MottoWeekService::class)->cycleGroupIdsFor($trainer);
 
         $upcomingMottoWarnings = GroupMottoWeek::whereIn('training_group_id', $mottoGroupIds)
             ->where('week_start', '>=', now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'))

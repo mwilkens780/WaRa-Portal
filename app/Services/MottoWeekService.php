@@ -6,74 +6,49 @@ use App\Models\GroupMottoWeek;
 use App\Models\Holiday;
 use App\Models\Season;
 use App\Models\TrainingGroup;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
+/**
+ * Motto der Woche: je Woche ist eine Person an der Reihe.
+ *
+ * Wer mitmacht, entscheidet die Gruppe: ihre Schwimmer, auf Wunsch die
+ * Trainer, und - wenn zwei Gruppen zusammen trainieren - zusaetzlich die
+ * Mitglieder der Partnergruppe. Die Reihenfolge ist einstellbar
+ * (TrainingGroup::mottoParticipants).
+ */
 class MottoWeekService
 {
+    /**
+     * Legt fuer jede Trainingswoche der Saison eine Zeile an.
+     * Bestehende Wochen bleiben unangetastet - auch ihre Zuweisung.
+     */
     public function generateWeeks(TrainingGroup $group, Season $season): int
     {
-        // All members = swimmers + trainers (active only)
-        $members = $group->swimmers()
-            ->where('active', true)
-            ->orderBy('lastname')->orderBy('firstname')
-            ->get(['users.id']);
-
-        $trainers = $group->trainers()
-            ->where('active', true)
-            ->orderBy('lastname')->orderBy('firstname')
-            ->get(['users.id']);
-
-        $allMembers = $members->merge($trainers)->pluck('id')->toArray();
-
-        if (empty($allMembers)) {
+        $participants = $group->mottoParticipants()->pluck('id')->all();
+        if (empty($participants)) {
             return 0;
         }
 
-        // Get existing weeks to preserve mottos/assignments
         $existing = GroupMottoWeek::where('training_group_id', $group->id)
             ->whereDate('week_start', '>=', $season->start_date)
             ->whereDate('week_start', '<=', $season->end_date)
             ->get()
             ->keyBy(fn($w) => $w->week_start->format('Y-m-d'));
 
-        // Fetch holidays for the season
-        $holidays  = Holiday::intersecting($season->start_date, $season->end_date);
-        $inHoliday = fn(Carbon $d) => $holidays->first(fn($h) => $h->containsDate($d));
-
-        // Walk all Mondays in the season
-        $monday = $season->start_date->copy()->startOfWeek(Carbon::MONDAY);
-        if ($monday->lt($season->start_date)) {
-            $monday->addWeek();
-        }
-
-        $weeks = [];
-        while ($monday->lte($season->end_date)) {
-            // Skip weeks where all Mon–Fri fall in holiday
-            $weekInHoliday = true;
-            for ($d = 0; $d < 5; $d++) {
-                if (!$inHoliday($monday->copy()->addDays($d))) {
-                    $weekInHoliday = false;
-                    break;
-                }
-            }
-            if (!$weekInHoliday) {
-                $weeks[] = $monday->format('Y-m-d');
-            }
-            $monday->addWeek();
-        }
-
-        // Assign members round-robin, preserving existing assignments
         $idx     = 0;
         $created = 0;
 
-        foreach ($weeks as $weekStart) {
+        foreach ($this->trainingWeeks($season) as $weekStart) {
             if (isset($existing[$weekStart])) {
-                $idx++;  // advance index but don't override existing record
+                $idx++;   // Platz in der Reihenfolge verbrauchen, Zeile behalten
                 continue;
             }
+
             GroupMottoWeek::create([
                 'training_group_id' => $group->id,
-                'user_id'           => $allMembers[$idx % count($allMembers)],
+                'user_id'           => $participants[$idx % count($participants)],
                 'week_start'        => $weekStart,
             ]);
             $idx++;
@@ -83,27 +58,90 @@ class MottoWeekService
         return $created;
     }
 
-    public function redistributeMembers(TrainingGroup $group): void
+    /**
+     * Verteilt die kommenden Wochen neu - in der eingestellten Reihenfolge.
+     *
+     * Wochen mit bereits eingetragenem Motto bleiben, wie sie sind: dort hat
+     * jemand schon Arbeit hineingesteckt.
+     */
+    public function redistributeMembers(TrainingGroup $group): int
     {
+        $participants = $group->mottoParticipants()->pluck('id')->all();
+        if (empty($participants)) {
+            return 0;
+        }
+
         $weeks = GroupMottoWeek::where('training_group_id', $group->id)
-            ->where('week_start', '>=', now()->startOfWeek(Carbon::MONDAY))
+            ->where('week_start', '>=', now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'))
+            ->whereNull('motto')
             ->orderBy('week_start')
             ->get();
 
-        if ($weeks->isEmpty()) {
-            return;
-        }
-
-        $members = $group->swimmers()->where('active', true)->get(['users.id']);
-        $trainers = $group->trainers()->where('active', true)->get(['users.id']);
-        $allIds   = $members->merge($trainers)->pluck('id')->toArray();
-
-        if (empty($allIds)) {
-            return;
-        }
-
+        $changed = 0;
         foreach ($weeks as $i => $week) {
-            $week->update(['user_id' => $allIds[$i % count($allIds)]]);
+            $next = $participants[$i % count($participants)];
+            if ((int) $week->user_id !== (int) $next) {
+                $week->update(['user_id' => $next]);
+                $changed++;
+            }
         }
+
+        return $changed;
+    }
+
+    /**
+     * Die Gruppen, deren Motto-Zyklus diesen Benutzer betreffen: seine eigenen
+     * und die, die seine Gruppe als Partnergruppe fuehren.
+     */
+    public function cycleGroupIdsFor(User $user): Collection
+    {
+        $own = $user->trainingGroups()->pluck('training_groups.id')
+            ->merge($user->trainerGroups()->pluck('training_groups.id'))
+            ->unique();
+
+        if ($own->isEmpty()) {
+            return collect();
+        }
+
+        return TrainingGroup::where('motto_week_enabled', true)
+            ->where(function ($q) use ($own) {
+                $q->whereIn('id', $own)
+                  ->orWhereIn('motto_partner_group_id', $own);
+            })
+            ->pluck('id');
+    }
+
+    /**
+     * Alle Montage der Saison, an denen trainiert wird.
+     * Wochen, die komplett in den Ferien liegen, faellt kein Motto zu.
+     *
+     * @return array<int, string>  Montage als Y-m-d
+     */
+    private function trainingWeeks(Season $season): array
+    {
+        $holidays  = Holiday::intersecting($season->start_date, $season->end_date);
+        $inHoliday = fn(Carbon $d) => $holidays->first(fn($h) => $h->containsDate($d));
+
+        $monday = $season->start_date->copy()->startOfWeek(Carbon::MONDAY);
+        if ($monday->lt($season->start_date)) {
+            $monday->addWeek();
+        }
+
+        $weeks = [];
+        while ($monday->lte($season->end_date)) {
+            $allHoliday = true;
+            for ($d = 0; $d < 5; $d++) {
+                if (!$inHoliday($monday->copy()->addDays($d))) {
+                    $allHoliday = false;
+                    break;
+                }
+            }
+            if (!$allHoliday) {
+                $weeks[] = $monday->format('Y-m-d');
+            }
+            $monday->addWeek();
+        }
+
+        return $weeks;
     }
 }

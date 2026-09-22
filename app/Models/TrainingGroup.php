@@ -56,13 +56,18 @@ class TrainingGroup extends Model
         'green'     => ['label' => 'Grün',        'dot' => 'bg-green-500',  'badge' => 'bg-green-100 text-green-700',  'border' => 'border-green-400'],
     ];
 
-    protected $fillable = ['name', 'description', 'color', 'group_type', 'active', 'webclub_id', 'motto_week_enabled'];
+    protected $fillable = [
+        'name', 'description', 'color', 'group_type', 'active', 'webclub_id',
+        'motto_week_enabled', 'motto_partner_group_id', 'motto_include_trainers', 'motto_order',
+    ];
 
     protected function casts(): array
     {
         return [
-            'active'              => 'boolean',
-            'motto_week_enabled'  => 'boolean',
+            'active'                 => 'boolean',
+            'motto_week_enabled'     => 'boolean',
+            'motto_include_trainers' => 'boolean',
+            'motto_order'            => 'array',
         ];
     }
 
@@ -89,6 +94,54 @@ class TrainingGroup extends Model
     public function mottoWeeks()
     {
         return $this->hasMany(GroupMottoWeek::class, 'training_group_id');
+    }
+
+    // ── Motto der Woche ──────────────────────────────────────────────────
+    //
+    // Gruppen, die zusammen trainieren, teilen sich einen Zyklus. Die Gruppe,
+    // bei der die Partnergruppe eingetragen ist, fuehrt ihn; die Mitglieder
+    // beider Gruppen kommen darin vor. Die Partnergruppe fuehrt keinen
+    // eigenen Zyklus - sonst haette dieselbe Person zwei Motto-Wochen.
+
+    public function mottoPartnerGroup()
+    {
+        return $this->belongsTo(TrainingGroup::class, 'motto_partner_group_id');
+    }
+
+    /** Die Gruppe, die diese hier in ihren Zyklus aufgenommen hat (falls vorhanden). */
+    public function mottoLedBy()
+    {
+        return $this->hasOne(TrainingGroup::class, 'motto_partner_group_id')
+            ->where('motto_week_enabled', true);
+    }
+
+    /**
+     * Alle, die im Zyklus dieser Gruppe an der Reihe sind - aus dieser Gruppe
+     * und der Partnergruppe, Trainer nur wenn gewuenscht.
+     *
+     * Sortiert nach der gespeicherten Reihenfolge; wer dort fehlt (neu in der
+     * Gruppe), haengt alphabetisch hinten an.
+     */
+    public function mottoParticipants(): \Illuminate\Support\Collection
+    {
+        $groupIds = array_values(array_filter([$this->id, $this->motto_partner_group_id]));
+
+        $users = User::query()
+            ->where('active', true)
+            ->where(function ($q) use ($groupIds) {
+                $q->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
+                if ($this->motto_include_trainers) {
+                    $q->orWhereHas('trainerGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
+                }
+            })
+            ->orderBy('lastname')->orderBy('firstname')
+            ->get(['id', 'firstname', 'lastname', 'role']);
+
+        $position = array_flip(array_map('intval', $this->motto_order ?? []));
+
+        return $users
+            ->sortBy(fn($u) => sprintf('%06d', $position[$u->id] ?? 999999) . ' ' . $u->lastname . ' ' . $u->firstname)
+            ->values();
     }
 
     /**

@@ -14,10 +14,11 @@ class MottoController extends Controller
         $trainer  = auth()->user();
         $monday   = now()->startOfWeek(Carbon::MONDAY)->startOfDay();
 
-        // Groups this trainer manages that have motto feature enabled
+        // Gruppen mit Motto-Zyklus: eigene und solche, die die eigene Gruppe
+        // als Partnergruppe fuehren (gemeinsames Training)
         $groupIds = $trainer->isAdmin()
             ? \App\Models\TrainingGroup::where('motto_week_enabled', true)->pluck('id')
-            : $trainer->trainerGroups()->where('motto_week_enabled', true)->pluck('training_groups.id');
+            : app(\App\Services\MottoWeekService::class)->cycleGroupIdsFor($trainer);
 
         $currentWeeks = GroupMottoWeek::whereIn('training_group_id', $groupIds)
             ->where('week_start', $monday->format('Y-m-d'))
@@ -36,12 +37,7 @@ class MottoController extends Controller
 
     public function saveMotto(\Illuminate\Http\Request $request, GroupMottoWeek $week)
     {
-        $trainer  = auth()->user();
-        $groupIds = $trainer->isAdmin()
-            ? \App\Models\TrainingGroup::pluck('id')
-            : $trainer->trainerGroups()->pluck('training_groups.id');
-
-        abort_unless($groupIds->contains($week->training_group_id), 403);
+        abort_unless($this->editableGroupIds()->contains($week->training_group_id), 403);
 
         $data = $request->validate(['motto' => ['required', 'string', 'max:500']]);
         $week->update(['motto' => $data['motto']]);
@@ -51,12 +47,7 @@ class MottoController extends Controller
 
     public function activateGenerated(GroupMottoWeek $week)
     {
-        $trainer  = auth()->user();
-        $groupIds = $trainer->isAdmin()
-            ? \App\Models\TrainingGroup::pluck('id')
-            : $trainer->trainerGroups()->pluck('training_groups.id');
-
-        abort_unless($groupIds->contains($week->training_group_id), 403);
+        abort_unless($this->editableGroupIds()->contains($week->training_group_id), 403);
 
         if (!$week->generated_motto) {
             // Generate one on the spot
@@ -101,5 +92,25 @@ class MottoController extends Controller
         }
 
         return back()->with('error', 'Generierung fehlgeschlagen. Bitte erneut versuchen.');
+    }
+
+    /**
+     * Zyklen, in die dieser Trainer eingreifen darf: seine eigenen Gruppen und
+     * die, die eine seiner Gruppen als Partnergruppe fuehren. Trainiert man
+     * gemeinsam, gehoert der gemeinsame Zyklus beiden Trainerteams.
+     */
+    private function editableGroupIds(): \Illuminate\Support\Collection
+    {
+        $trainer = auth()->user();
+
+        if ($trainer->isAdmin()) {
+            return \App\Models\TrainingGroup::pluck('id');
+        }
+
+        $own = $trainer->trainerGroups()->pluck('training_groups.id');
+
+        return \App\Models\TrainingGroup::where(function ($q) use ($own) {
+            $q->whereIn('id', $own)->orWhereIn('motto_partner_group_id', $own);
+        })->pluck('id');
     }
 }

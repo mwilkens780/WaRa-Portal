@@ -210,9 +210,8 @@ class DashboardController extends Controller
 
         // ── Motto der Woche ─────────────────────────────────────────────────────
         $mottoMonday    = now()->startOfWeek(Carbon::MONDAY)->startOfDay();
-        $mottoGroupIds  = $swimmer->trainingGroups()->where('motto_week_enabled', true)->pluck('training_groups.id')
-            ->merge($swimmer->trainerGroups()->where('motto_week_enabled', true)->pluck('training_groups.id'))
-            ->unique()->values();
+        // Auch Zyklen, in denen die eigene Gruppe als Partnergruppe mitlaeuft
+        $mottoGroupIds  = app(\App\Services\MottoWeekService::class)->cycleGroupIdsFor($swimmer);
 
         // Current week's motto for the dashboard widget
         $dashboardMotto = GroupMottoWeek::whereIn('training_group_id', $mottoGroupIds)
