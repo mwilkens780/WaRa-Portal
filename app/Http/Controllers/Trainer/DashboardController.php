@@ -32,7 +32,7 @@ class DashboardController extends Controller
             ->with('trainingGroups:id,name,color')
             ->withCount([
                 'attendances as present_count' => fn($q) => $q->where('attended', true),
-                'diaries    as diary_count',
+                'diaries as diary_count',
                 'swimmingTimes as times_count',
             ])
             ->orderByDesc('date')->limit(5)->get();
