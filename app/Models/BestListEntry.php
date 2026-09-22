@@ -10,6 +10,7 @@ class BestListEntry extends Model
         'list_type', 'discipline', 'distance', 'gender', 'birth_year',
         'course', 'set_year', 'swimmer_name', 'user_id', 'time_ms',
         'set_date', 'location', 'competition_result_id', 'notes',
+        'source',   // 'import' (aus Datei) oder 'manual' (von Hand)
     ];
 
     protected function casts(): array

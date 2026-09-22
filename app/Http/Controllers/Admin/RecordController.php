@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BestListEntry;
 use App\Models\Record;
+use App\Services\BestListService;
+use App\Services\Import\BestListWorkbookParser;
 use App\Services\RecordCheckService;
 use App\Services\RecordImportService;
 use Illuminate\Http\Request;
@@ -15,6 +17,7 @@ class RecordController extends Controller
     public function __construct(
         private RecordCheckService $checkService,
         private RecordImportService $importService,
+        private BestListService $bestLists,
     ) {}
 
     // ── Index (tabbed VR / Ewige BL / Jahres BL / LR) ──────────────────────
@@ -31,24 +34,23 @@ class RecordController extends Controller
             ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
             ->get();
 
-        // Ewige Bestenlisten: grouped by discipline+distance+gender+course → sorted by birth_year → top 10 per group
-        $eternalEntries = BestListEntry::where('list_type', 'eternal')
-            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
-            ->orderBy('birth_year')->orderBy('time_ms')
-            ->get();
+        // Bestenlisten werden berechnet: Portal-Ergebnisse + historische Eintraege,
+        // je Strecke die 10 schnellsten Schwimmer, jahrgangsuebergreifend.
+        $availableYears = $this->bestLists->availableYears();
+        $annualYear     = (int) request('year', $availableYears->first() ?? now()->year);
 
-        // Jahresbestenlisten: grouped by set_year → discipline+distance+gender+course → sorted by birth_year
-        $annualEntries = BestListEntry::where('list_type', 'annual')
-            ->orderBy('set_year', 'desc')
-            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
-            ->orderBy('birth_year')->orderBy('time_ms')
-            ->get();
-
-        $availableYears = $annualEntries->pluck('set_year')->filter()->unique()->sortDesc()->values();
+        $eternal = [
+            'Langbahn' => $this->bestLists->lists('Langbahn'),
+            'Kurzbahn' => $this->bestLists->lists('Kurzbahn'),
+        ];
+        $annual = [
+            'Langbahn' => $this->bestLists->lists('Langbahn', $annualYear),
+            'Kurzbahn' => $this->bestLists->lists('Kurzbahn', $annualYear),
+        ];
 
         return view('admin.records.index', compact(
             'vereinsrekorde', 'landesrekorde',
-            'eternalEntries', 'annualEntries', 'availableYears'
+            'eternal', 'annual', 'availableYears', 'annualYear'
         ));
     }
 
@@ -126,6 +128,39 @@ class RecordController extends Controller
 
         return redirect()->route('admin.records.index')
             ->with('success', 'Rekord gespeichert und Ergebnisse geprüft.');
+    }
+
+    // ── Rekord bearbeiten ────────────────────────────────────────────────────
+    //
+    // Fuer Korrekturen an historischen Rekorden: Name, Zeit, Datum, Ort.
+    // Strecke, Bahn und Geschlecht bleiben fest - sonst waere es ein anderer
+    // Rekord. Danach werden die Ergebnisse neu geprueft, damit Markierungen
+    // an den Wettkampfergebnissen zur geaenderten Zeit passen.
+
+    public function update(Request $request, Record $record)
+    {
+        $data = $request->validate([
+            'swimmer_name' => ['required', 'string', 'max:255'],
+            'time_minutes' => ['nullable', 'integer', 'min:0'],
+            'time_seconds' => ['required', 'integer', 'min:0', 'max:59'],
+            'time_cs'      => ['required', 'integer', 'min:0', 'max:99'],
+            'set_date'     => ['nullable', 'date'],
+            'location'     => ['nullable', 'string', 'max:255'],
+            'notes'        => ['nullable', 'string'],
+        ]);
+
+        $record->update([
+            'swimmer_name' => $data['swimmer_name'],
+            'time_ms'      => (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10,
+            'set_date'     => $data['set_date'] ?: null,
+            'location'     => $data['location'] ?: null,
+            'notes'        => $data['notes'] ?: null,
+        ]);
+
+        $this->checkService->recheckAll();
+
+        return redirect()->route('admin.records.index', ['tab' => $record->type === 'landesrekord' ? 'lr' : 'vr'])
+            ->with('success', 'Rekord aktualisiert und Ergebnisse geprüft.');
     }
 
     // ── Destroy ──────────────────────────────────────────────────────────────
@@ -281,183 +316,182 @@ class RecordController extends Controller
         return back()->with('success', 'Alle Wettkampfergebnisse wurden gegen die Rekordlisten geprüft.');
     }
 
-    // ── BestListEntry: manual store ───────────────────────────────────────────
+    // ── Bestenlisten: Eintraege von Hand pflegen ─────────────────────────────
+    //
+    // Gepflegt werden nur historische bzw. manuelle Eintraege. Zeilen, die aus
+    // einem Wettkampfergebnis stammen, werden berechnet und sind hier nicht
+    // editierbar - dort ist das Ergebnis selbst zu korrigieren.
 
     public function storeBestListEntry(Request $request)
     {
+        $data = $this->validateBestListEntry($request);
+
+        BestListEntry::create($data + [
+            'list_type' => 'eternal',   // Listen werden berechnet; Feld bleibt aus Altbestand
+            'user_id'   => null,
+            'source'    => 'manual',
+        ]);
+
+        return redirect()->route('admin.records.index', ['tab' => 'eternal'])
+            ->with('success', 'Eintrag gespeichert.');
+    }
+
+    public function updateBestListEntry(Request $request, BestListEntry $bestListEntry)
+    {
+        abort_if($bestListEntry->competition_result_id !== null, 403,
+            'Dieser Eintrag stammt aus einem Wettkampfergebnis und wird dort gepflegt.');
+
+        $bestListEntry->update($this->validateBestListEntry($request));
+
+        return redirect()->route('admin.records.index', ['tab' => request('tab', 'eternal')])
+            ->with('success', 'Eintrag aktualisiert.');
+    }
+
+    public function destroyBestListEntry(BestListEntry $bestListEntry)
+    {
+        abort_if($bestListEntry->competition_result_id !== null, 403,
+            'Dieser Eintrag stammt aus einem Wettkampfergebnis und wird dort gepflegt.');
+
+        $bestListEntry->delete();
+
+        return redirect()->route('admin.records.index', ['tab' => request('tab', 'eternal')])
+            ->with('success', 'Eintrag gelöscht.');
+    }
+
+    /** @return array<string, mixed> */
+    private function validateBestListEntry(Request $request): array
+    {
         $data = $request->validate([
-            'list_type'    => ['required', 'in:eternal,annual'],
             'discipline'   => ['required', 'in:F,B,R,S,L'],
             'distance'     => ['required', 'integer', 'min:25'],
             'gender'       => ['required', 'in:M,F'],
-            'birth_year'   => ['required', 'integer', 'min:1900', 'max:2030'],
             'course'       => ['required', 'in:Kurzbahn,Langbahn'],
-            'set_year'     => ['nullable', 'integer', 'min:1900', 'max:2030'],
+            'birth_year'   => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'set_year'     => ['required', 'integer', 'min:1900', 'max:2100'],
             'swimmer_name' => ['required', 'string', 'max:255'],
             'time_minutes' => ['nullable', 'integer', 'min:0'],
             'time_seconds' => ['required', 'integer', 'min:0', 'max:59'],
             'time_cs'      => ['required', 'integer', 'min:0', 'max:99'],
-            'set_date'     => ['nullable', 'date'],
             'location'     => ['nullable', 'string', 'max:255'],
             'notes'        => ['nullable', 'string'],
         ]);
 
-        $timeMs  = (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10;
-        $setYear = $data['list_type'] === 'annual'
-            ? ($data['set_year'] ?: ($data['set_date'] ? (int) substr($data['set_date'], 0, 4) : null))
-            : null;
+        if (!Record::isVrEvent($data['discipline'], (int) $data['distance'], $data['course'])) {
+            abort(422, "{$data['distance']} m {$data['discipline']} ({$data['course']}) gehört nicht zur Streckenliste.");
+        }
 
-        BestListEntry::create([
-            'list_type'    => $data['list_type'],
+        return [
             'discipline'   => $data['discipline'],
-            'distance'     => $data['distance'],
+            'distance'     => (int) $data['distance'],
             'gender'       => $data['gender'],
-            'birth_year'   => $data['birth_year'],
             'course'       => $data['course'],
-            'set_year'     => $setYear,
+            'birth_year'   => $data['birth_year'] ?: null,
+            'set_year'     => (int) $data['set_year'],
             'swimmer_name' => $data['swimmer_name'],
-            'user_id'      => null,
-            'time_ms'      => $timeMs,
-            'set_date'     => $data['set_date'] ?: null,
+            'time_ms'      => (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000 + $data['time_cs'] * 10,
             'location'     => $data['location'] ?: null,
             'notes'        => $data['notes'] ?: null,
-        ]);
-
-        return redirect()->route('admin.records.index', ['tab' => $data['list_type'] === 'eternal' ? 'eternal' : 'annual'])
-            ->with('success', 'Eintrag gespeichert.');
+        ];
     }
 
-    // ── BestListEntry: destroy ────────────────────────────────────────────────
-
-    public function destroyBestListEntry(BestListEntry $bestListEntry)
-    {
-        $tab = $bestListEntry->list_type === 'eternal' ? 'eternal' : 'annual';
-        $bestListEntry->delete();
-        return redirect()->route('admin.records.index', ['tab' => $tab])
-            ->with('success', 'Eintrag gelöscht.');
-    }
-
-    // ── BestListEntry: import upload + preview + execute ─────────────────────
+    // ── Bestenlisten: Import aus der Vereins-Excel ───────────────────────────
 
     public function importBestListUpload(Request $request)
     {
-        $request->validate([
-            'bestlist_file'   => ['required', 'file', 'max:20480'],
-            'bestlist_type'   => ['required', 'in:eternal,annual'],
-            'bestlist_course' => ['required', 'in:Langbahn,Kurzbahn'],
-            'bestlist_year'   => ['nullable', 'integer', 'min:1900', 'max:2100'],
-        ]);
+        $request->validate(['bestlist_file' => ['required', 'file', 'mimes:xlsx', 'max:20480']]);
 
-        $file = $request->file('bestlist_file');
-        $ext  = strtolower($file->getClientOriginalExtension());
-
-        if (!in_array($ext, ['xlsx', 'xls', 'csv', 'txt'])) {
-            return back()->withErrors(['bestlist_file' => 'Nicht unterstütztes Format. Erlaubt: xlsx, xls, csv.']);
+        if (!class_exists(\ZipArchive::class)) {
+            return back()->withErrors(['bestlist_file' =>
+                'Auf dem Server fehlt die PHP-Erweiterung "zip"; ohne sie lassen sich xlsx-Dateien nicht lesen.']);
         }
 
-        $path     = $file->store('bestlist-imports', 'local');
+        $path     = $request->file('bestlist_file')->store('bestlist-imports', 'local');
         $fullPath = storage_path('app/' . $path);
 
         try {
-            $parsed = $this->importService->parseBestList(
-                $fullPath,
-                $request->input('bestlist_course', 'Langbahn')
-            );
-        } catch (\Exception $e) {
-            Storage::disk('local')->delete($path);
+            $parsed = (new BestListWorkbookParser())->parse($fullPath);
+        } catch (\Throwable $e) {
             return back()->withErrors(['bestlist_file' => 'Fehler beim Einlesen: ' . $e->getMessage()]);
         } finally {
             Storage::disk('local')->delete($path);
         }
 
-        if (empty($parsed)) {
-            return back()->withErrors(['bestlist_file' => 'Keine Einträge erkannt. Bitte Spaltenüberschriften prüfen (erwartet: Disziplin, Distanz, Geschlecht, Jahrgang, Name, Zeit).']);
+        if (empty($parsed['entries'])) {
+            return back()->withErrors(['bestlist_file' =>
+                'Keine Einträge erkannt. Erwartet wird die Vereinsvorlage: Kopfzeile mit Bahn und '
+                . 'Geschlecht, darunter Blöcke je Strecke mit Platz, Name, Jahrgang, Zeit und Jahr.']);
         }
 
-        session([
-            'bestlist_import_rows'   => $parsed,
-            'bestlist_import_type'   => $request->input('bestlist_type'),
-            'bestlist_import_course' => $request->input('bestlist_course'),
-            'bestlist_import_year'   => $request->input('bestlist_year'),
-        ]);
+        session(['bestlist_import' => $parsed]);
 
         return redirect()->route('admin.bestlist.import.preview');
     }
 
     public function importBestListPreview()
     {
-        $rows   = session('bestlist_import_rows');
-        $type   = session('bestlist_import_type');
-        $course = session('bestlist_import_course');
-        $year   = session('bestlist_import_year');
-
-        if (!$rows) {
+        $parsed = session('bestlist_import');
+        if (!$parsed) {
             return redirect()->route('admin.records.index')
                 ->with('error', 'Keine Importdaten gefunden. Bitte Datei erneut hochladen.');
         }
 
-        return view('admin.records.bestlist-import-preview', compact('rows', 'type', 'course', 'year'));
+        $entries = collect($parsed['entries']);
+
+        return view('admin.records.bestlist-import-preview', [
+            'entries'  => $entries,
+            'warnings' => $parsed['warnings'],
+            'courses'  => $entries->pluck('course')->unique()->values(),
+            'existing' => BestListEntry::whereNull('competition_result_id')
+                ->whereIn('course', $entries->pluck('course')->unique())
+                ->whereIn('source', ['import'])->count(),
+        ]);
     }
 
     public function importBestListExecute(Request $request)
     {
-        $type   = session('bestlist_import_type');
-        $course = session('bestlist_import_course');
-        $year   = session('bestlist_import_year');
-
-        if (!$type || !session()->has('bestlist_import_rows')) {
+        $parsed = session('bestlist_import');
+        if (!$parsed) {
             return redirect()->route('admin.records.index')
                 ->with('error', 'Sitzung abgelaufen. Bitte Datei erneut hochladen.');
         }
 
-        $rows  = $request->input('rows', []);
-        $saved = 0;
+        $entries = collect($parsed['entries']);
+        $courses = $entries->pluck('course')->unique();
+        $replace = $request->boolean('replace', true);
 
-        foreach ($rows as $row) {
-            if (empty($row['include'])) continue;
-
-            $discipline  = $row['discipline']   ?? null;
-            $distance    = (int)($row['distance'] ?? 0);
-            $gender      = $row['gender']        ?? null;
-            $birthYear   = (int)($row['birth_year'] ?? 0);
-            $swimmerName = trim($row['swimmer_name'] ?? '');
-            $timeMs      = (int)($row['time_ms'] ?? 0);
-            $setDate     = $row['set_date'] ?: null;
-            $location    = trim($row['location'] ?? '') ?: null;
-
-            $setYear = $type === 'annual'
-                ? ((int)($row['set_year'] ?? $year ?? ($setDate ? (int) substr($setDate, 0, 4) : 0)) ?: null)
-                : null;
-
-            if (!$discipline || !$distance || !$gender || !$birthYear || !$swimmerName || $timeMs <= 0) continue;
-            if (!in_array($discipline, ['F', 'B', 'R', 'S', 'L'])) continue;
-            if (!in_array($gender, ['M', 'F'])) continue;
-            if ($type === 'annual' && !$setYear) continue;
-
-            BestListEntry::create([
-                'list_type'    => $type,
-                'discipline'   => $discipline,
-                'distance'     => $distance,
-                'gender'       => $gender,
-                'birth_year'   => $birthYear,
-                'course'       => $course,
-                'set_year'     => $setYear,
-                'swimmer_name' => $swimmerName,
-                'user_id'      => null,
-                'time_ms'      => $timeMs,
-                'set_date'     => $setDate,
-                'location'     => $location,
-            ]);
-            $saved++;
+        $removed = 0;
+        if ($replace) {
+            // Nur fruehere Importe derselben Bahn ersetzen - von Hand angelegte
+            // Eintraege bleiben erhalten.
+            $removed = BestListEntry::whereNull('competition_result_id')
+                ->whereIn('course', $courses)
+                ->where('source', 'import')
+                ->delete();
         }
 
-        session()->forget(['bestlist_import_rows', 'bestlist_import_type', 'bestlist_import_course', 'bestlist_import_year']);
+        foreach ($entries as $e) {
+            BestListEntry::create([
+                'list_type'    => 'eternal',
+                'discipline'   => $e['discipline'],
+                'distance'     => $e['distance'],
+                'gender'       => $e['gender'],
+                'course'       => $e['course'],
+                'birth_year'   => $e['birth_year'],
+                'set_year'     => $e['set_year'],
+                'swimmer_name' => $e['swimmer_name'],
+                'user_id'      => null,
+                'time_ms'      => $e['time_ms'],
+                'source'       => 'import',
+            ]);
+        }
 
-        return redirect()->route('admin.records.index', ['tab' => $type === 'eternal' ? 'eternal' : 'annual'])
-            ->with('success', "{$saved} Einträge importiert.");
+        session()->forget('bestlist_import');
+
+        $msg = "{$entries->count()} Einträge importiert (" . $courses->implode(', ') . ").";
+        if ($removed > 0) $msg .= " {$removed} frühere importierte Einträge ersetzt.";
+
+        return redirect()->route('admin.records.index', ['tab' => 'eternal'])->with('success', $msg);
     }
-
-    // ── Export ────────────────────────────────────────────────────────────────
 
     public function export(Request $request)
     {
@@ -498,54 +532,42 @@ class RecordController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    /** Export der berechneten Bestenliste (Platz, Name, Jahrgang, Zeit, Jahr) */
     public function exportBestList(Request $request)
     {
         $listType = $request->input('list_type', 'eternal');
         $course   = $request->input('course', 'Langbahn');
-        $year     = $request->input('year');
+        $year     = $listType === 'annual' ? (int) $request->input('year', now()->year) : null;
 
         if (!in_array($listType, ['eternal', 'annual'])) abort(400);
         if (!in_array($course, ['Langbahn', 'Kurzbahn'])) abort(400);
 
-        $query = BestListEntry::where('list_type', $listType)
-            ->where('course', $course)
-            ->orderBy('discipline')->orderBy('distance')->orderBy('gender')
-            ->orderBy('birth_year')->orderBy('time_ms');
-
-        if ($listType === 'annual' && $year) {
-            $query->where('set_year', (int) $year);
-        }
-
-        $entries  = $query->get();
+        $lists    = $this->bestLists->lists($course, $year);
+        $labels   = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
         $namePart = $listType === 'eternal' ? 'ewige_bestenliste' : "jahresbestenliste_{$year}";
         $filename = $namePart . '_' . strtolower($course) . '_' . now()->format('Y-m-d') . '.csv';
-        $labels   = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
-        $isAnnual = $listType === 'annual';
 
-        $headers = ['Disziplin', 'Distanz', 'Geschlecht', 'Jahrgang', 'Bahnlänge'];
-        if ($isAnnual) $headers[] = 'Jahr';
-        array_push($headers, 'Schwimmer', 'Zeit', 'Datum', 'Ort');
-
-        return response()->streamDownload(function () use ($entries, $labels, $headers, $isAnnual) {
+        return response()->streamDownload(function () use ($lists, $labels) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $headers, ';');
-            foreach ($entries as $e) {
-                $row = [
-                    $labels[$e->discipline] ?? $e->discipline,
-                    $e->distance,
-                    $e->gender === 'M' ? 'Männlich' : 'Weiblich',
-                    $e->birth_year,
-                    $e->course,
-                ];
-                if ($isAnnual) $row[] = $e->set_year;
-                array_push($row,
-                    $e->swimmer_name,
-                    $e->formatted_time,
-                    $e->set_date?->format('d.m.Y') ?? '',
-                    $e->location ?? '',
-                );
-                fputcsv($out, $row, ';');
+            fputcsv($out, ['Geschlecht', 'Strecke', 'Platz', 'Name', 'Jahrgang', 'Zeit', 'Jahr', 'Quelle'], ';');
+
+            foreach ($lists as $gender => $events) {
+                foreach ($events as $key => $rows) {
+                    [$discipline, $distance] = explode('_', $key);
+                    foreach ($rows as $row) {
+                        fputcsv($out, [
+                            $gender === 'M' ? 'Männlich' : 'Weiblich',
+                            $distance . ' m ' . ($labels[$discipline] ?? $discipline),
+                            $row['rank'],
+                            $row['name'],
+                            $row['birth_year'] ?? '',
+                            \App\Models\SwimmingTime::formatMs($row['time_ms']),
+                            $row['year'] ?? '',
+                            $row['source'] === 'portal' ? 'Wettkampf' : 'historisch',
+                        ], ';');
+                    }
+                }
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);

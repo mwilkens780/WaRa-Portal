@@ -15,7 +15,7 @@
     addType: 'vereinsrekord',
     addListType: 'eternal',
     importType: 'vereinsrekord',
-    annualYear: {{ now()->year }},
+    annualYear: {{ $annualYear }},
 }">
 
     @if(session('success'))
@@ -192,14 +192,6 @@
             @csrf
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Liste</label>
-                    <select name="list_type" x-model="addListType" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="eternal">Ewige Bestenliste</option>
-                        <option value="annual">Jahresbestenliste</option>
-                    </select>
-                </div>
-                <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
                     <select name="course" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -236,13 +228,13 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Jahrgang <span class="text-red-500">*</span></label>
-                    <input type="number" name="birth_year" min="1900" max="{{ now()->year }}" required placeholder="z.B. 2010"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Jahrgang</label>
+                    <input type="number" name="birth_year" min="1900" max="{{ now()->year }}" placeholder="z.B. 1987"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
-                <div x-show="addListType === 'annual'">
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Jahr der Leistung</label>
-                    <input type="number" name="set_year" min="1900" max="{{ now()->year }}" :value="annualYear" placeholder="{{ now()->year }}"
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Jahr der Leistung <span class="text-red-500">*</span></label>
+                    <input type="number" name="set_year" min="1900" max="{{ now()->year }}" required placeholder="{{ now()->year }}"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
@@ -264,16 +256,15 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Datum</label>
-                    <input type="date" name="set_date"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Veranstaltungsort</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Veranstaltung / Ort</label>
                     <input type="text" name="location" placeholder="Wettkampf / Ort"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
+            <p class="text-xs text-gray-400">
+                Für historische Zeiten, die nicht als Wettkampfergebnis im Portal stehen. Der Eintrag zählt in der
+                ewigen Liste und in der Jahresbestenliste seines Jahres.
+            </p>
             @if($errors->any())
                 <div class="text-red-600 text-sm">{{ $errors->first() }}</div>
             @endif
@@ -323,37 +314,17 @@
     {{-- Import Form: Ewige / Jahres Bestenliste --}}
     <div x-show="activeTab === 'eternal' || activeTab === 'annual'" x-cloak
          class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 class="font-semibold text-gray-800 mb-1">Bestenliste aus Excel importieren</h3>
+        <h3 class="font-semibold text-gray-800 mb-1">Historische Bestenliste aus Excel importieren</h3>
         <p class="text-sm text-gray-500 mb-4">
-            Excel-Datei mit Spalten: <span class="font-mono text-xs bg-gray-100 px-1 rounded">Disziplin | Distanz | Geschlecht | Jahrgang | Name | Zeit</span> — Überschriften werden automatisch erkannt.
+            Erwartet wird die Vereinsvorlage „Ewige Vereins-Bestenliste“: Kopfzeile mit Bahn und Geschlecht,
+            darunter Blöcke je Strecke mit Platz, Name, Jahrgang (zweistellig), Zeit und Jahr.
+            Bahn und Geschlecht liest der Import aus der Datei; die Plätze werden neu berechnet.
         </p>
         <form method="POST" action="{{ route('admin.bestlist.import.upload') }}" enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
             @csrf
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Liste</label>
-                <select name="bestlist_type" x-model="activeTab === 'annual' ? 'annual' : 'eternal'"
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="eternal" :selected="activeTab === 'eternal'">Ewige Bestenliste</option>
-                    <option value="annual" :selected="activeTab === 'annual'">Jahresbestenliste</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
-                <select name="bestlist_course"
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="Langbahn" :selected="activeCourse === 'Langbahn'">Langbahn (50 m)</option>
-                    <option value="Kurzbahn" :selected="activeCourse === 'Kurzbahn'">Kurzbahn (25 m)</option>
-                </select>
-            </div>
-            <div x-show="activeTab === 'annual'">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Jahr (für Jahresbestenliste)</label>
-                <input type="number" name="bestlist_year" :value="annualYear"
-                       min="1900" :max="{{ now()->year }}" placeholder="{{ now()->year }}"
-                       class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Datei (.xlsx, .csv)</label>
-                <input type="file" name="bestlist_file" accept=".xlsx,.xls,.csv,.txt" required
+                <label class="block text-xs font-medium text-gray-600 mb-1">Datei (.xlsx)</label>
+                <input type="file" name="bestlist_file" accept=".xlsx" required
                        class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
             </div>
             <button type="submit"
@@ -433,41 +404,44 @@
             ])
         </div>
 
-        {{-- Ewige Bestenlisten Tab --}}
+        {{-- Ewige Bestenlisten Tab: berechnete Top 10 je Strecke --}}
         <div x-show="activeTab === 'eternal'" x-cloak>
-            @include('admin.records._bestlist_table', [
-                'entries'   => $eternalEntries,
-                'listType'  => 'eternal',
-                'isAdmin'   => $userIsAdmin,
-            ])
-        </div>
-
-        {{-- Jahresbestenlisten Tab --}}
-        <div x-show="activeTab === 'annual'" x-cloak>
-            @if($availableYears->isEmpty())
-                <p class="text-sm text-gray-400 text-center px-5 py-10">Noch keine Jahresbestenlisten-Einträge vorhanden.</p>
-            @else
-                {{-- Year selector --}}
-                <div class="px-5 py-3 border-b border-gray-100 bg-gray-50/40 flex items-center gap-3">
-                    <span class="text-xs text-gray-500 font-medium">Jahr:</span>
-                    <select id="annual-year-select"
-                            x-model="annualYear"
-                            class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 outline-none">
-                        @foreach($availableYears as $yr)
-                            <option value="{{ $yr }}">{{ $yr }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                @foreach($availableYears as $yr)
-                <div x-show="annualYear == {{ $yr }}">
-                    @include('admin.records._bestlist_table', [
-                        'entries'   => $annualEntries->where('set_year', $yr)->values(),
-                        'listType'  => 'annual',
-                        'isAdmin'   => $userIsAdmin,
+            @foreach(['Langbahn', 'Kurzbahn'] as $c)
+                <div x-show="activeCourse === '{{ $c }}'">
+                    @include('admin.records._toplist_table', [
+                        'lists'   => $eternal[$c],
+                        'course'  => $c,
+                        'tab'     => 'eternal',
+                        'isAdmin' => $userIsAdmin,
                     ])
                 </div>
-                @endforeach
-            @endif
+            @endforeach
+        </div>
+
+        {{-- Jahresbestenlisten Tab: gleiche Listen, nur Leistungen eines Jahres --}}
+        <div x-show="activeTab === 'annual'" x-cloak>
+            <div class="px-5 py-3 border-b border-gray-100 bg-gray-50/40 flex items-center gap-3">
+                <span class="text-xs text-gray-500 font-medium">Jahr:</span>
+                {{-- Jahreswechsel laedt neu, die Liste wird serverseitig berechnet --}}
+                <select onchange="window.location = '{{ route('admin.records.index') }}?tab=annual&year=' + this.value"
+                        class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    @forelse($availableYears as $yr)
+                        <option value="{{ $yr }}" {{ (int) $yr === (int) $annualYear ? 'selected' : '' }}>{{ $yr }}</option>
+                    @empty
+                        <option>{{ $annualYear }}</option>
+                    @endforelse
+                </select>
+            </div>
+            @foreach(['Langbahn', 'Kurzbahn'] as $c)
+                <div x-show="activeCourse === '{{ $c }}'">
+                    @include('admin.records._toplist_table', [
+                        'lists'   => $annual[$c],
+                        'course'  => $c,
+                        'tab'     => 'annual',
+                        'isAdmin' => $userIsAdmin,
+                    ])
+                </div>
+            @endforeach
         </div>
 
         {{-- LR Tab --}}

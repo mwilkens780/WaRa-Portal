@@ -73,7 +73,10 @@
                         @if($isAdmin) <th class="px-3 py-2"></th> @endif
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                {{-- openRow haelt fest, welche Zeile gerade bearbeitet wird -
+                     Knopf und Formular stehen in verschiedenen <tr>, brauchen
+                     also einen gemeinsamen Alpine-Zustand. --}}
+                <tbody class="divide-y divide-gray-50" x-data="{ openRow: null }">
                     @foreach($section['rows'] as [$course, $distance, $record])
                         <tr class="record-row hover:bg-gray-50"
                             data-course="{{ $course }}"
@@ -102,11 +105,13 @@
                                     @endif
                                 </td>
                                 @if($isAdmin)
-                                <td class="px-3 py-2.5 text-right">
-                                    <form method="POST" action="{{ route('admin.records.destroy', $record) }}"
+                                <td class="px-3 py-2.5 text-right whitespace-nowrap">
+                                    <button type="button" @click="openRow = openRow === {{ $record->id }} ? null : {{ $record->id }}"
+                                            class="text-xs text-gray-500 hover:text-primary">Bearbeiten</button>
+                                    <form method="POST" class="inline" action="{{ route('admin.records.destroy', $record) }}"
                                           onsubmit="return confirm('Rekord löschen?')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                                        <button type="submit" class="text-red-400 hover:text-red-600 text-xs ml-1">Löschen</button>
                                     </form>
                                 </td>
                                 @endif
@@ -116,6 +121,50 @@
                                 @if($isAdmin) <td></td> @endif
                             @endif
                         </tr>
+
+                        @if($isAdmin && $record)
+                        {{-- Bearbeiten: Korrektur von Name, Zeit, Datum und Ort.
+                             Strecke, Bahn und Geschlecht bleiben fest. --}}
+                        <tr x-show="openRow === {{ $record->id }} && activeCourse === '{{ $course }}'" x-cloak class="bg-blue-50/40">
+                            <td colspan="{{ $isAdmin ? 8 : 7 }}" class="px-5 py-3">
+                                <form method="POST" action="{{ route('admin.records.update', $record) }}"
+                                      class="flex flex-wrap items-end gap-3">
+                                    @csrf @method('PUT')
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 mb-1">Name</label>
+                                        <input type="text" name="swimmer_name" value="{{ $record->swimmer_name }}" required
+                                               class="px-2 py-1.5 border border-gray-300 rounded text-xs w-48 outline-none focus:ring-1 focus:ring-primary/40">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 mb-1">Zeit (Min : Sek , 1/100)</label>
+                                        @php
+                                            $ms = $record->time_ms;
+                                            $mm = intdiv($ms, 60000); $ss = intdiv($ms % 60000, 1000); $cs = intdiv($ms % 1000, 10);
+                                        @endphp
+                                        <div class="flex items-center gap-1">
+                                            <input type="number" name="time_minutes" value="{{ $mm }}" min="0" class="w-14 px-2 py-1.5 border border-gray-300 rounded text-xs text-center">
+                                            <span class="text-gray-400">:</span>
+                                            <input type="number" name="time_seconds" value="{{ $ss }}" min="0" max="59" required class="w-14 px-2 py-1.5 border border-gray-300 rounded text-xs text-center">
+                                            <span class="text-gray-400">,</span>
+                                            <input type="number" name="time_cs" value="{{ $cs }}" min="0" max="99" required class="w-14 px-2 py-1.5 border border-gray-300 rounded text-xs text-center">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 mb-1">Datum</label>
+                                        <input type="date" name="set_date" value="{{ $record->set_date?->format('Y-m-d') }}"
+                                               class="px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
+                                    </div>
+                                    <div class="flex-1 min-w-[160px]">
+                                        <label class="block text-[10px] text-gray-500 mb-1">Veranstaltung / Ort</label>
+                                        <input type="text" name="location" value="{{ $record->location }}"
+                                               class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
+                                    </div>
+                                    <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">Speichern</button>
+                                    <button type="button" @click="openRow = null" class="px-2.5 py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs">Abbrechen</button>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                     @endforeach
                 </tbody>
             </table>

@@ -137,7 +137,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/rekorde/import/speichern', [RecordController::class, 'importExecute'])->name('records.import.execute');
     Route::post('/rekorde/recheck', [RecordController::class, 'recheckAll'])->name('records.recheck');
     // Bestenlisten – manuelle Einträge, Import, Export (Admin only)
+    Route::put('/rekorde/{record}', [RecordController::class, 'update'])->name('records.update');
     Route::post('/bestenliste', [RecordController::class, 'storeBestListEntry'])->name('bestlist.store');
+    Route::put('/bestenliste/{bestListEntry}', [RecordController::class, 'updateBestListEntry'])->name('bestlist.update');
     Route::delete('/bestenliste/{bestListEntry}', [RecordController::class, 'destroyBestListEntry'])->name('bestlist.destroy');
     Route::post('/bestenliste/import/upload', [RecordController::class, 'importBestListUpload'])->name('bestlist.import.upload');
     Route::get('/bestenliste/import/vorschau', [RecordController::class, 'importBestListPreview'])->name('bestlist.import.preview');
