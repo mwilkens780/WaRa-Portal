@@ -32,20 +32,53 @@
     </div>
     @endif
 
-    {{-- Password reset --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4 flex items-center justify-between gap-4">
-        <div>
-            <p class="text-sm font-semibold text-gray-800">Neues Initialpasswort generieren</p>
-            <p class="text-xs text-gray-500 mt-0.5">Überschreibt das aktuelle Passwort des Benutzers.</p>
+    {{-- Zugang: Willkommensmail und Passwort --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+                <p class="text-sm font-semibold text-gray-800">Willkommensmail verschicken</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Begrüßung, Link zum Portal und ein Einmallink, über den sich {{ $user->firstname }} selbst
+                    ein Passwort setzt. Das Initialpasswort oben bleibt davon unberührt.
+                </p>
+            </div>
+            <form method="POST" action="{{ route('admin.users.welcome-mail', $user) }}"
+                  onsubmit="return confirm('Willkommensmail an {{ addslashes($user->name) }} schicken?')">
+                @csrf
+                <button type="submit" {{ $user->email && $user->active ? '' : 'disabled' }}
+                        class="whitespace-nowrap flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    Einladung senden
+                </button>
+            </form>
         </div>
-        <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
-              onsubmit="return confirm('Passwort für {{ addslashes($user->name) }} zurücksetzen?')">
-            @csrf
-            <button type="submit" class="whitespace-nowrap flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Neues Passwort
-            </button>
-        </form>
+
+        @if(!$user->email)
+            <p class="px-5 py-3 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+                Keine E-Mail-Adresse hinterlegt – es kann nichts zugestellt werden.
+            </p>
+        @elseif(!$user->active)
+            <p class="px-5 py-3 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+                Konto ist nicht aktiv. Erst aktivieren, dann einladen.
+            </p>
+        @endif
+
+        <div class="px-5 py-4 flex items-center justify-between gap-4">
+            <div>
+                <p class="text-sm font-semibold text-gray-800">Neues Initialpasswort generieren</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Überschreibt das aktuelle Passwort und schickt zusätzlich eine Mail mit Einmallink.
+                </p>
+            </div>
+            <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
+                  onsubmit="return confirm('Passwort für {{ addslashes($user->name) }} zurücksetzen?')">
+                @csrf
+                <button type="submit" class="whitespace-nowrap flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Neues Passwort
+                </button>
+            </form>
+        </div>
     </div>
 
     {{-- Main form --}}

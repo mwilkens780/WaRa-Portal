@@ -31,7 +31,7 @@ class User extends Authenticatable
         'birth_date', 'phone', 'mobile', 'active',
         'gender', 'dsv_id', 'membership_number', 'webclub_person_id', 'member_since', 'resigned_at', 'training_group',
         'street', 'postal_code', 'city', 'country',
-        'initial_password',
+        'initial_password', 'mail_preferences',
         'trainer_license_nr', 'trainer_license_valid_until',
         'rescue_certificate_until', 'first_aid_until',
         'police_clearance_date',
@@ -61,7 +61,14 @@ class User extends Authenticatable
             'kampfrichter_license_valid_until'  => 'date',
             'opt_nutrition'                     => 'boolean',
             'opt_sports_medicine'               => 'boolean',
+            'mail_preferences'                  => 'array',
         ];
+    }
+
+    /** Will dieser Benutzer Mails zu diesem Thema? Siehe App\Support\MailTopic. */
+    public function wantsMail(string $topic): bool
+    {
+        return \App\Support\MailTopic::wants($this, $topic);
     }
 
     // When firstname/lastname are present, derive display name from them

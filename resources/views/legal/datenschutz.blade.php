@@ -100,7 +100,27 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.6 Änderungsprotokoll</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.6 E-Mail-Benachrichtigungen</h3>
+                <p><strong>Daten:</strong> E-Mail-Adresse, Name, Betreff und Zeitpunkt der Nachricht sowie der
+                   Versandstatus. Gespeichert wird, dass und an wen eine Nachricht versandt wurde, nicht ihr Inhalt.</p>
+                <p class="mt-1"><strong>Zweck:</strong> Zusendung von Zugangsdaten und Hinweisen zum Konto
+                   (Willkommensnachricht, Einrichtungs- und Rücksetzlink, Bestätigung einer Passwortänderung) sowie
+                   der Benachrichtigungen, die Sie in Ihrem Profil selbst ausgewählt haben. Der Versandstatus dient
+                   dazu, nicht zugestellte Nachrichten zu erkennen und erneut zu versenden.</p>
+                <p class="mt-1"><strong>Rechtsgrundlage:</strong> Für Nachrichten zum Konto Art. 6 Abs. 1 lit. b
+                   DSGVO (Durchführung des Mitgliedschaftsverhältnisses); für alle übrigen Benachrichtigungen
+                   Art. 6 Abs. 1 lit. a DSGVO (Einwilligung durch Auswahl im Profil).</p>
+                <p class="mt-1"><strong>Widerruf:</strong> Die Auswahl lässt sich jederzeit unter „Mein Profil“
+                   ändern. Nachrichten zum Konto sind davon ausgenommen, da ohne sie kein Zugang eingerichtet oder
+                   wiederhergestellt werden kann.</p>
+                <p class="mt-1"><strong>Speicherdauer:</strong> Das Versandprotokoll wird nach 12 Monaten gelöscht.</p>
+                <p class="mt-1"><strong>Empfänger:</strong> Der Versand erfolgt über den Mailserver des
+                   Hosting-Anbieters des Portals (siehe Abschnitt 5). Passwörter werden nie per E-Mail versandt;
+                   die Nachrichten enthalten ausschließlich zeitlich begrenzte Einmallinks.</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-1">3.7 Änderungsprotokoll</h3>
                 <p><strong>Daten:</strong> Änderungen an Datensätzen mit Zeitstempel, Name und Benutzer-ID der ändernden Person sowie den geänderten Werten. Das Portal selbst speichert dabei keine IP-Adressen.</p>
                 <p class="mt-1"><strong>Zweck:</strong> Nachvollziehbarkeit von Datenänderungen, Schutz vor unberechtigten Zugriffen, Fehleranalyse.</p>
                 <p class="mt-1"><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO.</p>
@@ -108,7 +128,7 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.7 Zugriffsdaten des Webservers</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.8 Zugriffsdaten des Webservers</h3>
                 <p>
                     Bei jedem Zugriff auf eine Seite des Portals werden Zugriffsdaten in einer Protokolldatei
                     (Log-Datei) auf dem Server gespeichert. Diese Daten beinhalten z. B. den Browsertyp und
@@ -127,7 +147,7 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-red-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.8 Gesundheitsdaten (Ernährungsberatung und Sportmedizin)</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.9 Gesundheitsdaten (Ernährungsberatung und Sportmedizin)</h3>
                 <p>
                     <strong>Daten:</strong> Dokumente im PDF-Format aus der Ernährungsberatung und aus
                     sportmedizinischen Untersuchungen, jeweils mit Titel, Dateiname, optionalen Schlagworten,

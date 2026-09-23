@@ -45,6 +45,7 @@ use App\Http\Controllers\Trainer\SessionSwimmerController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Admin\DsgvoController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Health\HealthDataController;
 use App\Http\Controllers\Nutrition\NutritionController;
@@ -58,6 +59,16 @@ Route::get('/', fn() => redirect()->route('login'));
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.post');
+
+    // Passwort vergessen, neu setzen, erstmalig einrichten
+    Route::get('/passwort-vergessen',  [PasswordResetController::class, 'showRequestForm'])->name('password.request');
+    Route::post('/passwort-vergessen', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+
+    Route::get('/passwort-einrichten/{token}',  [PasswordResetController::class, 'showSetupForm'])->name('password.setup');
+    Route::post('/passwort-einrichten',         [PasswordResetController::class, 'setup'])->name('password.setup.store');
+
+    Route::get('/passwort-neu/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+    Route::post('/passwort-neu',        [PasswordResetController::class, 'reset'])->name('password.reset.store');
 });
 
 Route::middleware('auth')->group(function () {
@@ -70,6 +81,7 @@ Route::middleware('auth')->group(function () {
     // Mein Profil (alle Rollen)
     Route::get('/profil', [ProfileController::class, 'index'])->name('profile.index');
     Route::put('/profil', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profil/benachrichtigungen', [ProfileController::class, 'updateMailPreferences'])->name('profile.mail-preferences');
 
     // Gesundheitsdaten (alle Rollen – Zugriff je nach Rolle im Controller geregelt)
     Route::prefix('gesundheit')->name('health.')->group(function () {
@@ -108,6 +120,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/benutzer/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
     Route::patch('/benutzer/{user}/aktivierung', [AdminUserController::class, 'toggleActive'])->name('users.toggle-active');
     Route::post('/benutzer/{user}/passwort-reset', [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::post('/benutzer/{user}/willkommensmail', [AdminUserController::class, 'sendWelcomeMail'])->name('users.welcome-mail');
+    Route::get('/benutzer-einladen',  [AdminUserController::class, 'bulkWelcomeForm'])->name('users.bulk-welcome');
+    Route::post('/benutzer-einladen', [AdminUserController::class, 'bulkWelcomeSend'])->name('users.bulk-welcome.send');
     Route::delete('/benutzer-alle', [AdminUserController::class, 'destroyAll'])->name('users.destroy-all');
     Route::post('/benutzer/dsv-bereinigen', [AdminUserController::class, 'cleanupDsvIds'])->name('users.cleanup-dsv');
     Route::get('/benutzer/export', [AdminUserController::class, 'export'])->name('users.export');
@@ -411,6 +426,12 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/einstellungen', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/einstellungen', [SettingsController::class, 'update'])->name('admin.settings.update');
     Route::put('/admin/einstellungen/webclub', [SettingsController::class, 'updateWebClub'])->name('admin.settings.webclub');
+    Route::put('/admin/einstellungen/mail',    [SettingsController::class, 'updateMail'])->name('admin.settings.mail');
+    Route::post('/admin/einstellungen/testmail', [SettingsController::class, 'sendTestMail'])->name('admin.settings.test-mail');
+
+    // Mail-Protokoll
+    Route::get('/admin/mail-protokoll', [\App\Http\Controllers\Admin\MailLogController::class, 'index'])->name('admin.mail-log.index');
+    Route::post('/admin/mail-protokoll/{mailMessage}/erneut', [\App\Http\Controllers\Admin\MailLogController::class, 'retry'])->name('admin.mail-log.retry');
 
     // Korrekturen (erreichbar ueber Einstellungen)
     Route::get('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'index'])->name('admin.corrections.course.index');

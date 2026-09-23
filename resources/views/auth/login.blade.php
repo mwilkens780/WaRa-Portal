@@ -12,6 +12,12 @@ window.addEventListener('pageshow', function(e) {
 @section('content')
 <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Anmelden</h2>
 
+@if(session('success'))
+    <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg mb-5">
+        {{ session('success') }}
+    </div>
+@endif
+
 <form method="POST" action="{{ route('login.post') }}" class="space-y-5">
     @csrf
 
@@ -37,6 +43,9 @@ window.addEventListener('pageshow', function(e) {
             <input type="checkbox" name="remember" class="rounded border-gray-300 text-blue-600">
             Angemeldet bleiben
         </label>
+        <a href="{{ route('password.request') }}" class="text-sm text-primary hover:underline">
+            Passwort vergessen?
+        </a>
     </div>
 
     <button type="submit"

@@ -3,8 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AccountWelcomeMail;
+use App\Mail\PasswordResetMail;
+use App\Models\MailMessage;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\Mailer;
 use App\Services\WebClubImportService;
+use App\Support\MailTopic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -81,9 +87,13 @@ class UserController extends Controller
             $user->children()->sync($request->children);
         }
 
-        // Redirect to edit so admin can see and copy the initial password
+        // Willkommensmail: nur an aktive Konten mit Adresse. Das Initialpasswort
+        // bleibt in der Benutzerverwaltung sichtbar - fuer die persoenliche
+        // Uebergabe, wenn jemand keine Mail bekommt oder sie nicht findet.
+        $mailHint = $this->sendWelcome($user);
+
         return redirect()->route('admin.users.edit', $user)
-            ->with('success', "Benutzer \"{$user->name}\" angelegt – Initialpasswort ist unten sichtbar.");
+            ->with('success', "Benutzer \"{$user->name}\" angelegt – Initialpasswort ist unten sichtbar. {$mailHint}");
     }
 
     public function edit(User $user)
@@ -154,7 +164,14 @@ class UserController extends Controller
             ->with('success', "Benutzer \"{$user->name}\" wurde aktualisiert.");
     }
 
-    public function resetPassword(User $user)
+    /**
+     * Passwort zuruecksetzen.
+     *
+     * Beides zusammen: ein neues Initialpasswort fuer die persoenliche
+     * Uebergabe, und eine Mail mit Einmallink, damit sich die Person selbst
+     * eines setzen kann, ohne dass ein Passwort durch Postfaecher wandert.
+     */
+    public function resetPassword(User $user, Mailer $mailer)
     {
         $plain = WebClubImportService::generateInitialPassword();
 
@@ -163,7 +180,113 @@ class UserController extends Controller
             'initial_password' => $plain,
         ]);
 
-        return back()->with('success', "Neues Initialpasswort für \"{$user->name}\" gesetzt: {$plain}");
+        $mail = new PasswordResetMail($user, byAdmin: true, byName: auth()->user()?->name);
+        $log  = $mailer->send($user, MailTopic::ACCOUNT, $mail, $mail->defaultSubject());
+
+        return back()->with('success',
+            "Neues Initialpasswort für \"{$user->name}\" gesetzt: {$plain}. " . $this->mailHint($log));
+    }
+
+    /** Willkommensmail (erneut) verschicken - einzeln. */
+    public function sendWelcomeMail(User $user, Mailer $mailer)
+    {
+        if (!$user->email) {
+            return back()->with('error', "Für \"{$user->name}\" ist keine E-Mail-Adresse hinterlegt.");
+        }
+        if (!$user->active) {
+            return back()->with('error', "\"{$user->name}\" ist nicht aktiv – erst aktivieren, dann einladen.");
+        }
+
+        $mail = new AccountWelcomeMail($user, isResend: true);
+        $log  = $mailer->send($user, MailTopic::ACCOUNT, $mail, $mail->defaultSubject());
+
+        return back()->with('success', "Willkommensmail an \"{$user->name}\": " . $this->mailHint($log));
+    }
+
+    /**
+     * Willkommensmail an den Bestand.
+     *
+     * Bewusst ueber die Warteschlange: mehrere hundert Mails synchron zu
+     * verschicken laeuft in den Zeitueberlauf des Webservers. Der Cron
+     * arbeitet sie in Haeppchen ab.
+     */
+    public function bulkWelcomeForm()
+    {
+        $candidates = User::where('active', true)
+            ->whereNotNull('email')
+            ->orderBy('lastname')->orderBy('firstname')
+            ->get(['id', 'firstname', 'lastname', 'email', 'role', 'initial_password']);
+
+        return view('admin.users.bulk-welcome', [
+            'candidates'      => $candidates,
+            'neverSet'        => $candidates->filter(fn($u) => $u->hasInitialPassword()),
+            'maintenance'     => Setting::getBool('maintenance_mode'),
+            'testAddress'     => Mailer::testAddress(),
+            'alreadyInvited'  => MailMessage::where('mailable', AccountWelcomeMail::class)
+                ->whereIn('status', ['sent', 'pending'])
+                ->pluck('user_id')->filter()->unique(),
+        ]);
+    }
+
+    public function bulkWelcomeSend(Request $request, Mailer $mailer)
+    {
+        $data = $request->validate([
+            'users'   => ['required', 'array', 'min:1'],
+            'users.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        // Waehrend der Wartung wuerden alle Mails an die Testadresse gehen -
+        // mehrere hundert Stueck. Das ist nie gewollt.
+        if (Setting::getBool('maintenance_mode')) {
+            return back()->with('error',
+                'Der Wartungsmodus ist aktiv. Alle Mails gingen an die Testadresse – '
+                . 'für den Massenversand bitte erst den Wartungsmodus ausschalten.');
+        }
+
+        $users   = User::whereIn('id', $data['users'])->where('active', true)->whereNotNull('email')->get();
+        $queued  = 0;
+        $skipped = 0;
+
+        foreach ($users as $user) {
+            $mail = new AccountWelcomeMail($user, isResend: true);
+            $log  = $mailer->queue($user, MailTopic::ACCOUNT, $mail, $mail->defaultSubject());
+            $log->status === 'pending' ? $queued++ : $skipped++;
+        }
+
+        $msg = "{$queued} Willkommensmails eingereiht. Der Cron verschickt sie in Blöcken zu "
+             . Mailer::BATCH_SIZE . " – der Fortschritt steht im Mail-Protokoll.";
+        if ($skipped > 0) {
+            $msg .= " {$skipped} übersprungen (keine Adresse oder abbestellt).";
+        }
+
+        return redirect()->route('admin.mail-log.index')->with('success', $msg);
+    }
+
+    // ── Hilfen ───────────────────────────────────────────────────────────────
+
+    private function sendWelcome(User $user): string
+    {
+        if (!$user->email || !$user->active) {
+            return 'Keine Willkommensmail verschickt (keine Adresse oder Konto nicht aktiv).';
+        }
+
+        $mail = new AccountWelcomeMail($user);
+
+        return 'Willkommensmail: ' . $this->mailHint(
+            app(Mailer::class)->send($user, MailTopic::ACCOUNT, $mail, $mail->defaultSubject())
+        );
+    }
+
+    private function mailHint(MailMessage $log): string
+    {
+        return match ($log->status) {
+            'sent'    => $log->wasRedirected()
+                            ? "verschickt an {$log->sent_to} (Wartungsmodus)."
+                            : "verschickt an {$log->recipient_email}.",
+            'skipped' => 'nicht verschickt – ' . $log->error,
+            'failed'  => 'fehlgeschlagen – ' . $log->error,
+            default   => 'wartet auf Versand.',
+        };
     }
 
     public function destroy(User $user)

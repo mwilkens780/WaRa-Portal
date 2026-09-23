@@ -165,5 +165,62 @@
             </a>
         </div>
     </form>
+
+    {{-- ── E-Mail-Benachrichtigungen ──────────────────────────────────────── --}}
+    <form method="POST" action="{{ route('profile.mail-preferences') }}" class="mt-8">
+        @csrf @method('PUT')
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h2 class="font-semibold text-gray-800">E-Mail-Benachrichtigungen</h2>
+                <p class="text-xs text-gray-500 mt-1">
+                    Standardmäßig schickt das Portal nur Mails zu deinem Zugang. Alles Weitere bekommst du
+                    nur, wenn du es hier einschaltest – und du kannst es jederzeit wieder abwählen.
+                </p>
+            </div>
+
+            <div class="p-6 space-y-6">
+                @foreach($mailTopics as $group => $topics)
+                    <div>
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{{ $group }}</p>
+                        <div class="space-y-3">
+                            @foreach($topics as $key => $topic)
+                                @php $mandatory = $topic['mandatory'] ?? false; @endphp
+                                <label class="flex items-start gap-3 p-3 border rounded-xl transition-colors
+                                              {{ $mandatory ? 'border-gray-200 bg-gray-50' : 'border-gray-200 hover:bg-gray-50 cursor-pointer' }}">
+                                    <input type="checkbox"
+                                           name="topics[{{ $key }}]" value="1"
+                                           class="mt-0.5 rounded text-primary"
+                                           @if($mandatory) checked disabled @elseif($mailPrefs[$key] ?? false) checked @endif>
+                                    <span>
+                                        <span class="block text-sm font-medium text-gray-800">
+                                            {{ $topic['label'] }}
+                                            @if($mandatory)
+                                                <span class="ml-1 text-[10px] font-semibold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">immer</span>
+                                            @endif
+                                        </span>
+                                        <span class="block text-xs text-gray-500 mt-0.5">{{ $topic['description'] }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+
+                @if(!$user->email)
+                    <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                        Für dich ist keine E-Mail-Adresse hinterlegt – es kann also nichts zugestellt werden.
+                    </div>
+                @endif
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-100">
+                <button type="submit"
+                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                    Benachrichtigungen speichern
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
 @endsection

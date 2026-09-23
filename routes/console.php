@@ -83,6 +83,31 @@ Schedule::call(fn() => \App\Models\CompetitionSignupRequest::closeAfterCompetiti
     ->name('signups-close-expired')
     ->withoutOverlapping();
 
+// Wartende Mails verschicken. Laeuft jede Minute mit dem Cron mit und nimmt
+// sich je Lauf nur einen Block vor - so blockiert ein Massenversand weder den
+// Webserver noch den Mailserver.
+Artisan::command('mails:process', function () {
+    $result = app(\App\Services\Mailer::class)->processQueue();
+    $this->info("{$result['sent']} verschickt, {$result['failed']} fehlgeschlagen, {$result['remaining']} warten noch.");
+})->purpose('Wartende Mails aus der Warteschlange verschicken');
+
+Schedule::call(fn() => app(\App\Services\Mailer::class)->processQueue())
+    ->everyMinute()
+    ->name('mail-queue')
+    ->withoutOverlapping();
+
+// Versandprotokoll nach zwoelf Monaten loeschen - so steht es in der
+// Datenschutzerklaerung, also muss es auch geschehen.
+Artisan::command('mails:purge-log', function () {
+    $n = \App\Models\MailMessage::where('created_at', '<', now()->subMonths(12))->delete();
+    $this->info("{$n} Protokolleintraege geloescht.");
+})->purpose('Mail-Versandprotokoll nach 12 Monaten bereinigen');
+
+Schedule::call(fn() => \App\Models\MailMessage::where('created_at', '<', now()->subMonths(12))->delete())
+    ->monthlyOn(1, '03:30')
+    ->name('mail-log-purge')
+    ->withoutOverlapping();
+
 // Saison-Score-Cache wöchentlich neu berechnen
 Schedule::call(function () {
     $year    = now()->month >= 9 ? now()->year : now()->year - 1;

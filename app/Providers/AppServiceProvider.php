@@ -25,10 +25,14 @@ class AppServiceProvider extends ServiceProvider
             return $this->copy()->setTimezone('Europe/Berlin')->format($format);
         });
 
-        // Im Wartungsmodus alle E-Mails an die Admin-Adresse umleiten
+        // Im Wartungsmodus geht keine Mail an echte Mitglieder, sondern an die
+        // hinterlegte Testadresse. App\Services\Mailer macht das selbst und
+        // protokolliert es dabei; dieser Listener ist das Netz fuer Mails, die
+        // noch direkt ueber Mail::to() verschickt werden.
         Event::listen(MessageSending::class, function (MessageSending $event) {
             try {
                 if (!Setting::getBool('maintenance_mode')) return;
+                $testAddress = trim((string) Setting::getCached('mail_test_address', ''));
             } catch (\Throwable) {
                 return; // DB noch nicht verfügbar (z.B. bei migrate)
             }
@@ -36,11 +40,21 @@ class AppServiceProvider extends ServiceProvider
             $msg = $event->message;
             if (!$msg instanceof Email) return;
 
-            $admin = new Address('administrator@wara-portal.de', 'Administrator WaRa-Portal');
+            // Ohne Testadresse wird gar nicht verschickt: lieber keine Mail als
+            // eine echte Mail an ein Mitglied mitten in der Wartung.
+            if ($testAddress === '') return false;
+
+            $original = collect($msg->getTo())->map(fn(Address $a) => $a->getAddress())->implode(', ');
+            if ($original === $testAddress) return;   // schon umgeleitet
+
             $msg->getHeaders()->remove('To');
             $msg->getHeaders()->remove('Cc');
             $msg->getHeaders()->remove('Bcc');
-            $msg->to($admin);
+            $msg->to(new Address($testAddress));
+
+            if ($original !== '' && !str_starts_with((string) $msg->getSubject(), '[TEST an ')) {
+                $msg->subject('[TEST an ' . $original . '] ' . $msg->getSubject());
+            }
         });
     }
 }

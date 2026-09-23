@@ -15,8 +15,15 @@ class MaintenanceModeCheck
             return $next($request);
         }
 
-        // Login und System-Routen immer zugänglich lassen
-        if ($request->routeIs('login', 'login.post', 'maintenance', 'cron.run', 'api.webclub-import')) {
+        // Login, Passwortstrecke und System-Routen immer zugänglich lassen.
+        // Die Passwortstrecke gehört dazu, weil sich der Ablauf sonst während
+        // der Wartung nicht testen lässt - und genau dafür ist sie gedacht.
+        if ($request->routeIs(
+            'login', 'login.post', 'maintenance', 'cron.run', 'api.webclub-import',
+            'password.request', 'password.email',
+            'password.setup', 'password.setup.store',
+            'password.reset', 'password.reset.store',
+        )) {
             return $next($request);
         }
 

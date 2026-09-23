@@ -25,8 +25,13 @@
                     <div>
                         <p class="text-sm font-medium text-gray-700">Wartungsmodus aktivieren</p>
                         <p class="text-xs text-gray-500 mt-0.5">
-                            Nicht freigegebene Benutzer sehen die Wartungsmeldung. Alle System-E-Mails
-                            werden an <span class="font-medium">administrator@wara-portal.de</span> umgeleitet.
+                            Nicht freigegebene Benutzer sehen die Wartungsmeldung. Alle E-Mails gehen
+                            @if($settings['mail_test_address'])
+                                an <span class="font-medium">{{ $settings['mail_test_address'] }}</span> statt an die Mitglieder.
+                            @else
+                                an die Testadresse – <span class="font-medium text-amber-600">die ist noch nicht hinterlegt,
+                                solange geht gar keine Mail raus</span>.
+                            @endif
                         </p>
                     </div>
                     <div x-data="{ on: {{ $settings['maintenance_mode'] ? 'true' : 'false' }} }" class="flex-shrink-0">
@@ -87,6 +92,90 @@
             </button>
         </div>
     </form>
+
+    {{-- E-Mail-Versand --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            <h2 class="text-base font-semibold text-gray-800">E-Mail-Versand</h2>
+        </div>
+
+        <div class="px-6 py-5 space-y-5">
+            @if(session('mail_success'))
+                <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ session('mail_success') }}</div>
+            @endif
+            @if(session('mail_error'))
+                <div class="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-lg">{{ session('mail_error') }}</div>
+            @endif
+
+            {{-- Was ist eingestellt? --}}
+            <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-600 space-y-1">
+                <p><span class="font-medium text-gray-700">Versandweg:</span> {{ $mailConfig['mailer'] }}@if($mailConfig['host']) über {{ $mailConfig['host'] }}:{{ $mailConfig['port'] }}@endif</p>
+                <p><span class="font-medium text-gray-700">Absender:</span> {{ $mailConfig['from'] ?: '– nicht gesetzt –' }}</p>
+                <p><span class="font-medium text-gray-700">Zugangsname:</span> {{ $mailConfig['user'] ?: '– nicht gesetzt –' }}</p>
+                @if(!$mailConfig['user'] || str_contains((string) $mailConfig['host'], 'example.com'))
+                    <p class="text-amber-700 pt-1">
+                        Die Zugangsdaten für den Mailserver sehen unvollständig aus. Sie stehen in der
+                        <code>.env</code> auf dem Server (MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD).
+                    </p>
+                @endif
+            </div>
+
+            {{-- Testadresse --}}
+            <form method="POST" action="{{ route('admin.settings.mail') }}" class="space-y-3">
+                @csrf @method('PUT')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Testadresse für den Wartungsmodus</label>
+                    <input type="email" name="mail_test_address" value="{{ $settings['mail_test_address'] }}"
+                           placeholder="test@example.de"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
+                    <p class="text-xs text-gray-500 mt-1">
+                        Solange der Wartungsmodus aktiv ist, gehen <strong>alle</strong> Mails hierhin – mit dem
+                        eigentlichen Empfänger im Betreff. Ist das Feld leer, wird im Wartungsmodus gar nichts verschickt.
+                    </p>
+                </div>
+                <button type="submit" class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+                    Speichern
+                </button>
+            </form>
+
+            {{-- Testmail --}}
+            <form method="POST" action="{{ route('admin.settings.test-mail') }}" class="pt-4 border-t border-gray-100 space-y-3">
+                @csrf
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Testmail verschicken</label>
+                    <div class="flex flex-wrap gap-2">
+                        <input type="email" name="test_recipient" required
+                               value="{{ $settings['mail_test_address'] ?: auth()->user()->email }}"
+                               class="flex-1 min-w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
+                        <button type="submit" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
+                            Testmail senden
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Prüft, ob der Versand überhaupt funktioniert. Das Ergebnis steht direkt hier – inklusive
+                        Fehlermeldung des Mailservers.
+                    </p>
+                </div>
+            </form>
+
+            {{-- Protokoll --}}
+            <div class="pt-4 border-t border-gray-100 flex items-center justify-between gap-4 flex-wrap">
+                <div class="text-sm text-gray-600">
+                    <span class="font-medium">{{ $mailStats['sent'] }}</span> versendet ·
+                    <span class="font-medium text-amber-600">{{ $mailStats['pending'] }}</span> wartend ·
+                    <span class="font-medium {{ $mailStats['failed'] ? 'text-red-600' : '' }}">{{ $mailStats['failed'] }}</span> fehlgeschlagen
+                </div>
+                <a href="{{ route('admin.mail-log.index') }}"
+                   class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
+                    Mail-Protokoll öffnen
+                </a>
+            </div>
+        </div>
+    </div>
 
     {{-- WebClub: Hinweis, Konfig jetzt direkt in der Crawler-Seite --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

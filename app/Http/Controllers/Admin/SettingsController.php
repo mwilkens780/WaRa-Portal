@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TestMail;
+use App\Models\MailMessage;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Mailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 
@@ -17,6 +20,7 @@ class SettingsController extends Controller
             'maintenance_message'      => Setting::getCached('maintenance_message',
                 'Das Portal wird gerade gewartet. Bitte versuche es später erneut.'),
             'maintenance_bypass_users' => Setting::getBypassUserIds(),
+            'mail_test_address'        => Setting::getCached('mail_test_address', ''),
         ];
 
         $users = User::where('role', '!=', 'admin')
@@ -24,7 +28,66 @@ class SettingsController extends Controller
             ->orderBy('lastname')->orderBy('firstname')
             ->get();
 
-        return view('admin.settings.index', compact('settings', 'users'));
+        // Was ist als Versandweg eingestellt? Ohne diese Angaben laesst sich ein
+        // fehlgeschlagener Versand nicht einordnen.
+        $mailConfig = [
+            'mailer' => config('mail.default'),
+            'host'   => config('mail.mailers.smtp.host'),
+            'port'   => config('mail.mailers.smtp.port'),
+            'from'   => config('mail.from.address'),
+            'user'   => config('mail.mailers.smtp.username'),
+        ];
+
+        $mailStats = [
+            'pending' => MailMessage::where('status', 'pending')->count(),
+            'failed'  => MailMessage::where('status', 'failed')->count(),
+            'sent'    => MailMessage::where('status', 'sent')->count(),
+        ];
+
+        return view('admin.settings.index', compact('settings', 'users', 'mailConfig', 'mailStats'));
+    }
+
+    /** Testadresse fuer den Wartungsmodus. */
+    public function updateMail(Request $request)
+    {
+        $data = $request->validate([
+            'mail_test_address' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        Setting::set('mail_test_address', $data['mail_test_address'] ?? '');
+        Setting::clearCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('mail_success', 'Mail-Einstellungen gespeichert.');
+    }
+
+    /**
+     * Schickt eine Testmail und meldet das Ergebnis im Klartext zurueck -
+     * inklusive Fehlermeldung des Mailservers, sonst raet man beim Einrichten.
+     */
+    public function sendTestMail(Request $request, Mailer $mailer)
+    {
+        $data = $request->validate([
+            'test_recipient' => ['required', 'email', 'max:255'],
+        ]);
+
+        $log = $mailer->sendTest(
+            $data['test_recipient'],
+            new TestMail(auth()->user()),
+            'Testmail aus dem WaRa-Portal',
+            auth()->user()
+        );
+
+        if ($log->status === 'sent') {
+            $hint = $log->wasRedirected()
+                ? " Der Wartungsmodus ist aktiv, deshalb ging sie an {$log->sent_to}."
+                : '';
+            return back()->with('mail_success',
+                "Testmail an {$log->recipient_email} wurde übergeben.{$hint} Kommt sie nicht an, prüfe den Spam-Ordner.");
+        }
+
+        return back()->with('mail_error',
+            'Testmail fehlgeschlagen: ' . ($log->error ?: 'unbekannter Fehler'));
     }
 
     public function update(Request $request)

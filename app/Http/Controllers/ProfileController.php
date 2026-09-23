@@ -2,13 +2,47 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MailTopic;
 use Illuminate\Http\Request;
 
 class ProfileController extends Controller
 {
     public function index()
     {
-        return view('profile.index', ['user' => auth()->user()]);
+        $user = auth()->user();
+
+        return view('profile.index', [
+            'user'        => $user,
+            'mailTopics'  => MailTopic::groupedForRole($user->role),
+            'mailPrefs'   => $user->mail_preferences ?? [],
+        ]);
+    }
+
+    /**
+     * Mail-Einstellungen.
+     *
+     * Opt-in: Was nicht angehakt ist, wird auch nicht verschickt. Kontomails
+     * stehen nicht zur Wahl - ohne sie kommt niemand an seinen Zugang.
+     */
+    public function updateMailPreferences(Request $request)
+    {
+        $user = auth()->user();
+
+        $allowed = array_keys(MailTopic::forRole($user->role));
+        $chosen  = [];
+
+        foreach ($allowed as $topic) {
+            if (MailTopic::isMandatory($topic)) continue;
+            $chosen[$topic] = $request->boolean('topics.' . $topic);
+        }
+
+        $user->update(['mail_preferences' => $chosen]);
+
+        $count = count(array_filter($chosen));
+
+        return redirect()->route('profile.index')->with('success', $count === 0
+            ? 'Gespeichert. Du bekommst nur noch Mails zu deinem Zugang.'
+            : "Gespeichert. Du bekommst Mails zu {$count} Thema/Themen.");
     }
 
     public function update(Request $request)
