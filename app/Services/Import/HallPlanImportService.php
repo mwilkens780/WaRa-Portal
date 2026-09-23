@@ -155,12 +155,13 @@ class HallPlanImportService
                         'notes'               => 'Aus Hallenbelegungsplan importiert',
                     ]);
 
-                    // trainer_id ist in training_sessions Pflicht, steht aber
-                    // nicht in $fillable – ueber create() wuerde der Wert
-                    // stillschweigend verworfen und der Insert scheitern.
-                    $session->trainer_id = $trainerId;
                     $session->save();
 
+                    // Trainer haengen ausschliesslich am Pivot: die Spalte
+                    // trainer_id gibt es in training_sessions seit Juni 2026
+                    // nicht mehr (Migration 000026). Wurde sie hier gesetzt,
+                    // brach der Insert mit "Unknown column 'trainer_id'" ab.
+                    //
                     // Alle Gruppen und alle Trainer der Zeile - bei "LG/WG" oder
                     // zwei Trainern fehlte sonst die zweite Gruppe bzw. der zweite
                     // Trainer hatte keinen Zugriff auf die Einheit.
