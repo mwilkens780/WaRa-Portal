@@ -53,10 +53,10 @@
                 <span class="text-xs text-gray-400">{{ $candidates->count() }} aktive Mitglieder mit E-Mail-Adresse</span>
                 <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer ml-auto">
                     <input type="checkbox" x-model="onlyNeverLoggedIn" class="rounded text-primary">
-                    Nur solche, die ihr Passwort noch nie gesetzt haben
+                    Nur solche, die sich noch nie angemeldet haben ({{ $neverSet->count() }})
                 </label>
                 <button type="button" class="text-xs text-gray-500 hover:text-primary"
-                        @click="@foreach($candidates as $c) if (!onlyNeverLoggedIn || {{ $c->hasInitialPassword() ? 'true' : 'false' }}) chosen['u{{ $c->id }}'] = true; @endforeach">
+                        @click="@foreach($candidates as $c) if (!onlyNeverLoggedIn || {{ $c->hasLoggedIn() ? 'false' : 'true' }}) chosen['u{{ $c->id }}'] = true; @endforeach">
                     sichtbare auswählen
                 </button>
                 <button type="button" class="text-xs text-gray-500 hover:text-primary" @click="chosen = {}">Auswahl leeren</button>
@@ -77,7 +77,7 @@
                     <tbody class="divide-y divide-gray-50">
                         @foreach($candidates as $candidate)
                             @php
-                                $nieGesetzt = $candidate->hasInitialPassword();
+                                $nieGesetzt = !$candidate->hasLoggedIn();
                                 $schonMal   = $alreadyInvited->contains($candidate->id);
                             @endphp
                             <tr class="hover:bg-gray-50"
@@ -93,9 +93,9 @@
                                 <td class="px-4 py-2 text-gray-500 text-xs">{{ \App\Models\User::ROLE_LABELS[$candidate->role] ?? $candidate->role }}</td>
                                 <td class="px-4 py-2 text-xs">
                                     @if($nieGesetzt)
-                                        <span class="text-amber-700">Passwort nie gesetzt</span>
+                                        <span class="text-amber-700">noch nie angemeldet</span>
                                     @else
-                                        <span class="text-green-700">eigenes Passwort</span>
+                                        <span class="text-green-700">zuletzt {{ $candidate->last_login_at->deBerlin('d.m.Y') }}</span>
                                     @endif
                                     @if($schonMal)
                                         <span class="block text-gray-400">schon eingeladen</span>

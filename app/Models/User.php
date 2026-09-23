@@ -62,7 +62,14 @@ class User extends Authenticatable
             'opt_nutrition'                     => 'boolean',
             'opt_sports_medicine'               => 'boolean',
             'mail_preferences'                  => 'array',
+            'last_login_at'                     => 'datetime',
         ];
+    }
+
+    /** Hat sich dieser Zugang jemals angemeldet? */
+    public function hasLoggedIn(): bool
+    {
+        return $this->last_login_at !== null;
     }
 
     /** Will dieser Benutzer Mails zu diesem Thema? Siehe App\Support\MailTopic. */

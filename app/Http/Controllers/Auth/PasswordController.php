@@ -33,6 +33,9 @@ class PasswordController extends Controller
             'initial_password' => null,   // ab jetzt gilt das eigene Passwort
         ]);
 
+        // Neue Sitzungs-ID: Wer die alte kannte, kommt damit nicht weiter
+        $request->session()->regenerate();
+
         // Sicherheitsmeldung: Wer die Aenderung nicht selbst vorgenommen hat,
         // erfaehrt hier davon und kann reagieren.
         $mail = new PasswordChangedMail($user);

@@ -215,11 +215,11 @@ class UserController extends Controller
         $candidates = User::where('active', true)
             ->whereNotNull('email')
             ->orderBy('lastname')->orderBy('firstname')
-            ->get(['id', 'firstname', 'lastname', 'email', 'role', 'initial_password']);
+            ->get(['id', 'firstname', 'lastname', 'email', 'role', 'initial_password', 'last_login_at']);
 
         return view('admin.users.bulk-welcome', [
             'candidates'      => $candidates,
-            'neverSet'        => $candidates->filter(fn($u) => $u->hasInitialPassword()),
+            'neverSet'        => $candidates->filter(fn($u) => !$u->hasLoggedIn()),
             'maintenance'     => Setting::getBool('maintenance_mode'),
             'testAddress'     => Mailer::testAddress(),
             'alreadyInvited'  => MailMessage::where('mailable', AccountWelcomeMail::class)
