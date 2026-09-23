@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CompetitionResult;
 use App\Models\Record;
+use App\Services\EventMailer;
 use App\Services\TimePlausibility;
 use Illuminate\Support\Facades\DB;
 
@@ -54,7 +55,7 @@ class RecordCheckService
             ->first();
 
         if (!$vr || $result->time_ms < $vr->time_ms) {
-            Record::updateOrCreate(
+            $record = Record::updateOrCreate(
                 [
                     'type'       => 'vereinsrekord',
                     'discipline' => $result->discipline,
@@ -83,6 +84,12 @@ class RecordCheckService
                 ->update(['breaks_vereinsrekord' => false]);
 
             $result->update(['breaks_vereinsrekord' => true]);
+
+            // Benachrichtigung nur hier, beim einzelnen neuen Ergebnis. In
+            // recheckAll() wird die ganze Liste neu aufgebaut - dabei duerfen
+            // keine Mails entstehen, sonst kommt nach jeder Bereinigung eine
+            // Flut alter "neuer" Rekorde.
+            app(EventMailer::class)->clubRecord($record->fresh('user'));
         }
     }
 

@@ -7,6 +7,7 @@ use App\Models\Competition;
 use App\Models\CompetitionSignupRequest;
 use App\Models\CompetitionSignupResponse;
 use App\Models\User;
+use App\Services\EventMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -178,7 +179,10 @@ class CompetitionSignupController extends Controller
             );
         }
 
-        return back()->with('success', "Anmeldeabfrage gestartet – {$eligibleUsers->count()} Schwimmer wurden eingeladen.");
+        $mails = app(EventMailer::class)->signupActivated($signupRequest->fresh('competition'), $eligibleUsers);
+
+        return back()->with('success', "Anmeldeabfrage gestartet – {$eligibleUsers->count()} Schwimmer wurden eingeladen."
+            . ($mails > 0 ? " {$mails} E-Mails verschickt." : ' Keine E-Mails verschickt (niemand hat sie eingeschaltet).'));
     }
 
     public function close(Competition $competition, CompetitionSignupRequest $signupRequest)
@@ -198,11 +202,15 @@ class CompetitionSignupController extends Controller
             return back()->with('error', 'Erinnerungen können nur bei aktiven Abfragen gesendet werden.');
         }
 
-        $count = $signupRequest->responses()
-            ->where('status', 'pending')
-            ->update(['reminder_sent_at' => now()]);
+        $offen = $signupRequest->responses()->where('status', 'pending')->with('user')->get();
 
-        return back()->with('success', "Erinnerung für {$count} Schwimmer markiert.");
+        $signupRequest->responses()->where('status', 'pending')->update(['reminder_sent_at' => now()]);
+
+        // Bisher wurde die Erinnerung nur vermerkt; jetzt geht sie auch raus -
+        // an alle, die Erinnerungen in ihrem Profil eingeschaltet haben.
+        $mails = app(EventMailer::class)->signupReminder($signupRequest->fresh('competition'), $offen);
+
+        return back()->with('success', "Erinnerung für {$offen->count()} Schwimmer markiert, {$mails} E-Mails verschickt.");
     }
 
     public function destroy(Competition $competition, CompetitionSignupRequest $signupRequest)

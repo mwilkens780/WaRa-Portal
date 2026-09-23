@@ -716,6 +716,11 @@ class TrainingSessionController extends Controller
             $data
         );
 
+        // Trainer informieren, sofern sie Selbsteinschaetzungen abonniert haben
+        app(\App\Services\EventMailer::class)->selfAssessmentSubmitted(
+            auth()->user(), $session, 'Selbsteinschätzung: ' . $data['self_score'] . ' von 10'
+        );
+
         return back()->with('success', 'Selbsteinschätzung gespeichert.');
     }
 

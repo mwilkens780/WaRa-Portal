@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Swimmer;
 use App\Http\Controllers\Controller;
 use App\Models\CompetitionSignupRequest;
 use App\Models\CompetitionSignupResponse;
+use App\Services\EventMailer;
 use Illuminate\Http\Request;
 
 class SignupController extends Controller
@@ -43,6 +44,9 @@ class SignupController extends Controller
         }
 
         $response->update($update);
+
+        // Trainer der Gruppen informieren - aber nur die, die das eingeschaltet haben
+        app(EventMailer::class)->signupResponded($response->fresh(['user', 'signupRequest.competition']));
 
         $label = $data['status'] === 'attending' ? 'Zusage' : 'Absage';
         return back()->with('success', "{$label} gespeichert.");

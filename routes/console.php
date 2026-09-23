@@ -96,6 +96,30 @@ Schedule::call(fn() => app(\App\Services\Mailer::class)->processQueue())
     ->name('mail-queue')
     ->withoutOverlapping();
 
+// Motto der Woche: wer naechste Woche dran ist und noch nichts eingetragen
+// hat, bekommt freitags eine Erinnerung.
+Artisan::command('motto:remind', function () {
+    $naechste = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->format('Y-m-d');
+    $offen = \App\Models\GroupMottoWeek::where('week_start', $naechste)
+        ->whereNull('motto')->whereNotNull('user_id')
+        ->with(['user', 'group'])->get();
+
+    $mails = 0;
+    foreach ($offen as $week) {
+        $mails += app(\App\Services\EventMailer::class)->mottoReminder($week);
+    }
+    $this->info("{$offen->count()} offene Wochen, {$mails} Erinnerungen verschickt.");
+})->purpose('An fehlende Mottos der kommenden Woche erinnern');
+
+Schedule::call(function () {
+    $naechste = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->format('Y-m-d');
+    $offen = \App\Models\GroupMottoWeek::where('week_start', $naechste)
+        ->whereNull('motto')->whereNotNull('user_id')->with(['user', 'group'])->get();
+    foreach ($offen as $week) {
+        app(\App\Services\EventMailer::class)->mottoReminder($week);
+    }
+})->fridays()->at('17:00')->name('motto-reminder')->withoutOverlapping();
+
 // Versandprotokoll nach zwoelf Monaten loeschen - so steht es in der
 // Datenschutzerklaerung, also muss es auch geschehen.
 Artisan::command('mails:purge-log', function () {

@@ -109,7 +109,7 @@ class GoalController extends Controller
             if ($targetMs <= 0) $targetMs = null;
         }
 
-        SwimmerGoal::create([
+        $goal = SwimmerGoal::create([
             'user_id'       => auth()->id(),
             'season_id'     => $data['season_id'],
             'type'          => $data['type'],
@@ -122,6 +122,9 @@ class GoalController extends Controller
             'status'        => 'open',
             'notified'      => true,
         ]);
+
+        // Trainer informieren, sofern sie Zielsetzungen abonniert haben
+        app(\App\Services\EventMailer::class)->goalSubmitted($goal->fresh('user'));
 
         return back()->with('success', 'Ziel gespeichert.');
     }

@@ -85,6 +85,9 @@ class GoalController extends Controller
             ['comment' => $data['comment']]
         );
 
+        // Rueckmeldung zum eigenen Ziel - die interessiert den Sportler
+        app(\App\Services\EventMailer::class)->goalCommented($goal->fresh('user'), $data['comment']);
+
         return back()->with('success', 'Kommentar gespeichert.');
     }
 
@@ -156,6 +159,14 @@ class GoalController extends Controller
             $groupGoal, $user->id, 'trainer', (int) $data['season_id'],
             $data['achieved'] ?? null, $data['notes'] ?? null, auth()->id(),
         );
+
+        // Nur bei einer echten Entscheidung benachrichtigen - das Zuruecksetzen
+        // auf "noch nicht bewertet" ist fuer die Sportlerin keine Nachricht wert.
+        if (isset($data['achieved']) && $data['achieved'] !== null) {
+            app(\App\Services\EventMailer::class)->criterionEvaluated(
+                $groupGoal, $user, (bool) $data['achieved'], $data['notes'] ?? null
+            );
+        }
 
         return back()->with('success', 'Bewertung gespeichert.');
     }
