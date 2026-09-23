@@ -9,6 +9,9 @@ Trainings- und Wettkampfportal für den Schwimmverein SG Wasserratten Nordersted
 - **Trainer**: Trainingseinheiten anlegen, Anwesenheit erfassen, Zeiten dokumentieren
 - **Schwimmer**: Eigene Trainingshistorie, Zeiten & Wettkampfergebnisse einsehen
 - **Elternteil**: Daten der eigenen Kinder einsehen
+- **E-Mail-Benachrichtigungen**: Zugangsmails sowie Einladungen, Erinnerungen,
+  Rückmeldungen, Ziele und Rekorde — jeweils im Profil einzeln einschaltbar
+  ([Details](docs/mail-und-zugang.md))
 
 ## Voraussetzungen
 
@@ -141,6 +144,13 @@ competition_results    – Wettkampfergebnisse
 
 ---
 
+## Weiterführende Dokumentation
+
+- [E-Mail-Versand und Zugänge](docs/mail-und-zugang.md) — Opt-in, Wartungsmodus,
+  Einladungen, Passwort-Abläufe, Cron
+- [Deployment auf all-inkl.com](docs/deployment-allinkl.md)
+- [DSV7-Integration](docs/dsv7-integration.md)
+
 ## Sicherheit
 
 - Alle Passwörter werden mit bcrypt gehasht (Laravel-Standard)
@@ -148,6 +158,12 @@ competition_results    – Wettkampfergebnisse
 - Rollenbasierte Zugriffskontrolle via Middleware
 - Inaktive Benutzer werden beim Login abgewiesen
 - SQL-Injection-Schutz durch Eloquent ORM
+- Anmeldebremse: fünf Fehlversuche je Adresse und Herkunft, dann 15 Minuten Pause
+- Passwörter mindestens zehn Zeichen mit Buchstaben und Ziffern; Initialpasswort
+  muss beim ersten Login geändert werden
+- Zugangsdaten werden nie per Mail verschickt — nur zeitlich begrenzte Einmallinks
+- Sitzungs-Cookie mit `http_only`, `SameSite=lax` und `secure` unter https
+- Neue Sitzungs-ID nach Anmeldung und Passwortänderung
 
 ---
 

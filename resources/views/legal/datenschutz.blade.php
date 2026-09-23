@@ -100,7 +100,29 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.6 E-Mail-Benachrichtigungen</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.6 Zugang und Anmeldung</h3>
+                <p><strong>Daten:</strong> E-Mail-Adresse als Benutzername, das verschlüsselte Passwort
+                   (nicht rückrechenbarer bcrypt-Hash) und der Zeitpunkt der letzten Anmeldung.
+                   <strong>IP-Adressen werden dabei nicht gespeichert.</strong></p>
+                <p class="mt-1"><strong>Zweck:</strong> Nachweis der Zugangsberechtigung, Schutz vor
+                   unberechtigten Zugriffen sowie die Verwaltung der Zugänge — etwa um zu erkennen, welche
+                   Konten nie genutzt wurden und eine erneute Einladung brauchen.</p>
+                <p class="mt-1"><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. b DSGVO
+                   (Durchführung des Mitgliedschaftsverhältnisses) und Art. 6 Abs. 1 lit. f DSGVO
+                   (Sicherheit des Portals).</p>
+                <p class="mt-1"><strong>Schutz vor Passwort-Raten:</strong> Nach mehreren fehlgeschlagenen
+                   Anmeldeversuchen wird die betroffene Kombination aus E-Mail-Adresse und Herkunftsadresse
+                   für 15 Minuten gesperrt. Dieser Zähler liegt flüchtig im Zwischenspeicher des Servers,
+                   wird nach Ablauf verworfen und nicht dauerhaft gespeichert.</p>
+                <p class="mt-1"><strong>Links zum Setzen eines Passworts</strong> werden nur als
+                   verschlüsselter Einmalwert gespeichert, verfallen nach Ablauf der Frist und werden bei
+                   Verwendung gelöscht.</p>
+                <p class="mt-1"><strong>Speicherdauer:</strong> Für die Dauer des Zugangs; nach dessen
+                   Löschung entfallen die Angaben mit dem Benutzerkonto.</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-1">3.7 E-Mail-Benachrichtigungen</h3>
                 <p><strong>Daten:</strong> E-Mail-Adresse, Name, Betreff und Zeitpunkt der Nachricht sowie der
                    Versandstatus. Gespeichert wird, dass und an wen eine Nachricht versandt wurde, nicht ihr Inhalt.</p>
                 <p class="mt-1"><strong>Zweck:</strong> Zusendung von Zugangsdaten und Hinweisen zum Konto
@@ -120,7 +142,7 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.7 Änderungsprotokoll</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.8 Änderungsprotokoll</h3>
                 <p><strong>Daten:</strong> Änderungen an Datensätzen mit Zeitstempel, Name und Benutzer-ID der ändernden Person sowie den geänderten Werten. Das Portal selbst speichert dabei keine IP-Adressen.</p>
                 <p class="mt-1"><strong>Zweck:</strong> Nachvollziehbarkeit von Datenänderungen, Schutz vor unberechtigten Zugriffen, Fehleranalyse.</p>
                 <p class="mt-1"><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO.</p>
@@ -128,7 +150,7 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.8 Zugriffsdaten des Webservers</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.9 Zugriffsdaten des Webservers</h3>
                 <p>
                     Bei jedem Zugriff auf eine Seite des Portals werden Zugriffsdaten in einer Protokolldatei
                     (Log-Datei) auf dem Server gespeichert. Diese Daten beinhalten z. B. den Browsertyp und
@@ -147,7 +169,7 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 border border-red-200">
-                <h3 class="font-semibold text-gray-800 mb-1">3.9 Gesundheitsdaten (Ernährungsberatung und Sportmedizin)</h3>
+                <h3 class="font-semibold text-gray-800 mb-1">3.10 Gesundheitsdaten (Ernährungsberatung und Sportmedizin)</h3>
                 <p>
                     <strong>Daten:</strong> Dokumente im PDF-Format aus der Ernährungsberatung und aus
                     sportmedizinischen Untersuchungen, jeweils mit Titel, Dateiname, optionalen Schlagworten,

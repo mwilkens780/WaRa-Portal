@@ -53,6 +53,22 @@ Alle automatischen Importe laufen als Laravel-Scheduled-Commands über `routes/c
 Der Cron auf dem Server ruft minütlich `GET /cron/run/{token}` auf → `CronController` → `php artisan schedule:run`.
 Konfiguration (aktiviert, Tage, Uhrzeit) per Crawler in der `settings`-Tabelle unter dem Schlüssel `crawler.{source}.*`.
 
+## E-Mail-Versand
+
+Ausführlich in [docs/mail-und-zugang.md](docs/mail-und-zugang.md). Das Wichtigste:
+
+- **Nie direkt `Mail::to()` verwenden**, sondern `App\Services\Mailer`. Nur dort
+  greifen Opt-in-Prüfung, Wartungsmodus-Umleitung und Protokoll.
+- **Opt-in**: Außer Kontomails (`MailTopic::ACCOUNT`) geht nur raus, was im
+  Profil eingeschaltet ist. Neue Themen gehören in `App\Support\MailTopic`.
+- **Ereignis-Mails** bauen auf `App\Services\EventMailer` auf; dort liegt auch
+  die Auswahl der Empfänger (inkl. Eltern und Gruppentrainer).
+- **Eine Vorlage für alle Ereignisse**: `App\Mail\NotificationMail` — keine
+  neuen Mailables für jedes Ereignis anlegen.
+- **Massenversand** immer über `Mailer::queue()`, nie synchron in einer Anfrage.
+- **Keine Passwörter in Mails.** Zugang nur über Einmallinks aus
+  `App\Services\AccountLinkService`.
+
 ## Wichtige Dateipfade
 
 | Zweck | Pfad |
@@ -63,3 +79,7 @@ Konfiguration (aktiviert, Tage, Uhrzeit) per Crawler in der `settings`-Tabelle u
 | Scheduler | `routes/console.php` |
 | Settings-View | `resources/views/admin/settings/index.blade.php` |
 | Import-Log-View | `resources/views/admin/import-log/index.blade.php` |
+| Mailversand | `app/Services/Mailer.php`, `app/Services/EventMailer.php` |
+| Mailvorlagen | `resources/views/emails/` |
+| Mail-Themenkatalog | `app/Support/MailTopic.php` |
+| Anmeldung und Passwort | `app/Http/Controllers/Auth/` |
