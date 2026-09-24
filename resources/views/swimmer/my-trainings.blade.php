@@ -90,7 +90,8 @@
 
     {{-- ── Trainingsplanung ────────────────────────────────────────────────── --}}
     @if($trainingSeries->isNotEmpty())
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+         x-data="collapsibleBlock('mytraining-series')">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <h2 class="text-sm font-semibold text-gray-700">Trainingsplanung</h2>
@@ -99,9 +100,14 @@
                     <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{{ $excludedSeriesIds->count() }} dauerhaft abgesagt</span>
                 @endif
             </div>
+            <button type="button" @click="toggle()" class="p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
+                <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
         </div>
 
-        <div class="divide-y divide-gray-50">
+        <div x-show="open" x-cloak class="divide-y divide-gray-50">
             @foreach($trainingSeries as $series)
             <div x-data="{ showExcludeForm: false, showPunctual: false }" class="px-4 py-3 {{ $series->is_excluded ? 'bg-red-50/30' : '' }}">
 
@@ -212,7 +218,8 @@
 
     {{-- ── Gasttraining ─────────────────────────────────────────────────────── --}}
     @if($guestSessions->isNotEmpty())
-    <div class="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden"
+         x-data="collapsibleBlock('mytraining-guest')">
         <div class="px-5 py-3 bg-purple-50 border-b border-purple-100 flex items-center gap-2">
             <svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -220,8 +227,13 @@
             <h2 class="text-sm font-semibold text-purple-700">Gasttraining verfügbar</h2>
             <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-semibold">{{ $guestSessions->count() }}</span>
             <span class="text-xs text-purple-400 ml-1">– Freie Plätze in anderen Gruppen</span>
+            <button type="button" @click="toggle()" class="ml-auto p-1 text-purple-400 hover:text-purple-600" :aria-expanded="open ? 'true' : 'false'">
+                <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
         </div>
-        <div class="divide-y divide-gray-50">
+        <div x-show="open" x-cloak class="divide-y divide-gray-50">
             @foreach($guestSessions as $g)
             @php $s = $g->session; @endphp
             <div class="px-4 py-3 flex items-center gap-3 flex-wrap {{ $g->booked ? 'bg-purple-50/40' : '' }}">
@@ -283,15 +295,22 @@
     @endif
 
     {{-- ── Bevorstehende Trainings (nächste 2 Wochen) ────────────────────── --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+         x-data="collapsibleBlock('mytraining-upcoming')">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2 flex-wrap">
             <h2 class="text-sm font-semibold text-gray-700">Bevorstehende Trainings</h2>
             <span class="text-xs text-gray-400">nächste 2 Wochen</span>
             @if($upcoming->count())
                 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{{ $upcoming->count() }}</span>
             @endif
+            <button type="button" @click="toggle()" class="ml-auto p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
+                <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
         </div>
 
+        <div x-show="open" x-cloak>
         @if($upcoming->isEmpty())
             <p class="text-sm text-gray-400 text-center py-8">Keine Einheiten in den nächsten 2 Wochen.</p>
         @else
@@ -404,14 +423,21 @@
                 <p class="text-xs text-gray-400">+ {{ $upcomingLaterCount }} weitere {{ $upcomingLaterCount === 1 ? 'Einheit' : 'Einheiten' }} in den Folgewochen</p>
             </div>
         @endif
+        </div>
     </div>
 
     {{-- ── Selbsteinschätzung ──────────────────────────────────────────────── --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+         x-data="collapsibleBlock('mytraining-assessment')">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <h2 class="text-sm font-semibold text-gray-700">Selbsteinschätzung</h2>
                 <span class="text-xs text-gray-400">{{ $pastWindowLabel }}</span>
+                <button type="button" @click="toggle()" class="p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
+                    <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 {{-- Filter tabs --}}
@@ -445,6 +471,7 @@
             </div>
         </div>
 
+        <div x-show="open" x-cloak>
         @if($pastSessions->isEmpty())
             <p class="text-sm text-gray-400 text-center py-10">Keine Einheiten in diesem Zeitraum.</p>
         @else
@@ -620,11 +647,35 @@
                 </div>
             @endif
         @endif
+        </div>
     </div>
 
 </div>
 
 @push('scripts')
+<script>
+/**
+ * Klappbare Bloecke. Der Zustand wird je Block im Browser gemerkt, damit man
+ * nach jedem Seitenwechsel nicht wieder alles zuklappen muss. Der Zugriff auf
+ * den Speicher ist abgesichert - in privaten Fenstern wirft er, und dann soll
+ * der Block trotzdem funktionieren.
+ */
+function collapsibleBlock(key, standard = true) {
+    return {
+        open: standard,
+        init() {
+            try {
+                const saved = localStorage.getItem('card:' + key);
+                if (saved !== null) this.open = saved === '1';
+            } catch (e) {}
+        },
+        toggle() {
+            this.open = !this.open;
+            try { localStorage.setItem('card:' + key, this.open ? '1' : '0'); } catch (e) {}
+        },
+    };
+}
+</script>
 <script>
 function scoreKnob(initial) {
     const CX = 60, CY = 60, R = 44;

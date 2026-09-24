@@ -123,12 +123,25 @@ class DashboardController extends Controller
         // Bestzeiten: Trainingszeiten + Wettkampfergebnisse zusammengeführt
         [$allBests, $yearBests, $seasonBests] = $this->buildCombinedBests($swimmer->id);
 
+        // Wettkaempfe der laufenden Saison - gezaehlt werden Veranstaltungen,
+        // nicht Starts: zwoelf Ergebnisse an einem Wochenende sind ein Wettkampf.
+        $competitionsSeason = $currentSeason
+            ? CompetitionResult::where('user_id', $swimmer->id)
+                ->where('time_ms', '>', 0)
+                ->whereHas('competition', fn($q) => $q->whereBetween('date', [$currentSeason->start_date, $currentSeason->end_date]))
+                ->distinct('competition_id')->count('competition_id')
+            : 0;
+
         $stats = [
             'trainings_total'       => $attendedTotal,
             'trainings_this_year'   => $attendedYear,
+            'trainings_season'      => $attendedSeason,
             'personal_bests'        => $allBests->count(),
+            'personal_bests_season' => $seasonBests->count(),
+            'goals_season'          => 0,   // wird unten gesetzt, sobald die Ziele geladen sind
             'competitions'          => CompetitionResult::where('user_id', $swimmer->id)
                 ->where('time_ms', '>', 0)->distinct('competition_id')->count('competition_id'),
+            'competitions_season'   => $competitionsSeason,
             'participation_season'  => $sessionsSeason > 0 ? round($attendedSeason / $sessionsSeason * 100) : 0,
             'participation_week'    => $sessionsWeek > 0 ? round($attendedWeek / $sessionsWeek * 100) : 0,
             'attended_season'       => $attendedSeason,
@@ -175,6 +188,8 @@ class DashboardController extends Controller
         $goalsAchieved = $currentSeason ? SwimmerGoal::where('user_id', $swimmer->id)->where('season_id', $currentSeason->id)->where('achieved', true)->count() : 0;
         $goalsUnnotified = $currentSeason ? SwimmerGoal::where('user_id', $swimmer->id)->where('season_id', $currentSeason->id)->where('notified', false)->where('achieved', true)->count() : 0;
 
+        $stats['goals_season'] = $goalsTotal;
+
         // Geplante Trainings nächste 2 Wochen (Gruppen + individuelle Zuweisungen, ohne ausgeblendete Serien)
         $exclusionFilter = $this->buildExclusionFilter($swimmer->id);
         $upcoming_sessions = TrainingSession::where('date', '>', today())
@@ -219,10 +234,16 @@ class DashboardController extends Controller
             ->with(['group:id,name,color', 'user:id,firstname,lastname'])
             ->first();
 
-        // My upcoming week without a motto (reminder)
+        // Erinnerung an das eigene Motto - erst eine Woche vor der Faelligkeit.
+        // Wer im Maerz sieht, dass er im Juni dran ist, vergisst es bis dahin
+        // ohnehin; bis dahin steht der Hinweis nur im Weg.
+        // whereDate statt eines Bereichsvergleichs: je nach Datenbank steht in
+        // der Spalte "2026-09-28" oder "2026-09-28 00:00:00", und als Zeichen-
+        // kette verglichen faellt die obere Grenze dann heraus.
         $mottoReminder = GroupMottoWeek::whereIn('training_group_id', $mottoGroupIds)
             ->where('user_id', $swimmer->id)
-            ->where('week_start', '>=', $mottoMonday->format('Y-m-d'))
+            ->whereDate('week_start', '>=', $mottoMonday->format('Y-m-d'))
+            ->whereDate('week_start', '<=', $mottoMonday->copy()->addDays(7)->format('Y-m-d'))
             ->whereNull('motto')
             ->orderBy('week_start')
             ->with('group:id,name,color')

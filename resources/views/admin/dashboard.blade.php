@@ -14,10 +14,17 @@
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
             <div>
+                @php $mailTestAddress = \App\Services\Mailer::testAddress(); @endphp
                 <p class="text-sm font-semibold text-amber-800">Wartungsmodus ist aktiv</p>
                 <p class="text-xs text-amber-700 mt-0.5">
-                    Nur freigegebene Benutzer haben Zugriff. Alle System-E-Mails werden an
-                    <span class="font-medium">administrator@wara-portal.de</span> umgeleitet.
+                    Nur freigegebene Benutzer haben Zugriff.
+                    @if($mailTestAddress)
+                        Alle E-Mails gehen an <span class="font-medium">{{ $mailTestAddress }}</span>
+                        statt an die Mitglieder.
+                    @else
+                        <span class="font-semibold">Es ist keine Testadresse hinterlegt – solange geht gar
+                        keine E-Mail raus.</span>
+                    @endif
                 </p>
             </div>
         </div>

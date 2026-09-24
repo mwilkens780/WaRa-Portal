@@ -203,25 +203,38 @@
 
     {{-- Statistik --}}
     <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        {{-- Jede Kachel zeigt den Gesamtstand gross und den Saisonstand darunter:
+             "wie viel insgesamt" und "wie viel dieses Jahr" sind zwei verschiedene
+             Fragen, aber sie gehoeren nebeneinander. --}}
         <a href="{{ route('swimmer.sessions') }}"
            class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
             <p class="text-sm text-gray-500">Trainings gesamt</p>
             <p class="text-3xl font-bold text-primary mt-1">{{ $stats['trainings_total'] }}</p>
+            <p class="text-xs text-gray-400 mt-1">
+                <span class="font-semibold text-gray-600">{{ $stats['trainings_season'] }}</span> in dieser Saison
+            </p>
         </a>
         <a href="{{ route('swimmer.sessions') }}"
            class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-            <p class="text-sm text-gray-500">Dieses Jahr</p>
+            <p class="text-sm text-gray-500">Trainings dieses Jahr</p>
             <p class="text-3xl font-bold text-primary mt-1">{{ $stats['trainings_this_year'] }}</p>
+            <p class="text-xs text-gray-400 mt-1">Kalenderjahr {{ now()->year }}</p>
         </a>
         <a href="#bestzeiten"
            class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
             <p class="text-sm text-gray-500">Persönliche Bestzeiten</p>
             <p class="text-3xl font-bold text-accent mt-1">{{ $stats['personal_bests'] }}</p>
+            <p class="text-xs text-gray-400 mt-1">
+                <span class="font-semibold text-gray-600">{{ $stats['personal_bests_season'] }}</span> in dieser Saison
+            </p>
         </a>
         <a href="{{ route('swimmer.competitions') }}"
            class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
             <p class="text-sm text-gray-500">Wettkämpfe</p>
             <p class="text-3xl font-bold text-primary mt-1">{{ $stats['competitions'] }}</p>
+            <p class="text-xs text-gray-400 mt-1">
+                <span class="font-semibold text-gray-600">{{ $stats['competitions_season'] }}</span> in dieser Saison
+            </p>
         </a>
         <a href="{{ route('swimmer.goals.index') }}"
            class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow relative
@@ -232,7 +245,7 @@
                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
                 </span>
             @endif
-            <p class="text-sm text-gray-500">Meine Ziele</p>
+            <p class="text-sm text-gray-500">Meine Ziele in dieser Saison</p>
             <p class="text-3xl font-bold {{ $goalsUnnotified > 0 ? 'text-green-600' : 'text-primary' }} mt-1">
                 {{ $goalsAchieved }}<span class="text-lg font-normal text-gray-400">/{{ $goalsTotal }}</span>
             </p>
@@ -241,8 +254,9 @@
                     <div class="{{ $goalsUnnotified > 0 ? 'bg-green-500' : 'bg-primary' }} h-1.5 rounded-full"
                          style="width: {{ $goalsTotal > 0 ? round($goalsAchieved / $goalsTotal * 100) : 0 }}%"></div>
                 </div>
+                <p class="text-xs text-gray-400 mt-1">erreicht von gesetzten Zielen</p>
             @else
-                <p class="text-xs text-gray-400 mt-2">Noch keine Ziele</p>
+                <p class="text-xs text-gray-400 mt-2">Noch keine Ziele in dieser Saison</p>
             @endif
         </a>
 
@@ -322,11 +336,9 @@
 
     {{-- Geplante Trainings nächste 2 Wochen --}}
     @if($upcoming_sessions->isNotEmpty())
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div class="flex items-center justify-between p-5 border-b border-gray-100">
-            <h2 class="font-semibold text-gray-800">Trainings – nächste 2 Wochen</h2>
-            <span class="text-xs text-gray-400">{{ $upcoming_sessions->count() }} Einheit(en)</span>
-        </div>
+    <x-collapsible-card title="Trainings – nächste 2 Wochen"
+                        meta="{{ $upcoming_sessions->count() }} Einheit(en)"
+                        storage-key="swimmer-dash-trainings">
         <div class="divide-y divide-gray-50">
             @foreach($upcoming_sessions as $session)
                 @php
@@ -392,7 +404,7 @@
                 </div>
             @endforeach
         </div>
-    </div>
+    </x-collapsible-card>
     @endif
 
     {{-- Neue Rekorde dieser Saison --}}
@@ -430,9 +442,11 @@
 
     <div class="grid lg:grid-cols-2 gap-6">
         {{-- Bestzeiten mit Tabs --}}
-        <div id="bestzeiten" class="bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ bestTab: 'alltime' }">
-            <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                <h2 class="font-semibold text-gray-800">Meine Bestzeiten</h2>
+        <x-collapsible-card id="bestzeiten" title="Meine Bestzeiten"
+                            meta="{{ $stats['personal_bests'] }} Strecken"
+                            storage-key="swimmer-dash-bests">
+        <div x-data="{ bestTab: 'alltime' }">
+            <div class="flex items-center justify-end px-5 pt-4">
                 <a href="{{ route('swimmer.times') }}" class="text-sm text-primary hover:underline">Alle Bestzeiten</a>
             </div>
             <div class="flex border-b border-gray-100 text-xs">
@@ -570,13 +584,13 @@
                 @endif
             </div>
         </div>
+        </x-collapsible-card>
 
         {{-- Letzte Trainings & Wettkämpfe --}}
         <div class="space-y-4">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-                <div class="p-5 border-b border-gray-100">
-                    <h2 class="font-semibold text-gray-800">Letzte Trainings</h2>
-                </div>
+            <x-collapsible-card title="Letzte Trainings"
+                                meta="{{ $recent_sessions->count() }} in 2 Wochen"
+                                storage-key="swimmer-dash-recent-sessions">
                 <div class="divide-y divide-gray-50">
                     @forelse($recent_sessions as $session)
                         @php $diary = $session->diaries->first(); @endphp
@@ -605,12 +619,13 @@
                         <p class="text-sm text-gray-400 px-5 py-4 text-center">Noch keine Trainings.</p>
                     @endforelse
                 </div>
-            </div>
+            </x-collapsible-card>
 
             @if($recent_results->isNotEmpty())
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                        <h2 class="font-semibold text-gray-800">Letzte Wettkampfergebnisse</h2>
+                <x-collapsible-card title="Letzte Wettkampfergebnisse"
+                                    meta="{{ $recent_results->count() }} Ergebnisse"
+                                    storage-key="swimmer-dash-recent-results">
+                    <div class="px-5 pt-4 flex justify-end">
                         <a href="{{ route('swimmer.competitions') }}" class="text-sm text-primary hover:underline">Alle</a>
                     </div>
                     <div class="divide-y divide-gray-50">
@@ -638,7 +653,7 @@
                             </a>
                         @endforeach
                     </div>
-                </div>
+                </x-collapsible-card>
             @endif
         </div>
     </div>

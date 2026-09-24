@@ -85,11 +85,9 @@ class UserLiteController extends Controller
         $data['name']   = trim($data['firstname'] . ' ' . $data['lastname']);
         $data['active'] = $request->has('active') ? $request->boolean('active') : $user->active;
 
-        if ($request->filled('password')) {
-            $request->validate(['password' => ['confirmed', Password::min(8)->letters()->numbers()]]);
-            $data['password']         = Hash::make($request->password);
-            $data['initial_password'] = null;
-        }
+        // Bewusst kein Passwort: Ein Trainer legt keines fuer jemand anderen
+        // fest. Selbst wenn ein veraltetes Formular noch Felder mitschickt,
+        // werden sie hier nicht ausgewertet.
 
         $user->update($data);
 

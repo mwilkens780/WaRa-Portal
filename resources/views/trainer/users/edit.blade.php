@@ -57,20 +57,17 @@
                 </label>
             </div>
 
+            {{-- Kein Passwortfeld: Ein Trainer soll kein Passwort fuer jemand
+                 anderen festlegen. Wer seines vergessen hat, fordert es sich auf
+                 der Anmeldeseite selbst neu an; für alles Weitere gibt es die
+                 Benutzerverwaltung der Administratoren. --}}
             <div class="border-t border-gray-100 pt-4">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Passwort ändern (optional)</p>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Neues Passwort</label>
-                        <input type="password" name="password"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Passwort bestätigen</label>
-                        <input type="password" name="password_confirmation"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-                </div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Passwort</p>
+                <p class="text-sm text-gray-600">
+                    Passwörter werden hier nicht vergeben. Wer sein Passwort vergessen hat, nutzt auf der
+                    Anmeldeseite <strong>„Passwort vergessen?"</strong> und bekommt einen Link per E-Mail.
+                    Geht das nicht, hilft ein Administrator weiter.
+                </p>
             </div>
 
             <div class="flex gap-3 pt-2 border-t border-gray-100">

@@ -21,11 +21,26 @@ class DashboardController extends Controller
             'coTrainers', fn($q) => $q->where('users.id', $trainer->id)
         );
 
+        // Ein Trainer sieht in den Auswertungen nur die Sportler seiner eigenen
+        // Gruppen. Vorher standen dort alle aktiven Schwimmer des Vereins -
+        // damit waren die Prozentwerte nicht nur zu niedrig, sondern zeigten
+        // auch Namen aus fremden Gruppen.
+        $isAdmin    = $trainer->isAdmin();
+        $myGroupIds = $trainer->trainerGroups()->pluck('training_groups.id');
+
+        $mySwimmersQuery = function () use ($isAdmin, $myGroupIds) {
+            $q = User::where('role', 'schwimmer')->where('active', true);
+            if (!$isAdmin) {
+                $q->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $myGroupIds));
+            }
+            return $q;
+        };
+
         $stats = [
             'sessions_total'      => $mySessionsQuery()->count(),
             'sessions_this_month' => $mySessionsQuery()
                 ->whereMonth('date', now()->month)->whereYear('date', now()->year)->count(),
-            'active_swimmers'     => User::where('role', 'schwimmer')->where('active', true)->count(),
+            'active_swimmers'     => $mySwimmersQuery()->count(),
         ];
 
         $recent_sessions = $mySessionsQuery()
@@ -54,7 +69,7 @@ class DashboardController extends Controller
             ])
             ->orderByDesc('date')->limit(10)->get()->reverse()->values();
 
-        $totalSwimmers = User::where('role', 'schwimmer')->where('active', true)->count();
+        $totalSwimmers = $mySwimmersQuery()->count();
 
         $chartLabels = $chartSessions->map(fn($s) => $s->date->format('d.m.'))->toArray();
         $chartData   = $chartSessions->map(
@@ -62,19 +77,31 @@ class DashboardController extends Controller
         )->toArray();
 
         // ── Chart-Daten: Beteiligung pro Schwimmer (letzte 90 Tage) ─────────
-        $swimmers = User::where('role', 'schwimmer')->where('active', true)->orderBy('name')->get();
+        $swimmers = $mySwimmersQuery()->orderBy('lastname')->orderBy('firstname')->get();
         $since    = now()->subDays(90);
 
-        $sessionCount90 = TrainingSession::where('date', '>=', $since)->count();
+        // Bezugsgroesse sind die Einheiten, die dieser Trainer betreut - nicht
+        // alle Einheiten des Vereins. Sonst sieht jede Gruppe kuenstlich schlecht
+        // aus, weil die Trainings der anderen Gruppen mitgezaehlt werden.
+        $sessions90 = TrainingSession::where('date', '>=', $since);
+        if (!$isAdmin) {
+            $sessions90->manageableBy($trainer);
+        }
+        $sessionIds90   = $sessions90->pluck('id');
+        $sessionCount90 = $sessionIds90->count();
 
-        $swimmerStats = $swimmers->map(function ($sw) use ($since, $sessionCount90) {
-            $attended = TrainingAttendance::where('user_id', $sw->id)
-                ->where('attended', true)
-                ->whereHas('session', fn($q) => $q->where('date', '>=', $since))
-                ->count();
+        // Eine Abfrage statt einer je Schwimmer
+        $attendedByUser = TrainingAttendance::whereIn('training_session_id', $sessionIds90)
+            ->where('attended', true)
+            ->selectRaw('user_id, COUNT(*) as anzahl')
+            ->groupBy('user_id')
+            ->pluck('anzahl', 'user_id');
+
+        $swimmerStats = $swimmers->map(function ($sw) use ($attendedByUser, $sessionCount90) {
+            $attended = (int) ($attendedByUser[$sw->id] ?? 0);
             return [
-                'name' => $sw->name,
-                'pct'  => $sessionCount90 > 0 ? round($attended / $sessionCount90 * 100) : 0,
+                'name'     => $sw->name,
+                'pct'      => $sessionCount90 > 0 ? round($attended / $sessionCount90 * 100) : 0,
                 'attended' => $attended,
                 'total'    => $sessionCount90,
             ];
