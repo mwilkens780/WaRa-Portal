@@ -37,12 +37,41 @@
         $navIsoYear = $firstOfMonth->isoWeekYear();
         $navIsoWeek = $firstOfMonth->isoWeek();
     } else {
-        $navCalYear = $activeSeason?->start_date->year ?? ($activeYear ?? now()->year);
-        $navMonth   = $activeSeason?->start_date->month ?? 1;
-        $_tmp       = \Carbon\Carbon::create($navCalYear, $navMonth, 1);
+        // Uebersicht und Liste haben keinen eigenen Tag. Dann zaehlt heute -
+        // sofern heute ueberhaupt in den angezeigten Zeitraum faellt. Vorher
+        // wurde immer der Saisonanfang genommen: Wer aus der Uebersicht zurueck
+        // in die Monats- oder Wochenansicht wechselte, landete im September.
+        $heute = now();
+        $imZeitraum = $mode === 'season'
+            ? ($activeSeason && $heute->betweenIncluded($activeSeason->start_date, $activeSeason->end_date))
+            : ($activeYear === null || (int) $activeYear === $heute->year);
+
+        $_tmp = $imZeitraum
+            ? $heute->copy()
+            : \Carbon\Carbon::create(
+                $activeSeason?->start_date->year ?? ($activeYear ?? $heute->year),
+                $activeSeason?->start_date->month ?? 1,
+                1
+              );
+
+        $navCalYear = $_tmp->year;
+        $navMonth   = $_tmp->month;
         $navIsoYear = $_tmp->isoWeekYear();
         $navIsoWeek = $_tmp->isoWeek();
     }
+
+    // Ziel des „Heute"-Knopfes: derselbe Blick, aber auf den heutigen Tag
+    $heuteParams = match ($view) {
+        'week'  => ['mode' => $mode, 'view' => 'week',  'year' => now()->isoWeekYear(), 'week' => now()->isoWeek()],
+        'month' => ['mode' => $mode, 'view' => 'month', 'year' => now()->year, 'month' => now()->month],
+        default => ['mode' => $mode, 'view' => $view,   'year' => now()->year],
+    };
+    // Ohne season_id: der Controller waehlt dann die Saison zum heutigen Datum
+    $zeigtHeute = match ($view) {
+        'week'  => isset($weekStart) && now()->betweenIncluded($weekStart, $weekEnd),
+        'month' => isset($year) && isset($month) && (int) $year === now()->year && (int) $month === now()->month,
+        default => false,
+    };
 
     $monthViewParams    = ['mode' => $mode, 'view' => 'month',    'year' => $navCalYear, 'month' => $navMonth,   'season_id' => $seasonId];
     $weekViewParams     = ['mode' => $mode, 'view' => 'week',     'year' => $navIsoYear, 'week'  => $navIsoWeek, 'season_id' => $seasonId];
@@ -114,6 +143,15 @@
             @endif
 
             <div class="flex-1"></div>
+
+            {{-- Zurück zu heute: ohne season_id, damit der Controller die Saison
+                 zum heutigen Datum waehlt --}}
+            <a href="{{ route('calendar.index', $heuteParams) }}"
+               title="Zum heutigen Tag springen"
+               class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
+                      {{ $zeigtHeute ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">
+                Heute
+            </a>
 
             {{-- View toggle: Monat / Woche / Übersicht / Liste --}}
             <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">

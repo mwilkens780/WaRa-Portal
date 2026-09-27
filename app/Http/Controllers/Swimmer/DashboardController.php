@@ -33,28 +33,17 @@ class DashboardController extends Controller
         'L' => 'Lagen',
     ];
 
+    /**
+     * Sichtbarkeitsregel fuer Listen im Dashboard.
+     *
+     * Die Regel selbst steht im Modell (TrainingSession::scopeVisibleToSwimmer),
+     * damit Dashboard, Kalender und Detailseite nicht auseinanderlaufen.
+     */
     private function buildVisibilityFilter(int $swimmerId): \Closure
     {
-        $groupIds        = \App\Models\User::find($swimmerId)->trainingGroups()->pluck('training_groups.id');
-        $individualIds   = TrainingSessionSwimmer::where('user_id', $swimmerId)->whereNotNull('training_session_id')->pluck('training_session_id');
-        $seriesGroupIds  = TrainingSessionSwimmer::where('user_id', $swimmerId)->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
+        $swimmer = \App\Models\User::find($swimmerId);
 
-        return function ($q) use ($groupIds, $individualIds, $seriesGroupIds) {
-            $q->where(function ($inner) use ($groupIds, $individualIds, $seriesGroupIds) {
-                // Sessions belonging to one of swimmer's training groups
-                if ($groupIds->isNotEmpty()) {
-                    $inner->orWhereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
-                }
-                // Individually assigned sessions
-                if ($individualIds->isNotEmpty()) {
-                    $inner->orWhereIn('id', $individualIds);
-                }
-                // Sessions belonging to an individually assigned series
-                if ($seriesGroupIds->isNotEmpty()) {
-                    $inner->orWhereIn('recurrence_group_id', $seriesGroupIds);
-                }
-            });
-        };
+        return fn($q) => $q->visibleToSwimmer($swimmer);
     }
 
     private function buildExclusionFilter(int $swimmerId): \Closure
@@ -304,81 +293,80 @@ class DashboardController extends Controller
             $seasonEnd   = $month >= 10 ? ($year + 1) . "-03-31" : "{$year}-03-31";
         }
 
-        // Training-Zeiten per discipline+distance
-        $trainAll    = SwimmingTime::where('user_id', $userId)
-            ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')
-            ->groupBy('discipline', 'distance')->get()
-            ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
+        // Einzelzeiten statt Aggregaten: Zu einer Bestzeit gehoert die Frage
+        // "wann und wo?", und die beantwortet ein MIN() nicht. Die Menge ist je
+        // Schwimmer ueberschaubar, deshalb wird hier in PHP zusammengefasst.
+        $trainingszeiten = SwimmingTime::with('trainingSession:id,title,date,location')
+            ->where('user_id', $userId)
+            ->get()
+            ->map(fn($t) => (object) [
+                'key'      => $t->discipline . '_' . $t->distance,
+                'time_ms'  => (int) $t->time_ms,
+                'source'   => 'training',
+                'date'     => $t->trainingSession?->date ?? $t->created_at,
+                'place'    => $t->trainingSession?->location ?: 'Training',
+            ]);
 
-        $trainYear   = SwimmingTime::where('user_id', $userId)
-            ->whereYear('created_at', $year)
-            ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')
-            ->groupBy('discipline', 'distance')->get()
-            ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
+        $wettkampfzeiten = CompetitionResult::with('competition:id,name,date,location')
+            ->where('user_id', $userId)->where('time_ms', '>', 0)
+            ->get()
+            ->map(fn($r) => (object) [
+                'key'      => $r->discipline . '_' . $r->distance,
+                'time_ms'  => (int) $r->time_ms,
+                'source'   => 'competition',
+                'date'     => $r->competition?->date,
+                'place'    => $r->competition?->location ?: $r->competition?->name,
+            ]);
 
-        $trainSeason = SwimmingTime::where('user_id', $userId)
-            ->whereBetween('created_at', [$seasonStart, $seasonEnd])
-            ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')
-            ->groupBy('discipline', 'distance')->get()
-            ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
+        $alle = $trainingszeiten->concat($wettkampfzeiten)->filter(fn($z) => $z->time_ms > 0);
 
-        // Wettkampfergebnisse per discipline+distance (nur gültige Zeiten)
-        $compAll    = CompetitionResult::where('user_id', $userId)->where('time_ms', '>', 0)
-            ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')
-            ->groupBy('discipline', 'distance')->get()
-            ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
-
-        $compYear   = CompetitionResult::where('user_id', $userId)->where('time_ms', '>', 0)
-            ->whereHas('competition', fn($q) => $q->whereYear('date', $year))
-            ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')
-            ->groupBy('discipline', 'distance')->get()
-            ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
-
-        $compSeason = CompetitionResult::where('user_id', $userId)->where('time_ms', '>', 0)
-            ->whereHas('competition', fn($q) => $q->whereBetween('date', [$seasonStart, $seasonEnd]))
-            ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')
-            ->groupBy('discipline', 'distance')->get()
-            ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
+        $imZeitraum = fn($von, $bis) => $alle->filter(fn($z) => $z->date
+            && $z->date->betweenIncluded(Carbon::parse($von), Carbon::parse($bis)));
 
         return [
-            $this->mergeBests($trainAll, $compAll),
-            $this->mergeBests($trainYear, $compYear),
-            $this->mergeBests($trainSeason, $compSeason),
+            $this->bestenJeStrecke($alle),
+            $this->bestenJeStrecke($imZeitraum("{$year}-01-01", "{$year}-12-31")),
+            $this->bestenJeStrecke($imZeitraum($seasonStart, $seasonEnd)),
         ];
     }
 
-    private function mergeBests($trainData, $compData): \Illuminate\Support\Collection
+    /**
+     * Je Strecke die schnellste Zeit - mitsamt Datum und Ort.
+     *
+     * Bei gleicher Zeit gewinnt die frueher geschwommene: Wer eine Zeit
+     * wiederholt, hat sie nicht neu aufgestellt.
+     */
+    private function bestenJeStrecke(\Illuminate\Support\Collection $zeiten): \Illuminate\Support\Collection
     {
-        $keys = $trainData->keys()->merge($compData->keys())->unique();
+        $beste = [];
 
-        return $keys->map(function ($key) use ($trainData, $compData) {
-            $tMs = $trainData->get($key)?->best_ms;
-            $cMs = $compData->get($key)?->best_ms;
+        foreach ($zeiten as $z) {
+            $vorhanden = $beste[$z->key] ?? null;
+            $besser    = !$vorhanden
+                || $z->time_ms < $vorhanden->time_ms
+                || ($z->time_ms === $vorhanden->time_ms
+                    && $z->date && $vorhanden->date && $z->date->lt($vorhanden->date));
 
-            if ($tMs !== null && $cMs !== null) {
-                $bestMs = min($tMs, $cMs);
-                $source = $tMs < $cMs ? 'training' : ($cMs < $tMs ? 'competition' : 'both');
-            } elseif ($tMs !== null) {
-                $bestMs = $tMs;
-                $source = 'training';
-            } else {
-                $bestMs = $cMs;
-                $source = 'competition';
-            }
+            if ($besser) $beste[$z->key] = $z;
+        }
 
+        return collect($beste)->map(function ($z, $key) {
             [$disc, $dist] = explode('_', $key, 2);
-            return (object)[
+
+            return (object) [
                 'key'        => $key,
                 'discipline' => $disc,
                 'distance'   => (int) $dist,
-                'best_ms'    => $bestMs,
+                'best_ms'    => $z->time_ms,
                 'label'      => (self::DISC_LABELS[$disc] ?? $disc) . ' ' . $dist . 'm',
-                'source'     => $source,
-                'formatted'  => SwimmingTime::formatMs($bestMs),
+                'source'     => $z->source,
+                'formatted'  => SwimmingTime::formatMs($z->time_ms),
+                'date'       => $z->date,
+                'date_label' => $z->date?->format('d.m.Y'),
+                'place'      => $z->place,
             ];
         })
         ->sortBy([['discipline', 'asc'], ['distance', 'asc']])
-        ->keyBy('label')
         ->values()
         ->keyBy('label');
     }
@@ -690,9 +678,10 @@ class DashboardController extends Controller
                     'ms'               => $t->time_ms,
                     'formatted'        => SwimmingTime::formatMs($t->time_ms),
                     'source'           => 'training',
-                    'date'             => $t->trainingSession?->date,
+                    'date'             => $t->trainingSession?->date ?? $t->created_at,
                     'label'            => $t->trainingSession?->title ?? 'Training',
-                    'location'         => null,
+                    // Ort der Trainingseinheit, damit auch hier "wann und wo" steht
+                    'location'         => $t->trainingSession?->location,
                 ];
             }
         }
@@ -869,24 +858,12 @@ class DashboardController extends Controller
 
     public function sessionDetail(\App\Models\TrainingSession $session)
     {
-        $user            = auth()->user();
-        $swimmerGroupIds = $user->trainingGroups()->pluck('training_groups.id');
-        $hasGroupAccess  = $swimmerGroupIds->isNotEmpty() && $session->trainingGroups()->whereIn('training_groups.id', $swimmerGroupIds)->exists();
-        $hasIndividual   = TrainingSessionSwimmer::where('user_id', $user->id)
-            ->where(function ($q) use ($session) {
-                $q->where('training_session_id', $session->id);
-                if ($session->recurrence_group_id) {
-                    $q->orWhere('recurrence_group_id', $session->recurrence_group_id);
-                }
-            })->exists();
-        // Anwesenheit als drittes Kriterium: wer als anwesend markiert ist, darf
-        // die Session und sein Tagebuch sehen (z.B. nach Gruppenwechsel oder manueller Eintragung)
-        $hasAttendance = TrainingAttendance::where('training_session_id', $session->id)
-            ->where('user_id', $user->id)
-            ->where('attended', true)
-            ->exists();
+        $user = auth()->user();
 
-        if (!$hasGroupAccess && !$hasIndividual && !$hasAttendance) {
+        // Eine Regel fuer Kalender, Dashboard und diese Seite (siehe
+        // TrainingSession::scopeVisibleToSwimmer) - sonst zeigt der Kalender
+        // Einheiten an, deren Klick hier mit 403 endet.
+        if (!$session->isVisibleToSwimmer($user)) {
             abort(403);
         }
 

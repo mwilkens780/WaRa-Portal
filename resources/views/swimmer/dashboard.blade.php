@@ -485,7 +485,7 @@
                                 <tr>
                                     <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
                                     <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Bestzeit</th>
-                                    <th class="px-5 py-2"></th>
+                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Wann und wo</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
@@ -493,13 +493,12 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
                                         <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
+                                        {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
+                                             sagt weniger als wann und wo sie geschwommen wurde. --}}
                                         <td class="px-5 py-2.5 text-right">
-                                            @if($row->source === 'competition')
-                                                <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Wettkampf</span>
-                                            @elseif($row->source === 'training')
-                                                <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Training</span>
-                                            @else
-                                                <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">PB</span>
+                                            <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
+                                            @if($row->place)
+                                                <span class="block text-[11px] text-gray-400 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -522,7 +521,7 @@
                                 <tr>
                                     <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
                                     <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Bestzeit {{ now()->year }}</th>
-                                    <th class="px-5 py-2"></th>
+                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Wann und wo</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
@@ -530,13 +529,12 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
                                         <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
+                                        {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
+                                             sagt weniger als wann und wo sie geschwommen wurde. --}}
                                         <td class="px-5 py-2.5 text-right">
-                                            @if($row->source === 'competition')
-                                                <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Wettkampf</span>
-                                            @elseif($row->source === 'training')
-                                                <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Training</span>
-                                            @else
-                                                <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">PB</span>
+                                            <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
+                                            @if($row->place)
+                                                <span class="block text-[11px] text-gray-400 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -559,7 +557,7 @@
                                 <tr>
                                     <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
                                     <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Saisonbest</th>
-                                    <th class="px-5 py-2"></th>
+                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Wann und wo</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
@@ -567,13 +565,12 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
                                         <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
+                                        {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
+                                             sagt weniger als wann und wo sie geschwommen wurde. --}}
                                         <td class="px-5 py-2.5 text-right">
-                                            @if($row->source === 'competition')
-                                                <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Wettkampf</span>
-                                            @elseif($row->source === 'training')
-                                                <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Training</span>
-                                            @else
-                                                <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">PB</span>
+                                            <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
+                                            @if($row->place)
+                                                <span class="block text-[11px] text-gray-400 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
                                             @endif
                                         </td>
                                     </tr>

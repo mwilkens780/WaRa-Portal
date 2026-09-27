@@ -242,6 +242,49 @@ class CalendarController extends Controller
         ));
     }
 
+    /**
+     * Schraenkt die Wettkaempfe auf die ein, die den Benutzer betreffen.
+     *
+     * Vorstand und Administratoren sehen alles - sie planen den Vereinsbetrieb.
+     * Trainer sehen die Wettkaempfe ihrer Gruppen, Sportler zusaetzlich die,
+     * zu denen sie eingeladen wurden oder bei denen sie ein Ergebnis haben
+     * (eine Einladung laeuft nicht immer ueber die Gruppe).
+     */
+    private function limitCompetitions($query, $user, ?string $role): void
+    {
+        if (in_array($role, ['admin', 'vorstand'], true)) {
+            return;
+        }
+
+        if ($role === 'trainer') {
+            $gruppenIds = $user->trainerGroups()->pluck('training_groups.id');
+            $query->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds));
+            return;
+        }
+
+        if ($role === 'elternteil') {
+            $gruppenIds = collect();
+            foreach ($user->children()->where('active', true)->get() as $kind) {
+                $gruppenIds = $gruppenIds->merge($kind->trainingGroups()->pluck('training_groups.id'));
+            }
+            $kinderIds = $user->children()->pluck('users.id');
+
+            $query->where(fn($q) => $q
+                ->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds->unique()))
+                ->orWhereHas('results', fn($r) => $r->whereIn('user_id', $kinderIds))
+                ->orWhereHas('signupRequest.responses', fn($s) => $s->whereIn('user_id', $kinderIds)));
+            return;
+        }
+
+        // Sportler und Kampfrichter
+        $gruppenIds = $user->trainingGroups()->pluck('training_groups.id');
+
+        $query->where(fn($q) => $q
+            ->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds))
+            ->orWhereHas('results', fn($r) => $r->where('user_id', $user->id))
+            ->orWhereHas('signupRequest.responses', fn($s) => $s->where('user_id', $user->id)));
+    }
+
     // ── Build event map: date → [events] ─────────────────────────────────
 
     private function buildEventMap(Carbon $from, Carbon $to): array
@@ -273,24 +316,8 @@ class CalendarController extends Controller
             $sessionQuery->manageableBy($user);
             $sessionDetailRoute = 'trainer';
         } elseif ($role === 'schwimmer') {
-            // Swimmer: sessions from their training groups or individual assignments
-            $groupIds      = $user->trainingGroups()->pluck('training_groups.id');
-            $individualIds = TrainingSessionSwimmer::where('user_id', $user->id)->whereNotNull('training_session_id')->pluck('training_session_id');
-            $seriesIds     = TrainingSessionSwimmer::where('user_id', $user->id)->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
-
-            $sessionQuery->where(function ($q) use ($groupIds, $individualIds, $seriesIds) {
-                // Sessions without group assignments are visible to all swimmers
-                $q->whereDoesntHave('trainingGroups');
-                if ($groupIds->isNotEmpty()) {
-                    $q->orWhereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $groupIds));
-                }
-                if ($individualIds->isNotEmpty()) {
-                    $q->orWhereIn('id', $individualIds);
-                }
-                if ($seriesIds->isNotEmpty()) {
-                    $q->orWhereIn('recurrence_group_id', $seriesIds);
-                }
-            });
+            // Dieselbe Regel wie im Dashboard und auf der Detailseite
+            $sessionQuery->visibleToSwimmer($user);
             $sessionDetailRoute = 'swimmer';
         } elseif ($role === 'elternteil') {
             // Parent: sessions from all children's training groups
@@ -333,7 +360,11 @@ class CalendarController extends Controller
             ];
         }
 
+        // Wettkaempfe: Wer nicht die ganze Vereinsverwaltung macht, sieht nur
+        // die eigenen. Vorher stand im Kalender jedes Meeting des Vereins -
+        // bei voller Saison war der eigene Termin darin nicht mehr zu finden.
         $competitions = Competition::whereBetween('date', [$from, $to])
+            ->tap(fn($q) => $this->limitCompetitions($q, $user, $role))
             ->orderBy('date')
             ->get();
 

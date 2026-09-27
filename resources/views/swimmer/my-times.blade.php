@@ -107,16 +107,12 @@
                                 <td class="px-5 py-3 text-gray-500 text-xs">
                                     {{ $best->date?->format('d.m.Y') ?? '–' }}
                                 </td>
+                                {{-- Kein Quellen-Etikett mehr: Datum steht links daneben,
+                                     hier der Ort und die Veranstaltung. --}}
                                 <td class="px-5 py-3 text-xs text-gray-600">
-                                    @if($best->source === 'competition')
-                                        <span class="inline-block text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium mr-1">Wettkampf</span>
-                                        {{ $best->label }}
-                                        @if($best->location)
-                                            <span class="text-gray-400">· {{ $best->location }}</span>
-                                        @endif
-                                    @else
-                                        <span class="inline-block text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium mr-1">Training</span>
-                                        {{ $best->label }}
+                                    <span class="text-gray-700">{{ $best->location ?: $best->label }}</span>
+                                    @if($best->location && $best->label && $best->label !== $best->location)
+                                        <span class="block text-[11px] text-gray-400 truncate" title="{{ $best->label }}">{{ $best->label }}</span>
                                     @endif
                                 </td>
                             </tr>

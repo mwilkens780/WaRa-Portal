@@ -142,6 +142,43 @@ class TrainingSession extends Model
             ->orWhereHas('trainingGroups.trainers', fn($t) => $t->where('users.id', $user->id)));
     }
 
+    /**
+     * Einheiten, die dieser Sportler sehen darf.
+     *
+     * Eine Regel fuer alle Stellen - Dashboard, Kalender und Detailseite
+     * hatten bisher jede ihre eigene. Der Kalender zeigte deshalb Einheiten
+     * an, deren Detailseite den Klick dann mit 403 abwies.
+     *
+     * Sichtbar ist eine Einheit, wenn der Sportler in einer zugeordneten
+     * Gruppe ist, einzeln oder ueber eine Serie zugewiesen wurde, als
+     * anwesend eingetragen ist - oder wenn die Einheit gar keiner Gruppe
+     * zugeordnet ist und damit allen offensteht.
+     */
+    public function scopeVisibleToSwimmer(\Illuminate\Database\Eloquent\Builder $q, User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        $gruppenIds = $user->trainingGroups()->pluck('training_groups.id');
+        $einzelIds  = \App\Models\TrainingSessionSwimmer::where('user_id', $user->id)
+            ->whereNotNull('training_session_id')->pluck('training_session_id');
+        $serienIds  = \App\Models\TrainingSessionSwimmer::where('user_id', $user->id)
+            ->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
+
+        return $q->where(function ($w) use ($user, $gruppenIds, $einzelIds, $serienIds) {
+            $w->whereDoesntHave('trainingGroups');
+            if ($gruppenIds->isNotEmpty()) {
+                $w->orWhereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds));
+            }
+            if ($einzelIds->isNotEmpty()) $w->orWhereIn('id', $einzelIds);
+            if ($serienIds->isNotEmpty()) $w->orWhereIn('recurrence_group_id', $serienIds);
+            $w->orWhereHas('attendances', fn($a) => $a->where('user_id', $user->id)->where('attended', true));
+        });
+    }
+
+    /** Dieselbe Regel fuer eine einzelne Einheit. */
+    public function isVisibleToSwimmer(User $user): bool
+    {
+        return static::query()->whereKey($this->getKey())->visibleToSwimmer($user)->exists();
+    }
+
     public function isManageableBy(User $user): bool
     {
         return $user->isAdmin()

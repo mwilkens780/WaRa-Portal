@@ -150,9 +150,14 @@ class Competition extends Model
         'shsv'           => 'SHSV',
     ];
 
+    /**
+     * Nicht jeder Wettkampf hat eine Art - aus dem Crawler kommen sie ohne.
+     * Vorher warf der Zugriff dann einen Typfehler und riss die ganze Seite
+     * mit, statt einfach nichts anzuzeigen.
+     */
     public function getTypeLabelAttribute(): string
     {
-        return self::TYPE_LABELS[$this->type] ?? $this->type;
+        return self::TYPE_LABELS[$this->type] ?? (string) ($this->type ?? '');
     }
 
     public function getDateRangeAttribute(): string
