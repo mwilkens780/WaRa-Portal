@@ -460,6 +460,24 @@ function hallApp() {
         compactMode: false,
         totalSlots:  {{ $totalSlots }},
 
+        /**
+         * Haftpunkt der Kopfzeile bestimmen.
+         *
+         * Das Portal hat oben eine eigene fixierte Leiste. Wuerde die
+         * Tages-/Bahnzeile bei top:0 haften, verschwaende sie darunter.
+         * Deshalb wird deren Hoehe gemessen statt geraten - sie aendert sich
+         * mit der Fensterbreite.
+         */
+        initSticky() {
+            const setzen = () => {
+                const kopf  = document.querySelector('header.sticky');
+                const hoehe = kopf ? Math.round(kopf.getBoundingClientRect().height) : 0;
+                this.$el.style.setProperty('--hall-top', hoehe + 'px');
+            };
+            setzen();
+            window.addEventListener('resize', setzen);
+        },
+
         // Legende: eingeklappt starten, Zustand im Browser merken
         legendOpen: false,
         initLegend() {
@@ -476,7 +494,7 @@ function hallApp() {
 }
 </script>
 
-<div class="mt-2" x-data="hallApp()">
+<div class="mt-2" x-data="hallApp()" x-init="initSticky()">
 
 {{-- ── Top bar ──────────────────────────────────────────────────────────────── --}}
 <div class="flex flex-wrap items-center gap-3 mb-4">
@@ -664,14 +682,58 @@ function hallApp() {
      Blöcke proportional zur Dauer.
 ════════════════════════════════════════════════════════════════════════════ --}}
 <div x-show="view==='week'" x-transition>
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-<div class="overflow-x-auto">
+{{-- Kein overflow-hidden auf der Karte: Das machte sie zum Scroll-Container,
+     an dem die Kopfzeile geklebt haette statt an der Seite. --}}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+
+{{-- ── Kopfzeile ─────────────────────────────────────────────────────────────
+     Bewusst ausserhalb des waagerechten Scroll-Containers: Ein Element haftet
+     immer am naechsten scrollbaren Vorfahren. Läge die Kopfzeile darin, wäre
+     das der Container selbst - und der scrollt senkrecht gar nicht, die Zeile
+     würde beim Herunterscrollen einfach mitwandern. Deshalb steht sie hier
+     eigenstaendig und haftet an der Seite; ihr seitlicher Versatz wird unten
+     an den Koerper gekoppelt.
+──────────────────────────────────────────────────────────────────────────── --}}
+<div class="sticky" style="top:var(--hall-top, 0px); z-index:20">
+    <div x-ref="hallHead" class="overflow-hidden bg-gray-50 rounded-t-xl border-b border-gray-200">
+        <div class="inline-flex" style="min-width: max-content">
+            {{-- Platzhalter ueber der Zeitachse --}}
+            <div class="flex-shrink-0 bg-gray-50 border-r border-gray-200 sticky left-0"
+                 style="width:44px; height:52px; z-index:2"></div>
+
+            @foreach($days as $dayNum => $dayName)
+            <div class="flex-shrink-0 border-l border-gray-200"{{ $dayNum == 7 ? ' x-show="!compactMode"' : '' }}
+                 style="height:52px">
+                <button @click="view='day'; currentDay={{ $dayNum }}"
+                        class="w-full text-center text-xs font-bold text-gray-700 hover:text-primary py-1.5 transition-colors"
+                        style="width:{{ count($resources) * $weekColPx }}px">
+                    {{ $dayName }}
+                </button>
+                <div class="flex">
+                    @foreach($resources as $resource)
+                    <div class="text-center border-l border-gray-100 first:border-0" style="width:{{ $weekColPx }}px">
+                        <span class="text-[9px] font-bold uppercase tracking-wide" style="color:{{ $resource->color }}">
+                            {{ $abbrevFn($resource->name) }}
+                        </span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</div>
+
+{{-- ── Koerper ───────────────────────────────────────────────────────────────
+     Scrollt waagerecht; overflow-y:clip, damit daraus kein senkrechter
+     Scroll-Container wird. Beim Scrollen wird die Kopfzeile mitgezogen.
+──────────────────────────────────────────────────────────────────────────── --}}
+<div x-ref="hallBody" style="overflow-x:auto; overflow-y:clip;"
+     @scroll="$refs.hallHead.scrollLeft = $refs.hallBody.scrollLeft">
 <div class="inline-flex" style="min-width: max-content">
 
-    {{-- Zeit-Achse --}}
-    <div class="flex-shrink-0 bg-gray-50 border-r border-gray-200 z-10" style="width:44px">
-        {{-- Doppel-Header (Tagesname + Ressourcen) --}}
-        <div class="border-b border-gray-100" style="height:52px"></div>
+    {{-- Zeit-Achse: bleibt beim seitlichen Scrollen links stehen --}}
+    <div class="flex-shrink-0 bg-gray-50 border-r border-gray-200 sticky left-0" style="width:44px; z-index:12">
         {{-- Stundenbeschriftungen --}}
         <div class="relative" :style="compactMode ? 'height:{{ $weekCmptPx }}px' : 'height:{{ $weekTotalPx }}px'">
             @for($h = $scheduleStart + 1; $h <= $scheduleEnd; $h++)
@@ -697,31 +759,9 @@ function hallApp() {
         </div>
     </div>
 
-    {{-- 7 Tagesspalten --}}
+    {{-- 7 Tagesspalten (Koepfe stehen oben in der haftenden Zeile) --}}
     @foreach($days as $dayNum => $dayName)
     <div class="flex-shrink-0 border-l border-gray-200"{{ $dayNum == 7 ? ' x-show="!compactMode"' : '' }}>
-
-        {{-- Tageskopf --}}
-        <div class="bg-gray-50 border-b border-gray-100" style="height:52px">
-            {{-- Tagesname --}}
-            <button @click="view='day'; currentDay={{ $dayNum }}"
-                    class="w-full text-center text-xs font-bold text-gray-700 hover:text-primary py-1.5 transition-colors"
-                    style="width:{{ count($resources) * $weekColPx }}px">
-                {{ $dayName }}
-            </button>
-            {{-- Ressourcen-Kurznamen --}}
-            <div class="flex">
-                @foreach($resources as $resource)
-                <div class="text-center border-l border-gray-100 first:border-0"
-                     style="width:{{ $weekColPx }}px">
-                    <span class="text-[9px] font-bold uppercase tracking-wide"
-                          style="color:{{ $resource->color }}">
-                        {{ $abbrevFn($resource->name) }}
-                    </span>
-                </div>
-                @endforeach
-            </div>
-        </div>
 
         {{-- Ressourcenspalten --}}
         <div class="flex" :style="compactMode ? 'height:{{ $weekCmptPx }}px' : 'height:{{ $weekTotalPx }}px'">
@@ -774,7 +814,7 @@ function hallApp() {
                 {{-- Belegungsblöcke (Alpine.js) --}}
                 <template x-for="b in weekVisibleBookings({{ $resource->id }}, {{ $dayNum }})" :key="b.id">
                     <div :style="weekBookingStyle(b)"
-                         :title="b.label + ' · ' + b.start_time + '–' + b.end_time + (b.group_name ? ' · ' + b.group_name : '')"
+                         :title="b.display_title + ' · ' + b.start_time + '–' + b.end_time + (b.label && b.label !== b.display_title ? ' · ' + b.label : '')"
                          :class="[bookingOpacity(b), (hasConflict(b) && !filterConflicts) ? 'ring-1 ring-inset ring-red-500' : '']"
                          class="transition-opacity select-none"
                          style="touch-action:none; cursor:grab"
@@ -787,7 +827,7 @@ function hallApp() {
                              ist dafuer Platz, vorher brauchte es eine volle Stunde --}}
                         <div x-show="b.duration_slots >= 2"
                              style="font-size:10px; font-weight:700; padding:1px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25"
-                             x-text="b.label"></div>
+                             x-text="b.display_title"></div>
                         <div x-show="b.duration_slots >= 4"
                              style="font-size:9px; opacity:.85; padding:0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
                              x-text="b.start_time + '–' + b.end_time"></div>
@@ -816,10 +856,13 @@ function hallApp() {
      Ressourcen als parallele Spalten, 15-Minuten-Raster, Blöcke proportional.
 ════════════════════════════════════════════════════════════════════════════ --}}
 <div x-show="view==='day'" x-transition>
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+{{-- Wie in der Wochenansicht: kein overflow-hidden, damit die Kopfzeile
+     an der Seite haften kann statt an der Karte. --}}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
 
-    {{-- Ressourcen-Kopfzeile --}}
-    <div class="flex sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm" style="padding-left:52px">
+    {{-- Ressourcen-Kopfzeile: bleibt beim Scrollen oben stehen --}}
+    <div class="flex sticky bg-white border-b border-gray-200 shadow-sm rounded-t-xl"
+         style="padding-left:52px; top:var(--hall-top, 0px); z-index:20">
         @foreach($resources as $resource)
         <div class="flex-1 px-2 py-3 border-l border-gray-100 text-center" style="min-width:110px">
             <div class="flex items-center justify-center gap-1.5">
@@ -831,13 +874,13 @@ function hallApp() {
         @endforeach
     </div>
 
-    {{-- Grid --}}
-    <div class="overflow-y-auto" style="max-height:72vh" x-ref="dayGrid">
-        <div class="flex relative overflow-hidden"
+    {{-- Grid: scrollt mit der Seite, nicht in einem eigenen Kasten --}}
+    <div x-ref="dayGrid">
+        <div class="flex relative"
              :style="compactMode ? 'height:{{ $dayCmptPx }}px' : 'height:{{ $dayTotalPx }}px'">
 
-            {{-- Zeit-Achse --}}
-            <div class="flex-shrink-0 bg-gray-50 border-r border-gray-100 relative" style="width:52px">
+            {{-- Zeit-Achse: bleibt beim seitlichen Scrollen links stehen --}}
+            <div class="flex-shrink-0 bg-gray-50 border-r border-gray-100 relative sticky left-0" style="width:52px; z-index:15">
                 @for($h = $scheduleStart + 1; $h <= $scheduleEnd; $h++)
                 @php
                     $drs   = (($h * 60) - $scheduleStartMin) / $slotMin;
@@ -926,7 +969,7 @@ function hallApp() {
                          @pointercancel="drag = null">
                         {{-- Label row --}}
                         <div style="display:flex; align-items:center; gap:3px; padding:3px 7px 0; overflow:hidden">
-                            <div style="font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1" x-text="b.label"></div>
+                            <div style="font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1" x-text="b.display_title"></div>
                             <span x-show="hasConflict(b)" title="Überschneidung" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(239,68,68,0.8); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
                             {{-- Missing trainer badge --}}
                             {{-- Dunkler Kreis statt weissem: auf hellen Gruppenfarben
@@ -937,10 +980,11 @@ function hallApp() {
                         <div x-show="b.duration_slots >= 2"
                              style="font-size:10px; padding:1px 7px; opacity:0.85"
                              x-text="b.start_time + ' – ' + b.end_time"></div>
-                        {{-- Gruppe ab 45 min --}}
-                        <div x-show="b.duration_slots >= 3 && b.group_name"
+                        {{-- Bezeichnung der Belegung, sofern sie etwas anderes sagt
+                             als der Titel (dort steht bei Gruppen deren Name) --}}
+                        <div x-show="b.duration_slots >= 3 && b.label && b.label !== b.display_title"
                              style="font-size:10px; padding:0 7px; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
-                             x-text="b.group_name"></div>
+                             x-text="b.label"></div>
                         {{-- Linked session icon --}}
                         <div x-show="b.duration_slots >= 4 && b.session_title"
                              style="font-size:9px; padding:0 7px; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"

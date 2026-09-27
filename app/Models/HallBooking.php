@@ -117,6 +117,19 @@ class HallBooking extends Model
         return self::TYPE_LABELS[$this->type] ?? 'Sonstiges';
     }
 
+    /**
+     * Was im Plan auf dem Block steht.
+     *
+     * Ist eine Trainingsgruppe zugewiesen, ist ihr Name die nuetzlichere
+     * Angabe: Die Bezeichnung der Belegung stammt oft aus dem importierten
+     * Hallenplan und ist eine Abkuerzung wie "TF", mit der im Portal niemand
+     * etwas anfangen kann.
+     */
+    public function getDisplayTitleAttribute(): string
+    {
+        return $this->trainingGroup?->name ?: ($this->label ?: $this->type_label);
+    }
+
     public function getDayNameAttribute(): string
     {
         return self::DAY_NAMES[$this->day_of_week] ?? '';
@@ -171,6 +184,7 @@ class HallBooking extends Model
             'display_color'        => $this->display_color,
             'text_color'           => $this->text_color,
             'group_color'          => $this->trainingGroup?->color,
+            'display_title'        => $this->display_title,
             'start_slot'           => $this->start_slot,
             'duration_slots'       => $this->duration_slots,
             'has_missing_trainer'  => $this->has_missing_trainer,
