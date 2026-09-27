@@ -15,11 +15,15 @@
     $dayHourPx  = $daySlotPx * 4;             // 96 px per hour
     $dayTotalPx = $totalSlots * $daySlotPx;   // 1584 px
 
-    // Week view: compact scale
-    $weekSlotPx  = 8;                          // px per 15-min slot
-    $weekHourPx  = $weekSlotPx * 4;           // 32 px per hour
-    $weekTotalPx = $totalSlots * $weekSlotPx; // 528 px
-    $weekColPx   = 46;                         // px per resource column in week view
+    // Wochenansicht: Die Stundenskala war mit 32 px so eng, dass von kurzen
+    // Belegungen nicht einmal die Beschriftung zu sehen war. Platz nach unten
+    // ist genug da - die Seite scrollt ohnehin.
+    $weekSlotPx  = 15;                         // px je 15-Minuten-Schritt
+    $weekHourPx  = $weekSlotPx * 4;           // 60 px je Stunde (vorher 32)
+    $weekTotalPx = $totalSlots * $weekSlotPx; // 990 px
+    // 46 px reichten nicht einmal fuer "Grupp…" - der Plan scrollt ohnehin
+    // waagerecht, und quer ist mehr Platz als frueher genutzt wurde.
+    $weekColPx   = 76;                         // px je Ressourcenspalte
 
     // Compact mode: hide 08:00–13:00 (slots 10–29 = 20 slots)
     $cHideStart  = 10;                                        // 08:00
@@ -180,14 +184,21 @@ function hallApp() {
             const rawSlot    = (this.drag?.bookingId === b.id) ? this.drag.currentSlot : b.start_slot;
             const slot       = this._cSlot(rawSlot);
             const durSlots   = this._cDur(rawSlot, b.duration_slots);
-            const h          = Math.max(durSlots * this.weekSlotPx - 1, 4);
+            const h          = Math.max(durSlots * this.weekSlotPx - 2, 6);
             const zi         = (this.drag?.bookingId === b.id) ? 10 : 1;
             const { i, n }   = this.overlapLayout(b.id, b.hall_resource_id, b.day_of_week);
             const pct        = 100 / n;
-            let style = `position:absolute; top:${slot*this.weekSlotPx}px; height:${h}px; `
+            let style = `position:absolute; top:${slot*this.weekSlotPx+1}px; height:${h}px; `
                       + `left:calc(${i*pct}% + 1px); width:calc(${pct}% - 2px); `
-                      + `border-radius:3px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+                      + `border-radius:5px; background-color:${b.display_color}; color:${b.text_color}; `
+                      + `box-shadow:0 1px 2px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.22); `
+                      + `z-index:${zi}; overflow:hidden;`;
             if (this.isExpiredSeries(b)) style += this._hatchStyle;
+            // Im Konfliktfilter sollen die Treffer herausstechen, nicht nur
+            // "weniger blass" sein als der Rest.
+            if (this.filterConflicts && this.hasConflict(b)) {
+                style += 'outline:3px solid #dc2626; outline-offset:-1px; z-index:8;';
+            }
             return style;
         },
         dayBookingStyle(b) {
@@ -200,9 +211,65 @@ function hallApp() {
             const pct        = 100 / n;
             let style = `position:absolute; top:${slot*this.daySlotPx+1}px; height:${h}px; `
                       + `left:calc(${i*pct}% + 2px); width:calc(${pct}% - 4px); `
-                      + `border-radius:6px; background-color:${b.display_color}; z-index:${zi}; overflow:hidden;`;
+                      + `border-radius:8px; background-color:${b.display_color}; color:${b.text_color}; `
+                      + `box-shadow:0 1px 3px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.22); `
+                      + `z-index:${zi}; overflow:hidden;`;
             if (this.isExpiredSeries(b)) style += this._hatchStyle;
+            if (this.filterConflicts && this.hasConflict(b)) {
+                style += 'outline:3px solid #dc2626; outline-offset:-1px; z-index:8;';
+            }
             return style;
+        },
+
+        // ── Freie Zeitfenster je Ressource und Tag ────────────────────
+        //
+        // Der Filter "freie Kapazitaeten" hat die Belegungen bisher nur blass
+        // gemacht und die ganze Spalte zart gruen hinterlegt - man musste die
+        // Luecken selbst suchen. Jetzt werden sie als eigene Bloecke gezeichnet.
+        freeSlots(resourceId, day) {
+            const belegt = this.dayResourceBookings(resourceId, day)
+                .map(b => [b.start_slot, b.start_slot + b.duration_slots])
+                .sort((a, b) => a[0] - b[0]);
+
+            // Ueberlappende Belegungen zu durchgehenden Bereichen verschmelzen
+            const zusammen = [];
+            for (const [von, bis] of belegt) {
+                const letzter = zusammen[zusammen.length - 1];
+                if (letzter && von <= letzter[1]) letzter[1] = Math.max(letzter[1], bis);
+                else zusammen.push([von, bis]);
+            }
+
+            const luecken = [];
+            let cursor = 0;
+            for (const [von, bis] of zusammen) {
+                if (von > cursor) luecken.push([cursor, von]);
+                cursor = Math.max(cursor, bis);
+            }
+            if (cursor < this.totalSlots) luecken.push([cursor, this.totalSlots]);
+
+            // Winzige Reste sind keine nutzbare Kapazitaet
+            return luecken
+                .filter(([von, bis]) => bis - von >= 2)
+                .map(([von, bis]) => ({
+                    id:    `${resourceId}-${day}-${von}`,
+                    start: von,
+                    dur:   bis - von,
+                    label: this.slotTime(von) + '–' + this.slotTime(bis),
+                }));
+        },
+        slotTime(slot) {
+            const min = _scheduleStartMin + slot * 15;
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+        },
+        freeSlotStyle(f, slotPx) {
+            const slot = this._cSlot(f.start);
+            const dur  = this._cDur(f.start, f.dur);
+            if (dur <= 0) return 'display:none';
+            return `position:absolute; top:${slot*slotPx+1}px; height:${Math.max(dur*slotPx-2, 6)}px; `
+                 + 'left:1px; right:1px; border-radius:5px; z-index:2; '
+                 + 'background:#22c55e; border:1px solid #15803d; '
+                 + 'box-shadow:0 0 0 1px rgba(34,197,94,.35);';
         },
 
         // ── Drag & Drop ───────────────────────────────────────────────
@@ -271,6 +338,27 @@ function hallApp() {
         // ── Bookings for a given resource + day ───────────────────────
         dayResourceBookings(resourceId, day) {
             return this.bookings.filter(b => b.hall_resource_id === resourceId && b.day_of_week === day);
+        },
+
+        /**
+         * Liegt die Belegung vollstaendig in der ausgeblendeten Zeit?
+         *
+         * Im Kompaktmodus wurden solche Belegungen auf die Trennlinie gequetscht
+         * und waren als fingerbreite Streifen ohne Beschriftung weder lesbar
+         * noch anklickbar. Besser gar nicht zeichnen und stattdessen sagen,
+         * dass da etwas ist.
+         */
+        inHiddenZone(b) {
+            const HS = {{ $cHideStart }}, HE = {{ $cHideEnd }};
+            return b.start_slot >= HS && (b.start_slot + b.duration_slots) <= HE;
+        },
+        weekVisibleBookings(resourceId, day) {
+            const alle = this.dayResourceBookings(resourceId, day);
+            return this.compactMode ? alle.filter(b => !this.inHiddenZone(b)) : alle;
+        },
+        hiddenCount(resourceId, day) {
+            if (!this.compactMode) return 0;
+            return this.dayResourceBookings(resourceId, day).filter(b => this.inHiddenZone(b)).length;
         },
 
         // ── Slot / time helpers ───────────────────────────────────────
@@ -370,6 +458,20 @@ function hallApp() {
         get dayName() { return ['','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'][this.currentDay]; },
 
         compactMode: false,
+        totalSlots:  {{ $totalSlots }},
+
+        // Legende: eingeklappt starten, Zustand im Browser merken
+        legendOpen: false,
+        initLegend() {
+            try {
+                const saved = localStorage.getItem('card:hall-legend');
+                if (saved !== null) this.legendOpen = saved === '1';
+            } catch (e) {}
+        },
+        toggleLegend() {
+            this.legendOpen = !this.legendOpen;
+            try { localStorage.setItem('card:hall-legend', this.legendOpen ? '1' : '0'); } catch (e) {}
+        },
     };
 }
 </script>
@@ -471,12 +573,89 @@ function hallApp() {
     </button>
 </div>
 
-{{-- Legende ausgelaufene Serien --}}
+{{-- ── Legende ───────────────────────────────────────────────────────────────
+     Die Farben stammen aus den Gruppen- und Belegungsdefinitionen, nicht aus
+     einer eigenen Liste. Gezeigt wird nur, was im Plan auch vorkommt.
+──────────────────────────────────────────────────────────────────────────── --}}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-2 overflow-hidden" x-init="initLegend()">
+    <button type="button" @click="toggleLegend()" :aria-expanded="legendOpen ? 'true' : 'false'"
+            class="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors">
+        <span class="text-sm font-semibold text-gray-700">Legende</span>
+        <span class="flex items-center gap-1">
+            @foreach($legendGroups->take(8) as $g)
+                <span class="inline-block w-3 h-3 rounded-sm" style="background-color:{{ $g['hex'] }}"
+                      title="{{ $g['name'] }}"></span>
+            @endforeach
+            @if($legendGroups->count() > 8)
+                <span class="text-[10px] text-gray-400">+{{ $legendGroups->count() - 8 }}</span>
+            @endif
+        </span>
+        <span class="text-xs text-gray-400 ml-auto">{{ $legendGroups->count() }} Gruppen · {{ $legendTypes->count() }} weitere Arten</span>
+        <svg class="w-4 h-4 text-gray-400 transition-transform" :class="legendOpen ? 'rotate-180' : ''"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+
+    <div x-show="legendOpen" x-cloak class="px-4 pb-4 pt-1 border-t border-gray-100 space-y-4">
+
+        @if($legendGroups->isNotEmpty())
+        <div>
+            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Trainingsgruppen</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($legendGroups as $g)
+                    <span class="inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-md text-xs font-medium"
+                          style="background-color:{{ $g['hex'] }}; color:{{ $g['text'] }}">
+                        {{ $g['name'] }}
+                        <span class="text-[10px] opacity-70">{{ $g['count'] }}</span>
+                    </span>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        @if($legendTypes->isNotEmpty())
+        <div>
+            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Belegungen ohne Trainingsgruppe</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($legendTypes as $t)
+                    <span class="inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-md text-xs font-medium"
+                          style="background-color:{{ $t['hex'] }}; color:{{ \App\Models\HallBooking::readableTextColor($t['hex']) }}">
+                        {{ $t['name'] }}
+                        <span class="text-[10px] opacity-70">{{ $t['count'] }}</span>
+                    </span>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        <div>
+            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Kennzeichnungen</p>
+            <div class="flex flex-wrap gap-4 text-xs text-gray-600">
+                <span class="inline-flex items-center gap-2">
+                    <span class="inline-block w-8 h-4 rounded"
+                          style="background-color:#F97316; background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.14) 0,rgba(0,0,0,0.14) 2px,transparent 0,transparent 50%); background-size:8px 8px;"></span>
+                    Ausgelaufene Trainingsserie (keine künftigen Termine)
+                </span>
+                <span class="inline-flex items-center gap-2">
+                    <span class="inline-block w-8 h-4 rounded bg-blue-500" style="outline:3px solid #dc2626; outline-offset:-1px"></span>
+                    Zeitliche Überschneidung
+                </span>
+                <span class="inline-flex items-center gap-2">
+                    <span class="inline-block w-8 h-4 rounded" style="background:#22c55e; border:1px solid #15803d"></span>
+                    Freies Zeitfenster (Filter „Freie Kapazitäten")
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Hinweis auf ausgelaufene Serien --}}
 <div x-show="expiredSeriesIds.length > 0" x-transition
      class="flex items-center gap-2.5 px-4 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 mb-1">
     <span class="inline-block w-8 h-4 rounded flex-shrink-0"
           style="background-color:#F97316; background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.14) 0,rgba(0,0,0,0.14) 2px,transparent 0,transparent 50%); background-size:8px 8px;"></span>
-    <span>Schraffierte Belegungen gehoeren zu ausgelaufenen Trainingsserien (keine zukuenftigen Termine). Bitte Serie bearbeiten &amp; Saison neu generieren.</span>
+    <span>Schraffierte Belegungen gehören zu ausgelaufenen Trainingsserien (keine zukünftigen Termine). Bitte Serie bearbeiten &amp; Saison neu generieren.</span>
 </div>
 
 {{-- ════════════════════════════════════════════════════════════════════════════
@@ -569,14 +748,34 @@ function hallApp() {
                 {{-- Trennlinie im Kompaktmodus --}}
                 <div x-show="compactMode" class="absolute pointer-events-none" style="left:0;right:0;top:{{ $cHideStart * $weekSlotPx }}px;border-top:2px dashed #d1d5db;z-index:3;"></div>
 
-                {{-- Freie-Kapazitäten-Overlay --}}
-                <div x-show="filterFree" class="absolute inset-0 pointer-events-none"
-                     style="background:rgba(134,239,172,0.15); z-index:0"></div>
+                {{-- Freie Zeitfenster: im Filter als eigene gruene Bloecke --}}
+                <template x-if="filterFree">
+                    <template x-for="f in freeSlots({{ $resource->id }}, {{ $dayNum }})" :key="f.id">
+                        <div :style="freeSlotStyle(f, {{ $weekSlotPx }})"
+                             class="pointer-events-none flex items-start justify-center">
+                            <span x-show="f.dur >= 4"
+                                  style="font-size:9px; font-weight:700; color:#052e16; padding:1px 2px; white-space:nowrap"
+                                  x-text="f.label"></span>
+                        </div>
+                    </template>
+                </template>
+
+                {{-- Ausgeblendete Zeit: Sammelmarke statt gequetschter Streifen --}}
+                <template x-if="hiddenCount({{ $resource->id }}, {{ $dayNum }}) > 0">
+                    <button type="button" @click.stop="compactMode = false"
+                            class="absolute flex items-center justify-center gap-0.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-600 border border-gray-300"
+                            style="left:2px; right:2px; top:{{ $cHideStart * $weekSlotPx - 9 }}px; height:16px; z-index:5; font-size:9px; font-weight:700"
+                            :title="hiddenCount({{ $resource->id }}, {{ $dayNum }}) + ' Belegung(en) zwischen 08:00 und 13:00 – klicken für die Vollansicht'">
+                        <span x-text="hiddenCount({{ $resource->id }}, {{ $dayNum }})"></span>
+                        <span>×&nbsp;08–13</span>
+                    </button>
+                </template>
 
                 {{-- Belegungsblöcke (Alpine.js) --}}
-                <template x-for="b in dayResourceBookings({{ $resource->id }}, {{ $dayNum }})" :key="b.id">
+                <template x-for="b in weekVisibleBookings({{ $resource->id }}, {{ $dayNum }})" :key="b.id">
                     <div :style="weekBookingStyle(b)"
-                         :class="[bookingOpacity(b), hasConflict(b) ? 'ring-1 ring-inset ring-red-500' : '']"
+                         :title="b.label + ' · ' + b.start_time + '–' + b.end_time + (b.group_name ? ' · ' + b.group_name : '')"
+                         :class="[bookingOpacity(b), (hasConflict(b) && !filterConflicts) ? 'ring-1 ring-inset ring-red-500' : '']"
                          class="transition-opacity select-none"
                          style="touch-action:none; cursor:grab"
                          @click.stop="openEdit(b)"
@@ -584,11 +783,16 @@ function hallApp() {
                          @pointermove.stop="moveDrag($event)"
                          @pointerup.stop="endDrag($event)"
                          @pointercancel="drag = null">
-                        <div x-show="b.duration_slots >= 4"
-                             style="font-size:8px; color:white; font-weight:700; padding:1px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
+                        {{-- Beschriftung schon ab 30 Minuten: bei 60 px je Stunde
+                             ist dafuer Platz, vorher brauchte es eine volle Stunde --}}
+                        <div x-show="b.duration_slots >= 2"
+                             style="font-size:10px; font-weight:700; padding:1px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25"
                              x-text="b.label"></div>
-                        <span x-show="b.has_missing_trainer"
-                              style="position:absolute; top:2px; right:2px; width:5px; height:5px; border-radius:50%; background:white; opacity:0.75"></span>
+                        <div x-show="b.duration_slots >= 4"
+                             style="font-size:9px; opacity:.85; padding:0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
+                             x-text="b.start_time + '–' + b.end_time"></div>
+                        <span x-show="b.has_missing_trainer" title="Kein Trainer"
+                              style="position:absolute; top:3px; right:3px; width:5px; height:5px; border-radius:50%; background:rgba(0,0,0,0.35)"></span>
                         <span x-show="hasConflict(b)"
                               style="position:absolute; top:2px; left:2px; width:5px; height:5px; border-radius:50%; background:#ef4444; opacity:0.9"></span>
                     </div>
@@ -687,15 +891,33 @@ function hallApp() {
                  style="min-width:110px; cursor:crosshair"
                  @click.self="openCreate({{ $resource->id }}, currentDay, Math.floor($event.offsetY / {{ $daySlotPx }}))">
 
-                {{-- Freie-Kapazitäten-Overlay --}}
-                <div x-show="filterFree" class="absolute inset-0 pointer-events-none"
-                     style="background:rgba(134,239,172,0.12); z-index:0"></div>
+                {{-- Freie Zeitfenster als eigene gruene Bloecke --}}
+                <template x-if="filterFree">
+                    <template x-for="f in freeSlots({{ $resource->id }}, currentDay)" :key="f.id">
+                        <div :style="freeSlotStyle(f, {{ $daySlotPx }})"
+                             class="pointer-events-none flex flex-col items-center justify-center text-center">
+                            <span style="font-size:11px; font-weight:800; color:#052e16" x-text="f.label"></span>
+                            <span x-show="f.dur >= 4" style="font-size:10px; color:#166534" x-text="(f.dur * 15) + ' Min frei'"></span>
+                        </div>
+                    </template>
+                </template>
+
+                {{-- Ausgeblendete Zeit: Sammelmarke statt gequetschter Streifen --}}
+                <template x-if="hiddenCount({{ $resource->id }}, currentDay) > 0">
+                    <button type="button" @click.stop="compactMode = false"
+                            class="absolute flex items-center justify-center gap-1 rounded bg-gray-200 hover:bg-gray-300 text-gray-600 border border-gray-300"
+                            style="left:3px; right:3px; top:{{ $cHideStart * $daySlotPx - 11 }}px; height:20px; z-index:5; font-size:10px; font-weight:700"
+                            :title="hiddenCount({{ $resource->id }}, currentDay) + ' Belegung(en) zwischen 08:00 und 13:00 – klicken für die Vollansicht'">
+                        <span x-text="hiddenCount({{ $resource->id }}, currentDay)"></span>
+                        <span>Belegungen 08–13 Uhr</span>
+                    </button>
+                </template>
 
                 {{-- Belegungsblöcke (Alpine.js, wechseln mit currentDay) --}}
-                <template x-for="b in dayResourceBookings({{ $resource->id }}, currentDay)" :key="b.id">
+                <template x-for="b in weekVisibleBookings({{ $resource->id }}, currentDay)" :key="b.id">
                     <div :style="dayBookingStyle(b)"
-                         :class="[bookingOpacity(b), hasConflict(b) ? 'ring-2 ring-inset ring-red-500' : '']"
-                         class="shadow-sm transition-opacity text-white select-none"
+                         :class="[bookingOpacity(b), (hasConflict(b) && !filterConflicts) ? 'ring-2 ring-inset ring-red-500' : '']"
+                         class="transition-opacity select-none"
                          style="touch-action:none; cursor:grab"
                          @click.stop="openEdit(b)"
                          @pointerdown.stop="startDrag(b, $event)"
@@ -707,7 +929,9 @@ function hallApp() {
                             <div style="font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1" x-text="b.label"></div>
                             <span x-show="hasConflict(b)" title="Überschneidung" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(239,68,68,0.8); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
                             {{-- Missing trainer badge --}}
-                            <span x-show="b.has_missing_trainer && !hasConflict(b)" title="Kein Trainer" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,0.35); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:white">!</span>
+                            {{-- Dunkler Kreis statt weissem: auf hellen Gruppenfarben
+                                 (Weiß/Pink, Gelb) war das Zeichen sonst unsichtbar --}}
+                            <span x-show="b.has_missing_trainer && !hasConflict(b)" title="Kein Trainer" style="flex-shrink:0; width:14px; height:14px; border-radius:50%; background:rgba(0,0,0,0.28); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:#fff">!</span>
                         </div>
                         {{-- Uhrzeit ab 30 min --}}
                         <div x-show="b.duration_slots >= 2"

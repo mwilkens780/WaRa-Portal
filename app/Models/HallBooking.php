@@ -36,17 +36,8 @@ class HallBooking extends Model
         'other'       => '#9CA3AF',
     ];
 
-    // Maps TrainingGroup::COLORS keys → hex
-    const GROUP_COLOR_HEX = [
-        'blue'   => '#3B82F6',
-        'green'  => '#10B981',
-        'red'    => '#EF4444',
-        'orange' => '#F97316',
-        'purple' => '#8B5CF6',
-        'teal'   => '#14B8A6',
-        'pink'   => '#EC4899',
-        'indigo' => '#6366F1',
-    ];
+    // Die Gruppenfarben stehen in TrainingGroup::COLORS - hier keine zweite,
+    // unvollstaendige Liste mehr fuehren (siehe colorHex() dort).
 
     const DAY_NAMES = [
         1 => 'Montag', 2 => 'Dienstag', 3 => 'Mittwoch',
@@ -78,13 +69,47 @@ class HallBooking extends Model
         return $this->belongsTo(User::class, 'created_by_id');
     }
 
+    /**
+     * Hintergrundfarbe eines Blocks im Belegungsplan.
+     *
+     * Reihenfolge: eigene Farbe der Belegung, sonst die Farbe der
+     * Trainingsgruppe genau wie in der Gruppendefinition, sonst die Farbe der
+     * Belegungsart (Kurs, Schule, externer Verein, Wartung).
+     */
     public function getDisplayColorAttribute(): string
     {
         if ($this->color) return $this->color;
         if ($this->trainingGroup) {
-            return self::GROUP_COLOR_HEX[$this->trainingGroup->color] ?? '#3B82F6';
+            return TrainingGroup::colorHex($this->trainingGroup->color);
         }
-        return self::TYPE_COLORS[$this->type] ?? '#9CA3AF';
+
+        return self::TYPE_COLORS[$this->type] ?? self::TYPE_COLORS['other'];
+    }
+
+    /**
+     * Schriftfarbe, die auf dieser Hintergrundfarbe lesbar ist.
+     *
+     * Auf Weiß/Pink oder Gelb war weisse Schrift praktisch unlesbar - genau
+     * deshalb war von manchen Bloecken keine Beschriftung zu erkennen.
+     * Gerechnet wird mit der wahrgenommenen Helligkeit (ITU-R BT.601).
+     */
+    public function getTextColorAttribute(): string
+    {
+        return self::readableTextColor($this->display_color);
+    }
+
+    public static function readableTextColor(string $hex): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) return '#ffffff';
+
+        [$r, $g, $b] = [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
+        $helligkeit  = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
+
+        return $helligkeit > 0.62 ? '#1f2937' : '#ffffff';
     }
 
     public function getTypeLabelAttribute(): string
@@ -144,6 +169,8 @@ class HallBooking extends Model
             'recurrence_group_id'  => $this->trainingSession?->recurrence_group_id,
             'notes'                => $this->notes,
             'display_color'        => $this->display_color,
+            'text_color'           => $this->text_color,
+            'group_color'          => $this->trainingGroup?->color,
             'start_slot'           => $this->start_slot,
             'duration_slots'       => $this->duration_slots,
             'has_missing_trainer'  => $this->has_missing_trainer,

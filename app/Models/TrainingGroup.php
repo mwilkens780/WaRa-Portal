@@ -35,26 +35,41 @@ class TrainingGroup extends Model
     /** Farben, die als individuelle Abweichung wählbar sind (nicht an einen Typ gebunden). */
     const CUSTOM_COLORS = ['yellow', 'orange', 'amber', 'purple', 'teal', 'indigo'];
 
+    /**
+     * Farbdefinition je Gruppe - eine Quelle fuer alle Ansichten.
+     *
+     * 'hex' ist der Wert der Tailwind-Klasse aus 'dot' und wird dort gebraucht,
+     * wo kein CSS greift: im Hallenbelegungsplan, der die Bloecke per
+     * Inline-Stil einfaerbt. Vorher hatte der Plan eine eigene, unvollstaendige
+     * Liste - Gruppen mit Dunkelblau, Hellblau, Dunkelgruen, Hellgruen, Grau,
+     * Gelb oder Bernstein wurden dort alle blau dargestellt.
+     */
     const COLORS = [
         // ── Typ-gebundene Farben ─────────────────────────────────────────────
-        'blue'      => ['label' => 'Mittelblau',  'dot' => 'bg-blue-500',   'badge' => 'bg-blue-100 text-blue-700',    'border' => 'border-blue-400'],
-        'navy'      => ['label' => 'Dunkelblau',  'dot' => 'bg-blue-900',   'badge' => 'bg-blue-200 text-blue-900',    'border' => 'border-blue-800'],
-        'sky'       => ['label' => 'Hellblau',    'dot' => 'bg-sky-400',    'badge' => 'bg-sky-100 text-sky-700',      'border' => 'border-sky-300'],
-        'darkgreen' => ['label' => 'Dunkelgrün',  'dot' => 'bg-green-700',  'badge' => 'bg-green-100 text-green-900',  'border' => 'border-green-600'],
-        'red'       => ['label' => 'Rot',         'dot' => 'bg-red-500',    'badge' => 'bg-red-100 text-red-700',      'border' => 'border-red-400'],
-        'lime'      => ['label' => 'Hellgrün',    'dot' => 'bg-lime-500',   'badge' => 'bg-lime-100 text-lime-700',    'border' => 'border-lime-400'],
-        'pink'      => ['label' => 'Weiß/Pink',   'dot' => 'bg-pink-200',   'badge' => 'bg-pink-50 text-pink-600',     'border' => 'border-pink-300'],
-        'gray'      => ['label' => 'Grau',        'dot' => 'bg-gray-400',   'badge' => 'bg-gray-100 text-gray-600',    'border' => 'border-gray-300'],
+        'blue'      => ['label' => 'Mittelblau',  'hex' => '#3B82F6', 'dot' => 'bg-blue-500',   'badge' => 'bg-blue-100 text-blue-700',    'border' => 'border-blue-400'],
+        'navy'      => ['label' => 'Dunkelblau',  'hex' => '#1E3A8A', 'dot' => 'bg-blue-900',   'badge' => 'bg-blue-200 text-blue-900',    'border' => 'border-blue-800'],
+        'sky'       => ['label' => 'Hellblau',    'hex' => '#38BDF8', 'dot' => 'bg-sky-400',    'badge' => 'bg-sky-100 text-sky-700',      'border' => 'border-sky-300'],
+        'darkgreen' => ['label' => 'Dunkelgrün',  'hex' => '#15803D', 'dot' => 'bg-green-700',  'badge' => 'bg-green-100 text-green-900',  'border' => 'border-green-600'],
+        'red'       => ['label' => 'Rot',         'hex' => '#EF4444', 'dot' => 'bg-red-500',    'badge' => 'bg-red-100 text-red-700',      'border' => 'border-red-400'],
+        'lime'      => ['label' => 'Hellgrün',    'hex' => '#84CC16', 'dot' => 'bg-lime-500',   'badge' => 'bg-lime-100 text-lime-700',    'border' => 'border-lime-400'],
+        'pink'      => ['label' => 'Weiß/Pink',   'hex' => '#FBCFE8', 'dot' => 'bg-pink-200',   'badge' => 'bg-pink-50 text-pink-600',     'border' => 'border-pink-300'],
+        'gray'      => ['label' => 'Grau',        'hex' => '#9CA3AF', 'dot' => 'bg-gray-400',   'badge' => 'bg-gray-100 text-gray-600',    'border' => 'border-gray-300'],
         // ── Individuelle Abweichungsfarben ───────────────────────────────────
-        'yellow'    => ['label' => 'Gelb',        'dot' => 'bg-yellow-400', 'badge' => 'bg-yellow-100 text-yellow-700', 'border' => 'border-yellow-300'],
-        'orange'    => ['label' => 'Orange',      'dot' => 'bg-orange-500', 'badge' => 'bg-orange-100 text-orange-700', 'border' => 'border-orange-400'],
-        'amber'     => ['label' => 'Bernstein',   'dot' => 'bg-amber-500',  'badge' => 'bg-amber-100 text-amber-700',  'border' => 'border-amber-400'],
-        'purple'    => ['label' => 'Lila',        'dot' => 'bg-purple-500', 'badge' => 'bg-purple-100 text-purple-700', 'border' => 'border-purple-400'],
-        'teal'      => ['label' => 'Türkis',      'dot' => 'bg-teal-500',   'badge' => 'bg-teal-100 text-teal-700',    'border' => 'border-teal-400'],
-        'indigo'    => ['label' => 'Indigo',      'dot' => 'bg-indigo-500', 'badge' => 'bg-indigo-100 text-indigo-700', 'border' => 'border-indigo-400'],
+        'yellow'    => ['label' => 'Gelb',        'hex' => '#FACC15', 'dot' => 'bg-yellow-400', 'badge' => 'bg-yellow-100 text-yellow-700', 'border' => 'border-yellow-300'],
+        'orange'    => ['label' => 'Orange',      'hex' => '#F97316', 'dot' => 'bg-orange-500', 'badge' => 'bg-orange-100 text-orange-700', 'border' => 'border-orange-400'],
+        'amber'     => ['label' => 'Bernstein',   'hex' => '#F59E0B', 'dot' => 'bg-amber-500',  'badge' => 'bg-amber-100 text-amber-700',  'border' => 'border-amber-400'],
+        'purple'    => ['label' => 'Lila',        'hex' => '#A855F7', 'dot' => 'bg-purple-500', 'badge' => 'bg-purple-100 text-purple-700', 'border' => 'border-purple-400'],
+        'teal'      => ['label' => 'Türkis',      'hex' => '#14B8A6', 'dot' => 'bg-teal-500',   'badge' => 'bg-teal-100 text-teal-700',    'border' => 'border-teal-400'],
+        'indigo'    => ['label' => 'Indigo',      'hex' => '#6366F1', 'dot' => 'bg-indigo-500', 'badge' => 'bg-indigo-100 text-indigo-700', 'border' => 'border-indigo-400'],
         // ── Legacy (Altdaten, nicht im Picker sichtbar) ──────────────────────
-        'green'     => ['label' => 'Grün',        'dot' => 'bg-green-500',  'badge' => 'bg-green-100 text-green-700',  'border' => 'border-green-400'],
+        'green'     => ['label' => 'Grün',        'hex' => '#22C55E', 'dot' => 'bg-green-500',  'badge' => 'bg-green-100 text-green-700',  'border' => 'border-green-400'],
     ];
+
+    /** Hex-Wert einer Gruppenfarbe, mit Rueckfall auf Mittelblau. */
+    public static function colorHex(?string $color): string
+    {
+        return self::COLORS[$color]['hex'] ?? self::COLORS['blue']['hex'];
+    }
 
     protected $fillable = [
         'name', 'description', 'color', 'group_type', 'active', 'webclub_id',

@@ -53,8 +53,34 @@ class HallBookingController extends Controller
             ->orderBy('lastname')->orderBy('firstname')
             ->get(['id', 'firstname', 'lastname']);
 
+        // Legende: nur zeigen, was im Plan auch vorkommt - eine Liste aller
+        // denkbaren Farben hilft niemandem beim Lesen des Plans.
+        $belegteGruppenIds = $bookings->pluck('training_group_id')->filter()->unique();
+
+        $legendGroups = TrainingGroup::whereIn('id', $belegteGruppenIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'color'])
+            ->map(fn($g) => [
+                'name'  => $g->name,
+                'hex'   => TrainingGroup::colorHex($g->color),
+                'text'  => HallBooking::readableTextColor(TrainingGroup::colorHex($g->color)),
+                'count' => $bookings->where('training_group_id', $g->id)->count(),
+            ])->values();
+
+        // Belegungsarten ohne Gruppe: Kurse, Schule, externe Vereine, Wartung
+        $legendTypes = collect(HallBooking::TYPE_LABELS)
+            ->map(fn($label, $key) => [
+                'key'   => $key,
+                'name'  => $label,
+                'hex'   => HallBooking::TYPE_COLORS[$key] ?? HallBooking::TYPE_COLORS['other'],
+                'count' => $bookings->where('type', $key)->whereNull('training_group_id')->count(),
+            ])
+            ->filter(fn($t) => $t['count'] > 0)
+            ->values();
+
         return view('trainer.hall.index', compact(
-            'resources', 'bookings', 'bookingsByDay', 'bookingsJson', 'groups', 'trainers', 'expiredGroupIds'
+            'resources', 'bookings', 'bookingsByDay', 'bookingsJson', 'groups', 'trainers', 'expiredGroupIds',
+            'legendGroups', 'legendTypes'
         ));
     }
 
