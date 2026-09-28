@@ -734,7 +734,10 @@ class DashboardController extends Controller
         $swimmer         = auth()->user();
         $swimmerGroupIds = $swimmer->trainingGroups()->pluck('training_groups.id');
 
-        // All competitions assigned to swimmer's training groups OR via direct signup invitation
+        // Wettkaempfe der eigenen Gruppen, eingeladene - und solche, bei denen
+        // eigene Ergebnisse vorliegen. Letzteres fehlte: Importierte Wettkaempfe
+        // kommen ohne Gruppenzuweisung, und wer die Gruppe wechselt, verliert
+        // sonst seine abgeschlossenen Wettkaempfe aus dieser Liste.
         $allComps = Competition::where(function ($q) use ($swimmerGroupIds, $swimmer) {
                 if ($swimmerGroupIds->isNotEmpty()) {
                     $q->whereHas('trainingGroups', fn($inner) =>
@@ -744,6 +747,7 @@ class DashboardController extends Controller
                 $q->orWhereHas('signupRequest.responses', fn($inner) =>
                     $inner->where('user_id', $swimmer->id)
                 );
+                $q->orWhereHas('results', fn($inner) => $inner->where('user_id', $swimmer->id));
             })
             ->with([
                 'signupRequest' => fn($q) => $q->with([

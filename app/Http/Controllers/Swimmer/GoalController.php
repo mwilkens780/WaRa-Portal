@@ -88,17 +88,24 @@ class GoalController extends Controller
 
     public function store(Request $request)
     {
+        // Beim Zeit-Ziel gibt es kein Titelfeld: Der Titel entsteht unten aus
+        // Distanz, Disziplin und Zielzeit - die drei muessen dafuer da sein.
         $data = $request->validate([
             'season_id'  => ['required', 'exists:seasons,id'],
             'type'       => ['required', 'in:time,qualification,free'],
-            'title'      => ['required', 'string', 'max:255'],
-            'discipline' => ['nullable', 'in:F,B,R,S,L'],
-            'distance'   => ['nullable', 'integer', 'min:25'],
+            'title'      => ['required_unless:type,time', 'nullable', 'string', 'max:255'],
+            'discipline' => ['required_if:type,time', 'nullable', 'in:F,B,R,S,L'],
+            'distance'   => ['required_if:type,time', 'nullable', 'integer', 'min:25'],
             'course'     => ['nullable', 'in:Kurzbahn,Langbahn'],
             'notes'      => ['nullable', 'string', 'max:1000'],
             'target_minutes'      => ['nullable', 'integer', 'min:0'],
-            'target_seconds'      => ['nullable', 'integer', 'min:0', 'max:59'],
+            'target_seconds'      => ['required_if:type,time', 'nullable', 'integer', 'min:0', 'max:59'],
             'target_centiseconds' => ['nullable', 'integer', 'min:0', 'max:99'],
+        ], [], [
+            'title'          => 'Titel',
+            'discipline'     => 'Disziplin',
+            'distance'       => 'Distanz',
+            'target_seconds' => 'Zielzeit',
         ]);
 
         $targetMs = null;
@@ -109,11 +116,15 @@ class GoalController extends Controller
             if ($targetMs <= 0) $targetMs = null;
         }
 
+        $titel = $data['type'] === 'time'
+            ? SwimmerGoal::timeTitle($data['discipline'] ?? null, $data['distance'] ?? null, $targetMs)
+            : $data['title'];
+
         $goal = SwimmerGoal::create([
             'user_id'       => auth()->id(),
             'season_id'     => $data['season_id'],
             'type'          => $data['type'],
-            'title'         => $data['title'],
+            'title'         => $titel,
             'discipline'    => $data['discipline'] ?? null,
             'distance'      => $data['distance'] ?? null,
             'course'        => $data['course'] ?? null,

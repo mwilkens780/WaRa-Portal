@@ -36,7 +36,10 @@
             $hasOrg      => 'org',
             default      => 'signup',
         };
-        $autoOpen = $isPending ? 'true' : 'false';
+        // Zugeklappt starten - nur eine offene Rueckmeldung zu einem noch
+        // bevorstehenden Wettkampf oeffnet sich von selbst. Abgeschlossene
+        // Wettkaempfe stehen zugeklappt in der Liste.
+        $autoOpen = ($isFuture && $isPending) ? 'true' : 'false';
         $discLabels = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
     @endphp
 

@@ -47,6 +47,27 @@ class SwimmerGoal extends Model
         'cancelled'     => 'Abgebrochen',
     ];
 
+    /**
+     * Titel eines Zeit-Ziels aus seinen Bestandteilen.
+     *
+     * Bei einem Zeit-Ziel steht im Titel nichts, was nicht schon in den Feldern
+     * stuende - deshalb wird er gebildet und nicht abgefragt. Fehlt ein Teil,
+     * bleibt er weg, statt eine Luecke in den Titel zu schreiben.
+     */
+    public static function timeTitle(?string $discipline, ?int $distance, ?int $targetMs): string
+    {
+        $teile = [];
+        if ($distance)   $teile[] = $distance . ' m';
+        if ($discipline) $teile[] = self::DISC_LABELS[$discipline] ?? $discipline;
+
+        $titel = implode(' ', $teile);
+        if ($targetMs) {
+            $titel = trim($titel . ' unter ' . SwimmingTime::formatMs($targetMs));
+        }
+
+        return $titel !== '' ? $titel : self::TYPE_LABELS['time'];
+    }
+
     public function user()     { return $this->belongsTo(User::class); }
     public function season()   { return $this->belongsTo(Season::class); }
     public function comments() { return $this->hasMany(SwimmerGoalComment::class); }

@@ -635,14 +635,16 @@
                         @foreach($recent_results as $swim)
                             <a href="{{ route('swimmer.competitions') }}"
                                class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
+                                {{-- Oben die Strecke, darunter die Veranstaltung: Gesucht wird
+                                     nach der Disziplin, nicht nach dem Wettkampfnamen. --}}
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-800 truncate">{{ $swim->competition?->name }}</p>
-                                    <p class="text-xs text-gray-500">
+                                    <p class="text-sm font-medium text-gray-800 truncate">
                                         {{ $swim->distance }}m {{ $swim->discipline_label }}
                                         @if($swim->is_final)
                                             <span class="ml-1 bg-purple-100 text-purple-700 px-1 py-0.5 rounded text-xs font-medium">Finale</span>
                                         @endif
                                     </p>
+                                    <p class="text-xs text-gray-500 truncate">{{ $swim->competition?->name }}</p>
                                 </div>
                                 <div class="text-right">
                                     <p class="font-mono font-bold text-primary text-sm">{{ $swim->formatted_time }}</p>

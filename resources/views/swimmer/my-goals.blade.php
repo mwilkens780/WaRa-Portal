@@ -96,16 +96,26 @@
                         @endforeach
                     </div>
                 </div>
-                <div>
+                {{-- Titel nur da, wo er etwas Neues sagt. Beim Zeit-Ziel steht
+                     schon alles in den Feldern darunter, der Titel entsteht beim
+                     Speichern daraus. --}}
+                <div x-show="type !== 'time'" x-cloak>
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Titel</label>
-                    <input type="text" name="title" required maxlength="255"
+                    <input type="text" name="title" maxlength="255" :required="type !== 'time'"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none"
-                           placeholder="z.B. 200m Freistil unter 2:10 min">
+                           :placeholder="type === 'qualification'
+                               ? 'z.B. Qualifikation für DJM'
+                               : 'z.B. Verbesserung der Wendetechnik'">
+                    @error('title')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
+                <p x-show="type === 'time'" x-cloak class="text-xs text-gray-400">
+                    Der Titel entsteht aus Distanz, Disziplin und Zielzeit – zum Beispiel
+                    „200 m Freistil unter 02:10,50".
+                </p>
                 <div x-show="type === 'time'" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">Disziplin</label>
-                        <select name="discipline" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Disziplin <span class="text-red-400">*</span></label>
+                        <select name="discipline" :required="type === 'time'" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                             <option value="">–</option>
                             @foreach(['F' => 'Freistil','B' => 'Brust','R' => 'Rücken','S' => 'Schmetterling','L' => 'Lagen'] as $v => $l)
                                 <option value="{{ $v }}">{{ $l }}</option>
@@ -113,8 +123,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">Distanz (m)</label>
-                        <input type="number" name="distance" min="25" step="25"
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Distanz (m) <span class="text-red-400">*</span></label>
+                        <input type="number" name="distance" min="25" step="25" :required="type === 'time'"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="200">
                     </div>
                     <div>
@@ -126,12 +136,12 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">Zielzeit</label>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Zielzeit <span class="text-red-400">*</span></label>
                         <div class="flex items-center gap-1">
                             <input type="number" name="target_minutes" min="0" placeholder="0"
                                    class="w-12 px-1.5 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary/30 outline-none">
                             <span class="text-gray-400 font-mono">:</span>
-                            <input type="number" name="target_seconds" min="0" max="59" placeholder="00"
+                            <input type="number" name="target_seconds" min="0" max="59" placeholder="00" :required="type === 'time'"
                                    class="w-12 px-1.5 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary/30 outline-none">
                             <span class="text-gray-400 font-mono">,</span>
                             <input type="number" name="target_centiseconds" min="0" max="99" placeholder="00"
