@@ -909,9 +909,6 @@
 
         {{-- Einschätzungen Tab --}}
         <div x-show="activeTab === 'diary'" x-cloak class="p-5">
-            @if(session('success'))
-                <div class="mb-4 px-4 py-2 bg-green-50 border border-green-100 rounded-lg text-sm text-green-700">{{ session('success') }}</div>
-            @endif
             <div class="space-y-3">
                 @forelse($session->diaries->sortByDesc('self_score') as $entry)
                     @php

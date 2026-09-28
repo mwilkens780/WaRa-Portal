@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            theme: { extend: { colors: { primary: { DEFAULT: '#1B5EAB' } } } }
+            theme: { extend: { colors: { primary: { DEFAULT: '#1B5EAB', dark: '#0D3F7A' } } } }
         }
     </script>
 </head>

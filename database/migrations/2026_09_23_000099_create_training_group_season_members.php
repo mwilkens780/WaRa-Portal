@@ -30,8 +30,9 @@ return new class extends Migration
             $table->unique(['training_group_id', 'season_id', 'user_id'], 'group_season_member_unique');
         });
 
-        // Laufende Saison sofort erfassen, nicht erst beim ersten Nachtlauf
-        app(\App\Services\GroupRoster::class)->snapshotRunningSeason();
+        // Die erste Erfassung der laufenden Saison steht in 000100: GroupRoster
+        // braucht die Spalte left_at, die erst dort angelegt wird. Hier
+        // aufgerufen, bricht jede frische Installation ab.
     }
 
     public function down(): void

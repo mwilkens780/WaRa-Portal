@@ -20,6 +20,7 @@ return new class extends Migration
             DB::table('training_plan_blocks')
                 ->whereNotNull('repetitions')
                 ->where('repetitions', '>', 0)
+                ->orderBy('id') // each() verlangt eine Sortierung, sonst bricht migrate ab
                 ->each(fn($b) =>
                     DB::table('training_plan_blocks')
                         ->where('id', $b->id)

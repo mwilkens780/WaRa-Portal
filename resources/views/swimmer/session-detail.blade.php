@@ -179,11 +179,6 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 class="text-sm font-semibold text-gray-700 mb-4">Trainingstagebuch / Selbsteinschätzung</h2>
 
-            @if(session('success'))
-                <div class="mb-4 px-4 py-2.5 bg-green-50 border border-green-100 rounded-lg text-sm text-green-700">
-                    {{ session('success') }}
-                </div>
-            @endif
 
             <form method="POST" action="{{ route('sessions.diary', $session) }}"
                   x-data="scoreKnob({{ $diary?->self_score ?? 5 }})"

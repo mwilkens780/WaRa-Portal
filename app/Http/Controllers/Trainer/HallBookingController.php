@@ -13,6 +13,18 @@ use Illuminate\Http\JsonResponse;
 
 class HallBookingController extends Controller
 {
+    // Lesbare Namen fuer Validierungsmeldungen im Buchungsdialog
+    private const FELDNAMEN = [
+        'hall_resource_ids' => 'Bahn/Ressource',
+        'day_of_week'       => 'Wochentag',
+        'start_time'        => 'Von',
+        'end_time'          => 'Bis',
+        'label'             => 'Bezeichnung',
+        'type'              => 'Typ',
+        'notes'             => 'Notizen',
+        'color'             => 'Farbe',
+    ];
+
     public function index(): \Illuminate\View\View
     {
         $resources = HallResource::where('active', true)->orderBy('sort_order')->get();
@@ -100,7 +112,7 @@ class HallBookingController extends Controller
             'notes'               => ['nullable', 'string', 'max:1000'],
             'color'               => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'force'               => ['boolean'],
-        ]);
+        ], [], self::FELDNAMEN);
 
         // Auto-fill trainer from group if not explicitly set
         if (!empty($data['training_group_id']) && empty($data['trainer_id'])) {
@@ -114,6 +126,11 @@ class HallBookingController extends Controller
             $data['start_time'],
             $data['end_time']
         );
+
+        // Ueberschneidung nur speichern, wenn ausdruecklich bestaetigt
+        if ($conflicts->isNotEmpty() && !$request->boolean('force')) {
+            return $this->conflictResponse($conflicts);
+        }
 
         $created = [];
         foreach ($data['hall_resource_ids'] as $resourceId) {
@@ -154,13 +171,25 @@ class HallBookingController extends Controller
             'notes'               => ['nullable', 'string', 'max:1000'],
             'color'               => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'force'               => ['boolean'],
-        ]);
+        ], [], self::FELDNAMEN);
 
         // Apply resource change if a new one was selected
         if (!empty($data['hall_resource_ids'])) {
             $data['hall_resource_id'] = (int) $data['hall_resource_ids'][0];
         }
         unset($data['hall_resource_ids']);
+
+        $conflicts = $this->findConflicts(
+            [$data['hall_resource_id'] ?? $booking->hall_resource_id],
+            $data['day_of_week'],
+            $data['start_time'],
+            $data['end_time'],
+            $booking->id
+        );
+        if ($conflicts->isNotEmpty() && !$request->boolean('force')) {
+            return $this->conflictResponse($conflicts);
+        }
+        unset($data['force']);
 
         $booking->update($data);
 
@@ -242,6 +271,14 @@ class HallBookingController extends Controller
     }
 
     // ── Helper ────────────────────────────────────────────────────────────
+
+    private function conflictResponse($conflicts): JsonResponse
+    {
+        return response()->json([
+            'message'   => 'Die Belegung überschneidet sich mit bestehenden Belegungen.',
+            'conflicts' => $conflicts,
+        ], 409);
+    }
 
     private function findConflicts(
         array $resourceIds, int $day, string $start, string $end, ?int $excludeId = null

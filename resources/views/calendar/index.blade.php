@@ -92,12 +92,13 @@
 
 <div class="mt-2 space-y-4"
      x-data="{
-         categories: { blue: true, red: true, emerald: true, amber: true, orange: true, purple: true, gray: true, holiday: true, vacSH: true, vacHH: true }
-     }"
-     x-init="
-         try { let s = localStorage.getItem('cal_filters'); if (s) Object.assign(categories, JSON.parse(s)); } catch(e) {}
-         $watch('categories', v => localStorage.setItem('cal_filters', JSON.stringify(v)));
-     ">
+         categories: { blue: true, red: true, emerald: true, amber: true, orange: true, purple: true, gray: true, holiday: true, vacSH: true, vacHH: true },
+         {{-- Als Methode statt x-init: ein try-Block ist dort kein gueltiger Ausdruck --}}
+         init() {
+             try { const s = localStorage.getItem('cal_filters'); if (s) Object.assign(this.categories, JSON.parse(s)); } catch (e) {}
+             this.$watch('categories', v => { try { localStorage.setItem('cal_filters', JSON.stringify(v)); } catch (e) {} });
+         },
+     }">
 
     {{-- Header / Controls --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -183,9 +184,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ session('success') }}</div>
-    @endif
 
     {{-- ══ WEEK VIEW ══════════════════════════════════════════════════════ --}}
     @php

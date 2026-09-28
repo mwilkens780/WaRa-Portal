@@ -522,7 +522,9 @@ class CompetitionController extends Controller
     public function saveAnalysis(Request $request, Competition $competition)
     {
         $request->validate(['text' => ['nullable', 'string']]);
-        $competition->update(['analysis_text' => $request->input('text') ?: null]);
+        // Nur bereinigtes HTML speichern - der Text wird anderen Nutzern angezeigt
+        $text = \App\Support\RichText::sanitize($request->input('text'));
+        $competition->update(['analysis_text' => \App\Support\RichText::isEmpty($text) ? null : $text]);
         return response()->json(['success' => true]);
     }
 
@@ -534,7 +536,8 @@ class CompetitionController extends Controller
         return view('competitions.auswertung-print', [
             'competition'  => $competition,
             'results'      => $results,
-            'analysisHtml' => $competition->analysis_text ?? '',
+            // Auch Altbestand bereinigen: die View gibt das unescaped aus
+            'analysisHtml' => \App\Support\RichText::sanitize($competition->analysis_text),
         ]);
     }
 

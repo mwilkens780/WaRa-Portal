@@ -36,7 +36,8 @@ return new class extends Migration
                 $table->text('note')->nullable();
                 $table->timestamp('responded_at')->nullable();
                 $table->timestamp('reminder_sent_at')->nullable();
-                $table->unique(['competition_signup_request_id', 'user_id']);
+                // Expliziter Name: der automatische ist laenger als 64 Zeichen
+                $table->unique(['competition_signup_request_id', 'user_id'], 'cs_responses_request_user_unique');
                 $table->timestamps();
             });
         }

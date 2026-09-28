@@ -954,12 +954,6 @@
         {{-- Tab: Anmeldungen --}}
         <div x-show="activeTab === 'anmeldungen'" x-cloak class="p-5">
 
-            @if(session('success'))
-                <div class="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">{{ session('success') }}</div>
-            @endif
-            @if(session('error'))
-                <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{{ session('error') }}</div>
-            @endif
 
             @if(!$signupRequest)
                 {{-- Noch keine Abfrage --}}
@@ -1346,9 +1340,6 @@
 
             {{-- Interne Notizen --}}
             <div>
-                @if(session('success'))
-                    <div class="mb-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-2.5">{{ session('success') }}</div>
-                @endif
                 <p class="text-sm text-gray-500 mb-3">Interne Notizen zur Organisation: Anreise, Unterkunft, Zeitplan, Kontakte etc.</p>
                 <form method="POST" action="{{ route('admin.competitions.organisation.save', $competition) }}" class="space-y-4">
                     @csrf
@@ -2493,7 +2484,7 @@ document.addEventListener('alpine:init', () => {
         _generateUrl: '{{ route('admin.competitions.analysis', $competition) }}',
         _saveUrl:     '{{ route('admin.competitions.analysis.save', $competition) }}',
         _csrf:        '{{ csrf_token() }}',
-        _savedHtml:   {!! json_encode($competition->analysis_text ?? '') !!},
+        _savedHtml:   @js(\App\Support\RichText::sanitize($competition->analysis_text)),
 
         init() {
             this.quill = new Quill(this.$refs.editorContainer, {

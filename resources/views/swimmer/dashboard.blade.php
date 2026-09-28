@@ -72,9 +72,6 @@
                                 </div>
                             </form>
                         </div>
-                        @if(session('success'))
-                            <p class="mt-3 text-sm text-green-700 font-medium">{{ session('success') }}</p>
-                        @endif
                     </div>
                 </div>
             </div>

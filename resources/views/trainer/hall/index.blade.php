@@ -102,6 +102,9 @@ function hallApp() {
         editId:    null,
         conflicts: [],
         saving:    false,
+        formError: '',
+        pageError: '',
+        sessionError: '',
         form: {
             hall_resource_ids: [], day_of_week: 1,
             start_time: '08:00', end_time: '10:00',
@@ -318,21 +321,61 @@ function hallApp() {
 
             // Optimistic update BEFORE await — if the click fires during the request,
             // the modal will already show the correct new times
+            const vorher = { start_time: booking.start_time, end_time: booking.end_time, start_slot: booking.start_slot };
             booking.start_time = st; booking.end_time = et; booking.start_slot = ds.currentSlot;
+            const zuruecksetzen = () => Object.assign(booking, vorher);
 
-            const r = await fetch(`/trainer/hall/bookings/${ds.bookingId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept':'application/json' },
-                body: JSON.stringify({
-                    day_of_week: booking.day_of_week, start_time: st, end_time: et,
-                    label: booking.label, type: booking.type,
-                    training_group_id: booking.training_group_id, trainer_id: booking.trainer_id,
-                    training_session_id: booking.training_session_id,
-                    notes: booking.notes ?? '', force: true,
-                }),
+            const res = await this.request(`/trainer/hall/bookings/${ds.bookingId}`, 'PUT', {
+                day_of_week: booking.day_of_week, start_time: st, end_time: et,
+                label: booking.label, type: booking.type,
+                training_group_id: booking.training_group_id, trainer_id: booking.trainer_id,
+                training_session_id: booking.training_session_id,
+                notes: booking.notes ?? '',
             });
+            if (res.ok) return;
 
-            if (!r.ok) { window.location.reload(); }
+            zuruecksetzen();
+            if (res.status === 409) {
+                // Ueberschneidung: nicht still speichern, sondern im Dialog entscheiden lassen
+                this._recentDrag = false;
+                this.openEdit(booking);
+                this.form.start_time = st;
+                this.form.end_time   = et;
+                this.conflicts = res.data.conflicts ?? [];
+                this.formError = 'Die neue Zeit überschneidet sich mit bestehenden Belegungen.';
+                return;
+            }
+            this.pageError = res.message;
+        },
+
+        /**
+         * Einheitlicher JSON-Request mit lesbarer Fehlermeldung.
+         * Liefert { ok, status, data, message } und wirft nie.
+         */
+        async request(url, method = 'GET', body = null) {
+            try {
+                const r = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: body ? JSON.stringify(body) : null,
+                });
+                const data = await r.json().catch(() => ({}));
+                let message = '';
+                if (!r.ok) {
+                    message = r.status === 422 ? (Object.values(data.errors ?? {}).flat().join(' ') || data.message)
+                            : r.status === 419 ? 'Deine Sitzung ist abgelaufen. Bitte Seite neu laden und erneut anmelden.'
+                            : r.status === 403 ? 'Dafür fehlt dir die Berechtigung.'
+                            : (data.message || `Aktion fehlgeschlagen (Fehler ${r.status}).`);
+                }
+                return { ok: r.ok, status: r.status, data, message };
+            } catch (e) {
+                return { ok: false, status: 0, data: {}, message: 'Keine Verbindung zum Server. Bitte erneut versuchen.' };
+            }
         },
 
         // ── Bookings for a given resource + day ───────────────────────
@@ -372,6 +415,7 @@ function hallApp() {
         // ── Modal helpers ─────────────────────────────────────────────
         openCreate(resourceId, day, slot) {
             this.editId = null; this.conflicts = []; this.linkedSession = null; this.sessionResults = [];
+            this.formError = ''; this.sessionError = '';
             const s = slot ?? 8 * 4;
             this.form = {
                 hall_resource_ids: resourceId ? [resourceId] : [],
@@ -388,6 +432,7 @@ function hallApp() {
         openEdit(b) {
             if (this._recentDrag) return;  // suppress click fired after a drag
             this.editId = b.id; this.conflicts = []; this.sessionResults = [];
+            this.formError = ''; this.sessionError = '';
             this.linkedSession = b.training_session_id ? { id: b.training_session_id, title: b.session_title ?? ('Einheit #' + b.training_session_id) } : null;
             this.form = {
                 hall_resource_ids: [b.hall_resource_id],
@@ -403,11 +448,12 @@ function hallApp() {
         async searchSessions() {
             if (!this.form.day_of_week || !this.form.start_time || !this.form.end_time) return;
             this.sessionSearching = true;
-            try {
-                const p = new URLSearchParams({ day_of_week: this.form.day_of_week, start_time: this.form.start_time, end_time: this.form.end_time });
-                const r = await fetch(`/trainer/hall/sessions/search?${p}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-                this.sessionResults = (await r.json()).sessions ?? [];
-            } finally { this.sessionSearching = false; }
+            this.sessionError = '';
+            const p = new URLSearchParams({ day_of_week: this.form.day_of_week, start_time: this.form.start_time, end_time: this.form.end_time });
+            const res = await this.request(`/trainer/hall/sessions/search?${p}`);
+            this.sessionResults = res.ok ? (res.data.sessions ?? []) : [];
+            if (!res.ok) this.sessionError = res.message;
+            this.sessionSearching = false;
         },
         linkSession(s) {
             this.form.training_session_id = s.id;
@@ -428,31 +474,32 @@ function hallApp() {
             const p = new URLSearchParams({ day_of_week: this.form.day_of_week, start_time: this.form.start_time, end_time: this.form.end_time });
             this.form.hall_resource_ids.forEach(id => p.append('hall_resource_ids[]', id));
             if (this.editId) p.append('exclude_id', this.editId);
-            try {
-                const r = await fetch(`/trainer/hall/conflicts?${p}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-                this.conflicts = (await r.json()).conflicts ?? [];
-            } catch {}
+            const res = await this.request(`/trainer/hall/conflicts?${p}`);
+            // Fehlgeschlagene Pruefung ist kein "keine Konflikte" - der Server prueft beim Speichern erneut
+            if (res.ok) this.conflicts = res.data.conflicts ?? [];
         },
-        async save() {
+        // force nur ueber "Trotzdem speichern"; sonst lehnt der Server Ueberschneidungen ab (409)
+        async save(force = false) {
             this.saving = true;
-            try {
-                const url    = this.editId ? `/trainer/hall/bookings/${this.editId}` : '/trainer/hall/bookings';
-                const method = this.editId ? 'PUT' : 'POST';
-                const r = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept':'application/json' },
-                    body: JSON.stringify({ ...this.form, force: true }),
-                });
-                if (r.ok) { window.location.reload(); }
-            } finally { this.saving = false; }
+            this.formError = '';
+            const url    = this.editId ? `/trainer/hall/bookings/${this.editId}` : '/trainer/hall/bookings';
+            const method = this.editId ? 'PUT' : 'POST';
+            const res = await this.request(url, method, { ...this.form, force });
+            if (res.ok) { window.location.reload(); return; }
+            this.saving = false;
+            if (res.status === 409) {
+                this.conflicts = res.data.conflicts ?? [];
+                this.formError = 'Überschneidung mit bestehenden Belegungen – prüfen oder „Trotzdem speichern“.';
+                return;
+            }
+            this.formError = res.message;
         },
         async deleteBooking(id) {
             if (!confirm('Belegung löschen?')) return;
-            await fetch(`/trainer/hall/bookings/${id}`, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept':'application/json' },
-            });
-            window.location.reload();
+            const res = await this.request(`/trainer/hall/bookings/${id}`, 'DELETE');
+            if (res.ok) { window.location.reload(); return; }
+            if (this.showModal) this.formError = res.message;
+            else this.pageError = res.message;
         },
 
         get dayName() { return ['','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'][this.currentDay]; },
@@ -495,6 +542,15 @@ function hallApp() {
 </script>
 
 <div class="mt-2" x-data="hallApp()" x-init="initSticky()">
+
+{{-- Fehler ausserhalb des Dialogs (Verschieben, Loeschen) --}}
+<div x-show="pageError" x-cloak role="alert"
+     class="mb-3 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+    <span class="flex-1" x-text="pageError"></span>
+    <button type="button" @click="pageError = ''" class="text-red-400 hover:text-red-600" aria-label="Meldung schließen">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+</div>
 
 {{-- ── Top bar ──────────────────────────────────────────────────────────────── --}}
 <div class="flex flex-wrap items-center gap-3 mb-4">
@@ -1039,11 +1095,12 @@ function hallApp() {
                         <input type="checkbox"
                                :value="{{ $resource->id }}"
                                :checked="form.hall_resource_ids.includes({{ $resource->id }})"
-                               @change="editId
+                               @change="(editId
                                    ? form.hall_resource_ids = $event.target.checked ? [{{ $resource->id }}] : []
                                    : ($event.target.checked
                                        ? form.hall_resource_ids.push({{ $resource->id }})
-                                       : form.hall_resource_ids = form.hall_resource_ids.filter(id => id != {{ $resource->id }}))"
+                                       : form.hall_resource_ids = form.hall_resource_ids.filter(id => id != {{ $resource->id }})));
+                                   form.hall_resource_ids.length ? checkConflicts() : conflicts = []"
                                class="w-4 h-4 rounded text-primary border-gray-300">
                         <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $resource->color }}"></span>
                         <span class="text-gray-700 truncate">{{ $resource->name }}</span>
@@ -1184,7 +1241,8 @@ function hallApp() {
                             </div>
                         </template>
                     </div>
-                    <p x-show="sessionResults.length === 0 && !sessionSearching" class="text-xs text-gray-400">
+                    <p x-show="sessionError" x-cloak class="text-xs text-red-600" role="alert" x-text="sessionError"></p>
+                    <p x-show="sessionResults.length === 0 && !sessionSearching && !sessionError" class="text-xs text-gray-400">
                         Keine passenden Einheiten gefunden – oder manuell verknüpfen nach dem Anlegen.
                     </p>
                 </div>
@@ -1199,6 +1257,11 @@ function hallApp() {
             </div>
         </div>
 
+        {{-- Fehler beim Speichern/Loeschen --}}
+        <div x-show="formError" x-cloak role="alert"
+             class="mx-6 mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2"
+             x-text="formError"></div>
+
         {{-- Footer --}}
         <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
             <button x-show="editId" @click="deleteBooking(editId)"
@@ -1210,7 +1273,7 @@ function hallApp() {
                         class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     Abbrechen
                 </button>
-                <button x-show="conflicts.length > 0" @click="save()" :disabled="saving"
+                <button x-show="conflicts.length > 0" @click="save(true)" :disabled="saving"
                         class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
                     Trotzdem speichern
                 </button>

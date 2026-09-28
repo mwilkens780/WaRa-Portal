@@ -43,16 +43,6 @@
         </div>
     @endif
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-lg">
-            {{ session('error') }}
-        </div>
-    @endif
 
     @if($trainingGroup->trainers->isEmpty())
         <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm">

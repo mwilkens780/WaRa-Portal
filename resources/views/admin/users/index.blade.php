@@ -250,9 +250,6 @@
                 </button>
             </form>
         </div>
-        @if(session('success') && str_contains(session('success'), 'DSV-ID'))
-            <p class="text-sm text-amber-800 mt-3 font-medium">{{ session('success') }}</p>
-        @endif
     </div>
 
     {{-- Gefahrenzone: Alle Benutzer löschen --}}

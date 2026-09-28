@@ -5,12 +5,6 @@
 @section('content')
 <div class="mt-2 space-y-4">
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">{{ session('error') }}</div>
-    @endif
 
     @forelse($competitions as $comp)
     @php
@@ -23,7 +17,7 @@
         $hasEvents   = $comp->events->isNotEmpty();
         $hasEntries  = $comp->entries->isNotEmpty();
         $hasResults  = $comp->processedResults->isNotEmpty();
-        $hasAnalysis = !empty($comp->analysis_text);
+        $hasAnalysis = !\App\Support\RichText::isEmpty($comp->analysis_text);
         $hasOrg      = $comp->organizer || $comp->ausrichter || !empty($comp->venue_details) || $comp->description;
         $hasAnnounce = $comp->announcement_pdf_path || !empty($comp->announcement_data['events']) || !empty($comp->announcement_data['deadlines']);
 
@@ -560,7 +554,7 @@
             {{-- ── Auswertung ───────────────────────────────────────── --}}
             @if($hasAnalysis)
             <div x-show="tab === 'analysis'" x-cloak class="p-5">
-                <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $comp->analysis_text }}</div>
+                <x-ui.rich-text :html="$comp->analysis_text" />
             </div>
             @endif
 

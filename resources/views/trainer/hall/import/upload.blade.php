@@ -5,11 +5,6 @@
 @section('content')
 <div class="mt-2 max-w-3xl space-y-5">
 
-    @if(session('error'))
-        <div class="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {{ session('error') }}
-        </div>
-    @endif
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h2 class="font-semibold text-gray-800 mb-1">Excel-Datei hochladen</h2>

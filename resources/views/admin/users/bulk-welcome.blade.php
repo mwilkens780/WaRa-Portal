@@ -15,9 +15,6 @@
         Zurück zur Benutzerverwaltung
     </a>
 
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-lg">{{ session('error') }}</div>
-    @endif
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-sm text-gray-600 space-y-2">
         <p>

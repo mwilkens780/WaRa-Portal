@@ -49,6 +49,19 @@ window._ltSessionId = {{ $session->id }};
         </div>
     </div>
 
+    {{-- Sitzung abgelaufen: Zeiten sind im Geraet gesichert, nach Neuladen gehen sie raus --}}
+    <div x-show="saveState === 'expired'" x-cloak role="alert"
+         class="flex flex-wrap items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+        <span class="flex-1 min-w-[12rem]">
+            Deine Anmeldung ist abgelaufen. <strong x-text="pending.length"></strong> Zeit(en) sind auf diesem Gerät gesichert
+            und werden nach dem Neuladen übertragen.
+        </span>
+        <button type="button" @click="window.location.reload()"
+                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg">
+            Neu laden
+        </button>
+    </div>
+
     <div class="flex gap-1.5 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
         <template x-for="b in blocks" :key="b.id">
             <button type="button" @click="selectBlock(b.id)"
@@ -424,7 +437,7 @@ window._ltSessionId = {{ $session->id }};
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" integrity="sha384-HZZ/fukV+9G8gwTNjN7zQDG0Sp7MsZy5DDN6VfY3Be7V9dvQpEpR2jF2HlyFUUjU" crossorigin="anonymous"></script>
 <script>
 function liveTiming() {
     const blocks    = window._ltBlocks    || [];
@@ -490,10 +503,12 @@ function liveTiming() {
 
         init() {
             this.voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+            this.restorePending();
             this.render();
             window.addEventListener('beforeunload', (e) => {
                 clearTimeout(this.flushTimer);
-                if (!this.pending.length) return;
+                // Abgelaufen: Senden scheitert ohnehin, die Zeiten liegen im Geraet
+                if (!this.pending.length || this.saveState === 'expired') return;
                 // keepalive: true lässt den Request den Seitenabbruch überleben
                 fetch('{{ route('trainer.sessions.live.save', $session) }}', {
                     method: 'POST',
@@ -897,16 +912,42 @@ function liveTiming() {
         },
 
         // ---------- Speichern ----------
+        //
+        // Offene Zeiten liegen zusaetzlich im Geraet (localStorage). Am
+        // Beckenrand faellt das WLAN aus, iOS beendet Tabs im Hintergrund -
+        // ohne diese Kopie waeren noch nicht uebertragene Zeiten dann weg.
+        // Beim naechsten Laden werden sie wieder eingetragen und gesendet.
+        storageKey: 'live-pending:{{ $session->id }}',
+
+        persistPending() {
+            try {
+                if (this.pending.length) localStorage.setItem(this.storageKey, JSON.stringify(this.pending));
+                else localStorage.removeItem(this.storageKey);
+            } catch (e) {}
+        },
+
+        restorePending() {
+            let saved = [];
+            try { saved = JSON.parse(localStorage.getItem(this.storageKey) || '[]'); } catch (e) {}
+            if (!Array.isArray(saved) || !saved.length) return;
+            saved.forEach(p => this.putCs(p.block_id, p.user_id, p.repetition, p.time_cs));
+            this.pending = saved;
+            this.$nextTick(() => this.flush());
+        },
+
         queue(blockId, userId, rep, cs) {
             this.pending = this.pending.filter(
                 p => !(p.block_id === blockId && p.user_id === userId && p.repetition === rep)
             );
             this.pending.push({ block_id: blockId, user_id: userId, repetition: rep, time_cs: cs });
+            this.persistPending();
             clearTimeout(this.flushTimer);
             this.flushTimer = setTimeout(() => this.flush(), 300);
         },
 
         flush() {
+            // Abgelaufene Sitzung: Wiederholen bringt nichts, erst nach Neuladen
+            if (this.saveState === 'expired') return;
             if (!this.pending.length || this.saveState === 'saving') return;
             const batch = this.pending.slice();
             this.saveState = 'saving';
@@ -920,16 +961,22 @@ function liveTiming() {
                 },
                 body: JSON.stringify({ entries: batch }),
             })
-            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(r => {
+                if (r.status === 419 || r.status === 401) { const e = new Error('expired'); e.expired = true; throw e; }
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
             .then(() => {
                 this.pending = this.pending.filter(p => !batch.some(
                     b => b.block_id === p.block_id && b.user_id === p.user_id
                       && b.repetition === p.repetition && b.time_cs === p.time_cs
                 ));
+                this.persistPending();
                 this.saveState = this.pending.length ? 'saving' : 'saved';
                 if (this.pending.length) this.flush();
             })
-            .catch(() => {
+            .catch((e) => {
+                if (e && e.expired) { this.saveState = 'expired'; return; }
                 this.saveState = 'error';
                 setTimeout(() => { if (this.pending.length) this.flush(); }, 4000);
             });

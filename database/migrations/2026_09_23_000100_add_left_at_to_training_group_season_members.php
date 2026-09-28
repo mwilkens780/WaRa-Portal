@@ -20,6 +20,10 @@ return new class extends Migration
         Schema::table('training_group_season_members', function (Blueprint $table) {
             $table->date('left_at')->nullable()->after('user_id');
         });
+
+        // Laufende Saison sofort erfassen, nicht erst beim ersten Nachtlauf
+        // (stand frueher in 000099, dort fehlte left_at noch)
+        app(\App\Services\GroupRoster::class)->snapshotRunningSeason();
     }
 
     public function down(): void

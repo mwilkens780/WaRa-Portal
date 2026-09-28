@@ -5,16 +5,6 @@
 @section('content')
 <div class="mt-2 space-y-6">
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-lg">
-            {{ session('error') }}
-        </div>
-    @endif
 
     @if($currentWeeks->isEmpty() && $upcomingWeeks->isEmpty())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">

@@ -7,9 +7,6 @@
 
     <a href="{{ route('admin.dsgvo.index') }}" class="text-sm text-gray-500 hover:text-gray-700 inline-block">← Zurück zur Übersicht</a>
 
-    @if(session('success'))
-    <div class="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">{{ session('success') }}</div>
-    @endif
 
     {{-- Kopfzeile --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-wrap items-start gap-4">

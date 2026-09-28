@@ -5,11 +5,6 @@
 @section('content')
 <div class="mt-2 max-w-3xl space-y-6">
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">
-            {{ session('success') }}
-        </div>
-    @endif
 
     <form method="POST" action="{{ route('admin.training-groups.update', $trainingGroup) }}">
         @csrf

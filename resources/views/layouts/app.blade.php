@@ -23,6 +23,7 @@
                             800: '#0D3F7A',
                             900: '#1e3a5f',
                             DEFAULT: '#1B5EAB',
+                            dark: '#0D3F7A', // hover:bg-primary-dark in vielen Views
                         },
                         accent: {
                             DEFAULT: '#C0392B',
@@ -34,7 +35,8 @@
             }
         }
     </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {{-- Feste Version + SRI: ein neues Release darf das Portal nicht ungeprueft aendern --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js" integrity="sha384-5/joNqFnRyVWzXp99bHot6RHG+EksGp+USSgZwPar7T9SD9PKKER37n/8bXBAZGd" crossorigin="anonymous"></script>
     <style>
         [x-cloak] { display: none !important; }
     </style>
@@ -407,15 +409,34 @@
             </div>
         </header>
 
-        {{-- Flash Messages --}}
+        {{-- Flash Messages: einzige Stelle dafuer - Views zeigen sie nicht selbst an --}}
         <div class="px-4 lg:px-6 pt-4">
             @if(session('success'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)" role="status"
                      class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                    {{ session('success') }}
+                    <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    <span class="flex-1">{{ session('success') }}</span>
+                    <button type="button" @click="show = false" class="text-green-600 hover:text-green-800" aria-label="Meldung schließen">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                 </div>
             @endif
+            {{-- Fehler, Warnungen und Hinweise bleiben stehen, bis man sie gelesen hat --}}
+            @foreach([
+                'error'   => ['role' => 'alert',  'cls' => 'bg-red-50 border-red-200 text-red-800'],
+                'warning' => ['role' => 'alert',  'cls' => 'bg-amber-50 border-amber-200 text-amber-800'],
+                'info'    => ['role' => 'status', 'cls' => 'bg-blue-50 border-blue-200 text-blue-800'],
+            ] as $key => $style)
+                @if(session($key))
+                    <div x-data="{ show: true }" x-show="show" role="{{ $style['role'] }}"
+                         class="flex items-start gap-3 border rounded-lg px-4 py-3 mb-4 text-sm {{ $style['cls'] }}">
+                        <span class="flex-1">{{ session($key) }}</span>
+                        <button type="button" @click="show = false" class="opacity-60 hover:opacity-100" aria-label="Meldung schließen">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                @endif
+            @endforeach
             @if($errors->any())
                 <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4">
                     <ul class="list-disc list-inside text-sm space-y-1">

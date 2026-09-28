@@ -246,7 +246,7 @@
                 <label class="flex items-center gap-2 text-sm cursor-pointer p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
                     <input type="checkbox" name="user_roles[]" value="{{ $value }}"
                            {{ in_array($value, $assignedRoles) ? 'checked' : '' }}
-                           {{ $value === 'elternteil' ? '@change="elternChecked = $event.target.checked"' : '' }}
+                           @if($value === 'elternteil') @change="elternChecked = $event.target.checked" @endif
                            class="w-4 h-4 rounded border-gray-300 text-primary">
                     <span class="text-gray-700">{{ $label }}</span>
                 </label>
