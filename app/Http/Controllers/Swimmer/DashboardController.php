@@ -397,7 +397,6 @@ class DashboardController extends Controller
 
         // Load exclusions as objects to access comment
         $exclusions        = SwimmerSeriesExclusion::where('user_id', $swimmer->id)->get()->keyBy('recurrence_group_id');
-        $excludedSeriesIds = $exclusions->keys();
 
         $dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -439,6 +438,10 @@ class DashboardController extends Controller
 
         // Sort chronologically Mo (1) → So (7)
         $trainingSeries = $trainingSeries->sortBy('day_of_week_iso')->values();
+
+        // Nur Absagen auf Serien zählen, die der Schwimmer noch hat - alte
+        // Absagen auf Serien früherer Gruppen bleiben sonst ewig im Zähler
+        $excludedSeriesIds = $trainingSeries->where('is_excluded', true)->pluck('recurrence_group_id');
 
         // ── Bevorstehend: heute bis zum Ende der Trainingszeit, dann 13 Tage ─
         $upcoming = TrainingSession::upcomingOrRunning()
