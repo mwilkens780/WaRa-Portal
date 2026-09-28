@@ -22,6 +22,24 @@ Laravel 11 Portal für SG Wasserratten Norderstedt e.V.
 
 Das `composer.lock` muss immer mit committet werden — der Server führt `composer install` (nicht `composer update`) aus.
 
+## Frontend-Build (Vite + Tailwind v3.4 + Alpine)
+
+- CSS/JS kommen aus `resources/css/app.css` und `resources/js/app.js`, gebaut mit
+  `npm run build` nach `public/build` (nicht im Repo). Lokal nach jeder
+  View-Änderung neu bauen oder `npm run dev` laufen lassen – sonst fehlen neue
+  Klassen bzw. es gibt „Vite manifest not found“.
+- **Tailwind-Klassen nie zusammensetzen** (`bg-{{ $farbe }}-50`): der Build findet
+  nur ausgeschriebene Klassen. Gilt auch für Klassen-Strings in PHP (app/ wird mit
+  durchsucht).
+- **iOS/iPadOS 15 ist Untergrenze**: deshalb Tailwind v3.4 (nicht v4), Alpine
+  `x-trap` statt `<dialog>`, Polyfills in `resources/js/polyfills.js`. Nach
+  Paket-Updates die Bundles auf `.at(`/`findLast`/`structuredClone` prüfen.
+- Deploy: Die GitHub Action baut und lädt `public/build` per SCP hoch
+  (`public/build-new` → Tausch auf dem Server vor `git pull`, vorheriger Stand in
+  `public/build-old`).
+- UI-Bausteine liegen unter `resources/views/components/ui/` (`x-ui.*`), Plan und
+  Regeln in `docs/frontend-audit.md`.
+
 ## Entwicklungsumgebung (diese Cloud-Session)
 
 - PHP: 8.4.x (abweichend vom Server!)

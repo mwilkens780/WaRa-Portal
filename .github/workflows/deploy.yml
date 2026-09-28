@@ -6,10 +6,36 @@ on:
 
 jobs:
   deploy:
-    name: Deploy via SSH
+    name: Build + Deploy via SSH
     runs-on: ubuntu-latest
 
     steps:
+      # ── CSS/JS bauen (Server hat kein Node) ─────────────────────────────
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Frontend bauen
+        run: |
+          npm ci
+          npm run build
+          test -f public/build/manifest.json
+
+      # Upload in ein Wartverzeichnis; getauscht wird erst im naechsten Schritt
+      - name: Build hochladen
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: public/build
+          target: ${{ secrets.SSH_PATH }}/public/build-new
+          strip_components: 2
+          rm: true
+
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -19,6 +45,15 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.SSH_PATH }}
+
+            # Build VOR dem Code tauschen: neue Views duerfen nie ohne ihr
+            # Manifest dastehen (sonst Fehler 500). Der vorige Stand bleibt
+            # als build-old fuer ein Zurueckrollen liegen.
+            echo "── Frontend-Build einsetzen ──"
+            test -f public/build-new/manifest.json
+            rm -rf public/build-old
+            if [ -d public/build ]; then mv public/build public/build-old; fi
+            mv public/build-new public/build
 
             echo "── Git pull ──"
             git pull origin main

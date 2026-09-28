@@ -943,10 +943,12 @@
                     <p x-show="error" x-cloak class="text-red-600 text-sm mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2" x-text="error"></p>
                     <p x-show="saveMsg" x-cloak class="text-green-700 text-sm mb-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2" x-text="saveMsg"></p>
 
-                    {{-- Quill WYSIWYG Editor --}}
-                    <div x-ref="editorContainer"
-                         style="min-height: 280px; font-size: 14px; line-height: 1.6;"
-                         class="rounded-b-lg"></div>
+                    {{-- Wrapper traegt die Referenz: x-ref auf dem Editor selbst (eigenes x-data) wuerde nicht nach aussen wirken --}}
+                    <div x-ref="editorWrap">
+                        <x-ui.rich-text-editor label="Auswertungstext"
+                                               :value="$competition->analysis_text"
+                                               placeholder="KI-Text generieren oder hier direkt eingeben…" />
+                    </div>
                 </div>
             @endif
         </div>
@@ -2459,19 +2461,9 @@
 @endsection
 
 @push('styles')
-<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-<style>
-  /* Quill-Editor in Tab-Kontext */
-  .ql-container { font-family: inherit; font-size: 14px; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
-  .ql-toolbar { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; border-color: #d1d5db !important; background: #f9fafb; }
-  .ql-container { border-color: #d1d5db !important; }
-  .ql-editor { min-height: 280px; line-height: 1.65; }
-  .ql-editor p { margin-bottom: 0.5em; }
-</style>
 @endpush
 
 @push('scripts')
-<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('auswertungEditor', () => ({
@@ -2479,30 +2471,13 @@ document.addEventListener('alpine:init', () => {
         saving:  false,
         error:   '',
         saveMsg: '',
-        quill:   null,
 
         _generateUrl: '{{ route('admin.competitions.analysis', $competition) }}',
         _saveUrl:     '{{ route('admin.competitions.analysis.save', $competition) }}',
         _csrf:        '{{ csrf_token() }}',
-        _savedHtml:   @js(\App\Support\RichText::sanitize($competition->analysis_text)),
 
-        init() {
-            this.quill = new Quill(this.$refs.editorContainer, {
-                theme: 'snow',
-                placeholder: 'KI-Text generieren oder hier direkt eingeben…',
-                modules: {
-                    toolbar: [
-                        ['bold', 'italic', 'underline'],
-                        [{ header: [2, 3, false] }],
-                        [{ list: 'ordered' }, { list: 'bullet' }],
-                        ['clean']
-                    ]
-                }
-            });
-            if (this._savedHtml) {
-                this.quill.root.innerHTML = this._savedHtml;
-            }
-        },
+        // Der Editor ist ein eigener Baustein (x-ui.rich-text-editor im Wrapper editorWrap)
+        editor() { return Alpine.$data(this.$refs.editorWrap.firstElementChild); },
 
         async generate() {
             this.loading = true;
@@ -2516,10 +2491,8 @@ document.addEventListener('alpine:init', () => {
                 if (d.error) {
                     this.error = d.error;
                 } else {
-                    // Plain text → HTML paragraphs via Quill clipboard API
-                    const paras = d.text.split(/\n\n+/);
-                    const html  = paras.map(p => '<p>' + p.trim().replace(/\n/g, '<br>') + '</p>').join('');
-                    this.quill.clipboard.dangerouslyPasteHTML(0, html);
+                    // KI liefert Klartext; appendText escaped ihn und macht Absaetze daraus
+                    this.editor().appendText(d.text);
                 }
             } catch (e) {
                 this.error = e.message;
@@ -2540,7 +2513,7 @@ document.addEventListener('alpine:init', () => {
                         'Content-Type':  'application/json',
                         'Accept':        'application/json',
                     },
-                    body: JSON.stringify({ text: this.quill.root.innerHTML })
+                    body: JSON.stringify({ text: this.editor().getHTML() })
                 });
                 const d = await r.json();
                 if (d.success) {

@@ -30,3 +30,5 @@ yarn-error.log
 /.idea
 /.vscode
 /storage/app/bestenlisten-import
+/public/build
+/public/build-*

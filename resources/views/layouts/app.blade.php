@@ -5,41 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'WaRa-Portal') – SG Wasserratten Norderstedt</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50:  '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#1B5EAB',
-                            700: '#1d4ed8',
-                            800: '#0D3F7A',
-                            900: '#1e3a5f',
-                            DEFAULT: '#1B5EAB',
-                            dark: '#0D3F7A', // hover:bg-primary-dark in vielen Views
-                        },
-                        accent: {
-                            DEFAULT: '#C0392B',
-                            dark: '#992d22',
-                            light: '#e74c3c',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    {{-- Feste Version + SRI: ein neues Release darf das Portal nicht ungeprueft aendern --}}
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js" integrity="sha384-5/joNqFnRyVWzXp99bHot6RHG+EksGp+USSgZwPar7T9SD9PKKER37n/8bXBAZGd" crossorigin="anonymous"></script>
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
+    {{-- CSS (Tailwind-Build) und JS (Alpine) aus resources/, siehe vite.config.js --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -53,7 +20,7 @@
     >
         {{-- Logo & Vereinsname --}}
         <div class="flex items-center gap-3 px-4 py-4 border-b border-white/15">
-            <img src="https://www.wasserratten.de/images/logo96x96.png"
+            <img src="{{ asset('images/logo-96x96.png') }}"
                  alt="Logo"
                  class="w-10 h-10 rounded-full bg-white/90 p-0.5 flex-shrink-0">
             <div class="min-w-0">

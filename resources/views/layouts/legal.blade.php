@@ -4,16 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title') – SG Wasserratten Norderstedt</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: { extend: { colors: { primary: { DEFAULT: '#1B5EAB', dark: '#0D3F7A' } } } }
-        }
-    </script>
+    @vite('resources/css/app.css')
 </head>
 <body class="bg-gray-50 min-h-screen">
     <header class="bg-[#1B5EAB] text-white px-6 py-4 flex items-center gap-4">
-        <img src="https://www.wasserratten.de/images/logo96x96.png" alt="Logo" class="w-9 h-9 rounded-full bg-white/90 p-0.5">
+        <img src="{{ asset('images/logo-96x96.png') }}" alt="Logo" class="w-9 h-9 rounded-full bg-white/90 p-0.5">
         <div>
             <p class="font-bold text-sm leading-none">SG Wasserratten Norderstedt e.V.</p>
             <p class="text-xs text-blue-200">WaRa-Portal</p>

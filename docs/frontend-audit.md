@@ -388,6 +388,13 @@ Konto-Menü (Avatar oben rechts / unten in der Leiste):
 
 Jede Phase ist einzeln deploybar; nichts bleibt halb umgestellt.
 
+**Stand:** Phase 0 erledigt (`c293bac`). Phase 1 erledigt: Vite 8 + Tailwind
+3.4 + Alpine 3.17.4 (+ Focus) aus dem Build, Ziel Safari 14 mit Polyfills
+(`.at`, `findLast`), Build in der GitHub Action, Logo lokal, Quill → Tiptap
+(`x-ui.rich-text-editor`, lädt nur bei Bedarf). Geprüft: alle im DOM
+verwendeten Klassen auf 50 Seiten haben eine Regel im Build (dabei gefunden:
+Laravels Seitennavigation aus `vendor/` fehlte im Content-Pfad).
+
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
 | **0 · Sofort-Fehler** | F1–F13 beheben | Kein JS-Fehler mehr in der Konsole auf allen geprüften Seiten; Hallenplan zeigt Fehler und verhindert stille Doppelbuchung; Zeiterfassung überlebt Reload ohne Netz |

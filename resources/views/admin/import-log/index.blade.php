@@ -6,9 +6,11 @@
 <div class="space-y-5">
 
     {{-- Flash-Nachrichten --}}
-    @foreach(['success' => 'green', 'crawler_result' => 'green', 'error' => 'red'] as $key => $color)
+    {{-- success/error zeigt das Layout; hier nur das Crawler-Ergebnis. Klassen
+         ausgeschrieben, damit der Tailwind-Build sie findet. --}}
+    @foreach(['crawler_result'] as $key)
         @if(session($key))
-            <div class="bg-{{ $color }}-50 border border-{{ $color }}-200 text-{{ $color }}-800 text-sm px-4 py-3 rounded-xl font-medium">
+            <div class="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-xl font-medium">
                 {{ session($key) }}
             </div>
         @endif

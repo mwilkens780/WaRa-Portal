@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wartung – SG Wasserratten Norderstedt</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite('resources/css/app.css')
 </head>
 <body class="bg-[#1B5EAB] min-h-screen flex items-center justify-center p-4">
 
 <div class="max-w-md w-full text-center">
-    <img src="https://www.wasserratten.de/images/logo96x96.png"
+    <img src="{{ asset('images/logo-96x96.png') }}"
          alt="Logo" class="w-20 h-20 rounded-full bg-white/90 p-1 mx-auto mb-6 shadow-lg">
 
     <h1 class="text-2xl font-bold text-white mb-2">Wartungsarbeiten</h1>
