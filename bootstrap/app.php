@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+        // Angemeldete auf /login: ohne das schickt Laravel nach "/", und "/" wieder nach /login
+        $middleware->redirectUsersTo(fn (\Illuminate\Http\Request $request) => $request->user()->homeUrl());
         $middleware->alias([
             'role'                    => \App\Http\Middleware\CheckRole::class,
             'menu'                    => \App\Http\Middleware\CheckMenuPermission::class,

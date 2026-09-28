@@ -84,7 +84,7 @@ class LoginController extends Controller
             // hat die Einrichtung abgeschlossen.
             $user->maybeMarkPortalActivated();
 
-            return redirect()->intended($this->redirectTo($user->role));
+            return redirect()->intended($user->homeUrl());
         }
 
         RateLimiter::hit($key, self::LOCK_SECONDS);
@@ -121,18 +121,5 @@ class LoginController extends Controller
             'email' => "Zu viele Anmeldeversuche. Bitte versuche es in {$minuten} Minute(n) erneut "
                      . 'oder setze dein Passwort über „Passwort vergessen" neu.',
         ]);
-    }
-
-    private function redirectTo(string $role): string
-    {
-        return match($role) {
-            'admin'        => route('admin.dashboard'),
-            'trainer'      => route('trainer.dashboard'),
-            'vorstand'     => route('admin.dashboard'),
-            'schwimmer'    => route('swimmer.dashboard'),
-            'elternteil'   => route('parent.dashboard'),
-            'kampfrichter' => route('swimmer.dashboard'),
-            default        => route('login'),
-        };
     }
 }

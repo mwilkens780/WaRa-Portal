@@ -53,7 +53,9 @@ use App\Http\Controllers\TeamDoctor\TeamDoctorController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 // Startseite -> Login
-Route::get('/', fn() => redirect()->route('login'));
+Route::get('/', fn() => auth()->check()
+    ? redirect(auth()->user()->homeUrl())
+    : redirect()->route('login'));
 
 // Auth
 Route::middleware('guest')->group(function () {

@@ -163,6 +163,28 @@ class User extends Authenticatable
      * Check portal access role (used by auth middleware).
      * For checking any club role, use hasAnyRole().
      */
+    /**
+     * Startseite nach dem Login und fuer "/".
+     *
+     * Jedes Ziel muss fuer die Rolle freigegeben sein. Frueher landeten
+     * Vorstand und Kampfrichter auf fremden Dashboards (403), Ernaehrungs-
+     * berater und Teamarzt auf /login - fuer Angemeldete eine Endlosschleife.
+     */
+    public function homeUrl(): string
+    {
+        return match ($this->role) {
+            'admin'              => route('admin.dashboard'),
+            'trainer'            => route('trainer.dashboard'),
+            'schwimmer'          => route('swimmer.dashboard'),
+            'elternteil'         => route('parent.dashboard'),
+            'ernaehrungsberater' => route('nutrition.index'),
+            'teamarzt'           => route('teamdoctor.index'),
+            default              => MenuPermission::can((string) $this->role, 'calendar')
+                                        ? route('calendar.index')
+                                        : route('profile.index'),
+        };
+    }
+
     public function hasRole(string|array $roles): bool
     {
         return in_array($this->role, (array) $roles);
