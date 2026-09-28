@@ -10,6 +10,17 @@ class TrainingSession extends Model
 {
     use HasFactory, Auditable;
 
+    protected static function booted(): void
+    {
+        // Letzte Einheit einer Serie weg: ständige Absagen darauf verweisen sonst ins Leere
+        static::deleted(function (TrainingSession $session) {
+            $group = $session->recurrence_group_id;
+            if ($group && !static::where('recurrence_group_id', $group)->exists()) {
+                SwimmerSeriesExclusion::where('recurrence_group_id', $group)->delete();
+            }
+        });
+    }
+
     public function getAuditLabel(): string
     {
         return ($this->title ?? '–') . ' (' . ($this->date?->format('d.m.Y') ?? '') . ')';
