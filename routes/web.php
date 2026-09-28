@@ -119,6 +119,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/benutzer/{user}', [AdminUserController::class, 'update'])->name('users.update');
     Route::delete('/benutzer/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
     Route::patch('/benutzer/{user}/aktivierung', [AdminUserController::class, 'toggleActive'])->name('users.toggle-active');
+    Route::patch('/benutzer/{user}/portal-zugang', [AdminUserController::class, 'togglePortal'])->name('users.toggle-portal');
     Route::post('/benutzer/{user}/passwort-reset', [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
     Route::post('/benutzer/{user}/willkommensmail', [AdminUserController::class, 'sendWelcomeMail'])->name('users.welcome-mail');
     Route::get('/benutzer-einladen',  [AdminUserController::class, 'bulkWelcomeForm'])->name('users.bulk-welcome');
@@ -451,9 +452,12 @@ Route::middleware(['auth', 'role:trainer,vorstand,admin', 'menu:users_lite'])->p
     Route::get('/',                    [UserLiteController::class, 'index'])->name('index');
     Route::get('/neu',                 [UserLiteController::class, 'create'])->name('create');
     Route::post('/',                   [UserLiteController::class, 'store'])->name('store');
+    Route::get('/{user}',              [UserLiteController::class, 'show'])->whereNumber('user')->name('show');
+    Route::post('/{user}/gruppe',      [UserLiteController::class, 'assignGroup'])->name('assign-group');
+    // Bearbeiten bleibt Vorstand und Administratoren vorbehalten - der
+    // Controller prueft das, die Route allein reicht dafuer nicht.
     Route::get('/{user}/bearbeiten',   [UserLiteController::class, 'edit'])->name('edit');
     Route::put('/{user}',              [UserLiteController::class, 'update'])->name('update');
-    Route::post('/{user}/toggle',      [UserLiteController::class, 'toggleActive'])->name('toggle');
 });
 
 // Scheduler-Trigger für URL-Cron (all-inkl.com unterstützt kein Shell-Cron)

@@ -102,7 +102,8 @@
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <h3 class="font-semibold text-gray-800 mb-1">3.6 Zugang und Anmeldung</h3>
                 <p><strong>Daten:</strong> E-Mail-Adresse als Benutzername, das verschlüsselte Passwort
-                   (nicht rückrechenbarer bcrypt-Hash) und der Zeitpunkt der letzten Anmeldung.
+                   (nicht rückrechenbarer bcrypt-Hash), der Zeitpunkt der letzten Anmeldung, der Zeitpunkt,
+                   zu dem der Portal-Zugang eingerichtet wurde, sowie die Angabe, wer das Konto angelegt hat.
                    <strong>IP-Adressen werden dabei nicht gespeichert.</strong></p>
                 <p class="mt-1"><strong>Zweck:</strong> Nachweis der Zugangsberechtigung, Schutz vor
                    unberechtigten Zugriffen sowie die Verwaltung der Zugänge — etwa um zu erkennen, welche

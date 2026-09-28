@@ -28,7 +28,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'firstname', 'lastname', 'email', 'email2', 'password', 'role',
-        'birth_date', 'phone', 'mobile', 'active',
+        'birth_date', 'phone', 'mobile', 'active', 'portal_active', 'created_by',
         'gender', 'dsv_id', 'membership_number', 'webclub_person_id', 'member_since', 'resigned_at', 'training_group',
         'street', 'postal_code', 'city', 'country',
         'initial_password', 'mail_preferences',
@@ -63,6 +63,8 @@ class User extends Authenticatable
             'opt_sports_medicine'               => 'boolean',
             'mail_preferences'                  => 'array',
             'last_login_at'                     => 'datetime',
+            'portal_active'                     => 'boolean',
+            'portal_activated_at'               => 'datetime',
         ];
     }
 
@@ -70,6 +72,59 @@ class User extends Authenticatable
     public function hasLoggedIn(): bool
     {
         return $this->last_login_at !== null;
+    }
+
+    /**
+     * Ist der Portal-Zugang fertig eingerichtet? Das ist er erst, wenn die
+     * Person auf die Willkommensmail reagiert hat: eigenes Passwort gesetzt
+     * und angemeldet. Vorher ist das Konto nur angelegt.
+     */
+    public function isPortalActivated(): bool
+    {
+        return $this->portal_activated_at !== null;
+    }
+
+    /**
+     * Aktivierung nachtragen, sobald beide Bedingungen erfuellt sind. Wird
+     * nach der Anmeldung und nach jeder Passwortaenderung aufgerufen - je
+     * nachdem, was zuletzt passiert, greift der eine oder der andere Aufruf.
+     *
+     * saveQuietly: Das ist kein Bearbeitungsvorgang, der ins Protokoll gehoert.
+     */
+    public function maybeMarkPortalActivated(): bool
+    {
+        if ($this->isPortalActivated() || $this->hasInitialPassword() || !$this->hasLoggedIn()) {
+            return false;
+        }
+
+        try {
+            $this->forceFill(['portal_activated_at' => now()])->saveQuietly();
+        } catch (\Throwable) {
+            // Waehrend einer Auslieferung ist der Code einen Moment vor der
+            // Migration auf dem Server. Ein fehlender Vermerk darf keine
+            // Anmeldung zerlegen - beim naechsten Mal steht die Spalte da.
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Zustand des Portal-Zugangs in einem Wort - fuer Listen und Formulare.
+     * Absichtlich unabhaengig von der Vereinsmitgliedschaft.
+     */
+    public function portalStatus(): array
+    {
+        if (!($this->portal_active ?? true)) {
+            return ['key' => 'off', 'label' => 'Portal gesperrt', 'tone' => 'bg-red-100 text-red-700'];
+        }
+        if ($this->isPortalActivated()) {
+            return ['key' => 'active', 'label' => 'Portal aktiv', 'tone' => 'bg-green-100 text-green-700'];
+        }
+        if (!$this->email) {
+            return ['key' => 'no-mail', 'label' => 'Keine E-Mail', 'tone' => 'bg-gray-100 text-gray-500'];
+        }
+        return ['key' => 'pending', 'label' => 'Noch nicht aktiviert', 'tone' => 'bg-amber-100 text-amber-700'];
     }
 
     /** Will dieser Benutzer Mails zu diesem Thema? Siehe App\Support\MailTopic. */

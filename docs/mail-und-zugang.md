@@ -133,8 +133,7 @@ nicht, bleiben Mails in der Warteschlange liegen — sichtbar im Protokoll als
 
 ## 7. So kommt ein Mitglied zu seinem Zugang
 
-1. **Anlegen** in der Benutzerverwaltung, Häkchen bei „Konto sofort
-   aktivieren".
+1. **Anlegen** in der Benutzerverwaltung, Häkchen bei „Aktives Mitglied".
 2. Das Portal erzeugt ein **Initialpasswort** und zeigt es in der
    Benutzerverwaltung an, solange es nicht geändert wurde — für die
    persönliche Übergabe im Training.
@@ -143,9 +142,50 @@ nicht, bleiben Mails in der Warteschlange liegen — sichtbar im Protokoll als
    Der Link gilt 14 Tage und ist nach der ersten Verwendung verbraucht.
 4. Beim ersten Login mit dem Initialpasswort **erzwingt** das Portal einen
    Passwortwechsel (`EnsurePasswordChanged`).
+5. Damit ist der **Portal-Account aktiv**: `portal_activated_at` wird gesetzt,
+   sobald beides zusammenkommt — eigenes Passwort und eine Anmeldung.
+
+### Zwei Schalter, zwei Bedeutungen
+
+| Feld | Bedeutung | Wer setzt es |
+|---|---|---|
+| `active` | Mitgliedschaft im Verein („Aktives Mitglied") | Administratoren |
+| `portal_active` | darf sich anmelden („Portal-Account aktiv") | Administratoren |
+| `portal_activated_at` | wann der Zugang eingerichtet wurde | das Portal selbst |
+
+Die beiden Schalter hängen nicht aneinander: Ein Zugang kann gesperrt werden,
+ohne jemanden aus dem Verein zu werfen, und ein Mitglied kann ohne Zugang
+bestehen. Wer gesperrt ist, kommt auch aus einer laufenden Sitzung heraus
+(`CheckRole`) — sonst wirkte eine Sperre erst nach dem nächsten Abmelden.
+
+In der Liste und im Formular steht der Zustand als ein Wort: *Portal aktiv*
+(mit Datum der Aktivierung), *Noch nicht aktiviert*, *Portal gesperrt* oder
+*Keine E-Mail*. Über **Einladen** bzw. **Neu einladen** geht die
+Willkommensmail noch einmal raus — der Weg, jemanden wieder ins Portal zu
+holen, ohne ein Passwort zu verschicken. An gesperrte Zugänge wird nichts
+verschickt; erst freigeben, dann einladen.
 
 **In keiner Mail steht ein Passwort.** Wer die Mail später in die Finger
 bekommt, findet darin nichts, was noch funktioniert.
+
+### Was Trainer in der Benutzerverwaltung dürfen
+
+Trainer haben eine eigene, engere Ansicht (`users-lite`):
+
+- **sehen** die Mitglieder ihrer Gruppen, deren Eltern, ihre Trainerkollegen
+  und die Konten, die sie selbst angelegt haben — mit Stammdaten, Kontakt,
+  Adresse und Notizen als Karteikarte,
+- **anlegen** neue Konten, auf Wunsch gleich in eine der eigenen Gruppen,
+- **zuordnen** ein bestehendes Konto zu einer eigenen Gruppe; wer noch nicht in
+  einer eigenen Gruppe ist, wird über „vereinsweit suchen" gefunden (nur mit
+  Suchbegriff — die Liste ist kein Mitgliederverzeichnis zum Durchblättern).
+
+Nicht dazu gehören **Ändern und Löschen** fremder Konten und der
+**Passwort-Reset**. Mitgliederdaten pflegt die Geschäftsstelle, damit an einer
+Stelle nachvollziehbar bleibt, woher ein Stand kommt. Vorstand und
+Administratoren behalten in derselben Ansicht die Bearbeitung. Den Portal-
+Zugang gibt ein Administrator frei — ein neu angelegtes Konto ist also
+zunächst angelegt, aber nicht eingeladen.
 
 ### Bestandsmitglieder nachträglich einladen
 
@@ -158,7 +198,7 @@ eingeladen wurden. Der Versand läuft über die Warteschlange.
 - **Die Person selbst**: „Passwort vergessen?" auf der Anmeldeseite. Fünf
   Anforderungen je Adresse und Herkunft pro Stunde. Die Antwort verrät nie, ob
   es zu einer Adresse überhaupt einen Zugang gibt.
-- **Trainer oder Admin**: Knopf in der Benutzerverwaltung. Setzt ein neues
+- **Administrator**: Knopf in der Benutzerverwaltung. Setzt ein neues
   Initialpasswort (sichtbar für die persönliche Übergabe) **und** schickt eine
   Mail mit Einmallink. In der Mail steht, wer das Zurücksetzen veranlasst hat —
   sonst wirkt sie wie ein Angriffsversuch.
@@ -176,6 +216,9 @@ geändert hat, erfährt hier davon.
   Anmeldung setzt den Zähler zurück. Eine andere Herkunft ist von einer Sperre
   nicht betroffen, damit nicht ein Angreifer das ganze Vereinsheim aussperrt.
 - **Gleiche Meldung** für falsches Passwort und unbekannte Adresse.
+- **Zwei Riegel neben dem Passwort**: ein ehemaliges Mitglied (`active`) und
+  ein gesperrter Zugang (`portal_active`) kommen mit richtigem Passwort nicht
+  durch, jeweils mit eigener Meldung.
 - **Neue Sitzungs-ID** nach jeder Anmeldung und jeder Passwortänderung.
 - **Passwortregeln**: mindestens zehn Zeichen mit Buchstaben und Ziffern.
 - **Sitzungs-Cookie** wird automatisch als `secure` markiert, sobald `APP_URL`

@@ -35,6 +35,21 @@
                     @endforeach
                 </select>
             </div>
+            @if($gruppen->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Trainingsgruppe</label>
+                <select name="group_id" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">– keine Zuordnung –</option>
+                    @foreach($gruppen as $gruppe)
+                        <option value="{{ $gruppe->id }}" {{ old('group_id') == $gruppe->id ? 'selected' : '' }}>{{ $gruppe->name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">
+                    Ohne Gruppe erscheint das Konto nur so lange in deiner Liste, wie du es selbst angelegt hast.
+                </p>
+                @error('group_id')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+            </div>
+            @endif
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Geburtsdatum</label>
@@ -47,6 +62,13 @@
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
+            {{-- Der Portal-Zugang entsteht nicht hier: Ein Administrator gibt ihn
+                 frei und verschickt die Willkommensmail mit dem Einrichtungslink. --}}
+            <p class="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                Das Konto wird angelegt, aber noch nicht eingeladen. Den Portal-Zugang gibt ein Administrator
+                frei – er verschickt die Willkommensmail, mit der sich das Mitglied ein eigenes Passwort setzt.
+            </p>
+
             <div class="flex gap-3 pt-2 border-t border-gray-100">
                 <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors">
                     Anlegen

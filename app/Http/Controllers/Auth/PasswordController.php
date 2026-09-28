@@ -36,6 +36,11 @@ class PasswordController extends Controller
         // Neue Sitzungs-ID: Wer die alte kannte, kommt damit nicht weiter
         $request->session()->regenerate();
 
+        // Angemeldet und eigenes Passwort gesetzt: damit ist der Zugang
+        // eingerichtet. Wer sich mit dem Initialpasswort angemeldet hatte,
+        // wird genau hier aktiv - ohne sich noch einmal anmelden zu muessen.
+        $user->maybeMarkPortalActivated();
+
         // Sicherheitsmeldung: Wer die Aenderung nicht selbst vorgenommen hat,
         // erfaehrt hier davon und kann reagieren.
         $mail = new PasswordChangedMail($user);

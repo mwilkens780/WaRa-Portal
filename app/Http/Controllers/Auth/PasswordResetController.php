@@ -54,7 +54,9 @@ class PasswordResetController extends Controller
 
         $user = User::where('email', $data['email'])->first();
 
-        if ($user && $user->active) {
+        // Gesperrter Zugang: kein Link. Die Antwort an den Absender bleibt
+        // dieselbe - sonst verraet das Formular, welche Konten gesperrt sind.
+        if ($user && $user->active && ($user->portal_active ?? true)) {
             $this->mailer->send($user, MailTopic::ACCOUNT, new PasswordResetMail($user),
                 (new PasswordResetMail($user))->defaultSubject());
         }
@@ -119,6 +121,11 @@ class PasswordResetController extends Controller
                 ])->save();
 
                 event(new PasswordReset($user));
+
+                // Wer schon einmal angemeldet war, ist mit dem eigenen Passwort
+                // fertig eingerichtet. Beim Einrichtungslink vor der ersten
+                // Anmeldung greift stattdessen die Anmeldung selbst.
+                $user->maybeMarkPortalActivated();
 
                 // Beim erstmaligen Einrichten waere eine "Passwort geaendert"-Mail
                 // nur Laerm - die Willkommensmail kam gerade erst.

@@ -37,6 +37,13 @@ class UserController extends Controller
         if ($request->filled('active')) {
             $query->where('active', $request->active === '1');
         }
+        // Zustand des Portal-Zugangs - unabhaengig von der Mitgliedschaft
+        match ($request->input('portal')) {
+            'active'  => $query->where('portal_active', true)->whereNotNull('portal_activated_at'),
+            'pending' => $query->where('portal_active', true)->whereNull('portal_activated_at'),
+            'off'     => $query->where('portal_active', false),
+            default   => null,
+        };
 
         $users = $query->with('userRoles')->orderBy('lastname')->orderBy('firstname')->paginate(20)->withQueryString();
 
@@ -127,7 +134,8 @@ class UserController extends Controller
             'city'         => ['nullable', 'string', 'max:100'],
             'country'      => ['nullable', 'string', 'max:100'],
             'notes'        => ['nullable', 'string'],
-            'active'       => ['boolean'],
+            'active'        => ['boolean'],
+            'portal_active' => ['boolean'],
             'trainer_license_nr'              => ['nullable', 'string', 'max:50'],
             'trainer_license_valid_until'     => ['nullable', 'date'],
             'rescue_certificate_until'        => ['nullable', 'date'],
@@ -153,6 +161,15 @@ class UserController extends Controller
         }
 
         $data['active'] = $request->has('active') ? $request->boolean('active') : $user->active;
+
+        // Portal-Zugang und Mitgliedschaft sind zwei Schalter. Das eigene Konto
+        // bleibt aussen vor - wer sich selbst aussperrt, kommt nicht zurueck.
+        if ($user->id === auth()->id()) {
+            unset($data['portal_active']);
+        } else {
+            $data['portal_active'] = $request->boolean('portal_active');
+        }
+
         $user->update($data);
         $user->syncRoles($roles);
 
@@ -196,6 +213,11 @@ class UserController extends Controller
         if (!$user->active) {
             return back()->with('error', "\"{$user->name}\" ist nicht aktiv – erst aktivieren, dann einladen.");
         }
+        if (!($user->portal_active ?? true)) {
+            return back()->with('error',
+                "Der Portal-Zugang von \"{$user->name}\" ist deaktiviert – erst den Portal-Account "
+                . 'aktivieren, dann einladen.');
+        }
 
         $mail = new AccountWelcomeMail($user, isResend: true);
         $log  = $mailer->send($user, MailTopic::ACCOUNT, $mail, $mail->defaultSubject());
@@ -213,6 +235,7 @@ class UserController extends Controller
     public function bulkWelcomeForm()
     {
         $candidates = User::where('active', true)
+            ->where('portal_active', true)
             ->whereNotNull('email')
             ->orderBy('lastname')->orderBy('firstname')
             ->get(['id', 'firstname', 'lastname', 'email', 'role', 'initial_password', 'last_login_at']);
@@ -243,7 +266,9 @@ class UserController extends Controller
                 . 'für den Massenversand bitte erst den Wartungsmodus ausschalten.');
         }
 
-        $users   = User::whereIn('id', $data['users'])->where('active', true)->whereNotNull('email')->get();
+        $users   = User::whereIn('id', $data['users'])
+            ->where('active', true)->where('portal_active', true)
+            ->whereNotNull('email')->get();
         $queued  = 0;
         $skipped = 0;
 
@@ -338,6 +363,26 @@ class UserController extends Controller
         return back()->with('success', "Benutzer \"{$user->name}\" wurde {$status}.");
     }
 
+    /**
+     * Portal-Zugang umschalten.
+     *
+     * Bewusst getrennt von toggleActive(): Wer aus dem Verein austritt, ist
+     * etwas anderes als jemand, dessen Zugang gesperrt wird. Der Zeitpunkt der
+     * Aktivierung bleibt stehen - er ist Teil der Geschichte des Kontos, nicht
+     * ein Schalter.
+     */
+    public function togglePortal(User $user)
+    {
+        if ($user->id === auth()->id()) {
+            return back()->withErrors(['error' => 'Du kannst deinen eigenen Portal-Zugang nicht sperren.']);
+        }
+
+        $user->update(['portal_active' => !$user->portal_active]);
+        $status = $user->portal_active ? 'freigegeben' : 'gesperrt';
+
+        return back()->with('success', "Portal-Zugang von \"{$user->name}\" wurde {$status}.");
+    }
+
     public function export(): StreamedResponse
     {
         $users = User::with(['trainingGroups', 'children', 'parents'])
@@ -354,7 +399,7 @@ class UserController extends Controller
 
         $columns = [
             'Portal-ID', 'Nachname', 'Vorname', 'Geburtsdatum', 'Geschlecht',
-            'Rolle', 'Aktiv',
+            'Rolle', 'Aktiv', 'Portal-Zugang', 'Portal aktiviert am',
             'E-Mail', 'E-Mail 2', 'Telefon', 'Mobil',
             'Straße', 'PLZ', 'Ort', 'Land',
             'Mitgliedsnummer', 'DSV-ID', 'WebClub-ID', 'Mitglied seit', 'Ausgetreten am',
@@ -389,6 +434,8 @@ class UserController extends Controller
                     match($user->gender) { 'M' => 'männlich', 'F' => 'weiblich', default => '' },
                     User::ROLE_LABELS[$user->role] ?? $user->role,
                     $user->active ? 'ja' : 'nein',
+                    $user->portal_active ? 'ja' : 'nein',
+                    $user->portal_activated_at?->format('d.m.Y'),
                     $user->email,
                     $user->email2,
                     $user->phone,

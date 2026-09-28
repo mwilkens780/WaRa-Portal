@@ -31,8 +31,17 @@
                     <option value="0" {{ request('active') === '0' ? 'selected' : '' }}>Ehemaliges Mitglied</option>
                 </select>
             </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Portal-Account</label>
+                <select name="portal" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">Alle</option>
+                    <option value="active"  {{ request('portal') === 'active'  ? 'selected' : '' }}>Aktiviert</option>
+                    <option value="pending" {{ request('portal') === 'pending' ? 'selected' : '' }}>Noch nicht aktiviert</option>
+                    <option value="off"     {{ request('portal') === 'off'     ? 'selected' : '' }}>Gesperrt</option>
+                </select>
+            </div>
             <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">Filtern</button>
-            @if(request()->hasAny(['search','role','active']))
+            @if(request()->hasAny(['search','role','active','portal']))
                 <a href="{{ route('admin.users.index') }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">Zurücksetzen</a>
             @endif
         </form>
@@ -75,6 +84,7 @@
                         <th class="text-left px-5 py-3 font-semibold text-gray-600">Rollen</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Geburtstag</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600">Mitglied</th>
+                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Portal</th>
                         <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Passwort</th>
                         <th class="px-5 py-3"></th>
                     </tr>
@@ -139,6 +149,13 @@
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Ehemaliges Mitglied</span>
                                 @endif
                             </td>
+                            <td class="px-5 py-3">
+                                @php($portal = $user->portalStatus())
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $portal['tone'] }}">{{ $portal['label'] }}</span>
+                                @if($user->isPortalActivated())
+                                    <span class="block text-[11px] text-gray-400 mt-0.5">seit {{ $user->portal_activated_at->deBerlin('d.m.Y') }}</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3 hidden lg:table-cell">
                                 @if($user->hasInitialPassword())
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Initialpasswort</span>
@@ -149,13 +166,30 @@
                                 @endif
                             </td>
                             <td class="px-5 py-3">
-                                <div class="flex items-center gap-2 justify-end">
+                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 justify-end">
                                     <a href="{{ route('admin.users.edit', $user) }}" class="text-primary hover:text-primary-dark font-medium text-xs">Bearbeiten</a>
+                                    @if($user->email && $user->active && $user->portal_active)
+                                        {{-- Willkommensmail erneut: der Weg, jemanden (wieder) in das
+                                             Portal zu holen, ohne ein Passwort zu verschicken. --}}
+                                        <form method="POST" action="{{ route('admin.users.welcome-mail', $user) }}"
+                                              onsubmit="return confirm('Willkommensmail an {{ addslashes($user->name) }} schicken?')">
+                                            @csrf
+                                            <button type="submit" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                {{ $user->isPortalActivated() ? 'Neu einladen' : 'Einladen' }}
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if($user->id !== auth()->id())
+                                        <form method="POST" action="{{ route('admin.users.toggle-portal', $user) }}">
+                                            @csrf @method('PATCH')
+                                            <button type="submit" class="text-xs {{ $user->portal_active ? 'text-amber-600 hover:text-amber-800' : 'text-green-600 hover:text-green-800' }} font-medium">
+                                                {{ $user->portal_active ? 'Portal sperren' : 'Portal freigeben' }}
+                                            </button>
+                                        </form>
                                         <form method="POST" action="{{ route('admin.users.toggle-active', $user) }}">
                                             @csrf @method('PATCH')
                                             <button type="submit" class="text-xs {{ $user->active ? 'text-amber-600 hover:text-amber-800' : 'text-green-600 hover:text-green-800' }} font-medium">
-                                                {{ $user->active ? 'Deaktivieren' : 'Aktivieren' }}
+                                                {{ $user->active ? 'Mitgliedschaft beenden' : 'Mitglied aktivieren' }}
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
@@ -168,7 +202,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">Keine Benutzer gefunden.</td></tr>
+                        <tr><td colspan="8" class="px-5 py-8 text-center text-gray-400">Keine Benutzer gefunden.</td></tr>
                     @endforelse
                 </tbody>
             </table>

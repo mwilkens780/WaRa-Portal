@@ -83,13 +83,20 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div>
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="active" value="1"
                            {{ old('active', '1') == '1' ? 'checked' : '' }}
                            class="w-5 h-5 rounded border-gray-300 text-primary">
-                    <span class="text-sm font-medium text-gray-700">Konto sofort aktivieren</span>
+                    <span class="text-sm font-medium text-gray-700">Aktives Mitglied</span>
                 </label>
+                {{-- Der Portal-Account aktiviert sich selbst, sobald die Person
+                     auf die Willkommensmail reagiert - hier gibt es dafuer
+                     nichts anzuklicken. --}}
+                <p class="text-xs text-gray-400 mt-1 ml-7">
+                    Mitgliedschaft im Verein. Der Portal-Account gilt als aktiv, sobald sich die Person ein eigenes
+                    Passwort gesetzt hat und angemeldet war.
+                </p>
             </div>
 
             {{-- Hinweis Initialpasswort --}}

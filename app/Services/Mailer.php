@@ -43,6 +43,12 @@ class Mailer
         if (!$user->email) {
             return $this->skip($log, 'Keine E-Mail-Adresse hinterlegt.');
         }
+        // Ein gesperrter Zugang kann auf nichts reagieren, was in der Mail
+        // steht - auch nicht auf einen Einrichtungslink. Der Versuch bleibt im
+        // Protokoll stehen, damit sichtbar ist, warum nichts ankam.
+        if (!($user->portal_active ?? true)) {
+            return $this->skip($log, 'Portal-Zugang ist deaktiviert.');
+        }
         if (!MailTopic::wants($user, $topic)) {
             return $this->skip($log, 'Thema im Profil nicht eingeschaltet.');
         }
@@ -60,6 +66,12 @@ class Mailer
 
         if (!$user->email) {
             return $this->skip($log, 'Keine E-Mail-Adresse hinterlegt.');
+        }
+        // Ein gesperrter Zugang kann auf nichts reagieren, was in der Mail
+        // steht - auch nicht auf einen Einrichtungslink. Der Versuch bleibt im
+        // Protokoll stehen, damit sichtbar ist, warum nichts ankam.
+        if (!($user->portal_active ?? true)) {
+            return $this->skip($log, 'Portal-Zugang ist deaktiviert.');
         }
         if (!MailTopic::wants($user, $topic)) {
             return $this->skip($log, 'Thema im Profil nicht eingeschaltet.');

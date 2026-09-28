@@ -5,6 +5,7 @@
 @section('content')
 @php
     $assignedRoles = old('user_roles', $user->userRoles->pluck('role')->toArray());
+    $portal        = $user->portalStatus();
 @endphp
 
 <div class="max-w-3xl mt-2 space-y-5">
@@ -45,7 +46,7 @@
             <form method="POST" action="{{ route('admin.users.welcome-mail', $user) }}"
                   onsubmit="return confirm('Willkommensmail an {{ addslashes($user->name) }} schicken?')">
                 @csrf
-                <button type="submit" {{ $user->email && $user->active ? '' : 'disabled' }}
+                <button type="submit" {{ $user->email && $user->active && $user->portal_active ? '' : 'disabled' }}
                         class="whitespace-nowrap flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                     Einladung senden
@@ -60,6 +61,15 @@
         @elseif(!$user->active)
             <p class="px-5 py-3 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
                 Konto ist nicht aktiv. Erst aktivieren, dann einladen.
+            </p>
+        @elseif(!$user->portal_active)
+            <p class="px-5 py-3 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+                Der Portal-Zugang ist deaktiviert. Erst unten in den Stammdaten wieder freigeben, dann einladen.
+            </p>
+        @elseif($user->isPortalActivated())
+            <p class="px-5 py-3 text-xs text-gray-500 bg-gray-50 border-b border-gray-100">
+                Zugang eingerichtet am {{ $user->portal_activated_at->deBerlin('d.m.Y') }} – eine neue Einladung
+                ist nur nötig, wenn {{ $user->firstname }} nicht mehr hineinkommt.
             </p>
         @endif
 
@@ -135,13 +145,36 @@
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 @if($user->id !== auth()->id())
-                <div class="flex items-center gap-3 pt-2">
+                {{-- Zwei Schalter, zwei Bedeutungen: Vereinsmitgliedschaft und
+                     Portal-Zugang haengen nicht aneinander. --}}
+                <div class="pt-2">
+                    <input type="hidden" name="active" value="0">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="active" value="1"
                                {{ old('active', $user->active ? '1' : '0') == '1' ? 'checked' : '' }}
                                class="w-5 h-5 rounded border-gray-300 text-primary">
                         <span class="text-sm font-medium text-gray-700">Aktives Mitglied</span>
                     </label>
+                    <p class="text-xs text-gray-400 mt-1 ml-7">Mitgliedschaft im Verein.</p>
+                </div>
+                <div class="pt-2">
+                    <input type="hidden" name="portal_active" value="0">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="portal_active" value="1"
+                               {{ old('portal_active', $user->portal_active ? '1' : '0') == '1' ? 'checked' : '' }}
+                               class="w-5 h-5 rounded border-gray-300 text-primary">
+                        <span class="text-sm font-medium text-gray-700">Portal-Account aktiv</span>
+                    </label>
+                    <p class="text-xs mt-1 ml-7 flex flex-wrap items-center gap-1.5">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-medium {{ $portal['tone'] }}">{{ $portal['label'] }}</span>
+                        @if($user->isPortalActivated())
+                            <span class="text-gray-400">aktiviert am {{ $user->portal_activated_at->deBerlin('d.m.Y') }}</span>
+                        @else
+                            <span class="text-gray-400">
+                                Aktiv, sobald {{ $user->firstname }} ein eigenes Passwort gesetzt hat und angemeldet war.
+                            </span>
+                        @endif
+                    </p>
                 </div>
                 @endif
             </div>

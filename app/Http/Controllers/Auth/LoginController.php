@@ -51,6 +51,20 @@ class LoginController extends Controller
                 ]);
             }
 
+            // Der Portal-Zugang haengt nicht an der Mitgliedschaft: ein Konto
+            // kann gesperrt sein, waehrend die Person Mitglied bleibt.
+            //
+            // ?? true: Waehrend einer Auslieferung ist der Code einen Moment
+            // vor der Migration auf dem Server. Fehlt die Spalte noch, gilt der
+            // Zugang als offen - eine Auslieferung darf niemanden aussperren.
+            if (!($user->portal_active ?? true)) {
+                Auth::logout();
+                $request->session()->invalidate();
+                throw ValidationException::withMessages([
+                    'email' => 'Dein Portal-Zugang ist deaktiviert. Bitte wende dich an einen Administrator.',
+                ]);
+            }
+
             if (!$user->role) {
                 Auth::logout();
                 $request->session()->invalidate();
@@ -65,6 +79,10 @@ class LoginController extends Controller
 
             // Nur der Zeitpunkt, keine IP - siehe Datenschutzerklaerung
             $user->forceFill(['last_login_at' => now()])->saveQuietly();
+
+            // Wer sein eigenes Passwort gesetzt hat und sich jetzt anmeldet,
+            // hat die Einrichtung abgeschlossen.
+            $user->maybeMarkPortalActivated();
 
             return redirect()->intended($this->redirectTo($user->role));
         }
