@@ -98,7 +98,7 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-2.5 text-gray-500 text-xs">
-                                    {{ $record->set_date?->format('d.m.Y') ?? '–' }}
+                                    {{ $record->set_date?->format('d.m.Y') ?? $record->set_year ?? '–' }}
                                 </td>
                                 <td class="px-5 py-2.5 text-gray-400 text-xs truncate" title="{{ $record->location }}">
                                     {{ $record->location ?? '–' }}

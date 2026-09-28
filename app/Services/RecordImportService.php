@@ -37,6 +37,11 @@ class RecordImportService
             return $this->detectRecords($this->parseCsv($path), $defaultCourse);
         }
 
+        if ($ext === 'docx') {
+            $structured = $this->parseDocxTables($path);
+            if (!empty($structured)) return $structured;
+        }
+
         $rows = match($ext) {
             'xlsx'       => $this->parseXlsx($path),
             'docx'       => $this->parseDocx($path),
@@ -120,6 +125,129 @@ class RecordImportService
 
         $zip->close();
         return $rows;
+    }
+
+    /**
+     * Vereinsrekordliste als Word-Tabellen, je Geschlecht eine Tabelle:
+     *
+     *   Absatz:  "Vereinsrekorde SG Wasserratten Norderstedt weiblich"
+     *   Kopf:    Strecke | Kurzbahn | Name+Jahrgang, Jahr | Langbahn | Name+Jahrgang, Jahr
+     *   Zeile:   50m Freistil | 0:26,72 | Telse Günther (01), 2015 | 0:27,58 | Maike Janssen (87), 2003
+     *
+     * Die Bahnen stehen nebeneinander, jede Tabellenzeile ergibt also bis zu
+     * zwei Rekorde. "-" heisst: kein Rekord auf dieser Bahn.
+     * Liefert [], wenn die Datei nicht so aufgebaut ist.
+     */
+    private function parseDocxTables(string $path): array
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('DOCX-Datei konnte nicht geöffnet werden.');
+        }
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        if (!$xml) return [];
+
+        $dom = new \DOMDocument();
+        if (!@$dom->loadXML($xml)) return [];
+        $xp = new \DOMXPath($dom);
+        $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $text = fn(\DOMNode $n) => trim(implode('', array_map(
+            fn($t) => $t->textContent,
+            iterator_to_array($xp->query('.//w:t', $n))
+        )));
+
+        $records = [];
+        $gender  = null;
+
+        foreach ($xp->query('/w:document/w:body/*') as $el) {
+            if ($el->localName === 'p') {
+                $line = $text($el);
+                if (preg_match('/weiblich|damen|frauen/iu', $line))            $gender = 'F';
+                elseif (preg_match('/männlich|maennlich|herren|männer/iu', $line)) $gender = 'M';
+                continue;
+            }
+            if ($el->localName !== 'tbl' || !$gender) continue;
+
+            // Spalten der Bahnen aus der Kopfzeile: Zeitspalte, danach die Namensspalte
+            $courseCols = [];
+            foreach ($xp->query('w:tr', $el) as $tr) {
+                $cells = array_map($text, iterator_to_array($xp->query('w:tc', $tr)));
+
+                if (!$courseCols) {
+                    foreach ($cells as $i => $c) {
+                        if (preg_match('/^kurzbahn$/iu', $c)) $courseCols['Kurzbahn'] = $i;
+                        if (preg_match('/^langbahn$/iu', $c)) $courseCols['Langbahn'] = $i;
+                    }
+                    continue;
+                }
+
+                if (!preg_match('/^(\d+)\s*m\s+(.+)$/iu', $cells[0] ?? '', $sm)) continue;
+                $distance   = (int) $sm[1];
+                $discipline = $this->disciplineFromText($sm[2]);
+
+                foreach ($courseCols as $course => $col) {
+                    $timeStr = $cells[$col] ?? '';
+                    $nameRaw = $cells[$col + 1] ?? '';
+                    if (!preg_match('/\d[,.]\d{2}$/', $timeStr)) continue; // "-" = kein Rekord
+
+                    [$name, $birthYear, $setYear] = $this->splitNameYears($nameRaw);
+
+                    $records[] = [
+                        'discipline'   => $discipline,
+                        'distance'     => $distance,
+                        'gender'       => $gender,
+                        'age_group'    => null,
+                        'birth_year'   => $birthYear,
+                        'course'       => $course,
+                        'swimmer_name' => $name,
+                        'time_ms'      => $this->parseTimeStr($timeStr),
+                        'time_str'     => $timeStr,
+                        'set_date'     => null,
+                        'set_year'     => $setYear,
+                        'location'     => null,
+                        'raw_line'     => implode(' | ', $cells),
+                    ];
+                }
+            }
+        }
+
+        return $records;
+    }
+
+    private function disciplineFromText(string $text): ?string
+    {
+        foreach (self::DISCIPLINE_MAP as $disc => $keywords) {
+            foreach ($keywords as $kw) {
+                if (mb_stripos($text, $kw) !== false) return $disc;
+            }
+        }
+        return null;
+    }
+
+    /** "Klaus-Jürgen Friedrich (75), 1991" → ["Klaus-Jürgen Friedrich", 1975, 1991] */
+    private function splitNameYears(string $raw): array
+    {
+        $birthYear = null;
+        $setYear   = null;
+
+        if (preg_match('/,\s*(\d{4})\s*$/', $raw, $m)) {
+            $setYear = (int) $m[1];
+            $raw     = substr($raw, 0, -strlen($m[0]));
+        }
+        if (preg_match('/\((\d{2}|\d{4})\)\s*$/', $raw, $m)) {
+            $y = (int) $m[1];
+            if ($y < 100) {
+                // Zweistelliger Jahrgang: liegt nie nach dem Rekordjahr
+                $y += 2000;
+                if ($y > ($setYear ?? (int) date('Y'))) $y -= 100;
+            }
+            $birthYear = $y;
+            $raw       = substr($raw, 0, -strlen($m[0]));
+        }
+
+        return [trim($raw), $birthYear, $setYear];
     }
 
     private function parseDocx(string $path): array

@@ -78,7 +78,8 @@ class RecordController extends Controller
         $timeMs = (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000
             + $data['time_cs'] * 10;
 
-        $ageGroup = $data['age_group'] ?: null;
+        // Optionale Felder fehlen in $data, wenn das Formular sie nicht mitschickt
+        $ageGroup = ($data['age_group'] ?? null) ?: null;
 
         // Vereinsrekorde: nur offene Wertung und nur Strecken der VR-Liste
         if ($data['type'] === 'vereinsrekord') {
@@ -117,10 +118,11 @@ class RecordController extends Controller
                 'swimmer_name'          => $data['swimmer_name'],
                 'user_id'               => null,
                 'time_ms'               => $timeMs,
-                'set_date'              => $data['set_date'] ?: null,
-                'location'              => $data['location'] ?: null,
+                'set_date'              => ($data['set_date'] ?? null) ?: null,
+                'set_year'              => !empty($data['set_date']) ? (int) substr($data['set_date'], 0, 4) : null,
+                'location'              => ($data['location'] ?? null) ?: null,
                 'competition_result_id' => null,
-                'notes'                 => $data['notes'] ?: null,
+                'notes'                 => ($data['notes'] ?? null) ?: null,
             ]
         );
 
@@ -162,9 +164,12 @@ class RecordController extends Controller
         $record->update([
             'swimmer_name' => $data['swimmer_name'],
             'time_ms'      => $timeMs,
-            'set_date'     => $data['set_date'] ?: null,
-            'location'     => $data['location'] ?: null,
-            'notes'        => $data['notes'] ?: null,
+            'set_date'     => ($data['set_date'] ?? null) ?: null,
+            // Nur ein Jahr bekannt (alte Liste): bleibt stehen, bis ein Datum eingetragen wird
+            'set_year'     => !empty($data['set_date']) ? (int) substr($data['set_date'], 0, 4) : $record->set_year,
+            'location'     => ($data['location'] ?? null) ?: null,
+            // Das Bearbeiten-Formular hat kein Notizfeld - vorhandene Notiz nicht loeschen
+            'notes'        => array_key_exists('notes', $data) ? ($data['notes'] ?: null) : $record->notes,
         ]);
 
         $this->checkService->recheckAll();
@@ -262,7 +267,9 @@ class RecordController extends Controller
             $ageGroup    = trim($row['age_group'] ?? '') ?: null;
             $rowCourse   = $row['course'] ?? 'Langbahn';
             $timeMs      = (int)($row['time_ms'] ?? 0);
-            $setDate     = $row['set_date'] ?: null;
+            $setDate     = ($row['set_date'] ?? null) ?: null;
+            $setYear     = $setDate ? (int) substr($setDate, 0, 4) : ((int) ($row['set_year'] ?? 0) ?: null);
+            $birthYear   = (int) ($row['birth_year'] ?? 0) ?: null;
             $location    = trim($row['location'] ?? '') ?: null;
 
             if (!$discipline || !$distance || !$gender || !$swimmerName || $timeMs <= 0) continue;
@@ -307,6 +314,8 @@ class RecordController extends Controller
                         'user_id'               => null,
                         'time_ms'               => $timeMs,
                         'set_date'              => $setDate,
+                        'set_year'              => $setYear,
+                        'birth_year'            => $birthYear,
                         'location'              => $location,
                         'competition_result_id' => null,
                     ]
@@ -420,8 +429,8 @@ class RecordController extends Controller
             'set_year'     => (int) $data['set_year'],
             'swimmer_name' => $data['swimmer_name'],
             'time_ms'      => $timeMs,
-            'location'     => $data['location'] ?: null,
-            'notes'        => $data['notes'] ?: null,
+            'location'     => ($data['location'] ?? null) ?: null,
+            'notes'        => ($data['notes'] ?? null) ?: null,
         ];
     }
 

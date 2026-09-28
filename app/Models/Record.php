@@ -8,7 +8,7 @@ class Record extends Model
 {
     protected $fillable = [
         'type', 'discipline', 'distance', 'gender', 'age_group', 'birth_year', 'course',
-        'swimmer_name', 'user_id', 'time_ms', 'set_date', 'location',
+        'swimmer_name', 'user_id', 'time_ms', 'set_date', 'set_year', 'location',
         'competition_result_id', 'notes',
     ];
 

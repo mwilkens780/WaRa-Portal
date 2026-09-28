@@ -30,7 +30,7 @@
                             <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bahn</th>
                             <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Zeit</th>
                             <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide min-w-[160px]">Name</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Datum</th>
+                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Datum / Jahr</th>
                             <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ort</th>
                         </tr>
                     </thead>
@@ -103,9 +103,17 @@
                                 </td>
                                 {{-- Date --}}
                                 <td class="px-3 py-2">
-                                    <input type="date" name="rows[{{ $i }}][set_date]"
-                                           value="{{ $row['set_date'] ?? '' }}"
-                                           class="px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    <input type="hidden" name="rows[{{ $i }}][birth_year]" value="{{ $row['birth_year'] ?? '' }}">
+                                    @if(empty($row['set_date']) && !empty($row['set_year']))
+                                        {{-- Liste nennt nur das Jahr --}}
+                                        <input type="number" name="rows[{{ $i }}][set_year]" value="{{ $row['set_year'] }}"
+                                               min="1900" max="{{ now()->year }}" title="Nur das Jahr ist bekannt"
+                                               class="w-20 px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    @else
+                                        <input type="date" name="rows[{{ $i }}][set_date]"
+                                               value="{{ $row['set_date'] ?? '' }}"
+                                               class="px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    @endif
                                 </td>
                                 {{-- Location --}}
                                 <td class="px-3 py-2">
