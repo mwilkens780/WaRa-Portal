@@ -47,7 +47,8 @@
                 Vereinsweite Suche – Mitglieder außerhalb deiner Gruppen kannst du hier einer deiner Gruppen zuordnen.
             @else
                 Angezeigt werden die Mitglieder deiner Gruppen, ihre Eltern, deine Trainerkollegen und die Konten,
-                die du selbst angelegt hast. Mitgliederdaten ändert die Geschäftsstelle.
+                die du selbst angelegt hast. Ändern kannst du die Konten, die du selbst angelegt hast – alle
+                anderen Mitgliederdaten pflegt die Geschäftsstelle.
             @endif
         </p>
     @endunless
@@ -71,6 +72,8 @@
                 @php
                     $imBereich = $meineIds->contains($user->id);
                     $portal    = $user->portalStatus();
+                    // Selbst angelegte Konten darf ein Trainer auch aendern
+                    $bearbeitbar = $darfEditieren || (int) $user->created_by === $meineId;
                 @endphp
                 <tr class="hover:bg-gray-50/50">
                     <td class="px-4 py-3 font-medium text-gray-800">
@@ -105,7 +108,11 @@
                     <td class="px-4 py-3 text-right whitespace-nowrap">
                         @if($imBereich)
                             <a href="{{ route('users-lite.show', $user) }}"
-                               class="text-blue-600 hover:text-blue-800 font-medium text-xs">{{ $darfEditieren ? 'Ansehen' : 'Karteikarte' }}</a>
+                               class="text-blue-600 hover:text-blue-800 font-medium text-xs">Karteikarte</a>
+                            @if($bearbeitbar)
+                                <a href="{{ route('users-lite.edit', $user) }}"
+                                   class="ml-2 text-primary hover:text-primary-dark font-medium text-xs">Bearbeiten</a>
+                            @endif
                         @elseif($gruppen->isNotEmpty())
                             <form method="POST" action="{{ route('users-lite.assign-group', $user) }}" class="flex items-center gap-2 justify-end">
                                 @csrf

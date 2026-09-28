@@ -19,14 +19,16 @@ use Illuminate\Support\Facades\Hash;
  *  - die Mitglieder der eigenen Gruppen sehen, mit Stammdaten, Kontakt,
  *    Adresse und Notizen - das sind die Daten, die im Trainingsalltag
  *    gebraucht werden,
- *  - neue Konten anlegen,
+ *  - neue Konten anlegen und diese selbst angelegten Konten auch weiter
+ *    bearbeiten - wer einen Tippfehler gemacht hat, soll ihn korrigieren
+ *    koennen, ohne dafuer jemanden zu fragen,
  *  - ein bestehendes Konto einer eigenen Gruppe zuordnen.
  *
- * Nicht dazu gehoert das Bearbeiten oder Loeschen fremder Konten. Wer Daten
- * eines Mitglieds aendern muss, wendet sich an die Geschaeftsstelle - so
- * bleibt an einer Stelle nachvollziehbar, wo Mitgliederdaten gepflegt werden.
- * Vorstand und Administratoren behalten die Bearbeitung, sie verwalten den
- * Bestand.
+ * Nicht dazu gehoert das Bearbeiten fremder Konten und das Loeschen, auch
+ * nicht der selbst angelegten. Wer Daten eines Mitglieds aendern muss, das er
+ * nicht selbst angelegt hat, wendet sich an die Geschaeftsstelle - so bleibt an
+ * einer Stelle nachvollziehbar, wo Mitgliederdaten gepflegt werden. Vorstand
+ * und Administratoren behalten die Bearbeitung des ganzen Bestands.
  */
 class UserLiteController extends Controller
 {
@@ -66,6 +68,7 @@ class UserLiteController extends Controller
             'gruppen'       => $this->assignableGroups($me),
             'vereinsweit'   => $vereinsweit,
             'darfEditieren' => $this->mayEditAll($me),
+            'meineId'       => $me->id,
         ]);
     }
 
@@ -128,7 +131,7 @@ class UserLiteController extends Controller
         return view('trainer.users.show', [
             'user'          => $user,
             'offeneGruppen' => $offeneGruppen,
-            'darfEditieren' => $this->mayEditAll($request->user()),
+            'darfEditieren' => $this->mayEdit($request->user(), $user),
         ]);
     }
 
@@ -150,18 +153,18 @@ class UserLiteController extends Controller
             ->with('success', "\"{$user->name}\" gehört jetzt zur Gruppe \"{$gruppe->name}\".");
     }
 
-    // ── Bearbeiten: nur Vorstand und Administratoren ─────────────────────────
+    // ── Bearbeiten: selbst angelegte Konten, Vorstand und Admins alle ────────
 
     public function edit(Request $request, User $user)
     {
-        $this->authorizeEdit($request->user());
+        $this->authorizeEdit($request->user(), $user);
 
         return view('trainer.users.edit', compact('user'));
     }
 
     public function update(Request $request, User $user)
     {
-        $this->authorizeEdit($request->user());
+        $this->authorizeEdit($request->user(), $user);
 
         $data = $request->validate([
             'firstname'  => ['required', 'string', 'max:100'],
@@ -192,6 +195,15 @@ class UserLiteController extends Controller
     private function mayEditAll(User $me): bool
     {
         return in_array($me->role, ['admin', 'vorstand'], true);
+    }
+
+    /**
+     * Darf dieser Benutzer jenes Konto bearbeiten? Vorstand und
+     * Administratoren jedes, ein Trainer die, die er selbst angelegt hat.
+     */
+    private function mayEdit(User $me, User $user): bool
+    {
+        return $this->mayEditAll($me) || (int) $user->created_by === $me->id;
     }
 
     /**
@@ -248,10 +260,11 @@ class UserLiteController extends Controller
         }
     }
 
-    private function authorizeEdit(User $me): void
+    private function authorizeEdit(User $me, User $user): void
     {
-        if (!$this->mayEditAll($me)) {
-            abort(403, 'Mitgliederdaten werden von der Geschäftsstelle gepflegt.');
+        if (!$this->mayEdit($me, $user)) {
+            abort(403, 'Dieses Konto pflegt die Geschäftsstelle – ändern lassen sich nur '
+                     . 'die Konten, die du selbst angelegt hast.');
         }
     }
 }

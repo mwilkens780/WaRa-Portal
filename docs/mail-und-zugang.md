@@ -175,17 +175,20 @@ Trainer haben eine eigene, engere Ansicht (`users-lite`):
 - **sehen** die Mitglieder ihrer Gruppen, deren Eltern, ihre Trainerkollegen
   und die Konten, die sie selbst angelegt haben — mit Stammdaten, Kontakt,
   Adresse und Notizen als Karteikarte,
-- **anlegen** neue Konten, auf Wunsch gleich in eine der eigenen Gruppen,
+- **anlegen** neue Konten, auf Wunsch gleich in eine der eigenen Gruppen, und
+  diese selbst angelegten Konten später auch **ändern** — ein Tippfehler im
+  eigenen Eintrag braucht keine Anfrage bei der Geschäftsstelle,
 - **zuordnen** ein bestehendes Konto zu einer eigenen Gruppe; wer noch nicht in
   einer eigenen Gruppe ist, wird über „vereinsweit suchen" gefunden (nur mit
   Suchbegriff — die Liste ist kein Mitgliederverzeichnis zum Durchblättern).
 
-Nicht dazu gehören **Ändern und Löschen** fremder Konten und der
-**Passwort-Reset**. Mitgliederdaten pflegt die Geschäftsstelle, damit an einer
-Stelle nachvollziehbar bleibt, woher ein Stand kommt. Vorstand und
-Administratoren behalten in derselben Ansicht die Bearbeitung. Den Portal-
-Zugang gibt ein Administrator frei — ein neu angelegtes Konto ist also
-zunächst angelegt, aber nicht eingeladen.
+Nicht dazu gehören das **Ändern fremder Konten**, das **Löschen** (auch nicht
+der selbst angelegten) und der **Passwort-Reset**. Daten von Mitgliedern, die
+ein Trainer nicht selbst angelegt hat, pflegt die Geschäftsstelle — so bleibt an
+einer Stelle nachvollziehbar, woher ein Stand kommt. Vorstand und
+Administratoren behalten in derselben Ansicht die Bearbeitung des ganzen
+Bestands. Den Portal-Zugang gibt ein Administrator frei — ein neu angelegtes
+Konto ist also zunächst angelegt, aber nicht eingeladen.
 
 ### Bestandsmitglieder nachträglich einladen
 

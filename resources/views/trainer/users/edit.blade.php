@@ -50,11 +50,30 @@
             </div>
 
             <div>
+                {{-- Nullwert: Ein leeres Kaestchen schickt nichts mit, ohne ihn
+                     liesse sich der Haken nie wieder entfernen. --}}
+                <input type="hidden" name="active" value="0">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="active" value="1" {{ $user->active ? 'checked' : '' }}
+                    <input type="checkbox" name="active" value="1" {{ old('active', $user->active ? '1' : '0') == '1' ? 'checked' : '' }}
                            class="w-4 h-4 rounded text-primary border-gray-300">
-                    <span class="text-sm font-medium text-gray-700">Benutzer aktiv</span>
+                    <span class="text-sm font-medium text-gray-700">Aktives Mitglied</span>
                 </label>
+                <p class="text-xs text-gray-400 mt-1 ml-6">Mitgliedschaft im Verein.</p>
+            </div>
+
+            {{-- Der Portal-Zugang gehoert nicht hierher: Er entsteht durch die
+                 Willkommensmail eines Administrators und die Reaktion darauf. --}}
+            @php($portal = $user->portalStatus())
+            <div class="border-t border-gray-100 pt-4">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Portal-Zugang</p>
+                <p class="text-sm text-gray-600 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $portal['tone'] }}">{{ $portal['label'] }}</span>
+                    @if($user->isPortalActivated())
+                        <span class="text-gray-500">aktiviert am {{ $user->portal_activated_at->deBerlin('d.m.Y') }}</span>
+                    @else
+                        <span class="text-gray-500">Die Einladung verschickt ein Administrator.</span>
+                    @endif
+                </p>
             </div>
 
             {{-- Kein Passwortfeld: Ein Trainer soll kein Passwort fuer jemand
@@ -74,7 +93,7 @@
                 <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors">
                     Speichern
                 </button>
-                <a href="{{ route('users-lite.index') }}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Abbrechen</a>
+                <a href="{{ route('users-lite.show', $user) }}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Abbrechen</a>
             </div>
         </form>
     </div>
