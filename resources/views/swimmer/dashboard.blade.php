@@ -274,31 +274,33 @@
         </div>
     </div>
 
-    {{-- Trainingsbeteiligung --}}
+    {{-- Trainingsbeteiligung: Saison und laufender Monat, gerechnet ueber die
+         angebotenen Einheiten der eigenen Gruppen (TrainingParticipation) --}}
     <div class="grid md:grid-cols-2 gap-4">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-sm text-gray-500 mb-1">Beteiligung in dieser Saison</p>
-            <div class="flex items-end gap-3">
-                <p class="text-3xl font-bold text-primary">{{ $stats['participation_season'] }} %</p>
-                <p class="text-xs text-gray-400 pb-1">{{ $stats['attended_season'] }} / {{ $stats['sessions_season'] }} Trainings</p>
+        @php
+            $karten = [
+                'Beteiligung in dieser Saison' => $stats['participation']['season'],
+                'Beteiligung in diesem Monat'  => $stats['participation']['month'],
+            ];
+        @endphp
+        @foreach($karten as $titel => $werte)
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <p class="text-sm text-gray-500 mb-1">{{ $titel }}</p>
+                <div class="flex items-end gap-3">
+                    <p class="text-3xl font-bold text-primary">{{ $werte['pct'] }} %</p>
+                    <p class="text-xs text-gray-400 pb-1">{{ $werte['attended'] }} / {{ $werte['offered'] }} Trainings</p>
+                </div>
+                <div class="bg-gray-100 rounded-full h-2.5 mt-3">
+                    <div class="bg-primary h-2.5 rounded-full" style="width: {{ min(100, $werte['pct']) }}%"></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">
+                    {{ $werte['label'] }}
+                    @if($werte['from'])
+                        · ab {{ $werte['from']->format('d.m.Y') }}
+                    @endif
+                </p>
             </div>
-            <div class="bg-gray-100 rounded-full h-2.5 mt-3">
-                <div class="bg-primary h-2.5 rounded-full" style="width: {{ min(100, $stats['participation_season']) }}%"></div>
-            </div>
-            @if($stats['season_label'])
-                <p class="text-xs text-gray-400 mt-1">Saison {{ $stats['season_label'] }}</p>
-            @endif
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-sm text-gray-500 mb-1">Beteiligung in dieser Woche</p>
-            <div class="flex items-end gap-3">
-                <p class="text-3xl font-bold text-primary">{{ $stats['participation_week'] }} %</p>
-                <p class="text-xs text-gray-400 pb-1">{{ $stats['attended_week'] }} / {{ $stats['sessions_week'] }} Trainings</p>
-            </div>
-            <div class="bg-gray-100 rounded-full h-2.5 mt-3">
-                <div class="bg-primary h-2.5 rounded-full" style="width: {{ min(100, $stats['participation_week']) }}%"></div>
-            </div>
-        </div>
+        @endforeach
     </div>
 
     {{-- Nächster Wettkampf --}}
@@ -354,6 +356,10 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
                                 <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
+                                {{-- Bis zum Ende der Trainingszeit steht die heutige Einheit hier --}}
+                                @if($session->date->isToday())
+                                    <span class="text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">heute</span>
+                                @endif
                                 @if($isAbsent)
                                     <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">Abgesagt</span>
                                 @endif

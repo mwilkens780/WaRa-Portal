@@ -9,28 +9,39 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex flex-wrap gap-6 items-center">
 
-            {{-- Teilnahme-Quote --}}
-            <div class="flex items-center gap-4 flex-1 min-w-[200px]">
-                <div class="relative w-16 h-16 flex-shrink-0">
-                    <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f3f4f6" stroke-width="3"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor"
-                                class="text-primary"
-                                stroke-width="3"
-                                stroke-dasharray="{{ $pct }}, 100"
-                                stroke-linecap="round"/>
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <span class="text-sm font-bold text-primary">{{ $pct }}%</span>
+            {{-- Teilnahme-Quote: dieselbe Rechnung wie auf dem Dashboard,
+                 Saison und laufender Monat (App\Support\TrainingParticipation) --}}
+            @php
+                $quoten = [
+                    'in dieser Saison' => $participation['season'],
+                    'in diesem Monat'  => $participation['month'],
+                ];
+            @endphp
+            @foreach($quoten as $titel => $werte)
+                <div class="flex items-center gap-4 flex-1 min-w-[200px]">
+                    <div class="relative w-16 h-16 flex-shrink-0">
+                        <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f3f4f6" stroke-width="3"/>
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor"
+                                    class="text-primary"
+                                    stroke-width="3"
+                                    stroke-dasharray="{{ min(100, $werte['pct']) }}, 100"
+                                    stroke-linecap="round"/>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-sm font-bold text-primary">{{ $werte['pct'] }}%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">{{ $werte['attended'] }} von {{ $werte['offered'] }}</p>
+                        <p class="text-xs text-gray-400">Trainings {{ $titel }}</p>
+                        <p class="text-[11px] text-gray-400">
+                            {{ $werte['label'] }}@if($werte['from']) · ab {{ $werte['from']->format('d.m.Y') }}@endif
+                        </p>
                     </div>
                 </div>
-                <div>
-                    <p class="text-sm font-semibold text-gray-800">{{ $totalAttended }} von {{ $totalRelevant }}</p>
-                    <p class="text-xs text-gray-400">Trainings absolviert</p>
-                </div>
-            </div>
-
-            <div class="hidden sm:block w-px h-10 bg-gray-100"></div>
+                <div class="hidden sm:block w-px h-10 bg-gray-100"></div>
+            @endforeach
 
             {{-- Ausstehende Tagebücher --}}
             <div class="flex items-center gap-3">
@@ -338,6 +349,10 @@
                                 <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
                                     <p class="text-sm font-medium text-gray-800">{{ $session->title }}</p>
                                     <span class="text-xs px-1.5 py-0.5 rounded-full {{ $session->type_color }}">{{ $session->type_label }}</span>
+                                    {{-- Die heutige Einheit steht bis zum Ende der Trainingszeit hier --}}
+                                    @if($session->date->isToday())
+                                        <span class="text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold">heute</span>
+                                    @endif
                                     @if($isAbsent)
                                         <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-semibold">Abgesagt</span>
                                     @endif
@@ -426,12 +441,12 @@
         </div>
     </div>
 
-    {{-- ── Selbsteinschätzung ──────────────────────────────────────────────── --}}
+    {{-- ── Letzte Trainings: Tagebuch und Selbsteinschätzung ───────────────── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
          x-data="collapsibleBlock('mytraining-assessment')">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-                <h2 class="text-sm font-semibold text-gray-700">Selbsteinschätzung</h2>
+                <h2 class="text-sm font-semibold text-gray-700">Letzte Trainings – Trainingstagebuch / Selbsteinschätzung</h2>
                 <span class="text-xs text-gray-400">{{ $pastWindowLabel }}</span>
                 <button type="button" @click="toggle()" class="p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
                     <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -494,8 +509,15 @@
                             // Trainer documented non-attendance without swimmer cancellation
                             $trainerAbsent = $att !== null && $att->attended === false && !$att->pre_absent;
                             $diary     = $session->diaries->first();
+                            // Bewerten darf, wer anwesend war - und wer noch gar nicht
+                            // erfasst ist: Direkt nach der Einheit hat der Trainer die
+                            // Anwesenheit meist noch nicht eingetragen, das Tagebuch
+                            // soll aber sofort geschrieben werden koennen.
+                            $darfBewerten = $isPresent || $att === null;
+                            // Frisch beendete Einheit ohne Eintrag: Tagebuch offen
+                            $tagebuchOffen = $darfBewerten && !$diary && $session->date->isToday();
                         @endphp
-                        <div x-data="{ diaryOpen: false }" class="px-4 py-3">
+                        <div x-data="{ diaryOpen: {{ $tagebuchOffen ? 'true' : 'false' }} }" class="px-4 py-3">
 
                             <div class="flex items-start gap-3">
 
@@ -552,15 +574,15 @@
                                                 <span class="text-xs text-gray-400">· Trainer: {{ $diary->trainer_score }}/10</span>
                                             @endif
                                         </div>
-                                    @elseif($isPresent)
+                                    @elseif($darfBewerten)
                                         <div class="mt-1.5">
                                             <span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Noch nicht bewertet</span>
                                         </div>
                                     @endif
                                 </div>
 
-                                {{-- Selbsteinschätzung toggle (only for attended sessions) --}}
-                                @if($isPresent)
+                                {{-- Tagebuch aufklappen --}}
+                                @if($darfBewerten)
                                     <button type="button" @click="diaryOpen = !diaryOpen"
                                             class="flex-shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
                                             :class="diaryOpen ? 'border-primary text-primary bg-primary/5' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'">
@@ -573,8 +595,8 @@
 
                             </div>
 
-                            {{-- Inline Selbsteinschätzung --}}
-                            @if($isPresent)
+                            {{-- Trainingstagebuch / Selbsteinschätzung --}}
+                            @if($darfBewerten)
                                 <div x-show="diaryOpen" x-cloak
                                      class="mt-3 ml-11 border border-gray-100 rounded-xl overflow-hidden">
                                     <form method="POST" action="{{ route('sessions.diary', $session) }}"

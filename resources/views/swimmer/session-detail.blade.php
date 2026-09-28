@@ -39,8 +39,8 @@
         @endif
     </div>
 
-    {{-- Vorab-Absage (nur wenn Training noch nicht stattgefunden hat) --}}
-    @if($session->date->gt(today()))
+    {{-- Vorab-Absage: bis zum Ende der Trainingszeit moeglich --}}
+    @if(!$session->isOver())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 class="text-sm font-semibold text-gray-700 mb-3">Meine Anmeldung</h2>
             @if($myAttendance?->pre_absent)
@@ -174,10 +174,10 @@
         @endif
     @endif
 
-    {{-- Selbsteinschätzung (nur für vergangene Trainings) --}}
-    @if($session->date->lte(today()))
+    {{-- Trainingstagebuch: sobald die Trainingszeit vorbei ist --}}
+    @if($session->isOver())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Meine Selbsteinschätzung</h2>
+            <h2 class="text-sm font-semibold text-gray-700 mb-4">Trainingstagebuch / Selbsteinschätzung</h2>
 
             @if(session('success'))
                 <div class="mb-4 px-4 py-2.5 bg-green-50 border border-green-100 rounded-lg text-sm text-green-700">
@@ -257,7 +257,12 @@
         </div>
     @else
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-sm text-gray-400 text-center py-2">Die Selbsteinschätzung ist nach dem Training verfügbar.</p>
+            <p class="text-sm text-gray-400 text-center py-2">
+                Das Trainingstagebuch ist nach dem Ende der Trainingszeit verfügbar
+                @if($session->end_time)
+                    (ab {{ substr($session->end_time, 0, 5) }} Uhr)
+                @endif.
+            </p>
         </div>
     @endif
 

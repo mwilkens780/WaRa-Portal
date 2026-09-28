@@ -35,7 +35,9 @@ class TrainingController extends Controller
             });
         };
 
-        $upcoming = TrainingSession::where('date', '>', today())
+        // Dieselbe Grenze wie im Sportlerbereich: Das Training von heute steht
+        // bis zum Ende der Trainingszeit noch bevor.
+        $upcoming = TrainingSession::upcomingOrRunning()
             ->tap($visibilityFilter)
             ->with(['trainingGroups:id,name'])
             ->orderBy('date')->orderBy('start_time')
@@ -59,7 +61,7 @@ class TrainingController extends Controller
         $parent = auth()->user();
         $child  = $parent->children()->findOrFail($childId);
 
-        if ($session->date->lte(today())) {
+        if ($session->isOver()) {
             return back()->with('error', 'Vergangene Einheiten können nicht abgesagt werden.');
         }
 

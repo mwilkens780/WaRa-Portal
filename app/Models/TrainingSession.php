@@ -67,6 +67,61 @@ class TrainingSession extends Model
         return $this->diaries()->where('user_id', $userId)->first();
     }
 
+    /**
+     * Ende der Einheit als Zeitpunkt.
+     *
+     * Ohne hinterlegte Endzeit laeuft sie bis Tagesende - ohne Angabe laesst
+     * sich nicht behaupten, sie sei schon vorbei.
+     */
+    public function endsAt(): \Illuminate\Support\Carbon
+    {
+        $tag = \Illuminate\Support\Carbon::parse($this->date)->startOfDay();
+
+        return $this->end_time
+            ? $tag->setTimeFromTimeString($this->end_time)
+            : $tag->endOfDay();
+    }
+
+    /** Ist die Einheit vorbei? Erst dann ist sie eine vergangene. */
+    public function isOver(): bool
+    {
+        return $this->endsAt()->isPast();
+    }
+
+    /**
+     * Beendete Einheiten. Der Tag allein reicht nicht: Das Training von heute
+     * Abend ist am Vormittag noch keine vergangene Einheit - bis zum Ende der
+     * Trainingszeit sind Zu- und Absagen, Anwesenheit, Plan und Zeiten dran.
+     *
+     * Absichtlich ohne Datenbankfunktionen fuer Zeitrechnung: Die Vergleiche
+     * laufen gegen Zeichenketten und damit auf MySQL wie auf SQLite gleich.
+     */
+    public function scopeFinished(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        $heute = today()->toDateString();
+        $jetzt = now()->format('H:i:s');
+
+        return $q->where(fn($w) => $w
+            ->whereDate('date', '<', $heute)
+            ->orWhere(fn($t) => $t
+                ->whereDate('date', '=', $heute)
+                ->whereNotNull('end_time')
+                ->where('end_time', '<=', $jetzt)));
+    }
+
+    /** Das Gegenstueck: alles, was noch aussteht oder gerade laeuft. */
+    public function scopeUpcomingOrRunning(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        $heute = today()->toDateString();
+        $jetzt = now()->format('H:i:s');
+
+        return $q->where(fn($w) => $w
+            ->whereDate('date', '>', $heute)
+            ->orWhere(fn($t) => $t
+                ->whereDate('date', '=', $heute)
+                ->where(fn($z) => $z->whereNull('end_time')->orWhere('end_time', '>', $jetzt))));
+    }
+
     public function siblings()
     {
         if (!$this->recurrence_group_id) return collect();
@@ -86,7 +141,9 @@ class TrainingSession extends Model
             'physio'         => 'Physiotherapie',
             'mentaltraining' => 'Mentaltraining',
             'sonstiges'      => 'Sonstiges',
-            default          => $this->type,
+            // Ohne Art bleibt das Feld leer, statt mit einem Typfehler die
+            // ganze Seite mitzureissen.
+            default          => (string) ($this->type ?? ''),
         };
     }
 

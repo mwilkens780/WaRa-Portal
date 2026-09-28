@@ -19,6 +19,7 @@ use App\Models\TrainingSessionSwimmer;
 use App\Models\SwimmingTime;
 use App\Models\GroupMottoWeek;
 use App\Services\CompetitionResultGrouper;
+use App\Support\TrainingParticipation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -75,28 +76,20 @@ class DashboardController extends Controller
         $relevantSessions = $this->buildVisibilityFilter($swimmer->id);
 
         $attendedTotal = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)->count();
-        $totalSessions = TrainingSession::where('date', '<=', today())->tap($relevantSessions)->count();
         $attendedYear  = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)
             ->whereHas('session', fn($q) => $q->whereYear('date', now()->year))->count();
 
-        // Saison-Beteiligung
         $currentSeason = Season::current();
-        if ($currentSeason) {
-            $sessionsSeason = TrainingSession::where('date', '<=', today())
-                ->whereBetween('date', [$currentSeason->start_date, $currentSeason->end_date])
-                ->tap($relevantSessions)->count();
-            $attendedSeason = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)
-                ->whereHas('session', fn($q) => $q->where('date', '<=', today())
-                    ->whereBetween('date', [$currentSeason->start_date, $currentSeason->end_date]))->count();
-        } else {
-            $sessionsSeason = $attendedSeason = 0;
-        }
 
-        // Wochen-Beteiligung
+        // Beteiligung: eine Rechnung fuer Dashboard und Trainingsansicht,
+        // siehe App\Support\TrainingParticipation.
+        $participation  = TrainingParticipation::forSwimmer($swimmer);
+        $attendedSeason = $participation['season']['attended'];
+
+        // Einheiten dieser Woche - nur fuer die Kilometerkarte
         $weekStart    = now()->startOfWeek();
-        $sessionsWeek = TrainingSession::whereBetween('date', [$weekStart, today()])->tap($relevantSessions)->count();
         $attendedWeek = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)
-            ->whereHas('session', fn($q) => $q->whereBetween('date', [$weekStart, today()]))->count();
+            ->whereHas('session', fn($q) => $q->whereDate('date', '>=', $weekStart)->whereDate('date', '<=', today()))->count();
 
         // km diese Woche: Summe der Trainingsplan-Distanzen aller Einheiten, bei denen der Schwimmer anwesend war
         $kmThisWeek = TrainingSession::whereBetween('date', [$weekStart, today()])
@@ -131,22 +124,24 @@ class DashboardController extends Controller
             'competitions'          => CompetitionResult::where('user_id', $swimmer->id)
                 ->where('time_ms', '>', 0)->distinct('competition_id')->count('competition_id'),
             'competitions_season'   => $competitionsSeason,
-            'participation_season'  => $sessionsSeason > 0 ? round($attendedSeason / $sessionsSeason * 100) : 0,
-            'participation_week'    => $sessionsWeek > 0 ? round($attendedWeek / $sessionsWeek * 100) : 0,
-            'attended_season'       => $attendedSeason,
-            'sessions_season'       => $sessionsSeason,
+            'participation'         => $participation,
             'attended_week'         => $attendedWeek,
-            'sessions_week'         => $sessionsWeek,
             'km_this_week'          => round($kmThisWeek / 1000, 2),
-            'season_label'          => $currentSeason?->name ?? SwimmingTime::currentSeasonLabel(),
         ];
 
-        // Letzte absolvierte Trainings – letzte 2 Wochen (mit Selbsteinschätzungs-Info)
-        $recent_sessions = TrainingSession::where('date', '<=', today())
-            ->where('date', '>=', today()->subDays(13))
-            ->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true))
-            ->with(['coTrainers:id,firstname,lastname', 'diaries' => fn($q) => $q->where('user_id', $swimmer->id)])
-            ->orderByDesc('date')
+        // Letzte Trainings - letzte 2 Wochen. Nicht nur bestaetigte: Eine Einheit,
+        // die gerade zu Ende ist, hat noch keine erfasste Anwesenheit, das
+        // Tagebuch soll aber sofort offen sein. Wer abgesagt hat, bleibt aussen vor.
+        $recent_sessions = TrainingSession::finished()
+            ->whereDate('date', '>=', today()->subDays(13))
+            ->tap($relevantSessions)
+            ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
+            ->with([
+                'coTrainers:id,firstname,lastname',
+                'attendances' => fn($q) => $q->where('user_id', $swimmer->id),
+                'diaries'     => fn($q) => $q->where('user_id', $swimmer->id),
+            ])
+            ->orderByDesc('date')->orderByDesc('start_time')
             ->get();
 
         // Letzte Wettkampfergebnisse (zusammengeführt)
@@ -181,8 +176,8 @@ class DashboardController extends Controller
 
         // Geplante Trainings nächste 2 Wochen (Gruppen + individuelle Zuweisungen, ohne ausgeblendete Serien)
         $exclusionFilter = $this->buildExclusionFilter($swimmer->id);
-        $upcoming_sessions = TrainingSession::where('date', '>', today())
-            ->where('date', '<=', today()->addDays(14))
+        $upcoming_sessions = TrainingSession::upcomingOrRunning()
+            ->whereDate('date', '<=', today()->addDays(14))
             ->tap($relevantSessions)
             ->tap($exclusionFilter)
             ->orderBy('date')->orderBy('start_time')
@@ -377,14 +372,12 @@ class DashboardController extends Controller
         $relevantSessions = $this->buildVisibilityFilter($swimmer->id);
         $exclusionFilter  = $this->buildExclusionFilter($swimmer->id);
 
-        // ── Statistics ──────────────────────────────────────────────────────
-        $totalRelevant = TrainingSession::where('date', '<=', today())->tap($relevantSessions)->count();
-        $totalAttended = TrainingAttendance::where('user_id', $swimmer->id)->where('attended', true)
-            ->whereHas('session', fn($q) => $q->where('date', '<=', today())->tap($relevantSessions))
-            ->count();
-        $pct = $totalRelevant > 0 ? round($totalAttended / $totalRelevant * 100) : 0;
+        // ── Statistik ───────────────────────────────────────────────────────
+        // Dieselbe Rechnung wie auf dem Dashboard, siehe
+        // App\Support\TrainingParticipation: Saison und laufender Monat.
+        $participation = TrainingParticipation::forSwimmer($swimmer);
 
-        $diaryPendingCount = TrainingSession::where('date', '<=', today())
+        $diaryPendingCount = TrainingSession::finished()
             ->tap($relevantSessions)
             ->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true))
             ->whereDoesntHave('diaries', fn($q) => $q->where('user_id', $swimmer->id))
@@ -447,16 +440,16 @@ class DashboardController extends Controller
         // Sort chronologically Mo (1) → So (7)
         $trainingSeries = $trainingSeries->sortBy('day_of_week_iso')->values();
 
-        // ── Upcoming sessions: next 14 days only ─────────────────────────────
-        $upcoming = TrainingSession::where('date', '>', today())
-            ->where('date', '<=', today()->addDays(13))
+        // ── Bevorstehend: heute bis zum Ende der Trainingszeit, dann 13 Tage ─
+        $upcoming = TrainingSession::upcomingOrRunning()
+            ->whereDate('date', '<=', today()->addDays(13))
             ->tap($relevantSessions)
             ->tap($exclusionFilter)
             ->with(['coTrainers:id,firstname,lastname', 'trainingGroups'])
             ->orderBy('date')->orderBy('start_time')
             ->get();
 
-        $upcomingLaterCount = TrainingSession::where('date', '>', today()->addDays(13))
+        $upcomingLaterCount = TrainingSession::whereDate('date', '>', today()->addDays(13))
             ->tap($relevantSessions)
             ->tap($exclusionFilter)
             ->count();
@@ -474,7 +467,7 @@ class DashboardController extends Controller
             ->keyBy('training_session_id');
 
         // ── Guest training opportunities ─────────────────────────────────────
-        $allGuestSessions = TrainingSession::where('date', '>', today())
+        $allGuestSessions = TrainingSession::upcomingOrRunning()
             ->whereIn('guest_group_id', $swimmerGroupIds)
             ->whereNotNull('max_participants')
             ->with(['trainingGroups.swimmers', 'attendances', 'trainingGroups:id,name'])
@@ -502,13 +495,17 @@ class DashboardController extends Controller
         })->filter(fn($g) => $g->available || $g->booked)->values();
 
         // ── Past sessions: 14-day sliding window ──────────────────────────────
-        $filter   = request('filter', 'attended');
+        // Voreinstellung "alle": Eine Einheit, die gerade zu Ende gegangen ist,
+        // hat noch keine erfasste Anwesenheit - mit dem Filter "anwesend" waere
+        // sie unsichtbar, und genau dort soll das Tagebuch geschrieben werden.
+        $filter   = request('filter', 'all');
         $pastPage = max(1, (int) request('past_page', 1));
         $windowEnd   = today()->subDays(($pastPage - 1) * 14);
         $windowStart = today()->subDays($pastPage * 14 - 1);
 
-        $pastQuery = TrainingSession::where('date', '<=', $windowEnd)
-            ->where('date', '>=', $windowStart)
+        $pastQuery = TrainingSession::finished()
+            ->whereDate('date', '<=', $windowEnd)
+            ->whereDate('date', '>=', $windowStart)
             ->tap($relevantSessions)
             ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
             ->with([
@@ -516,7 +513,7 @@ class DashboardController extends Controller
                 'attendances' => fn($q) => $q->where('user_id', $swimmer->id),
                 'diaries'     => fn($q) => $q->where('user_id', $swimmer->id),
             ])
-            ->orderByDesc('date');
+            ->orderByDesc('date')->orderByDesc('start_time');
 
         if ($filter === 'attended') {
             $pastQuery->whereHas('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('attended', true));
@@ -524,7 +521,7 @@ class DashboardController extends Controller
 
         $pastSessions   = $pastQuery->get();
         $pastHasNewer   = $pastPage > 1;
-        $pastHasOlder   = TrainingSession::where('date', '<', $windowStart)
+        $pastHasOlder   = TrainingSession::whereDate('date', '<', $windowStart)
             ->tap($relevantSessions)
             ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
             ->when($filter === 'attended', fn($q) => $q->whereHas('attendances', fn($a) => $a->where('user_id', $swimmer->id)->where('attended', true)))
@@ -532,7 +529,7 @@ class DashboardController extends Controller
         $pastWindowLabel = $windowStart->format('d.m.') . ' – ' . $windowEnd->format('d.m.Y');
 
         return view('swimmer.my-trainings', compact(
-            'totalRelevant', 'totalAttended', 'pct', 'diaryPendingCount',
+            'participation', 'diaryPendingCount',
             'trainingSeries', 'excludedSeriesIds',
             'upcoming', 'upcomingLaterCount',
             'preAbsenceMap', 'myRegistrations',
@@ -543,7 +540,9 @@ class DashboardController extends Controller
 
     public function cancelSession(Request $request, TrainingSession $session)
     {
-        if ($session->date->lte(today())) {
+        // Bis zum Ende der Trainingszeit: Wer morgens merkt, dass es abends
+        // nicht klappt, soll noch absagen koennen.
+        if ($session->isOver()) {
             return back()->with('error', 'Vergangene Einheiten können nicht abgesagt werden.');
         }
 
@@ -583,7 +582,7 @@ class DashboardController extends Controller
             return back()->with('error', 'Du bist nicht in der Gastgruppe dieser Einheit.');
         }
 
-        if ($session->date->lt(today())) {
+        if ($session->isOver()) {
             return back()->with('error', 'Diese Trainingseinheit liegt in der Vergangenheit.');
         }
 
