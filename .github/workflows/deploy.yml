@@ -55,6 +55,16 @@ jobs:
             if [ -d public/build ]; then mv public/build public/build-old; fi
             mv public/build-new public/build
 
+            # composer.lock kommt ausschliesslich aus dem Repo (CLAUDE.md). Eine
+            # lokal geaenderte Kopie blockiert sonst jeden git pull - so geschehen
+            # am 28.09.2026. Vor dem Verwerfen wird sie gesichert und protokolliert.
+            if ! git diff --quiet -- composer.lock; then
+              echo "── composer.lock auf dem Server war lokal geändert ──"
+              git diff --stat -- composer.lock
+              cp composer.lock "storage/composer.lock.server-$(date +%Y%m%d-%H%M%S)"
+              git checkout -- composer.lock
+            fi
+
             echo "── Git pull ──"
             git pull origin main
 
