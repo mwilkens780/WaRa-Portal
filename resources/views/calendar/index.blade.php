@@ -93,6 +93,14 @@
 <div class="mt-2 space-y-4"
      x-data="{
          categories: { blue: true, red: true, emerald: true, amber: true, orange: true, purple: true, gray: true, holiday: true, vacSH: true, vacHH: true },
+         {{-- Detail-Sheet (calendar/_event-sheet): ein Termin oder alle eines Tages --}}
+         sheetDate: '',
+         sheetEvents: [],
+         showEvents(date, events) {
+             this.sheetDate = date;
+             this.sheetEvents = events;
+             this.$dispatch('open-dialog', 'calendar-events');
+         },
          {{-- Als Methode statt x-init: ein try-Block ist dort kein gueltiger Ausdruck --}}
          init() {
              try { const s = localStorage.getItem('cal_filters'); if (s) Object.assign(this.categories, JSON.parse(s)); } catch (e) {}
@@ -121,7 +129,7 @@
                 <form method="GET" class="flex items-center gap-2">
                     <input type="hidden" name="mode" value="season">
                     <input type="hidden" name="view" value="{{ $view }}">
-                    <select name="season_id" onchange="this.form.submit()"
+                    <select name="season_id" aria-label="Saison" onchange="this.form.submit()"
                             class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach($seasons as $s)
                             <option value="{{ $s->id }}" {{ $seasonId == $s->id ? 'selected' : '' }}>
@@ -134,7 +142,7 @@
                 <form method="GET" class="flex items-center gap-2">
                     <input type="hidden" name="mode" value="year">
                     <input type="hidden" name="view" value="{{ $view }}">
-                    <select name="year" onchange="this.form.submit()"
+                    <select name="year" aria-label="Jahr" onchange="this.form.submit()"
                             class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach(range(now()->year - 3, now()->year + 2) as $y)
                             <option value="{{ $y }}" {{ ($activeYear ?? now()->year) == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -259,31 +267,7 @@
                             <div class="border-r border-gray-100 last:border-r-0 p-1.5 space-y-1
                                         {{ $evtBg ?: ($day['isWeekend'] ? 'bg-gray-50/40' : '') }}">
                                 @foreach($day['events'] as $evt)
-                                    @php $chip = $colorMap[$evt['color']] ?? $colorMap['gray']; @endphp
-                                    @if(!empty($evt['url']))
-                                        <a href="{{ $evt['url'] }}"
-                                           title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
-                                           x-show="categories['{{ $evt['color'] }}'] !== false"
-                                           class="block text-[11px] rounded px-1.5 py-1 {{ $chip['chip'] }} hover:opacity-80 transition-opacity">
-                                            @if($evt['time'])<div class="font-bold opacity-60 text-[10px]">{{ $evt['time'] }}</div>@endif
-                                            <div class="font-medium leading-snug truncate">{{ $evt['title'] }}</div>
-                                            @if($evt['sub'])<div class="opacity-60 truncate leading-tight text-[10px]">{{ $evt['sub'] }}</div>@endif
-                                        </a>
-                                    @else
-                                        <div title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
-                                             x-show="categories['{{ $evt['color'] }}'] !== false"
-                                             class="text-[11px] rounded px-1.5 py-1 {{ $chip['chip'] }} group/evt relative">
-                                            @if($evt['time'])<div class="font-bold opacity-60 text-[10px]">{{ $evt['time'] }}</div>@endif
-                                            <div class="font-medium leading-snug truncate">{{ $evt['title'] }}</div>
-                                            @if($evt['sub'])<div class="opacity-60 truncate leading-tight text-[10px]">{{ $evt['sub'] }}</div>@endif
-                                            @if($isTrainer && !empty($evt['id']))
-                                                <a href="{{ route('calendar.events.edit', $evt['id']) }}"
-                                                   class="absolute top-1 right-1 opacity-0 group-hover/evt:opacity-100 transition-opacity">
-                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                                </a>
-                                            @endif
-                                        </div>
-                                    @endif
+                                    @include('calendar._event-chip', ['evt' => $evt, 'day' => $day['date'], 'variant' => 'week'])
                                 @endforeach
                             </div>
                         @endforeach
@@ -315,7 +299,37 @@
             </a>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {{-- Mobil: Agenda statt 7-Spalten-Raster (dort waren Termine abgeschnitten, "Tag d…") --}}
+        @php
+            $agendaDays = collect($weeks)->flatten(1)->filter(fn($d) => $d['inMonth'] && (count($d['events']) || $d['holiday'] || $d['vacSH'] || $d['vacHH']));
+        @endphp
+        <div class="sm:hidden space-y-3">
+            @forelse($agendaDays as $day)
+                <section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <h3 class="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b border-gray-100 {{ $day['isToday'] ? 'bg-blue-50 text-primary' : 'text-gray-800' }}">
+                        {{ $day['date']->isoFormat('dddd, D. MMMM') }}
+                        @if($day['isToday'])<span class="text-xs bg-primary text-white px-1.5 py-0.5 rounded-full">Heute</span>@endif
+                    </h3>
+                    <div class="p-2 space-y-1.5">
+                        @if($day['holiday'])
+                            <p x-show="categories.holiday" class="px-3 text-xs font-semibold text-green-700">{{ $day['holiday'] }}</p>
+                        @endif
+                        @if($day['vacSH'] || $day['vacHH'])
+                            <p x-show="categories.vacSH || categories.vacHH" class="px-3 text-xs text-sky-700">
+                                Ferien{{ $day['vacSH'] ? ' SH: ' . $day['vacSH'] : '' }}{{ $day['vacHH'] ? ' HH: ' . $day['vacHH'] : '' }}
+                            </p>
+                        @endif
+                        @foreach($day['events'] as $evt)
+                            @include('calendar._event-chip', ['evt' => $evt, 'day' => $day['date'], 'variant' => 'agenda'])
+                        @endforeach
+                    </div>
+                </section>
+            @empty
+                <x-ui.empty-state icon="calendar" title="Keine Termine in diesem Monat" />
+            @endforelse
+        </div>
+
+        <div class="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="grid grid-cols-7 border-b border-gray-100">
                 @foreach(['Mo','Di','Mi','Do','Fr','Sa','So'] as $dn)
                     <div class="py-2 text-center text-xs font-semibold text-gray-500">{{ $dn }}</div>
@@ -339,7 +353,8 @@
                                 </span>
                                 @if($isTrainer && $day['inMonth'])
                                     <a href="{{ route('calendar.events.create', ['date' => $day['date']->format('Y-m-d')]) }}"
-                                       class="text-gray-300 hover:text-primary transition-colors">
+                                       aria-label="Termin am {{ $day['date']->isoFormat('D. MMMM') }} anlegen" title="Termin anlegen"
+                                       class="inline-flex items-center justify-center w-7 h-7 -mr-1 rounded text-gray-400 hover:text-primary hover:bg-gray-100 transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                     </a>
                                 @endif
@@ -359,30 +374,14 @@
                             @endif
                             <div class="space-y-0.5">
                                 @foreach(array_slice($day['events'], 0, 3) as $evt)
-                                    @php $chip = $colorMap[$evt['color']] ?? $colorMap['gray']; @endphp
-                                    @if(!empty($evt['url']))
-                                        <a href="{{ $evt['url'] }}"
-                                           title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
-                                           x-show="categories['{{ $evt['color'] }}'] !== false"
-                                           class="block text-[11px] leading-tight px-1.5 py-0.5 rounded {{ $chip['chip'] }} truncate hover:opacity-80 transition-opacity">
-                                            @if($evt['time'])<span class="font-semibold">{{ $evt['time'] }}</span> @endif{{ $evt['title'] }}@if($evt['sub'])<span class="opacity-70"> · {{ $evt['sub'] }}</span>@endif
-                                        </a>
-                                    @else
-                                        <div title="{{ $evt['title'] }}{{ $evt['sub'] ? ' · '.$evt['sub'] : '' }}"
-                                             x-show="categories['{{ $evt['color'] }}'] !== false"
-                                             class="flex items-center gap-1 text-[11px] leading-tight px-1.5 py-0.5 rounded {{ $chip['chip'] }} group/evt relative">
-                                            @if($evt['time'])<span class="font-semibold">{{ $evt['time'] }}</span> @endif<span class="truncate">{{ $evt['title'] }}</span>
-                                            @if($isTrainer && !empty($evt['id']))
-                                                <a href="{{ route('calendar.events.edit', $evt['id']) }}"
-                                                   class="ml-auto opacity-0 group-hover/evt:opacity-100 flex-shrink-0 transition-opacity">
-                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                                </a>
-                                            @endif
-                                        </div>
-                                    @endif
+                                    @include('calendar._event-chip', ['evt' => $evt, 'day' => $day['date'], 'variant' => 'month'])
                                 @endforeach
                                 @if($evCount > 3)
-                                    <div class="text-[10px] text-gray-400 px-1.5">+{{ $evCount - 3 }} weitere</div>
+                                    <button type="button"
+                                            @click="showEvents(@js($day['date']->isoFormat('dddd, D. MMMM YYYY')), @js(collect($day['events'])->map(fn($e) => \App\Support\CalendarEventPayload::make($e, $day['date'], $isTrainer))->values()))"
+                                            class="w-full text-left text-xs font-medium text-gray-600 hover:text-primary px-1.5 py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                        +{{ $evCount - 3 }} weitere
+                                    </button>
                                 @endif
                             </div>
                         </div>
@@ -419,27 +418,28 @@
                 <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Anzeigen:</span>
 
                 {{-- Type toggles --}}
-                <button type="button" @click="categories.blue = !categories.blue"
-                        :class="categories.blue ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-300' : 'bg-gray-100 text-gray-400'"
+                <button type="button" @click="categories.blue = !categories.blue" :aria-pressed="categories.blue ? 'true' : 'false'"
+                        :class="categories.blue ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-300' : 'bg-gray-100 text-gray-600 line-through'"
                         class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
                     <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
                     Trainingseinheiten
                 </button>
-                <button type="button" @click="categories.red = !categories.red"
-                        :class="categories.red ? 'bg-red-100 text-red-800 ring-2 ring-red-300' : 'bg-gray-100 text-gray-400'"
+                <button type="button" @click="categories.red = !categories.red" :aria-pressed="categories.red ? 'true' : 'false'"
+                        :class="categories.red ? 'bg-red-100 text-red-800 ring-2 ring-red-300' : 'bg-gray-100 text-gray-600 line-through'"
                         class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
                     <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
                     Wettkämpfe
                 </button>
-                <button type="button" @click="categories.emerald = !categories.emerald"
-                        :class="categories.emerald ? 'bg-emerald-100 text-emerald-800 ring-2 ring-emerald-300' : 'bg-gray-100 text-gray-400'"
+                <button type="button" @click="categories.emerald = !categories.emerald" :aria-pressed="categories.emerald ? 'true' : 'false'"
+                        :class="categories.emerald ? 'bg-emerald-100 text-emerald-800 ring-2 ring-emerald-300' : 'bg-gray-100 text-gray-600 line-through'"
                         class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
                     Vereinstermine
                 </button>
                 <button type="button"
+                        :aria-pressed="(categories.amber || categories.orange || categories.purple || categories.gray) ? 'true' : 'false'"
                         @click="categories.amber = !categories.amber; categories.orange = !categories.orange; categories.purple = !categories.purple; categories.gray = !categories.gray"
-                        :class="(categories.amber || categories.orange || categories.purple || categories.gray) ? 'bg-amber-100 text-amber-800 ring-2 ring-amber-300' : 'bg-gray-100 text-gray-400'"
+                        :class="(categories.amber || categories.orange || categories.purple || categories.gray) ? 'bg-amber-100 text-amber-800 ring-2 ring-amber-300' : 'bg-gray-100 text-gray-600 line-through'"
                         class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all">
                     <span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
                     Sonstige
@@ -495,7 +495,7 @@
                         {{-- Date column --}}
                         <div class="w-28 flex-shrink-0 px-4 py-3 border-r border-gray-100">
                             <div class="flex items-baseline gap-1.5">
-                                <span class="text-xs font-bold {{ $isToday ? 'text-primary' : ($isWeekend ? 'text-blue-500' : 'text-gray-400') }}">{{ $dayName }}</span>
+                                <span class="text-xs font-bold {{ $isToday ? 'text-primary' : ($isWeekend ? 'text-blue-700' : 'text-gray-400') }}">{{ $dayName }}</span>
                                 <span class="text-sm font-bold {{ $isToday ? 'text-primary' : 'text-gray-700' }}">{{ $date->format('d.') }}</span>
                             </div>
                             @if($isToday)
@@ -606,5 +606,6 @@
         </div>
     @endif
 
+    @include('calendar._event-sheet')
 </div>
 @endsection
