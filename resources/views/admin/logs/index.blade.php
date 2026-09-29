@@ -147,7 +147,7 @@
 
         {{-- Clear --}}
         <form method="POST" action="{{ route('admin.logs.transactions.clear') }}"
-              onsubmit="return confirm('Einträge wirklich löschen?')"
+              data-confirm="Einträge wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger
               class="flex items-center gap-3 mt-3">
             @csrf @method('DELETE')
             <label class="text-sm text-gray-600">Einträge älter als</label>
@@ -246,7 +246,7 @@
 
         {{-- Clear --}}
         <form method="POST" action="{{ route('admin.logs.traces.clear') }}"
-              onsubmit="return confirm('Trace-Einträge wirklich löschen?')"
+              data-confirm="Trace-Einträge wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger
               class="flex items-center gap-3 mt-3">
             @csrf @method('DELETE')
             <label class="text-sm text-gray-600">Einträge älter als</label>

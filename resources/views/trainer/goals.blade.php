@@ -221,7 +221,7 @@
                                         Bearbeiten
                                     </button>
                                     <form method="POST" action="{{ route('trainer.group-goals.destroy', $crit) }}"
-                                          onsubmit="return confirm('Leistungskriterium „{{ addslashes($crit->title) }}“ entfernen?\n\nBewertungen vergangener Saisons bleiben erhalten.')">
+                                          data-confirm="Leistungskriterium „{{ $crit->title }}“ entfernen?" data-confirm-text="Bewertungen vergangener Saisons bleiben erhalten." data-confirm-label="Entfernen" data-confirm-danger>
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-xs px-2.5 py-1 border border-gray-200 text-gray-400 rounded-lg hover:text-red-500 hover:border-red-200 transition-colors">
                                             Entfernen

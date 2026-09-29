@@ -142,7 +142,7 @@
                                         <a href="{{ route('admin.competitions.edit', $comp) }}"
                                            class="text-gray-500 hover:text-gray-700 text-xs">Bearbeiten</a>
                                         <form method="POST" action="{{ route('admin.competitions.destroy', $comp) }}"
-                                              onsubmit="return confirm('Wettkampf und alle Ergebnisse löschen?')">
+                                              data-confirm="Wettkampf und alle Ergebnisse löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-red-500 hover:text-red-700 text-xs">Löschen</button>
                                         </form>

@@ -141,7 +141,7 @@
                             <form method="POST" action="{{ route('admin.import-log.run', $source) }}" class="flex-1">
                                 @csrf
                                 <button type="submit"
-                                        onclick="return confirm('Crawler \"{{ $info['label'] }}\" jetzt manuell starten?')"
+                                        data-confirm="Crawler „{{ $info['label'] }}“ jetzt manuell starten?" data-confirm-label="Starten"
                                         class="w-full px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">
                                     Jetzt ausführen
                                 </button>

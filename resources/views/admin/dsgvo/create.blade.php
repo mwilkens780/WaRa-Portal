@@ -49,10 +49,12 @@
             {{-- Anfragetyp --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Art der Anfrage <span class="text-red-500">*</span></label>
-                <div class="grid grid-cols-2 gap-2">
+                {{-- Markierung per Alpine statt :has() - das kennt iOS erst ab 15.4 --}}
+                <div class="grid grid-cols-2 gap-2" x-data="{ sel: @js(old('type')) }">
                     @foreach(\App\Models\DsgvoRequest::$types as $key => $label)
-                    <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-blue-50">
-                        <input type="radio" name="type" value="{{ $key }}" {{ old('type') === $key ? 'checked' : '' }} required class="text-primary">
+                    <label class="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                           :class="sel === @js($key) ? 'border-primary bg-blue-50' : 'border-gray-200'">
+                        <input type="radio" name="type" value="{{ $key }}" x-model="sel" {{ old('type') === $key ? 'checked' : '' }} required class="text-primary">
                         <span class="text-sm text-gray-700">{{ $label }}</span>
                     </label>
                     @endforeach

@@ -150,8 +150,8 @@
                         <button type="button"
                                 @click="aiLoading = true; fetch('{{ route('swimmer.motto.generate-ai', $week) }}')
                                     .then(r => r.json())
-                                    .then(d => { if(d.motto) { generatedText = d.motto; } else { alert(d.error || 'Fehler'); } aiLoading = false; })
-                                    .catch(() => { alert('Netzwerkfehler'); aiLoading = false; })"
+                                    .then(d => { if(d.motto) { generatedText = d.motto; } else { $toast(d.error || 'Vorschlag konnte nicht erzeugt werden.', { type: 'error' }); } aiLoading = false; })
+                                    .catch(() => { $toast('Keine Verbindung zum Server. Bitte erneut versuchen.', { type: 'error' }); aiLoading = false; })"
                                 :disabled="aiLoading"
                                 class="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50">
                             <svg class="w-3.5 h-3.5" :class="aiLoading ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">

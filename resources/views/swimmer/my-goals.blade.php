@@ -324,7 +324,7 @@
                                     </button>
                                 @endif
                                 <form method="POST" action="{{ route('swimmer.goals.destroy', $goal) }}"
-                                      onsubmit="return confirm('Dieses Ziel wirklich löschen?')">
+                                      data-confirm="Dieses Ziel wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                     @csrf @method('DELETE')
                                     <button type="submit" class="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

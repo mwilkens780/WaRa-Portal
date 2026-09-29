@@ -172,7 +172,7 @@
                                         {{-- Willkommensmail erneut: der Weg, jemanden (wieder) in das
                                              Portal zu holen, ohne ein Passwort zu verschicken. --}}
                                         <form method="POST" action="{{ route('admin.users.welcome-mail', $user) }}"
-                                              onsubmit="return confirm('Willkommensmail an {{ addslashes($user->name) }} schicken?')">
+                                              data-confirm="Willkommensmail an {{ $user->name }} schicken?" data-confirm-label="Schicken">
                                             @csrf
                                             <button type="submit" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
                                                 {{ $user->isPortalActivated() ? 'Neu einladen' : 'Einladen' }}
@@ -193,7 +193,7 @@
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
-                                              onsubmit="return confirm('{{ addslashes($user->name) }} wirklich löschen?')">
+                                              data-confirm="{{ $user->name }} wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-red-500 hover:text-red-700 font-medium text-xs">Löschen</button>
                                         </form>
@@ -242,7 +242,7 @@
                 </p>
             </div>
             <form method="POST" action="{{ route('admin.users.cleanup-dsv') }}"
-                  onsubmit="return confirm('Alle DSV-IDs mit Nullwert (000000, 0 etc.) auf leer setzen?')">
+                  data-confirm="Alle DSV-IDs mit Nullwert (000000, 0 etc.) auf leer setzen?" data-confirm-label="Bereinigen">
                 @csrf
                 <button type="submit"
                         class="flex-shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors">
@@ -266,7 +266,7 @@
         </div>
         <div x-show="open" x-transition class="mt-4 border-t border-red-200 pt-4">
             <form method="POST" action="{{ route('admin.users.destroy-all') }}"
-                  onsubmit="return confirm('Wirklich ALLE Benutzer löschen (außer deinem eigenen Konto)?')">
+                  data-confirm="Wirklich ALLE Benutzer löschen (außer deinem eigenen Konto)?" data-confirm-label="Löschen" data-confirm-danger data-confirm-require="LÖSCHEN">
                 @csrf @method('DELETE')
                 <label class="block text-sm font-medium text-red-800 mb-2">
                     Gib <strong>ALLE LÖSCHEN</strong> ein, um zu bestätigen:

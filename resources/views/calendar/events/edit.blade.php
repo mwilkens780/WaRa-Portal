@@ -75,7 +75,7 @@
 
     <div class="bg-white rounded-xl shadow-sm border border-red-100 p-5">
         <form method="POST" action="{{ route('calendar.events.destroy', $calendarEvent) }}"
-              onsubmit="return confirm('Termin löschen?')">
+              data-confirm="Termin löschen?" data-confirm-label="Löschen" data-confirm-danger>
             @csrf @method('DELETE')
             <button type="submit" class="text-sm text-red-600 hover:text-red-800">Termin löschen</button>
         </form>

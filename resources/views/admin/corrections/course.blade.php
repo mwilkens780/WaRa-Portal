@@ -38,7 +38,7 @@
     @else
 
     <form method="POST" action="{{ route('admin.corrections.course.update') }}"
-          @submit="if (!confirm(`${selectedCount()} Wettkämpfe setzen und danach Rekorde und Bestenlisten neu berechnen?`)) $event.preventDefault()">
+          @submit.prevent="if (await $confirm({ title: `${selectedCount()} Wettkämpfe setzen?`, text: 'Danach werden Rekorde und Bestenlisten neu berechnet.', confirmLabel: 'Setzen' })) $el.submit()">
         @csrf @method('PUT')
 
         {{-- Steuerung --}}

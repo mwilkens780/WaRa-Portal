@@ -50,7 +50,7 @@
     @else
 
     <form method="POST" action="{{ route('admin.corrections.times.destroy') }}"
-          @submit="if (!confirm(`${Object.values(chosen).filter(Boolean).length} Einträge endgültig löschen und danach Rekorde und Bestenlisten neu berechnen?`)) $event.preventDefault()">
+          @submit.prevent="if (await $confirm({ title: `${Object.values(chosen).filter(Boolean).length} Einträge endgültig löschen?`, text: 'Danach werden Rekorde und Bestenlisten neu berechnet.', confirmLabel: 'Löschen', danger: true })) $el.submit()">
         @csrf @method('DELETE')
 
         {{-- Wettkampfergebnisse --}}

@@ -144,7 +144,7 @@
                                 <td class="px-4 py-2 text-right font-mono text-gray-900">{{ $entry->formatted_base_time }}</td>
                                 <td class="px-4 py-2 text-right">
                                     <form method="POST" action="{{ route('admin.wa-scoring.destroy', $entry) }}"
-                                          onsubmit="return confirm('Basiszeit löschen?')">
+                                          data-confirm="Basiszeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 text-xs">Löschen</button>
                                     </form>

@@ -115,7 +115,7 @@
                                     <button type="button" @click="openRow = openRow === {{ $record->id }} ? null : {{ $record->id }}"
                                             class="text-xs text-gray-500 hover:text-primary">Bearbeiten</button>
                                     <form method="POST" class="inline" action="{{ route('admin.records.destroy', $record) }}"
-                                          onsubmit="return confirm('Rekord löschen?')">
+                                          data-confirm="Rekord löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-400 hover:text-red-600 text-xs ml-1">Löschen</button>
                                     </form>

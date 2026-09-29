@@ -41,7 +41,7 @@
     @endif
 
     <form method="POST" action="{{ route('admin.users.bulk-welcome.send') }}"
-          @submit="if (!confirm(`${count()} Mitglieder einladen?`)) $event.preventDefault()">
+          @submit.prevent="if (await $confirm({ title: `${count()} Mitglieder einladen?`, confirmLabel: 'Einladen' })) $el.submit()">
         @csrf
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

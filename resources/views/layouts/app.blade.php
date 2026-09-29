@@ -7,6 +7,31 @@
     <meta name="theme-color" content="#1B5EAB">
     <link rel="icon" type="image/png" href="{{ asset('images/logo-96x96.png') }}">
     <title>@yield('title', 'WaRa-Portal') – SG Wasserratten Norderstedt</title>
+    {{--
+        Absicherung fuer data-confirm, solange app.js noch nicht geladen ist
+        (langsames Netz, Ladefehler): dann fragt der Browser selbst nach, statt
+        ohne Rueckfrage zu loeschen. Sobald ui/confirm.js bereit ist
+        (__uiConfirmReady), uebernimmt der gestaltete Dialog.
+    --}}
+    <script>
+        (function () {
+            function ask(el) {
+                var d = el.dataset;
+                if (d.confirmRequire) {
+                    return window.prompt(d.confirm + '\n\nZur Bestätigung ' + d.confirmRequire + ' eingeben:') === d.confirmRequire;
+                }
+                return window.confirm(d.confirm + (d.confirmText ? '\n\n' + d.confirmText : ''));
+            }
+            function guard(e, el) {
+                if (window.__uiConfirmReady || !el || !el.dataset || !el.dataset.confirm) return;
+                if (!ask(el)) { e.preventDefault(); e.stopImmediatePropagation(); }
+            }
+            document.addEventListener('submit', function (e) { guard(e, e.target); }, true);
+            document.addEventListener('click', function (e) {
+                guard(e, e.target.closest && e.target.closest('a[data-confirm], button[data-confirm]'));
+            }, true);
+        })();
+    </script>
     {{-- CSS (Tailwind-Build) und JS (Alpine) aus resources/, siehe vite.config.js --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
@@ -77,17 +102,21 @@
         </nav>
 
         {{-- Konto --}}
-        <div class="border-t border-white/15 p-2 space-y-0.5">
-            <div class="flex items-center gap-2.5 px-3 py-2">
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">
+        {{-- Aufklappbar, damit das Menue mobil nicht vom Konto verdraengt wird --}}
+        <div class="border-t border-white/15 p-2 space-y-0.5"
+             x-data="{ acc: {{ collect($navAccount)->contains('active', true) ? 'true' : 'false' }} }">
+            <button type="button" @click="acc = !acc" :aria-expanded="acc ? 'true' : 'false'" aria-controls="nav-account"
+                    class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left hover:bg-white/10">
+                <span class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">
                     {{ strtoupper(substr($authUser->firstname ?: $authUser->name, 0, 1)) }}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white leading-snug truncate">{{ $authUser->name }}</p>
-                    <p class="text-xs text-blue-100 leading-snug">{{ $authUser->role_label }}</p>
-                </div>
-            </div>
-            <ul class="space-y-0.5">
+                </span>
+                <span class="flex-1 min-w-0">
+                    <span class="block text-sm font-medium text-white leading-snug truncate">{{ $authUser->name }}</span>
+                    <span class="block text-xs text-blue-100 leading-snug">{{ $authUser->role_label }} · Konto</span>
+                </span>
+                <x-ui.icon name="chevron-down" class="w-4 h-4 text-blue-100 transition-transform" ::class="acc ? 'rotate-180' : ''" />
+            </button>
+            <ul id="nav-account" class="space-y-0.5" x-show="acc" x-cloak>
                 @foreach($navAccount as $item)
                     <li>
                         <a href="{{ $item['url'] }}" class="{{ $navLink($item['active']) }}" @if($item['active']) aria-current="page" @endif>

@@ -81,7 +81,7 @@
                                                         class="text-xs text-gray-500 hover:text-primary">Bearbeiten</button>
                                                 <form method="POST" class="inline"
                                                       action="{{ route('admin.bestlist.destroy', ['bestListEntry' => $row['entry_id'], 'tab' => $tab]) }}"
-                                                      onsubmit="return confirm('Eintrag löschen?')">
+                                                      data-confirm="Eintrag löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="text-xs text-red-400 hover:text-red-600 ml-1">Löschen</button>
                                                 </form>

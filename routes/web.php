@@ -113,6 +113,8 @@ Route::middleware(['auth', 'role:teamarzt,admin'])->prefix('teamarzt')->name('te
 // Admin-only Bereich
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboard::class, 'index'])->name('dashboard');
+    // Musterseite der UI-Bausteine (docs/frontend-audit.md)
+    Route::view('/ui', 'admin.ui')->name('ui');
 
     // Benutzerverwaltung
     Route::get('/benutzer', [AdminUserController::class, 'index'])->name('users.index');

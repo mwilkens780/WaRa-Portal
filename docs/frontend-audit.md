@@ -401,6 +401,10 @@ Menü aus `App\Support\Navigation` (nach Aufgaben gruppiert, Eltern je Kind),
 untere Navigation für Schwimmer/Eltern, Skip-Link, `aria-current`,
 Passwort-Dialog und mobile Seitenleiste bestehen den Dialogtest in drei
 Breiten; `gray-400` auf 4,6:1 Kontrast angehoben.
+Phase 2b erledigt: alle 36 nativen `confirm()`/`alert()`/`prompt()` ersetzt
+(`data-confirm`, `$confirm`, `$prompt`, `$toast`), Tipp-Bestätigung für
+„Alle Benutzer löschen“, Rückfall auf Browser-Rückfrage solange `app.js` nicht
+geladen ist, Musterseite `/admin/ui`, Kontobereich der Seitenleiste aufklappbar.
 
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|

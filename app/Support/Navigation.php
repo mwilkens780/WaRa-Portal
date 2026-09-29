@@ -89,6 +89,7 @@ class Navigation
             self::item('Mail-Protokoll', 'admin.mail-log.index', 'mail', 'admin.mail-log.*', $is('admin')),
             self::item('WA-Punkte', 'admin.wa-scoring.index', 'chart', 'admin.wa-scoring.*', $is('admin')),
             self::item('DSGVO-Anfragen', 'admin.dsgvo.index', 'shield', 'admin.dsgvo.*', $is('admin')),
+            self::item('UI-Bausteine', 'admin.ui', 'dashboard', 'admin.ui', $is('admin')),
         ]];
 
         // Leere Abschnitte und ausgeblendete Eintraege entfernen

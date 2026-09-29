@@ -43,7 +43,7 @@
     @endif
 
     <form method="POST" action="{{ route('trainer.sessions.series.destroy', $group) }}"
-          @submit="if (!confirm(confirmText())) $event.preventDefault()"
+          @submit.prevent="if (await $confirm({ title: confirmText(), confirmLabel: 'Löschen', danger: true })) $el.submit()"
           class="space-y-4">
         @csrf @method('DELETE')
 

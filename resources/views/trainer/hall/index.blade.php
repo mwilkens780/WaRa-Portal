@@ -495,7 +495,7 @@ function hallApp() {
             this.formError = res.message;
         },
         async deleteBooking(id) {
-            if (!confirm('Belegung löschen?')) return;
+            if (!(await window.confirmDialog({ title: 'Belegung löschen?', confirmLabel: 'Löschen', danger: true }))) return;
             const res = await this.request(`/trainer/hall/bookings/${id}`, 'DELETE');
             if (res.ok) { window.location.reload(); return; }
             if (this.showModal) this.formError = res.message;

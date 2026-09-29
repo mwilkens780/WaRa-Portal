@@ -684,7 +684,7 @@
                                             @if(auth()->user()->role === 'admin')
                                             <td class="px-5 py-2.5 text-right">
                                                 <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
-                                                      onsubmit="return confirm('Ergebnis löschen?')">
+                                                      data-confirm="Ergebnis löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
                                                 </form>
@@ -807,7 +807,7 @@
                                             @if(auth()->user()->role === 'admin')
                                             <td class="px-5 py-2.5 text-right">
                                                 <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
-                                                      onsubmit="return confirm('Ergebnis löschen?')">
+                                                      data-confirm="Ergebnis löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
                                                 </form>
@@ -989,7 +989,7 @@
                             </button>
                         </form>
                         <form method="POST" action="{{ route('admin.competitions.signup.destroy', [$competition, $signupRequest]) }}"
-                              onsubmit="return confirm('Entwurf wirklich löschen?')">
+                              data-confirm="Entwurf wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
                             @csrf @method('DELETE')
                             <button type="submit" class="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm transition-colors">
                                 Löschen
@@ -1030,7 +1030,7 @@
                             </form>
                         @endif
                         <form method="POST" action="{{ route('admin.competitions.signup.close', [$competition, $signupRequest]) }}"
-                              onsubmit="return confirm('Anmeldeabfrage schließen? Danach können Schwimmer nicht mehr antworten.')">
+                              data-confirm="Anmeldeabfrage schließen? Danach können Schwimmer nicht mehr antworten." data-confirm-label="Schließen">
                             @csrf
                             <button type="submit" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm transition-colors">
                                 Abfrage schließen
@@ -2438,7 +2438,7 @@
                                         Download
                                     </a>
                                     <form method="POST" action="{{ route('admin.competitions.documents.destroy', [$competition, $doc]) }}"
-                                          onsubmit="return confirm('Dokument wirklich löschen?')"
+                                          data-confirm="Dokument wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger
                                           class="inline">
                                         @csrf
                                         @method('DELETE')

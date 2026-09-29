@@ -110,13 +110,13 @@ export default function richTextEditor({ value = '', placeholder = '' } = {}) {
             })[command]().run();
         },
 
-        toggleLink() {
+        async toggleLink() {
             if (!editor) return;
             if (editor.isActive('link')) {
                 editor.chain().focus().unsetLink().run();
                 return;
             }
-            const url = window.prompt('Link-Adresse (https://…)', 'https://');
+            const url = await window.promptDialog({ title: 'Link einfügen', label: 'Adresse (https://… oder mailto:…)', value: 'https://' });
             if (!url || url === 'https://') return;
             if (!/^(https?:\/\/|mailto:)/i.test(url)) return;
             editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();

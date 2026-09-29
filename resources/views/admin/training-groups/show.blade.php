@@ -104,7 +104,7 @@
                             @endif
                         </div>
                         <form method="POST" action="{{ route('admin.training-groups.remove-swimmer', [$trainingGroup, $swimmer]) }}"
-                              onsubmit="return confirm('{{ $swimmer->firstname }} {{ $swimmer->lastname }} aus der Gruppe entfernen?')">
+                              data-confirm="{{ $swimmer->firstname }} {{ $swimmer->lastname }} aus der Gruppe entfernen?" data-confirm-label="Entfernen" data-confirm-danger>
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-400 hover:text-red-600 transition-colors p-1" title="Aus Gruppe entfernen">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -226,7 +226,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </button>
                         <form method="POST" action="{{ route('admin.training-groups.goals.destroy', [$trainingGroup, $goal]) }}"
-                              onsubmit="return confirm('Leistungskriterium entfernen?\n\nBewertungen vergangener Saisons bleiben erhalten.')">
+                              data-confirm="Leistungskriterium entfernen?" data-confirm-text="Bewertungen vergangener Saisons bleiben erhalten." data-confirm-label="Entfernen" data-confirm-danger>
                             @csrf @method('DELETE')
                             <button type="submit" class="text-xs text-red-400 hover:text-red-600" title="Entfernen">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -478,7 +478,7 @@
         <h2 class="font-semibold text-red-700 text-sm mb-3">Gruppe löschen</h2>
         <p class="text-sm text-gray-500 mb-4">Die Gruppe wird unwiderruflich gelöscht. Zugeordnete Trainingseinheiten bleiben erhalten, verlieren aber die Gruppenzuordnung.</p>
         <form method="POST" action="{{ route('admin.training-groups.destroy', $trainingGroup) }}"
-              onsubmit="return confirm('Trainingsgruppe \"{{ $trainingGroup->name }}\" wirklich löschen?')">
+              data-confirm="Trainingsgruppe „{{ $trainingGroup->name }}“ wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
             @csrf
             @method('DELETE')
             <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">

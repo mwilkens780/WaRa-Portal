@@ -186,7 +186,7 @@
                                         <a href="{{ route('trainer.sessions.edit', $session) }}"
                                            class="text-gray-500 hover:text-gray-700">Bearbeiten</a>
                                         <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
-                                              onsubmit="return confirm('Trainingseinheit löschen?')">
+                                              data-confirm="Trainingseinheit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-red-500 hover:text-red-700">Löschen</button>
                                         </form>
@@ -298,7 +298,7 @@
                                     <div class="flex items-center gap-3 shrink-0 text-xs">
                                         <a href="{{ route('trainer.sessions.show', $session) }}" class="text-primary hover:text-primary-dark font-medium">Details</a>
                                         <a href="{{ route('trainer.sessions.edit', $session) }}" class="text-gray-500 hover:text-gray-700">Bearbeiten</a>
-                                        <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}" onsubmit="return confirm('Trainingseinheit löschen?')">
+                                        <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}" data-confirm="Trainingseinheit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-red-500 hover:text-red-700">Löschen</button>
                                         </form>

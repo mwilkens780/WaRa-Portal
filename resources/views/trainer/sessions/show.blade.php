@@ -54,7 +54,7 @@
                     Bearbeiten
                 </a>
                 <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
-                      onsubmit="return confirm('Einheit löschen?')">
+                      data-confirm="Einheit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                     @csrf @method('DELETE')
                     <button type="submit" class="px-3 py-2 border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors">
                         Löschen
@@ -463,7 +463,7 @@
                     });
                     const d = await r.json();
                     if (r.status === 409) { this.conflicts = d.conflicts ?? []; }
-                    else if (r.status === 422) { alert(d.error ?? 'Fehler'); }
+                    else if (r.status === 422) { window.toast(d.error ?? 'Speichern fehlgeschlagen.', { type: 'error' }); }
                     else if (r.ok) { window.location.reload(); }
                 } finally { this.saving = false; }
             },
@@ -893,7 +893,7 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-right">
                                     <form method="POST" action="{{ route('trainer.times.destroy', $time) }}"
-                                          onsubmit="return confirm('Zeit löschen?')">
+                                          data-confirm="Zeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
                                     </form>

@@ -27,11 +27,29 @@
                 <p id="confirm-text" class="text-sm text-gray-600 mt-1 whitespace-pre-line" x-show="$store.confirm.text" x-text="$store.confirm.text"></p>
             </div>
         </div>
+        <template x-if="$store.confirm.inputLabel">
+            <div class="mt-4">
+                <label for="confirm-input" class="block text-sm font-medium text-gray-800" x-text="$store.confirm.inputLabel"></label>
+                <input id="confirm-input" type="text" x-model="$store.confirm.typed" x-init="$nextTick(() => { $el.focus(); $el.select() })"
+                       @keydown.enter.prevent="$store.confirm.answer(true)"
+                       class="mt-1 block w-full rounded-lg border border-gray-300 px-3 min-h-[44px] text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+            </div>
+        </template>
+        <template x-if="$store.confirm.requireText">
+            <div class="mt-4">
+                <label for="confirm-require" class="block text-sm text-gray-800">
+                    Zur Bestätigung <strong x-text="$store.confirm.requireText"></strong> eingeben:
+                </label>
+                <input id="confirm-require" type="text" x-model="$store.confirm.typed" autocomplete="off" autocapitalize="characters"
+                       @keydown.enter.prevent="$store.confirm.answer(true)"
+                       class="mt-1 block w-full rounded-lg border border-gray-300 px-3 min-h-[44px] text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-500">
+            </div>
+        </template>
         <div class="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <x-ui.button variant="secondary" @click="$store.confirm.answer(false)" x-text="$store.confirm.cancelLabel" class="order-first sm:order-none">Abbrechen</x-ui.button>
-            <button type="button" @click="$store.confirm.answer(true)" x-text="$store.confirm.confirmLabel"
+            <button type="button" @click="$store.confirm.answer(true)" x-text="$store.confirm.confirmLabel" :disabled="!$store.confirm.canConfirm"
                     :class="$store.confirm.danger ? 'bg-accent hover:bg-accent-dark' : 'bg-primary hover:bg-primary-dark'"
-                    class="inline-flex items-center justify-center min-h-[44px] sm:min-h-[40px] px-4 rounded-lg text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"></button>
+                    class="inline-flex items-center justify-center min-h-[44px] sm:min-h-[40px] px-4 rounded-lg text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"></button>
         </div>
     </div>
 </div>
