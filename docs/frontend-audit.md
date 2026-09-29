@@ -406,6 +406,13 @@ Phase 2b erledigt: alle 36 nativen `confirm()`/`alert()`/`prompt()` ersetzt
 „Alle Benutzer löschen“, Rückfall auf Browser-Rückfrage solange `app.js` nicht
 geladen ist, Musterseite `/admin/ui`, Kontobereich der Seitenleiste aufklappbar.
 
+Phase 3 zu drei Vierteln erledigt: Trainingsplan (Rückgängig, Verlassen-Warnung,
+benannte Symbol-Knöpfe), Zeiterfassung (Dialog-Semantik, Fokusrückgabe,
+Reihenfolge per Tastatur mit Ansage), Kalender (`e9f0f63`: Termine als Knöpfe
+mit Detail-Sheet `calendar/_event-sheet`, Daten aus `App\Support\CalendarEventPayload`,
+„+N weitere“ im Sheet, Monat mobil als Agenda, Filter mit `aria-pressed`).
+Offen: Hallenplan.
+
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
 | **0 · Sofort-Fehler** | F1–F13 beheben | Kein JS-Fehler mehr in der Konsole auf allen geprüften Seiten; Hallenplan zeigt Fehler und verhindert stille Doppelbuchung; Zeiterfassung überlebt Reload ohne Netz |
