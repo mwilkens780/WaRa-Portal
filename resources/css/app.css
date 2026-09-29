@@ -5,6 +5,28 @@
 /* Alpine: Elemente bis zur Initialisierung verbergen */
 [x-cloak] { display: none !important; }
 
+@layer base {
+    /*
+     * Sichtbarer Fokus fuer Tastatur-Nutzer ueberall, wo ein Element keinen
+     * eigenen Ring mitbringt. Nur bei Tastatur (focus-visible), nicht beim Klick.
+     */
+    :where(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [tabindex]):focus-visible {
+        outline: 2px solid theme('colors.primary.DEFAULT');
+        outline-offset: 2px;
+        border-radius: 0.25rem;
+    }
+
+    /* Wer "Bewegung reduzieren" eingestellt hat, bekommt keine Animationen */
+    @media (prefers-reduced-motion: reduce) {
+        *, ::before, ::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
 @layer components {
     /*
      * Formatierter Text (Anzeige x-ui.rich-text und Editor x-ui.rich-text-editor).

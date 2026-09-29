@@ -23,6 +23,10 @@ export default {
     theme: {
         extend: {
             colors: {
+                // gray-400 war mit 2,5:1 der haeufigste Kontrastfehler (Nebentexte).
+                // Jetzt 4,6:1 auf Weiss und Seitenhintergrund (WCAG AA).
+                // Fuer rein Dekoratives (Rahmen, Trenner) gray-200/300 nehmen.
+                gray: { 400: '#6c7381' },
                 primary: {
                     50: '#eff6ff',
                     100: '#dbeafe',

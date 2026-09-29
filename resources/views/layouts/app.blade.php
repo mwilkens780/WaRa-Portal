@@ -2,519 +2,232 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#1B5EAB">
+    <link rel="icon" type="image/png" href="{{ asset('images/logo-96x96.png') }}">
     <title>@yield('title', 'WaRa-Portal') – SG Wasserratten Norderstedt</title>
     {{-- CSS (Tailwind-Build) und JS (Alpine) aus resources/, siehe vite.config.js --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen text-gray-900">
 
-<div x-data="{ sidebarOpen: false, pwModal: {{ $errors->has('current_password') || $errors->has('password') ? 'true' : 'false' }}, pwLoading: false }" class="flex h-screen overflow-hidden">
+{{-- Tastatur-Nutzer springen direkt zum Inhalt statt durch das ganze Menue --}}
+<a href="#main"
+   class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-1/2 focus:-translate-x-1/2 focus:z-[200] focus:bg-white focus:text-primary focus:font-semibold focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg">
+    Zum Inhalt springen
+</a>
 
-    {{-- Sidebar --}}
-    <aside
-        :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-        class="fixed inset-y-0 left-0 z-50 w-60 bg-[#1B5EAB] text-white flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto"
-    >
-        {{-- Logo & Vereinsname --}}
+@php
+    $authUser = auth()->user();
+    // Menue an einer Stelle: App\Support\Navigation (Rollen + Berechtigungs-Matrix)
+    $navSections = \App\Support\Navigation::sections($authUser);
+    $navAccount  = \App\Support\Navigation::account($authUser);
+    $navBottom   = \App\Support\Navigation::bottom($authUser);
+    $navLink = fn(bool $active) => $active
+        ? 'flex items-center gap-3 px-3 min-h-[44px] lg:min-h-[38px] rounded-lg text-sm font-semibold bg-white text-primary shadow-sm'
+        : 'flex items-center gap-3 px-3 min-h-[44px] lg:min-h-[38px] rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white transition-colors';
+@endphp
+
+<div x-data="{ sidebarOpen: false }" class="flex h-screen overflow-hidden"
+     @keydown.escape.window="sidebarOpen = false">
+
+    {{-- Hintergrund der mobilen Seitenleiste --}}
+    <div x-show="sidebarOpen" x-cloak x-transition.opacity @click="sidebarOpen = false"
+         class="fixed inset-0 bg-gray-900/50 z-40 lg:hidden" aria-hidden="true"></div>
+
+    {{-- Seitenleiste: am Desktop fest, mobil als Dialog (Fokus bleibt drin, Escape schliesst) --}}
+    <aside id="sidebar"
+           {{-- Zu ist der Grundzustand ohne JS; Alpine schaltet nur "offen" dazu. Sonst
+                steht das Menue mobil offen im Bild, bis Alpine geladen ist. --}}
+           :class="sidebarOpen && '!translate-x-0'"
+           x-trap.inert="sidebarOpen"
+           :role="sidebarOpen ? 'dialog' : null"
+           :aria-modal="sidebarOpen ? 'true' : null"
+           aria-label="Hauptmenü"
+           class="fixed inset-y-0 left-0 z-50 w-64 bg-primary text-white flex flex-col transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 lg:static lg:inset-auto">
+
         <div class="flex items-center gap-3 px-4 py-4 border-b border-white/15">
-            <img src="{{ asset('images/logo-96x96.png') }}"
-                 alt="Logo"
-                 class="w-10 h-10 rounded-full bg-white/90 p-0.5 flex-shrink-0">
-            <div class="min-w-0">
+            <img src="{{ asset('images/logo-96x96.png') }}" alt="" class="w-10 h-10 rounded-full bg-white/90 p-0.5 flex-shrink-0">
+            <div class="min-w-0 flex-1">
                 <p class="font-bold text-sm leading-snug">SG Wasserratten</p>
-                <p class="text-xs text-blue-200 leading-snug">Norderstedt e.V.</p>
+                <p class="text-xs text-blue-100 leading-snug">Norderstedt e.V.</p>
             </div>
+            <x-ui.icon-button icon="x" label="Menü schließen" tone="light" class="lg:hidden -mr-2" @click="sidebarOpen = false" />
         </div>
 
-        {{-- Navigation --}}
-        <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-            @php
-                $role = auth()->user()->role;
-                $can  = fn(string $k) => \App\Models\MenuPermission::can($role, $k);
-                $cls  = fn(string $pat) => request()->routeIs($pat)
-                    ? 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold bg-white text-[#1B5EAB] shadow-sm'
-                    : 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-colors';
-
-                $dashUrl = match($role) {
-                    'admin'      => route('admin.dashboard'),
-                    'trainer'    => route('trainer.dashboard'),
-                    'schwimmer'  => route('swimmer.dashboard'),
-                    'elternteil' => route('parent.dashboard'),
-                    default      => route('calendar.index'),
-                };
-                $dashPat = match($role) {
-                    'admin'      => 'admin.dashboard',
-                    'trainer'    => 'trainer.dashboard',
-                    'schwimmer'  => 'swimmer.dashboard',
-                    'elternteil' => 'parent.dashboard',
-                    default      => '_none_',
-                };
-
-                // Sichtbarkeit = Berechtigung: dieselben Schluessel pruefen die
-                // Routen per 'menu'-Middleware. Die Rollenliste davor bleibt,
-                // weil sie die harte Grenze der Routengruppe abbildet.
-                $ti = [
-                    'training'        => in_array($role, ['trainer','admin']) && $can('training'),
-                    'training_groups' => in_array($role, ['trainer','admin']) && $can('training_groups'),
-                    'competitions'    => in_array($role, ['trainer','admin','vorstand','kampfrichter']) && $can('competitions'),
-                    'records'         => in_array($role, ['trainer','admin','vorstand']) && $can('records'),
-                    'goals'           => in_array($role, ['trainer','admin']) && $can('goals'),
-                    'diary'           => in_array($role, ['trainer','admin']) && $can('diary'),
-                    'motto'           => in_array($role, ['trainer','admin']) && $can('motto'),
-                    'hall'            => in_array($role, ['trainer','admin']) && $can('hall'),
-                ];
-                $showTrainerSection = in_array(true, $ti, true);
-                $showCalendar       = $can('calendar');
-                $showUsersLite      = $role !== 'admin' && $can('users_lite');
-            @endphp
-
-            {{-- Dashboard (immer zuerst) --}}
-            <a href="{{ $dashUrl }}" class="{{ $cls($dashPat) }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/></svg>
-                <span>Dashboard</span>
-            </a>
-
-            {{-- Administration (nur Admin) --}}
-            @if($role === 'admin')
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Administration</p>
-
-            <a href="{{ route('admin.users.index') }}" class="{{ $cls('admin.users.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                <span>Benutzerverwaltung</span>
-            </a>
-            <a href="{{ route('admin.settings.index') }}" class="{{ $cls('admin.settings.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                <span>Einstellungen</span>
-            </a>
-
-            {{-- Systemwerkzeuge: ausschliesslich Admin, auch auf Routenebene --}}
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pt-3 pb-1.5">System</p>
-
-            <a href="{{ route('admin.permissions.index') }}" class="{{ $cls('admin.permissions.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                <span>Berechtigungs-Matrix</span>
-            </a>
-            <a href="{{ route('admin.logs.index') }}" class="{{ $cls('admin.logs.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                <span>Protokoll</span>
-            </a>
-            <a href="{{ route('admin.import-log.index') }}" class="{{ $cls('admin.import-log.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                <span>Crawler & Import-Log</span>
-            </a>
-            <a href="{{ route('admin.dsgvo.index') }}" class="{{ $cls('admin.dsgvo.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                <span>DSGVO-Anfragen</span>
-            </a>
-            @endif
-
-            {{-- Trainer-Bereich (Trainer, Admin, Vorstand/Kampfrichter je nach Berechtigung) --}}
-            @if($showTrainerSection)
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Trainer-Bereich</p>
-
-            @if($ti['training'])
-            <a href="{{ route('trainer.sessions.index') }}" class="{{ $cls('trainer.sessions.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <span>Trainingseinheiten</span>
-            </a>
-            @endif
-
-            @if($ti['training_groups'])
-            <a href="{{ route('admin.training-groups.index') }}" class="{{ $cls('admin.training-groups.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                <span>Trainingsgruppen</span>
-            </a>
-            @endif
-
-            @if($ti['competitions'])
-            <a href="{{ route('admin.competitions.index') }}" class="{{ $cls('admin.competitions.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Wettkämpfe</span>
-            </a>
-            @endif
-
-            @if($ti['records'])
-            <a href="{{ route('admin.records.index') }}" class="{{ $cls('admin.records.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                <span>Rekorde</span>
-            </a>
-            @endif
-
-            @if($ti['goals'])
-            <a href="{{ route('trainer.goals.index') }}" class="{{ $cls('trainer.goals.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Ziele</span>
-            </a>
-            @endif
-
-            @if($ti['diary'])
-            <a href="{{ route('trainer.diary.overview') }}" class="{{ $cls('trainer.diary.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
-                <span>Einschätzungen</span>
-            </a>
-            @endif
-
-            @if($ti['motto'])
-            <a href="{{ route('trainer.motto.index') }}" class="{{ $cls('trainer.motto.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                <span>Motto der Woche</span>
-            </a>
-            @endif
-
-            @if($ti['hall'])
-            <a href="{{ route('trainer.hall.index') }}" class="{{ $cls('trainer.hall.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                <span>Hallenbelegung</span>
-            </a>
-            @endif
-            @endif
-
-            {{-- Allgemein: Kalender + Benutzerverwaltung (Lite) --}}
-            @if($showCalendar || $showUsersLite)
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Allgemein</p>
-
-            @if($showCalendar)
-            <a href="{{ route('calendar.index') }}" class="{{ $cls('calendar.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <span>Kalender</span>
-            </a>
-            @endif
-
-            @if($showUsersLite)
-            <a href="{{ route('users-lite.index') }}" class="{{ $cls('users-lite.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                <span>Benutzerverwaltung</span>
-            </a>
-            @endif
-            @endif
-
-            {{-- Schwimmer --}}
-            @if($role === 'schwimmer')
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Mein Bereich</p>
-
-            @if($can('swimmer_times'))
-            <a href="{{ route('swimmer.times') }}" class="{{ $cls('swimmer.times') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Meine Bestzeiten</span>
-            </a>
-            @endif
-
-            @if($can('swimmer_comps'))
-            <a href="{{ route('swimmer.competitions') }}" class="{{ $cls('swimmer.competitions') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Meine Wettkämpfe</span>
-            </a>
-            @endif
-
-            @if($can('club_records'))
-            <a href="{{ route('records.public') }}" class="{{ $cls('records.public') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                <span>Rekorde & Bestenlisten</span>
-            </a>
-            @endif
-
-            @if($can('swimmer_goals'))
-            <a href="{{ route('swimmer.goals.index') }}" class="{{ $cls('swimmer.goals.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Meine Ziele</span>
-            </a>
-            @endif
-
-            @if($can('swimmer_sessions'))
-            <a href="{{ route('swimmer.sessions') }}" class="{{ $cls('swimmer.sessions') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                <span>Mein Training</span>
-            </a>
-            @endif
-
-            @if($can('swimmer_group_goals'))
-            <a href="{{ route('swimmer.group-goals.index') }}" class="{{ $cls('swimmer.group-goals.index') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-                <span>Leistungskriterien</span>
-            </a>
-            @endif
-
-            @if($can('swimmer_motto'))
-            <a href="{{ route('swimmer.motto.index') }}" class="{{ $cls('swimmer.motto.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                <span>Motto der Woche</span>
-            </a>
-            @endif
-            @endif
-
-            {{-- Elternteil --}}
-            @if($role === 'elternteil' && $can('parent_area'))
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Eltern-Bereich</p>
-
-            <a href="{{ route('parent.dashboard') }}" class="{{ $cls('parent.dashboard') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                <span>Meine Kinder</span>
-            </a>
-            @if($can('club_records'))
-            <a href="{{ route('records.public') }}" class="{{ $cls('records.public') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                <span>Rekorde & Bestenlisten</span>
-            </a>
-            @endif
-            @endif
-
-            {{-- Ernährungsberatung (Ernährungsberater + Admin) --}}
-            @if(in_array($role, ['ernaehrungsberater', 'admin']))
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Ernährungsberatung</p>
-            <a href="{{ route('nutrition.index') }}" class="{{ $cls('nutrition.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                <span>Kandidaten</span>
-            </a>
-            @endif
-
-            {{-- Teamarzt (Teamarzt + Admin) --}}
-            @if(in_array($role, ['teamarzt', 'admin']))
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <p class="text-[10px] font-bold text-blue-200/70 uppercase tracking-widest px-3 pb-1.5">Sportmedizin</p>
-            <a href="{{ route('teamdoctor.index') }}" class="{{ $cls('teamdoctor.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-                <span>Kandidaten</span>
-            </a>
-            @endif
-
-            {{-- Mein Profil + Gesundheitsdaten (alle Rollen) --}}
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <a href="{{ route('profile.index') }}" class="{{ $cls('profile.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                <span>Mein Profil</span>
-            </a>
-            <a href="{{ route('health.index') }}" class="{{ $cls('health.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <span>Gesundheitsdaten</span>
-            </a>
-
-            {{-- Support (alle Rollen) --}}
-            <div class="border-t border-white/15 my-3 mx-1"></div>
-            <a href="{{ route('support.create') }}" class="{{ $cls('support.*') }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
-                </svg>
-                <span>Support</span>
-            </a>
+        <nav aria-label="Hauptnavigation" class="flex-1 overflow-y-auto overscroll-contain py-2 px-2">
+            @foreach($navSections as $i => $section)
+                @if($section['label'])
+                    <p id="nav-sec-{{ $i }}" class="px-3 pt-4 pb-1.5 text-xs font-bold uppercase tracking-wider text-blue-100">{{ $section['label'] }}</p>
+                @endif
+                <ul class="space-y-0.5" @if($section['label']) aria-labelledby="nav-sec-{{ $i }}" @endif>
+                    @foreach($section['items'] as $item)
+                        <li>
+                            <a href="{{ $item['url'] }}" class="{{ $navLink($item['active']) }}"
+                               @if($item['active']) aria-current="page" @endif>
+                                <x-ui.icon :name="$item['icon']" class="w-[18px] h-[18px]" />
+                                <span>{{ $item['label'] }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endforeach
         </nav>
 
-        {{-- User footer --}}
+        {{-- Konto --}}
         <div class="border-t border-white/15 p-2 space-y-0.5">
-            <button type="button" @click="pwModal = true; sidebarOpen = false"
-                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
-                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                <span>Passwort ändern</span>
-            </button>
-
-            <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/5">
-                <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {{ strtoupper(substr(auth()->user()->firstname ?: auth()->user()->name, 0, 1)) }}
+            <div class="flex items-center gap-2.5 px-3 py-2">
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">
+                    {{ strtoupper(substr($authUser->firstname ?: $authUser->name, 0, 1)) }}
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white leading-snug truncate">{{ auth()->user()->name }}</p>
-                    <p class="text-xs text-blue-200/80 leading-snug">{{ auth()->user()->role_label }}</p>
+                    <p class="text-sm font-medium text-white leading-snug truncate">{{ $authUser->name }}</p>
+                    <p class="text-xs text-blue-100 leading-snug">{{ $authUser->role_label }}</p>
                 </div>
             </div>
-
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit"
-                        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:bg-red-500/20 hover:text-white transition-colors">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                    <span>Abmelden</span>
-                </button>
-            </form>
+            <ul class="space-y-0.5">
+                @foreach($navAccount as $item)
+                    <li>
+                        <a href="{{ $item['url'] }}" class="{{ $navLink($item['active']) }}" @if($item['active']) aria-current="page" @endif>
+                            <x-ui.icon :name="$item['icon']" class="w-[18px] h-[18px]" /><span>{{ $item['label'] }}</span>
+                        </a>
+                    </li>
+                @endforeach
+                <li>
+                    <button type="button" @click="sidebarOpen = false; $dispatch('open-dialog', 'password')" class="w-full {{ $navLink(false) }}">
+                        <x-ui.icon name="key" class="w-[18px] h-[18px]" /><span>Passwort ändern</span>
+                    </button>
+                </li>
+                <li>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="w-full {{ $navLink(false) }} hover:bg-red-500/20">
+                            <x-ui.icon name="logout" class="w-[18px] h-[18px]" /><span>Abmelden</span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
         </div>
     </aside>
 
-    {{-- Overlay Mobile --}}
-    <div x-show="sidebarOpen" x-cloak
-         @click="sidebarOpen = false"
-         class="fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
-
-    {{-- Main Content --}}
+    {{-- Hauptbereich --}}
     <div class="flex-1 flex flex-col min-h-screen overflow-y-auto">
 
-        {{-- Top Bar --}}
-        <header class="bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between px-4 py-3 lg:px-6">
-            <div class="flex items-center gap-3">
-                <button @click="sidebarOpen = !sidebarOpen"
-                        class="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <header class="bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
+            <div class="flex items-center gap-2 min-w-0">
+                <button type="button" @click="sidebarOpen = true"
+                        aria-controls="sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'" aria-label="Menü öffnen"
+                        class="lg:hidden -ml-2 inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    <x-ui.icon name="menu" class="w-6 h-6" />
                 </button>
-                <h1 class="text-lg font-semibold text-gray-800">@yield('page-title', 'WaRa-Portal')</h1>
+                {{-- Lange Titel (Wettkampfnamen) nicht mehrzeilig umbrechen - voller Text im Tooltip --}}
+                <h1 class="text-lg font-semibold text-gray-900 truncate" title="@yield('page-title', 'WaRa-Portal')">@yield('page-title', 'WaRa-Portal')</h1>
             </div>
-            <div class="flex items-center gap-3 text-sm text-gray-500">
-                {{-- Saison-Switcher: ändert die aktive Saison session-weit --}}
+            <div class="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
                 @if(!empty($appAllSeasons) && $appAllSeasons->count() > 0)
-                <div x-data="{ open: false }" class="relative hidden sm:block">
-                    <button @click="open = !open" @click.outside="open = false"
-                            class="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-primary px-2.5 py-1 rounded-full border border-blue-100 font-semibold hover:bg-blue-100 transition-colors cursor-pointer select-none">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        {{ $appCurrentSeason?->label ?? 'Saison' }}
-                        <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <div x-show="open" x-transition x-cloak
-                         class="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[9rem]">
+                    <x-ui.menu :label="$appCurrentSeason?->label ?? 'Saison'" :text="true" class="hidden sm:inline-block">
                         @foreach($appAllSeasons as $s)
-                        <form method="GET" action="{{ request()->url() }}" class="block">
-                            <input type="hidden" name="season_id" value="{{ $s->id }}">
-                            <button type="submit"
-                                    class="w-full text-left px-4 py-2 text-xs transition-colors
-                                           {{ $appCurrentSeason?->id === $s->id
-                                               ? 'bg-primary text-white font-semibold'
-                                               : 'text-gray-700 hover:bg-gray-50' }}">
-                                {{ $s->label }}
-                            </button>
-                        </form>
+                            <form method="GET" action="{{ request()->url() }}">
+                                <input type="hidden" name="season_id" value="{{ $s->id }}">
+                                <x-ui.menu-item type="submit" :active="$appCurrentSeason?->id === $s->id">{{ $s->label }}</x-ui.menu-item>
+                            </form>
                         @endforeach
-                    </div>
-                </div>
+                    </x-ui.menu>
                 @endif
-                <span class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span class="hidden md:inline">{{ now()->isoFormat('dddd, D. MMMM YYYY') }}</span>
-                    <span class="md:hidden">{{ now()->isoFormat('D. MMM YYYY') }}</span>
+                <span class="hidden md:flex items-center gap-1.5">
+                    <x-ui.icon name="calendar" class="w-4 h-4" />
+                    {{ now()->isoFormat('dddd, D. MMMM YYYY') }}
                 </span>
             </div>
         </header>
 
-        {{-- Flash Messages: einzige Stelle dafuer - Views zeigen sie nicht selbst an --}}
-        <div class="px-4 lg:px-6 pt-4">
-            @if(session('success'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)" role="status"
-                     class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                    <span class="flex-1">{{ session('success') }}</span>
-                    <button type="button" @click="show = false" class="text-green-600 hover:text-green-800" aria-label="Meldung schließen">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-            @endif
-            {{-- Fehler, Warnungen und Hinweise bleiben stehen, bis man sie gelesen hat --}}
-            @foreach([
-                'error'   => ['role' => 'alert',  'cls' => 'bg-red-50 border-red-200 text-red-800'],
-                'warning' => ['role' => 'alert',  'cls' => 'bg-amber-50 border-amber-200 text-amber-800'],
-                'info'    => ['role' => 'status', 'cls' => 'bg-blue-50 border-blue-200 text-blue-800'],
-            ] as $key => $style)
+        {{-- Meldungen: Erfolg/Info als Toast, Fehler/Warnungen bleiben stehen --}}
+        <div class="px-4 lg:px-6 pt-4 space-y-3">
+            @foreach(['success' => 'success', 'info' => 'info'] as $key => $type)
                 @if(session($key))
-                    <div x-data="{ show: true }" x-show="show" role="{{ $style['role'] }}"
-                         class="flex items-start gap-3 border rounded-lg px-4 py-3 mb-4 text-sm {{ $style['cls'] }}">
-                        <span class="flex-1">{{ session($key) }}</span>
-                        <button type="button" @click="show = false" class="opacity-60 hover:opacity-100" aria-label="Meldung schließen">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    </div>
+                    <div x-data x-init="$toast(@js(session($key)), { type: @js($type) })"></div>
+                    <noscript><x-ui.alert :tone="$type">{{ session($key) }}</x-ui.alert></noscript>
                 @endif
             @endforeach
+            @if(session('error'))
+                <x-ui.alert tone="error" dismissible>{{ session('error') }}</x-ui.alert>
+            @endif
+            @if(session('warning'))
+                <x-ui.alert tone="warning" dismissible>{{ session('warning') }}</x-ui.alert>
+            @endif
             @if($errors->any())
-                <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4">
-                    <ul class="list-disc list-inside text-sm space-y-1">
+                <x-ui.alert tone="error">
+                    <ul class="list-disc list-inside space-y-1">
                         @foreach($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach
                     </ul>
-                </div>
+                </x-ui.alert>
             @endif
         </div>
 
-        {{-- Page Content --}}
-        <main class="flex-1 px-4 lg:px-6 pb-8">
+        <main id="main" tabindex="-1" class="flex-1 px-4 lg:px-6 focus:outline-none {{ $navBottom ? 'pb-24 lg:pb-8' : 'pb-8' }}">
             @yield('content')
         </main>
 
-        <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-100 space-x-3">
+        <footer class="text-center text-xs text-gray-600 py-4 border-t border-gray-100 space-x-3 {{ $navBottom ? 'mb-16 lg:mb-0' : '' }}">
             <span>WaRa-Portal &copy; {{ date('Y') }} – SG Wasserratten Norderstedt e.V.</span>
-            <a href="{{ route('legal.impressum') }}" class="hover:text-gray-600 underline">Impressum</a>
-            <a href="{{ route('legal.datenschutz') }}" class="hover:text-gray-600 underline">Datenschutz</a>
+            <a href="{{ route('legal.impressum') }}" class="hover:text-gray-900 underline">Impressum</a>
+            <a href="{{ route('legal.datenschutz') }}" class="hover:text-gray-900 underline">Datenschutz</a>
         </footer>
     </div>
 
-{{-- Passwort-ändern-Modal (global, für alle Rollen) --}}
-<div x-show="pwModal" x-cloak
-     class="fixed inset-0 z-[100] flex items-center justify-center p-4"
-     @keydown.escape.window="pwModal = false">
-
-    {{-- Backdrop --}}
-    <div class="absolute inset-0 bg-black/50" @click="pwModal = false"></div>
-
-    {{-- Dialog --}}
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md"
-         @click.stop
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 scale-95"
-         x-transition:enter-end="opacity-100 scale-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100 scale-100"
-         x-transition:leave-end="opacity-0 scale-95">
-
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 class="text-base font-semibold text-gray-800">Passwort ändern</h2>
-            <button type="button" @click="pwModal = false"
-                    class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-
-        <form method="POST" action="{{ route('password.update') }}"
-              @submit="pwLoading = true"
-              class="px-6 py-5 space-y-4">
-            @csrf
-            @method('PUT')
-
-            @if($errors->has('current_password') || $errors->has('password'))
-                <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-                    @foreach(array_filter([$errors->first('current_password'), $errors->first('password')]) as $err)
-                        <p>{{ $err }}</p>
-                    @endforeach
-                </div>
-            @endif
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Aktuelles Passwort</label>
-                <input type="password" name="current_password" required autocomplete="current-password"
-                       class="w-full px-4 py-2.5 border {{ $errors->has('current_password') ? 'border-red-400' : 'border-gray-300' }} rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Neues Passwort</label>
-                <input type="password" name="password" required autocomplete="new-password"
-                       class="w-full px-4 py-2.5 border {{ $errors->has('password') ? 'border-red-400' : 'border-gray-300' }} rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                <p class="text-xs text-gray-400 mt-1">Mindestens 8 Zeichen, Buchstaben und Zahlen</p>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Neues Passwort bestätigen</label>
-                <input type="password" name="password_confirmation" required autocomplete="new-password"
-                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-            </div>
-
-            <div class="flex gap-3 pt-2">
-                <button type="submit"
-                        :disabled="pwLoading"
-                        class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 rounded-lg text-sm transition-colors disabled:opacity-60">
-                    <span x-show="!pwLoading">Passwort speichern</span>
-                    <span x-show="pwLoading" x-cloak>Wird gespeichert…</span>
-                </button>
-                <button type="button" @click="pwModal = false"
-                        class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    Abbrechen
-                </button>
-            </div>
-        </form>
-    </div>
+    {{-- Untere Navigation fuer Schwimmer und Eltern (mobil) --}}
+    @if($navBottom)
+        <nav aria-label="Schnellnavigation"
+             class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.05)]"
+             style="padding-bottom: env(safe-area-inset-bottom)">
+            <ul class="grid" style="grid-template-columns: repeat({{ count($navBottom) + 1 }}, minmax(0, 1fr))">
+                @foreach($navBottom as $item)
+                    <li>
+                        <a href="{{ $item['url'] }}" @if($item['active']) aria-current="page" @endif
+                           class="flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-xs font-medium {{ $item['active'] ? 'text-primary' : 'text-gray-600 hover:text-gray-900' }}">
+                            <x-ui.icon :name="$item['icon']" class="w-6 h-6" />
+                            <span class="truncate max-w-full px-1">{{ $item['label'] }}</span>
+                        </a>
+                    </li>
+                @endforeach
+                <li>
+                    <button type="button" @click="sidebarOpen = true" aria-controls="sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'"
+                            class="w-full flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-xs font-medium text-gray-600 hover:text-gray-900">
+                        <x-ui.icon name="menu" class="w-6 h-6" />
+                        <span>Mehr</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    @endif
 </div>
-</div>{{-- Ende x-data (sidebarOpen, pwModal, pwLoading) --}}
+
+{{-- Passwort aendern (fuer alle Rollen) --}}
+<x-ui.dialog name="password" title="Passwort ändern" size="sm" guard
+             :show="$errors->has('current_password') || $errors->has('password')">
+    <form id="pw-form" method="POST" action="{{ route('password.update') }}" x-data="{ busy: false }" @submit="busy = true" class="space-y-4">
+        @csrf
+        @method('PUT')
+        <x-ui.field label="Aktuelles Passwort" name="current_password" type="password" required autocomplete="current-password" data-autofocus />
+        <x-ui.field label="Neues Passwort" name="password" type="password" required autocomplete="new-password"
+                    hint="Mindestens 8 Zeichen, Buchstaben und Zahlen" />
+        <x-ui.field label="Neues Passwort bestätigen" name="password_confirmation" type="password" required autocomplete="new-password" />
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <x-ui.button variant="secondary" @click="close()">Abbrechen</x-ui.button>
+            <x-ui.button type="submit" ::disabled="busy">
+                <span x-show="!busy">Passwort speichern</span>
+                <span x-show="busy" x-cloak>Wird gespeichert…</span>
+            </x-ui.button>
+        </div>
+    </form>
+</x-ui.dialog>
+
+<x-ui.confirm-dialog />
+<x-ui.toaster />
 
 @stack('scripts')
 </body>

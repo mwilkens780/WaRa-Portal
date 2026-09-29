@@ -394,6 +394,13 @@ Jede Phase ist einzeln deploybar; nichts bleibt halb umgestellt.
 (`x-ui.rich-text-editor`, lädt nur bei Bedarf). Geprüft: alle im DOM
 verwendeten Klassen auf 50 Seiten haben eine Regel im Build (dabei gefunden:
 Laravels Seitennavigation aus `vendor/` fehlte im Content-Pfad).
+Phase 2a erledigt: Bausteine `x-ui.*` (dialog, confirm-dialog, toaster, button,
+icon-button, icon, field, tabs, menu, card, badge, alert, empty-state,
+page-header), JS `$confirm`/`$toast`/`api()`/iOS-taugliche Scroll-Sperre,
+Menü aus `App\Support\Navigation` (nach Aufgaben gruppiert, Eltern je Kind),
+untere Navigation für Schwimmer/Eltern, Skip-Link, `aria-current`,
+Passwort-Dialog und mobile Seitenleiste bestehen den Dialogtest in drei
+Breiten; `gray-400` auf 4,6:1 Kontrast angehoben.
 
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
