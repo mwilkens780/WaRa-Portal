@@ -422,6 +422,21 @@ schwarzen Leerzustand (und eigene Farbe geht beim Bearbeiten nicht mehr
 verloren); Suchergebnisse als Knöpfe; Werkzeugleiste mit `aria-pressed` und
 mobil kompakt; Schriftfarbe der Blöcke nach WCAG-Kontrast.
 
+Phase 4 erledigt (`0eaf754`, `2b1faff`): Import-Center `/import` mit allen
+Importen je Rolle (`App\Support\ImportCatalog`) und Stand der Crawler;
+Bausteine `x-ui.file-drop`, `x-ui.upload-form`, `x-ui.import-steps`,
+`x-ui.import-summary`, `x-ui.import-bar`; alle Upload-Stellen und neun
+Vorschauen umgestellt; eindeutige Namen („Mitglieder aus WebClub“ /
+„Veranstaltungen aus WebClub“). Dabei behoben: DSV-Import mit mehreren
+Wettkämpfen speicherte den letzten statt des gewählten; Ergebnis-Import am
+Wettkampf verknüpfte bei anderer Auswahl falsche Schwimmer; „Alle
+auswählen“ in Rekord-/Terminvorschau war defekt; Definitionsdatei ersetzt
+nicht mehr ohne Rückfrage. DSV-Import warnt vor Duplikaten.
+Offen für später: echte Auswahl mehrerer Wettkämpfe im Ergebnis-Import;
+Zusammenführen von allgemeinem DSV-Import und Import am Wettkampf
+(fachliche Entscheidung). Nächstes: Phase 5 (Restseiten, Kontrast, u. a.
+unbeschriftete Felder in „Wettkampf anlegen“, doppelte Fehlermeldungen).
+
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
 | **0 · Sofort-Fehler** | F1–F13 beheben | Kein JS-Fehler mehr in der Konsole auf allen geprüften Seiten; Hallenplan zeigt Fehler und verhindert stille Doppelbuchung; Zeiterfassung überlebt Reload ohne Netz |
