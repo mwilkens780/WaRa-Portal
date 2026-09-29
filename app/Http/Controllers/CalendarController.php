@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarEvent;
 use App\Models\Competition;
+use App\Models\CompetitionResult;
+use App\Models\CompetitionSignupRequest;
+use App\Models\MenuPermission;
 use App\Models\Season;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionSwimmer;
@@ -250,6 +253,39 @@ class CalendarController extends Controller
      * zu denen sie eingeladen wurden oder bei denen sie ein Ergebnis haben
      * (eine Einladung laeuft nicht immer ueber die Gruppe).
      */
+    /**
+     * Eltern: Wettkampf-ID -> erstes Kind, in dessen Wettkampfliste er steht
+     * (dieselbe Regel wie SwimmerPages::competitions: Gruppe, Einladung oder
+     * eigenes Ergebnis).
+     */
+    private function competitionChildren($user, $competitions): array
+    {
+        if ($competitions->isEmpty()) {
+            return [];
+        }
+        $competitions->load('trainingGroups:id');
+        $compIds = $competitions->pluck('id');
+        $map = [];
+
+        foreach ($user->children()->where('active', true)->get() as $kind) {
+            $gruppen = $kind->trainingGroups()->pluck('training_groups.id');
+            $mitErgebnis = CompetitionResult::where('user_id', $kind->id)
+                ->whereIn('competition_id', $compIds)->pluck('competition_id');
+            $eingeladen = CompetitionSignupRequest::whereIn('competition_id', $compIds)
+                ->whereHas('responses', fn($r) => $r->where('user_id', $kind->id))->pluck('competition_id');
+
+            foreach ($competitions as $c) {
+                if (isset($map[$c->id])) continue;
+                if ($c->trainingGroups->pluck('id')->intersect($gruppen)->isNotEmpty()
+                    || $mitErgebnis->contains($c->id) || $eingeladen->contains($c->id)) {
+                    $map[$c->id] = $kind;
+                }
+            }
+        }
+
+        return $map;
+    }
+
     private function limitCompetitions($query, $user, ?string $role): void
     {
         if (in_array($role, ['admin', 'vorstand'], true)) {
@@ -379,7 +415,22 @@ class CalendarController extends Controller
             ->orderBy('date')
             ->get();
 
+        // Ziel fuer "Oeffnen": Trainer die Verwaltungsseite, Sportler "Meine
+        // Wettkaempfe", Eltern die Wettkampfseite des betroffenen Kindes -
+        // jeweils mit ?wettkampf=, damit die Liste dorthin blaettert und aufklappt
+        $compChildren = $role === 'elternteil' ? $this->competitionChildren($user, $competitions) : [];
+        $swimmerComps = $role === 'schwimmer' && MenuPermission::can($role, 'swimmer_comps');
+
         foreach ($competitions as $c) {
+            $compChild = $compChildren[$c->id] ?? null;
+            [$compUrl, $compLabel] = match (true) {
+                $isTrainer    => [route('admin.competitions.show', $c), null],
+                $swimmerComps => [route('swimmer.competitions', ['wettkampf' => $c->id]) . '#wettkampf-' . $c->id, 'Zum Wettkampf'],
+                $compChild !== null => [route('parent.child.competitions', ['childId' => $compChild->id, 'wettkampf' => $c->id]) . '#wettkampf-' . $c->id,
+                                        'Zum Wettkampf von ' . $compChild->firstname],
+                default       => [null, null],
+            };
+
             $cStart = max($c->date, $from->copy()->startOfDay());
             $cEnd   = $c->date_end ? min($c->date_end, $to->copy()->endOfDay()) : $c->date;
             $cur    = $cStart->copy();
@@ -392,7 +443,8 @@ class CalendarController extends Controller
                         'time'       => null,
                         'title'      => $c->name,
                         'sub'        => $c->location,
-                        'url'        => $isTrainer ? route('admin.competitions.show', $c) : null,
+                        'url'        => $compUrl,
+                        'url_label'  => $compLabel,
                         'span_start' => $c->date->format('Y-m-d'),
                         'span_end'   => ($c->date_end ?? $c->date)->format('Y-m-d'),
                     ];

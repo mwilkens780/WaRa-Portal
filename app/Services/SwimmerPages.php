@@ -247,13 +247,21 @@ class SwimmerPages
 
         $perPage   = 10;
         $page      = (int) request('page', 1);
+        // Sprung aus dem Kalender (?wettkampf=ID): passende Seite waehlen
+        $focusId   = (int) request('wettkampf');
+        if ($focusId && !request()->has('page')) {
+            $index = $allComps->search(fn($c) => $c->id === $focusId);
+            if ($index !== false) {
+                $page = intdiv($index, $perPage) + 1;
+            }
+        }
         $pageItems = $allComps->forPage($page, $perPage)->values();
 
         $competitions = new LengthAwarePaginator($pageItems, $allComps->count(), $perPage, $page, [
             'path' => request()->url(),
         ]);
 
-        return compact('competitions');
+        return compact('competitions', 'focusId');
     }
 
     private function seasonKey(Carbon $date): string

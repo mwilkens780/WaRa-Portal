@@ -46,12 +46,12 @@
         // Zugeklappt starten - nur eine offene Rueckmeldung zu einem noch
         // bevorstehenden Wettkampf oeffnet sich von selbst. Abgeschlossene
         // Wettkaempfe stehen zugeklappt in der Liste.
-        $autoOpen = ($isFuture && $isPending) ? 'true' : 'false';
+        $autoOpen = (($isFuture && $isPending) || ($focusId ?? 0) === $comp->id) ? 'true' : 'false';
         $discLabels = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
     @endphp
 
-    <div x-data="{ open: {{ $autoOpen }}, tab: '{{ $initialTab }}' }"
-         class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div x-data="{ open: {{ $autoOpen }}, tab: '{{ $initialTab }}' }" id="wettkampf-{{ $comp->id }}"
+         class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden scroll-mt-20 target:ring-2 target:ring-primary">
 
         {{-- ── Header ──────────────────────────────────────────────── --}}
         <div class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none" @click="open = !open">
