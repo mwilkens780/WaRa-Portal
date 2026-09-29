@@ -25,6 +25,20 @@ class RecordController extends Controller
 
     public function index()
     {
+        return view('admin.records.index', $this->listData());
+    }
+
+    /**
+     * Lesesicht fuer Mitglieder (Schwimmer, Eltern): dieselbe Seite ohne
+     * Bearbeiten, Import und Export.
+     */
+    public function publicIndex()
+    {
+        return view('admin.records.index', $this->listData() + ['readonly' => true]);
+    }
+
+    private function listData(): array
+    {
         $vereinsrekorde = Record::where('type', 'vereinsrekord')
             ->whereNull('age_group')
             ->orderBy('discipline')->orderBy('distance')->orderBy('gender')->orderBy('course')
@@ -49,10 +63,10 @@ class RecordController extends Controller
             'Kurzbahn' => $this->bestLists->lists('Kurzbahn', $annualYear),
         ];
 
-        return view('admin.records.index', compact(
+        return compact(
             'vereinsrekorde', 'landesrekorde',
             'eternal', 'annual', 'availableYears', 'annualYear'
-        ));
+        );
     }
 
     // ── Manual create/store ──────────────────────────────────────────────────

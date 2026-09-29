@@ -5,7 +5,10 @@
 @section('content')
 @php
     $initTab = request('tab', session('active_record_tab', 'vr'));
-    $userIsAdmin = auth()->user()->role === 'admin';
+    // Lesesicht (Schwimmer/Eltern, Route records.public): nie Bearbeiten, Import, Export
+    $readonly    = $readonly ?? false;
+    $userIsAdmin = !$readonly && auth()->user()->role === 'admin';
+    $indexRoute  = $readonly ? 'records.public' : 'admin.records.index';
 
     // Zaehler in den Reitern: Zeilen ueber alle Strecken und beide Bahnen
     $countRows = fn($lists) => collect($lists)->flatten(2)->count();
@@ -45,7 +48,8 @@
             </button>
             @endif
 
-            {{-- Export buttons --}}
+            {{-- Export buttons (Routen nur fuer Pflegeberechtigte) --}}
+            @unless($readonly)
             <a x-show="activeTab === 'vr'"
                :href="'{{ route('admin.records.export') }}?type=vereinsrekord&course=' + activeCourse"
                class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-1.5">
@@ -70,6 +74,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 CSV
             </a>
+            @endunless
         </div>
         @if($userIsAdmin)
         <form method="POST" action="{{ route('admin.records.recheck') }}">
@@ -418,7 +423,7 @@
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50/40 flex items-center gap-3">
                 <span class="text-xs text-gray-500 font-medium">Jahr:</span>
                 {{-- Jahreswechsel laedt neu, die Liste wird serverseitig berechnet --}}
-                <select onchange="window.location = '{{ route('admin.records.index') }}?tab=annual&year=' + this.value"
+                <select onchange="window.location = '{{ route($indexRoute) }}?tab=annual&year=' + this.value"
                         class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 outline-none">
                     @forelse($availableYears as $yr)
                         <option value="{{ $yr }}" {{ (int) $yr === (int) $annualYear ? 'selected' : '' }}>{{ $yr }}</option>

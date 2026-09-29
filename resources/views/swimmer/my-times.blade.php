@@ -1,23 +1,35 @@
+@php
+    // Schwimmer sieht sich selbst; Eltern sehen hier ein Kind (ParentArea\DashboardController)
+    $subject  = $subject ?? auth()->user();
+    $asParent = $asParent ?? false;
+    [$timesRouteName, $timesRouteBase] = $timesRoute ?? ['swimmer.times', []];
+    $timesUrl = fn(array $q = []) => route($timesRouteName, $timesRouteBase + $q);
+    $pageTitle = $asParent ? 'Bestzeiten: ' . $subject->firstname : 'Meine Bestzeiten';
+@endphp
 @extends('layouts.app')
-@section('title', 'Meine Bestzeiten')
-@section('page-title', 'Meine Bestzeiten')
+@section('title', $pageTitle)
+@section('page-title', $pageTitle)
 
 @section('content')
 <div class="mt-2 space-y-6">
+
+    @if($asParent)
+        <a href="{{ route('parent.dashboard') }}" class="inline-block text-sm text-gray-500 hover:text-primary">← Übersicht</a>
+    @endif
 
     {{-- Filter --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-3 items-end">
         {{-- Zeitraum-Filter --}}
         <div class="flex gap-1 p-1 bg-gray-100 rounded-lg">
-            <a href="{{ route('swimmer.times', ['filter' => 'all', 'course' => $courseFilter]) }}"
+            <a href="{{ $timesUrl(['filter' => 'all', 'course' => $courseFilter]) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                 Alle
             </a>
-            <a href="{{ route('swimmer.times', ['filter' => 'year', 'year' => $yearVal, 'course' => $courseFilter]) }}"
+            <a href="{{ $timesUrl(['filter' => 'year', 'year' => $yearVal, 'course' => $courseFilter]) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'year' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                 Kalenderjahr
             </a>
-            <a href="{{ route('swimmer.times', ['filter' => 'season', 'season_id' => $seasonId, 'course' => $courseFilter]) }}"
+            <a href="{{ $timesUrl(['filter' => 'season', 'season_id' => $seasonId, 'course' => $courseFilter]) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'season' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                 Saison
             </a>
@@ -25,22 +37,22 @@
 
         {{-- Bahnlängen-Filter --}}
         <div class="flex gap-1 p-1 bg-gray-100 rounded-lg">
-            <a href="{{ route('swimmer.times', array_merge(request()->query(), ['course' => 'all'])) }}"
+            <a href="{{ $timesUrl(array_merge(request()->query(), ['course' => 'all'])) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                 Lang + Kurz
             </a>
-            <a href="{{ route('swimmer.times', array_merge(request()->query(), ['course' => 'LB'])) }}"
+            <a href="{{ $timesUrl(array_merge(request()->query(), ['course' => 'LB'])) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'LB' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                 Langbahn
             </a>
-            <a href="{{ route('swimmer.times', array_merge(request()->query(), ['course' => 'KB'])) }}"
+            <a href="{{ $timesUrl(array_merge(request()->query(), ['course' => 'KB'])) }}"
                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'KB' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                 Kurzbahn
             </a>
         </div>
 
         @if($filter === 'year')
-            <form method="GET" action="{{ route('swimmer.times') }}" class="flex items-center gap-2">
+            <form method="GET" action="{{ $timesUrl() }}" class="flex items-center gap-2">
                 <input type="hidden" name="filter" value="year">
                 <input type="hidden" name="course" value="{{ $courseFilter }}">
                 <select name="year" onchange="this.form.submit()"
@@ -53,7 +65,7 @@
         @endif
 
         @if($filter === 'season')
-            <form method="GET" action="{{ route('swimmer.times') }}" class="flex items-center gap-2">
+            <form method="GET" action="{{ $timesUrl() }}" class="flex items-center gap-2">
                 <input type="hidden" name="filter" value="season">
                 <input type="hidden" name="course" value="{{ $courseFilter }}">
                 <select name="season_id" onchange="this.form.submit()"

@@ -38,24 +38,32 @@ final class MailTopic
             'label'       => 'Einladungen zu Wettkämpfen',
             'description' => 'Sobald eine Abfrage zu einem Wettkampf für dich geöffnet wird.',
             'roles'       => ['schwimmer', 'elternteil', 'kampfrichter'],
+            'parent_label'       => 'Einladungen zu Wettkämpfen',
+            'parent_description' => 'Sobald eine Abfrage zu einem Wettkampf für eines deiner Kinder geöffnet wird.',
         ],
         'competition_reminder' => [
             'group'       => 'Wettkämpfe',
             'label'       => 'Erinnerungen',
             'description' => 'Erinnerung, wenn eine Rückmeldung noch aussteht oder ein Wettkampf bevorsteht.',
             'roles'       => ['schwimmer', 'elternteil', 'kampfrichter'],
+            'parent_label'       => 'Erinnerungen',
+            'parent_description' => 'Erinnerung, wenn für eines deiner Kinder eine Rückmeldung noch aussteht.',
         ],
         'own_records' => [
             'group'       => 'Leistungen',
             'label'       => 'Eigene Rekorde und Bestzeiten',
             'description' => 'Wenn du einen Vereinsrekord aufstellst oder eine neue Bestzeit geschwommen bist.',
             'roles'       => ['schwimmer', 'elternteil'],
+            'parent_label'       => 'Rekorde deiner Kinder',
+            'parent_description' => 'Wenn eines deiner Kinder einen Vereinsrekord aufstellt.',
         ],
         'own_goals' => [
             'group'       => 'Leistungen',
             'label'       => 'Ziele und Leistungskriterien',
             'description' => 'Wenn ein Trainer ein Ziel oder ein Leistungskriterium für dich bewertet.',
             'roles'       => ['schwimmer', 'elternteil'],
+            'parent_label'       => 'Ziele und Leistungskriterien deiner Kinder',
+            'parent_description' => 'Wenn ein Trainer ein Ziel oder Leistungskriterium eines deiner Kinder bewertet oder kommentiert.',
         ],
 
         // ── Für Trainer, Vorstand und Verwaltung ─────────────────────────────
@@ -105,6 +113,11 @@ final class MailTopic
     {
         $grouped = [];
         foreach (self::forRole($role) as $key => $topic) {
+            // Eltern bekommen diese Mails zu Ereignissen ihrer Kinder - so benennen
+            if ($role === 'elternteil' && isset($topic['parent_label'])) {
+                $topic['label']       = $topic['parent_label'];
+                $topic['description'] = $topic['parent_description'];
+            }
             $grouped[$topic['group']][$key] = $topic;
         }
         return $grouped;

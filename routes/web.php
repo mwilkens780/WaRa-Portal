@@ -409,6 +409,10 @@ Route::middleware('auth')->group(function () {
         ->name('sessions.diary');
 });
 
+// Rekorde & Bestenlisten zum Lesen (Schwimmer, Eltern); Pflege unter /admin/rekorde
+Route::middleware(['auth', 'menu:club_records'])
+    ->get('/rekorde', [RecordController::class, 'publicIndex'])->name('records.public');
+
 // Kalender (alle eingeloggten Rollen können lesen; Trainer+Admin dürfen Termine anlegen/bearbeiten)
 Route::middleware(['auth', 'menu:calendar'])->group(function () {
     Route::get('/kalender', [CalendarController::class, 'index'])->name('calendar.index');

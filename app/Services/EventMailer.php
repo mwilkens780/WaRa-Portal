@@ -41,8 +41,18 @@ class EventMailer
      * endete fuer sie in einer Fehlermeldung. Dann lieber ins Elternportal,
      * und wenn es auch das nicht gibt, auf die Startseite.
      */
-    private function linkFor(User $user, string $swimmerRoute, array $params = []): string
+    private function linkFor(User $user, string $swimmerRoute, array $params = [], ?User $swimmer = null): string
     {
+        // Eltern: direkt auf die Seite des betroffenen Kindes, wo es eine gibt
+        if ($swimmer && $user->id !== $swimmer->id) {
+            $parentRoute = self::PARENT_ROUTES[$swimmerRoute] ?? null;
+            if ($parentRoute && \Illuminate\Support\Facades\Route::has($parentRoute)) {
+                return route($parentRoute, ['childId' => $swimmer->id]);
+            }
+            if (\Illuminate\Support\Facades\Route::has('parent.dashboard')) {
+                return route('parent.dashboard');
+            }
+        }
         if ($user->role === 'schwimmer' && \Illuminate\Support\Facades\Route::has($swimmerRoute)) {
             return route($swimmerRoute, $params);
         }
@@ -53,6 +63,12 @@ class EventMailer
         return config('app.url');
     }
 
+    /** Schwimmer-Seite → Seite desselben Inhalts fuer Eltern (je Kind) */
+    private const PARENT_ROUTES = [
+        'swimmer.competitions' => 'parent.child.competitions',
+        'swimmer.times'        => 'parent.child.times',
+    ];
+
     // ── Wettkämpfe ───────────────────────────────────────────────────────────
 
     /** Abfrage wurde gestartet: Einladung an die berechtigten Sportler. */
@@ -61,20 +77,23 @@ class EventMailer
         $competition = $request->competition;
         $deadline    = $request->deadline ?? $request->response_deadline ?? null;
 
-        return $this->toSwimmers($users, 'competition_invitation', fn(User $user) => new NotificationMail(
-            subjectText: 'Einladung: ' . $competition->name,
+        return $this->toSwimmers($users, 'competition_invitation', fn(User $user, User $kid, bool $forParent) => new NotificationMail(
+            subjectText: $forParent ? "Einladung für {$kid->firstname}: {$competition->name}" : 'Einladung: ' . $competition->name,
             heading:     'Einladung zum Wettkampf',
-            paragraphs:  [
-                'für den folgenden Wettkampf brauchen wir deine Rückmeldung – sag uns bitte im Portal, '
-                . 'ob du dabei bist.',
+            paragraphs:  [$forParent
+                ? "für den folgenden Wettkampf brauchen wir eine Rückmeldung, ob {$kid->firstname} dabei ist. "
+                  . 'Ihr könnt direkt im Portal zu- oder absagen.'
+                : 'für den folgenden Wettkampf brauchen wir deine Rückmeldung – sag uns bitte im Portal, '
+                  . 'ob du dabei bist.',
             ],
             facts: array_filter([
+                'Für'       => $forParent ? $kid->name : null,
                 'Wettkampf' => $competition->name,
                 'Datum'     => $competition->date?->format('d.m.Y'),
                 'Ort'       => $competition->location,
                 'Rückmeldung bis' => $deadline instanceof \DateTimeInterface ? $deadline->format('d.m.Y') : null,
             ]),
-            actionUrl:   $this->linkFor($user, 'swimmer.competitions'),
+            actionUrl:   $this->linkFor($user, 'swimmer.competitions', [], $kid),
             actionLabel: 'Jetzt rückmelden',
             greetingName: $user->firstname,
         ));
@@ -87,17 +106,23 @@ class EventMailer
 
         $users = $responses->map(fn(CompetitionSignupResponse $r) => $r->user)->filter();
 
-        return $this->toSwimmers($users, 'competition_reminder', fn(User $user) => new NotificationMail(
-            subjectText: 'Erinnerung: Rückmeldung zu ' . $competition->name . ' fehlt noch',
-            heading:     'Deine Rückmeldung fehlt noch',
-            paragraphs:  ['zu diesem Wettkampf haben wir von dir noch keine Antwort. Bitte melde dich kurz zurück – '
-                          . 'auch eine Absage hilft uns bei der Planung.'],
+        return $this->toSwimmers($users, 'competition_reminder', fn(User $user, User $kid, bool $forParent) => new NotificationMail(
+            subjectText: $forParent
+                ? "Erinnerung: Rückmeldung für {$kid->firstname} zu {$competition->name} fehlt noch"
+                : 'Erinnerung: Rückmeldung zu ' . $competition->name . ' fehlt noch',
+            heading:     $forParent ? "Rückmeldung für {$kid->firstname} fehlt noch" : 'Deine Rückmeldung fehlt noch',
+            paragraphs:  [$forParent
+                ? "zu diesem Wettkampf haben wir für {$kid->firstname} noch keine Antwort. Bitte meldet euch kurz zurück – "
+                  . 'auch eine Absage hilft uns bei der Planung.'
+                : 'zu diesem Wettkampf haben wir von dir noch keine Antwort. Bitte melde dich kurz zurück – '
+                  . 'auch eine Absage hilft uns bei der Planung.'],
             facts: array_filter([
+                'Für'       => $forParent ? $kid->name : null,
                 'Wettkampf' => $competition->name,
                 'Datum'     => $competition->date?->format('d.m.Y'),
                 'Ort'       => $competition->location,
             ]),
-            actionUrl:   $this->linkFor($user, 'swimmer.competitions'),
+            actionUrl:   $this->linkFor($user, 'swimmer.competitions', [], $kid),
             actionLabel: 'Jetzt rückmelden',
             greetingName: $user->firstname,
         ));
@@ -183,16 +208,18 @@ class EventMailer
         $swimmer = $goal->user;
         if (!$swimmer) return 0;
 
-        return $this->toSwimmers(collect([$swimmer]), 'own_goals', fn(User $user) => new NotificationMail(
-            subjectText: 'Rückmeldung zu deinem Ziel',
-            heading:     'Dein Trainer hat dir geschrieben',
-            paragraphs:  ['zu einem deiner Ziele gibt es eine Rückmeldung:', '„' . $comment . '"'],
+        return $this->toSwimmers(collect([$swimmer]), 'own_goals', fn(User $user, User $kid, bool $forParent) => new NotificationMail(
+            subjectText: $forParent ? "Rückmeldung zu einem Ziel von {$kid->firstname}" : 'Rückmeldung zu deinem Ziel',
+            heading:     $forParent ? "Trainer-Rückmeldung für {$kid->firstname}" : 'Dein Trainer hat dir geschrieben',
+            paragraphs:  [$forParent ? "zu einem Ziel von {$kid->firstname} gibt es eine Rückmeldung:" : 'zu einem deiner Ziele gibt es eine Rückmeldung:',
+                          '„' . $comment . '"'],
             facts: array_filter([
+                'Für'      => $forParent ? $kid->name : null,
                 'Ziel'     => $goal->title,
                 'Zielzeit' => $goal->formatted_target_time ?? null,
             ]),
-            actionUrl:   $this->linkFor($user, 'swimmer.goals.index'),
-            actionLabel: 'Ziel ansehen',
+            actionUrl:   $this->linkFor($user, 'swimmer.goals.index', [], $kid),
+            actionLabel: $forParent ? 'Im Portal ansehen' : 'Ziel ansehen',
             greetingName: $user->firstname,
         ));
     }
@@ -203,17 +230,18 @@ class EventMailer
         $swimmer = $goal->user;
         if (!$swimmer) return 0;
 
-        return $this->toSwimmers(collect([$swimmer]), 'own_goals', fn(User $user) => new NotificationMail(
-            subjectText: 'Dein Ziel wurde bewertet',
-            heading:     'Rückmeldung zu deinem Ziel',
-            paragraphs:  ['ein Trainer hat eines deiner Ziele bewertet.'],
+        return $this->toSwimmers(collect([$swimmer]), 'own_goals', fn(User $user, User $kid, bool $forParent) => new NotificationMail(
+            subjectText: $forParent ? "Ein Ziel von {$kid->firstname} wurde bewertet" : 'Dein Ziel wurde bewertet',
+            heading:     $forParent ? "Rückmeldung zu einem Ziel von {$kid->firstname}" : 'Rückmeldung zu deinem Ziel',
+            paragraphs:  [$forParent ? "ein Trainer hat ein Ziel von {$kid->firstname} bewertet." : 'ein Trainer hat eines deiner Ziele bewertet.'],
             facts: array_filter([
+                'Für'     => $forParent ? $kid->name : null,
                 'Ziel'    => $goal->title ?? $goal->discipline_label ?? null,
                 'Stand'   => $goal->status_label ?? null,
                 'Zeit'    => $goal->formatted_achieved_time ?? null,
             ]),
-            actionUrl:   $this->linkFor($user, 'swimmer.goals.index'),
-            actionLabel: 'Ziel ansehen',
+            actionUrl:   $this->linkFor($user, 'swimmer.goals.index', [], $kid),
+            actionLabel: $forParent ? 'Im Portal ansehen' : 'Ziel ansehen',
             greetingName: $user->firstname,
         ));
     }
@@ -221,17 +249,20 @@ class EventMailer
     /** Leistungskriterium bewertet: Info an den Sportler. */
     public function criterionEvaluated(TrainingGroupGoal $criterion, User $swimmer, bool $achieved, ?string $note = null): int
     {
-        return $this->toSwimmers(collect([$swimmer]), 'own_goals', fn(User $user) => new NotificationMail(
-            subjectText: 'Leistungskriterium bewertet',
+        return $this->toSwimmers(collect([$swimmer]), 'own_goals', fn(User $user, User $kid, bool $forParent) => new NotificationMail(
+            subjectText: $forParent ? "Leistungskriterium für {$kid->firstname} bewertet" : 'Leistungskriterium bewertet',
             heading:     'Bewertung eines Leistungskriteriums',
-            paragraphs:  ['ein Trainer hat ein Leistungskriterium für dich bewertet.'],
+            paragraphs:  [$forParent
+                ? "ein Trainer hat ein Leistungskriterium für {$kid->firstname} bewertet."
+                : 'ein Trainer hat ein Leistungskriterium für dich bewertet.'],
             facts: array_filter([
+                'Für'       => $forParent ? $kid->name : null,
                 'Kriterium' => $criterion->title,
                 'Bewertung' => $achieved ? 'erreicht' : 'noch nicht erreicht',
                 'Notiz'     => $note,
             ]),
-            actionUrl:   $this->linkFor($user, 'swimmer.group-goals.index'),
-            actionLabel: 'Leistungskriterien ansehen',
+            actionUrl:   $this->linkFor($user, 'swimmer.group-goals.index', [], $kid),
+            actionLabel: $forParent ? 'Im Portal ansehen' : 'Leistungskriterien ansehen',
             greetingName: $user->firstname,
         ));
     }
@@ -255,13 +286,15 @@ class EventMailer
         $sent = 0;
 
         if ($swimmer) {
-            $sent += $this->toSwimmers(collect([$swimmer]), 'own_records', fn(User $user) => new NotificationMail(
-                subjectText: "Vereinsrekord: {$strecke}",
+            $sent += $this->toSwimmers(collect([$swimmer]), 'own_records', fn(User $user, User $kid, bool $forParent) => new NotificationMail(
+                subjectText: $forParent ? "Vereinsrekord von {$kid->firstname}: {$strecke}" : "Vereinsrekord: {$strecke}",
                 heading:     'Neuer Vereinsrekord',
-                paragraphs:  ['du hast einen neuen Vereinsrekord aufgestellt. Glückwunsch!'],
-                facts:       $facts,
-                actionUrl:   $this->linkFor($user, 'swimmer.times'),
-                actionLabel: 'Rekorde ansehen',
+                paragraphs:  [$forParent
+                    ? "{$kid->firstname} hat einen neuen Vereinsrekord aufgestellt. Herzlichen Glückwunsch!"
+                    : 'du hast einen neuen Vereinsrekord aufgestellt. Glückwunsch!'],
+                facts:       $forParent ? ['Schwimmer' => $kid->name] + $facts : $facts,
+                actionUrl:   $this->linkFor($user, 'swimmer.times', [], $kid),
+                actionLabel: 'Zeiten ansehen',
                 greetingName: $user->firstname,
             ));
         }
@@ -321,8 +354,9 @@ class EventMailer
     {
         $sent = 0;
 
-        foreach ($this->withParents($users) as $recipient) {
-            $mail = $build($recipient);
+        // $build(Empfaenger, betroffener Sportler, schreibt-an-Eltern?)
+        foreach ($this->withParents($users) as [$recipient, $swimmer]) {
+            $mail = $build($recipient, $swimmer, $recipient->id !== $swimmer->id);
             $log  = $this->mailer->send($recipient, $topic, $mail, $mail->defaultSubject());
             if ($log->status === 'sent') $sent++;
         }
@@ -355,22 +389,29 @@ class EventMailer
             ->unique('id');
     }
 
-    /** Sportler samt Eltern, ohne Doppelte. */
+    /**
+     * Paare [Empfaenger, betroffener Sportler]: der Sportler selbst und
+     * seine Eltern.
+     *
+     * Frueher wurden Empfaenger ueber alle Sportler hinweg entdoppelt - wer
+     * zwei eingeladene Kinder hatte, bekam eine einzige Mail, die nicht sagte,
+     * um welches Kind es geht. Jetzt gibt es je Kind eine eigene Mail.
+     */
     private function withParents(Collection $users): Collection
     {
-        $all = collect();
+        $pairs = collect();
 
-        foreach ($users->filter() as $user) {
-            $all->push($user);
+        foreach ($users->filter()->unique('id') as $swimmer) {
+            $pairs->push([$swimmer, $swimmer]);
             try {
-                foreach ($user->parents()->where('active', true)->get() as $parent) {
-                    $all->push($parent);
+                foreach ($swimmer->parents()->where('active', true)->get() as $parent) {
+                    if ($parent->id !== $swimmer->id) $pairs->push([$parent, $swimmer]);
                 }
             } catch (\Throwable) {
                 // Beziehung nicht vorhanden - dann eben nur der Sportler
             }
         }
 
-        return $all->filter()->unique('id')->values();
+        return $pairs;
     }
 }

@@ -35,7 +35,15 @@ class HealthDataController extends Controller
         }
 
         $documents = $user->healthDocuments()->with('uploader')->latest()->get();
-        return view('health.index', compact('documents'));
+
+        // Eltern sehen die Dokumente ihrer minderjaehrigen Kinder - komplett,
+        // denn sie nehmen die Rechte des Kindes wahr (nicht die eines Trainers)
+        $wardDocuments = $user->wards()->map(fn(User $child) => [
+            'child'     => $child,
+            'documents' => $child->healthDocuments()->with('uploader')->latest()->get(),
+        ]);
+
+        return view('health.index', compact('documents', 'wardDocuments'));
     }
 
     public function showForUser(User $user)
@@ -65,7 +73,9 @@ class HealthDataController extends Controller
     public function download(HealthDocument $doc)
     {
         $authUser = auth()->user();
-        $isOwner  = $authUser->id === $doc->user_id;
+        // Eltern minderjaehriger Kinder stehen hier dem Kind selbst gleich
+        $isOwner  = $authUser->id === $doc->user_id
+            || ($doc->user && $authUser->isGuardianOf($doc->user));
 
         // Download-Sperre nach Widerruf: Ohne bestehende Einwilligung kommt nur
         // noch die betroffene Person selbst an ihr Dokument (Auskunftsrecht) -

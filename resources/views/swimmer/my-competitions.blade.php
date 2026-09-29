@@ -1,9 +1,19 @@
+@php
+    // Schwimmer sieht sich selbst; Eltern sehen hier ein Kind (ParentAreaDashboardController)
+    $subject   = $subject ?? auth()->user();
+    $asParent  = $asParent ?? false;
+    $pageTitle = $asParent ? 'Wettkämpfe: ' . $subject->firstname : 'Meine Wettkämpfe';
+@endphp
 @extends('layouts.app')
-@section('title', 'Meine Wettkämpfe')
-@section('page-title', 'Meine Wettkämpfe')
+@section('title', $pageTitle)
+@section('page-title', $pageTitle)
 
 @section('content')
 <div class="mt-2 space-y-4">
+
+    @if($asParent)
+        <a href="{{ route('parent.dashboard') }}" class="inline-block text-sm text-gray-500 hover:text-primary">← Übersicht</a>
+    @endif
 
 
     @forelse($competitions as $comp)
@@ -12,7 +22,8 @@
         $isAttending = $response?->status === 'attending';
         $isDeclined  = $response?->status === 'not_attending';
         $isPending   = $response && $response->status === 'pending';
-        $isFuture    = $comp->date->gte(today());
+        // Wie der naechtliche Abschluss der Anmeldungen: bis einschliesslich letztem Wettkampftag
+        $isFuture    = ($comp->date_end ?? $comp->date)->gte(today());
         $hasSignup   = $comp->signupRequest !== null;
         $hasEvents   = $comp->events->isNotEmpty();
         $hasEntries  = $comp->entries->isNotEmpty();
@@ -107,7 +118,7 @@
                     <button @click.stop="tab = 'entries'"
                             :class="tab === 'entries' ? 'border-b-2 border-primary text-primary font-semibold bg-white' : 'text-gray-500 hover:text-gray-700'"
                             class="px-4 py-2.5 text-xs whitespace-nowrap transition-colors">
-                        Meine Meldungen
+                        {{ $asParent ? 'Meldungen' : 'Meine Meldungen' }}
                     </button>
                 @endif
                 @if($hasResults)
@@ -176,12 +187,13 @@
                     </p>
                 @endif
 
-                @if($signupRequest->isActive() && $response)
-                    <form method="POST" action="{{ route('swimmer.signup.respond', $signupRequest) }}"
+                {{-- Vergangene Wettkaempfe gelten als abgeschlossen, auch wenn der naechtliche Abschluss noch aussteht --}}
+                @if($signupRequest->isActive() && $response && $isFuture)
+                    <form method="POST" action="{{ $asParent ? route('parent.child.signup.respond', [$subject->id, $signupRequest]) : route('swimmer.signup.respond', $signupRequest) }}"
                           class="space-y-4 pt-4 border-t border-gray-100">
                         @csrf
                         <div>
-                            <p class="text-xs font-semibold text-gray-600 mb-2">Meine Teilnahme</p>
+                            <p class="text-xs font-semibold text-gray-600 mb-2">{{ $asParent ? 'Teilnahme für ' . $subject->firstname : 'Meine Teilnahme' }}</p>
                             <div class="flex flex-wrap gap-2">
                                 <label class="cursor-pointer">
                                     <input type="radio" name="status" value="attending"
@@ -223,12 +235,25 @@
                                 <label for="dinner_{{ $comp->id }}" class="text-sm text-gray-700 cursor-pointer">Am gemeinsamen Abendessen teilnehmen</label>
                             </div>
                         @endif
+                        @if($asParent)
+                            {{-- Fahrgemeinschaft bieten Eltern an, nicht die Schwimmer selbst --}}
+                            <div class="border-t border-gray-100 pt-3">
+                                <label for="carpool_{{ $comp->id }}" class="block text-xs font-semibold text-gray-600 mb-2">Fahrgemeinschaft: freie Plätze (außer Fahrer)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="number" name="carpool_seats" id="carpool_{{ $comp->id }}"
+                                           value="{{ old('carpool_seats', $response->carpool_seats) }}"
+                                           min="0" max="20" placeholder="0"
+                                           class="w-20 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                    <span class="text-xs text-gray-400">0 = keine Mitfahrmöglichkeit</span>
+                                </div>
+                            </div>
+                        @endif
                         <button type="submit"
                                 class="bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">
                             Speichern
                         </button>
                     </form>
-                    @if($signupRequest->bus_available && $isAttending)
+                    @if($signupRequest->bus_available && $isAttending && !$asParent)
                         <form method="POST" action="{{ route('swimmer.signup.bus', $signupRequest) }}" class="mt-2">
                             @csrf
                             <button type="submit"
@@ -240,14 +265,17 @@
                 @elseif($response)
                     <div class="pt-4 border-t border-gray-100">
                         <p class="text-sm text-gray-600">
-                            Anmeldung {{ $signupRequest->isClosed() ? 'geschlossen' : 'nicht mehr aktiv' }} –
-                            Status:
+                            Anmeldung {{ ($signupRequest->isClosed() || !$isFuture) ? 'geschlossen' : 'nicht mehr aktiv' }} –
+                            {{ $asParent ? 'Status von ' . $subject->firstname . ':' : 'Status:' }}
                             @if($isAttending)<span class="text-green-700 font-semibold">Zugesagt</span>
                             @elseif($isDeclined)<span class="text-red-600 font-semibold">Abgesagt</span>
-                            @else<span class="text-amber-600 font-semibold">Ausstehend</span>@endif
+                            @else<span class="text-gray-500 font-semibold">Keine Rückmeldung</span>@endif
                         </p>
                         @if($response->note)
                             <p class="text-xs text-gray-400 mt-1">Notiz: {{ $response->note }}</p>
+                        @endif
+                        @if($asParent && $response->carpool_seats)
+                            <p class="text-xs text-gray-500 mt-1">Fahrgemeinschaft: {{ $response->carpool_seats }} freie Plätze angeboten</p>
                         @endif
                     </div>
                 @else

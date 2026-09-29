@@ -37,15 +37,17 @@ class MenuPermission extends Model
         'swimmer_group_goals' => ['label' => 'Leistungskriterien', 'section' => 'swimmer'],
         'swimmer_motto'       => ['label' => 'Motto der Woche',   'section' => 'swimmer'],
         'parent_area'    => ['label' => 'Meine Kinder',           'section' => 'parent'],
+        // Lesesicht fuer Mitglieder; Pflege bleibt unter "records" (Trainer-Bereich)
+        'club_records'   => ['label' => 'Rekorde & Bestenlisten', 'section' => 'general'],
     ];
 
     const DEFAULT_PERMISSIONS = [
-        'admin'        => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','parent_area'],
+        'admin'        => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','parent_area','club_records'],
         'trainer'      => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall'],
         'vorstand'     => ['calendar','users_lite','competitions','records'],
         'kampfrichter' => ['calendar','competitions'],
-        'schwimmer'           => ['calendar','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto'],
-        'elternteil'          => ['calendar','parent_area'],
+        'schwimmer'           => ['calendar','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','club_records'],
+        'elternteil'          => ['calendar','parent_area','club_records'],
         'ernaehrungsberater'  => ['calendar'],
         'teamarzt'            => ['calendar'],
     ];

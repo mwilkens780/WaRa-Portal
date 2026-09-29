@@ -289,6 +289,28 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'parent_swimmer', 'swimmer_id', 'parent_id');
     }
 
+    /**
+     * Darf dieses Konto fuer das Kind handeln (Gesundheitsdaten)?
+     *
+     * Eltern sind nur fuer minderjaehrige Kinder gesetzliche Vertreter. Bei
+     * Volljaehrigen bleibt die Verknuepfung fuer Training und Wettkampf,
+     * Gesundheitsdaten (Art. 9 DSGVO) sieht aber nur das Kind selbst. Ohne
+     * Geburtsdatum gilt die vom Admin angelegte Verknuepfung.
+     */
+    public function isGuardianOf(User $child): bool
+    {
+        if (!$this->children()->whereKey($child->id)->exists()) return false;
+        return $child->age === null || $child->age < 18;
+    }
+
+    /** Kinder, fuer die dieses Konto gesetzlicher Vertreter ist */
+    public function wards(): \Illuminate\Support\Collection
+    {
+        return $this->children()->where('active', true)->orderBy('firstname')->get()
+            ->filter(fn(User $child) => $child->age === null || $child->age < 18)
+            ->values();
+    }
+
     public function getAgeAttribute(): ?int
     {
         return $this->birth_date ? $this->birth_date->age : null;

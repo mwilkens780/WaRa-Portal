@@ -8,7 +8,7 @@ use App\Models\CompetitionSignupRequest;
 use App\Models\SwimmingTime;
 use App\Models\TrainingAttendance;
 use App\Services\CompetitionResultGrouper;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\SwimmerPages;
 
 class DashboardController extends Controller
 {
@@ -69,61 +69,27 @@ class DashboardController extends Controller
             ->get();
     }
 
-    public function childTimes(int $childId)
+    // Zeiten und Wettkaempfe: dieselben Seiten wie fuer den Schwimmer selbst,
+    // nur mit dem Kind als Betrachtetem (SwimmerPages). Fruehere eigene
+    // Eltern-Kopien zeigten nur Trainingszeiten und keine Saisonauswahl.
+    public function childTimes(int $childId, SwimmerPages $pages)
     {
-        $parent = auth()->user();
-        $child = $parent->children()->findOrFail($childId);
+        $child = auth()->user()->children()->findOrFail($childId);
 
-        $times = SwimmingTime::where('user_id', $child->id)
-            ->with('trainingSession')
-            ->orderByDesc('created_at')
-            ->paginate(30);
-
-        return view('parent.child-times', compact('child', 'times'));
+        return view('swimmer.my-times', $pages->times($child) + [
+            'subject'    => $child,
+            'asParent'   => true,
+            'timesRoute' => ['parent.child.times', ['childId' => $child->id]],
+        ]);
     }
 
-    public function childCompetitions(int $childId)
+    public function childCompetitions(int $childId, SwimmerPages $pages)
     {
-        $parent        = auth()->user();
-        $child         = $parent->children()->findOrFail($childId);
-        $childGroupIds = $child->trainingGroups()->pluck('training_groups.id');
+        $child = auth()->user()->children()->findOrFail($childId);
 
-        $allComps = \App\Models\Competition::where(function ($q) use ($childGroupIds, $child) {
-                if ($childGroupIds->isNotEmpty()) {
-                    $q->whereHas('trainingGroups', fn($inner) =>
-                        $inner->whereIn('training_groups.id', $childGroupIds)
-                    );
-                }
-                $q->orWhereHas('signupRequest.responses', fn($inner) =>
-                    $inner->where('user_id', $child->id)
-                );
-            })
-            ->with([
-                'signupRequest' => fn($q) => $q->with([
-                    'responses' => fn($q) => $q->where('user_id', $child->id),
-                ]),
-                'entries'  => fn($q) => $q->where('user_id', $child->id),
-                'events',
-            ])
-            ->orderByDesc('date')
-            ->get();
-
-        $raw      = CompetitionResult::with('competition')->where('user_id', $child->id)->get();
-        $allSwims = CompetitionResultGrouper::forSwimmer($raw);
-        $grouped  = $allSwims->groupBy('competition_id');
-
-        foreach ($allComps as $comp) {
-            $comp->processedResults = $grouped->get($comp->id, collect());
-        }
-
-        $perPage   = 10;
-        $page      = (int) request('page', 1);
-        $pageItems = $allComps->forPage($page, $perPage)->values();
-
-        $competitions = new LengthAwarePaginator($pageItems, $allComps->count(), $perPage, $page, [
-            'path' => request()->url(),
+        return view('swimmer.my-competitions', $pages->competitions($child) + [
+            'subject'  => $child,
+            'asParent' => true,
         ]);
-
-        return view('parent.child-competitions', compact('child', 'competitions'));
     }
 }
