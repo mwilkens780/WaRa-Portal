@@ -307,6 +307,8 @@ class CalendarController extends Controller
             ->orderBy('date')->orderBy('start_time');
 
         $sessionDetailRoute = null;
+        // Eltern: Gruppe -> erstes Kind darin (Ziel fuer "Oeffnen" im Termin-Sheet)
+        $childByGroup = [];
 
         if ($isAdmin) {
             // Admin: all sessions
@@ -323,9 +325,11 @@ class CalendarController extends Controller
             // Parent: sessions from all children's training groups
             $childrenGroupIds = collect();
             foreach ($user->children()->where('active', true)->get() as $child) {
-                $childrenGroupIds = $childrenGroupIds->merge(
-                    $child->trainingGroups()->pluck('training_groups.id')
-                );
+                $ids = $child->trainingGroups()->pluck('training_groups.id');
+                $childrenGroupIds = $childrenGroupIds->merge($ids);
+                foreach ($ids as $gid) {
+                    $childByGroup[$gid] ??= $child;
+                }
             }
             $childrenGroupIds = $childrenGroupIds->unique();
 
@@ -334,7 +338,7 @@ class CalendarController extends Controller
             } else {
                 $sessionQuery->whereRaw('0=1');
             }
-            $sessionDetailRoute = 'none';
+            $sessionDetailRoute = 'parent';
         } else {
             $sessionQuery->whereRaw('0=1');
         }
@@ -345,6 +349,11 @@ class CalendarController extends Controller
             $key = $s->date->format('Y-m-d');
             if (!isset($map[$key])) continue;
             $groups = $s->trainingGroups->pluck('name')->implode(', ');
+            // Eltern haben keine Detailseite: Sprung zur Einheit in der
+            // Trainingsliste des Kindes (nur kommende Einheiten stehen dort)
+            $parentChild = $sessionDetailRoute === 'parent' && !$s->date->isBefore(today())
+                ? $s->trainingGroups->map(fn($g) => $childByGroup[$g->id] ?? null)->filter()->first()
+                : null;
             $map[$key][] = [
                 'type'    => 'training',
                 'color'   => 'blue',
@@ -355,8 +364,10 @@ class CalendarController extends Controller
                 'url'     => match ($sessionDetailRoute) {
                     'trainer' => route('trainer.sessions.show', $s),
                     'swimmer' => route('swimmer.session.show', $s),
+                    'parent'  => $parentChild ? route('parent.child.trainings', $parentChild->id) . '#training-' . $s->id : null,
                     default   => null,
                 },
+                'url_label' => $parentChild ? 'Zum Training von ' . $parentChild->firstname : null,
             ];
         }
 

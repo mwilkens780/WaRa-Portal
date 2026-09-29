@@ -35,6 +35,7 @@ final class CalendarEventPayload
             'color'    => $evt['color'],
             'category' => self::category($evt['color']),
             'url'      => $evt['url'] ?? null,
+            'urlLabel' => $evt['url_label'] ?? 'Öffnen',
             // Eigene Kalendertermine: Bearbeiten fuer Trainer/Admin (vorher nur per Maus-Hover)
             'editUrl'  => $isTrainer && !empty($evt['id']) ? route('calendar.events.edit', $evt['id']) : null,
             'aria'     => $evt['title'] . ', ' . $day->isoFormat('dd D.M.') . ($time ? ', ' . $time : ''),

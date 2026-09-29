@@ -17,7 +17,7 @@
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2" x-show="e.url || e.editUrl">
                     <template x-if="e.url">
-                        <a :href="e.url" class="inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-[36px] px-3 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">Öffnen</a>
+                        <a :href="e.url" class="inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-[36px] px-3 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" x-text="e.urlLabel || 'Öffnen'"></a>
                     </template>
                     <template x-if="e.editUrl">
                         <a :href="e.editUrl" class="inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-[36px] px-3 rounded-lg border border-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Bearbeiten</a>

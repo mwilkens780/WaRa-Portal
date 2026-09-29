@@ -26,7 +26,8 @@
                         $spots        = $session->remainingSpots();
                         $noSpots      = $regOpen && $spots !== null && $spots <= 0 && !$isRegistered;
                     @endphp
-                    <div x-data="{ showNote: false }" class="px-4 py-3 {{ $isAbsent ? 'bg-red-50/40' : '' }}">
+                    <div x-data="{ showNote: false }" id="training-{{ $session->id }}"
+                         class="px-4 py-3 scroll-mt-20 target:ring-2 target:ring-inset target:ring-primary {{ $isAbsent ? 'bg-red-50/40' : '' }}">
                         <div class="flex items-start gap-3">
 
                             {{-- Date block --}}
