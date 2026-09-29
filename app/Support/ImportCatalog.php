@@ -37,7 +37,7 @@ final class ImportCatalog
             'results-file' => [
                 'area'    => 'Wettkampf',
                 'title'   => 'Ergebnisse aus DSV-/Lenex-Datei',
-                'text'    => 'Legt aus einer Ergebnisdatei einen neuen Wettkampf an und übernimmt die Zeiten der zugeordneten Schwimmer; Bestzeiten werden erkannt. Gibt es den Wettkampf schon, stattdessen dort importieren.',
+                'text'    => 'Übernimmt die Zeiten der zugeordneten Schwimmer. Gibt es die Veranstaltung schon, werden die Ergebnisse mit ihr zusammengeführt, sonst entsteht ein neuer Wettkampf. Bestzeiten werden erkannt.',
                 'source'  => 'DSV, Swimrankings, WebClub, Ausrichter',
                 'formats' => '.dsv7, .lef, .xml, .txt',
                 'icon'    => 'check-circle',

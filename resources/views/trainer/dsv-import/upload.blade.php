@@ -16,11 +16,16 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div>
-                    <p class="font-semibold text-green-800">Import erfolgreich!</p>
-                    <p class="text-sm text-green-700 mt-1">
+                    <p class="font-semibold text-green-800">
+                        {{ !empty($s['merged']) ? 'Mit vorhandenem Wettkampf zusammengeführt' : 'Import erfolgreich' }}
+                    </p>
+                    <p class="text-sm text-green-800 mt-1">
                         <strong>{{ $s['competition'] }}</strong> ({{ $s['date'] }}) —
-                        {{ $s['imported'] }} Ergebnis{{ $s['imported'] !== 1 ? 'se' : '' }} importiert,
-                        {{ $s['skipped'] }} Athlet{{ $s['skipped'] !== 1 ? 'en' : '' }} übersprungen.
+                        {{ $s['imported'] }} Ergebnis{{ $s['imported'] !== 1 ? 'se' : '' }} neu,
+                        @if(($s['duplicates'] ?? 0) > 0)
+                            {{ $s['duplicates'] }} schon vorhanden (nicht doppelt angelegt),
+                        @endif
+                        {{ $s['skipped'] }} Athlet{{ $s['skipped'] !== 1 ? 'en' : '' }} ohne Zuordnung übersprungen.
                     </p>
                     @if(auth()->user()->isAdmin())
                         <a href="{{ route('admin.competitions.show', $s['comp_id']) }}"
@@ -35,14 +40,10 @@
 
     {{-- Schritt 1 wie in allen Importen (x-ui.upload-form / x-ui.file-drop) --}}
     <x-ui.card>
-        <p class="text-sm text-gray-700">
-            Legt aus einer Ergebnisdatei einen <strong>neuen Wettkampf</strong> an und übernimmt die Zeiten der
-            zugeordneten Schwimmer. DQ, DNS und DNF werden übersprungen, Bestzeiten erkannt.
-        </p>
-        <p class="text-sm text-gray-700 mt-2 mb-4">
-            Gibt es den Wettkampf schon (z. B. aus WebClub oder der Ausschreibung)? Dann im Wettkampf unter
-            <a href="{{ route('admin.competitions.index') }}" class="font-medium text-primary hover:underline">„Import“</a>
-            importieren – sonst entsteht er doppelt.
+        <p class="text-sm text-gray-700 mb-4">
+            Übernimmt die Zeiten der zugeordneten Schwimmer aus einer Ergebnisdatei. Gibt es die Veranstaltung schon
+            (z. B. aus WebClub oder der Ausschreibung), werden die Ergebnisse mit ihr <strong>zusammengeführt</strong>,
+            sonst entsteht ein neuer Wettkampf. DQ, DNS und DNF werden übersprungen, Bestzeiten erkannt.
         </p>
         <x-ui.upload-form :action="route('trainer.dsv-import.upload')">
             <x-ui.file-drop name="dsv_file" label="Ergebnisdatei (Lenex/DSV)" accept=".dsv7,.lef,.xml,.txt" :max-mb="20"

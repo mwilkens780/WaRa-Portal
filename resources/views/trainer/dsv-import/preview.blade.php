@@ -31,25 +31,45 @@
         @foreach($parsed['meets'] as $mi => $meet)
         {{-- Gesperrtes fieldset: Felder nicht gewaehlter Wettkaempfe werden nicht
              gesendet. Vorher gingen alle mit - bei gleichen Namen gewann der letzte. --}}
-        <fieldset x-show="meetIndex === {{ $mi }}" :disabled="meetIndex !== {{ $mi }}" @if($mi > 0) x-cloak disabled @endif class="space-y-6 min-w-0">
+        @php $kandidaten = $possibleDuplicates[$mi] ?? collect(); @endphp
+        <fieldset x-show="meetIndex === {{ $mi }}" :disabled="meetIndex !== {{ $mi }}" @if($mi > 0) x-cloak disabled @endif class="space-y-6 min-w-0"
+                  x-data="{ target: @js((string) old('target_competition_id', $kandidaten->first()?->id ?? '')) }">
             <legend class="sr-only">{{ $meet['name'] }}</legend>
 
-            @if(($possibleDuplicates[$mi] ?? collect())->isNotEmpty())
-                <div role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                    <p class="font-semibold">Gibt es diesen Wettkampf schon?</p>
-                    <p class="mt-1">Dieser Import legt einen <strong>neuen</strong> Wettkampf an. Im selben Zeitraum ist bereits vorhanden:</p>
-                    <ul class="mt-2 space-y-1">
-                        @foreach($possibleDuplicates[$mi] as $dup)
-                            <li>
-                                <a href="{{ route('admin.competitions.show', $dup) }}" class="font-medium underline hover:no-underline">{{ $dup->name }}</a>
-                                <span class="text-amber-800">· {{ $dup->date->format('d.m.Y') }}{{ $dup->location ? ' · ' . $dup->location : '' }}</span>
-                            </li>
+            {{-- Gibt es den Wettkampf schon (gleicher Zeitraum), wird standardmaessig
+                 dorthin zusammengefuehrt statt ein Duplikat anzulegen. --}}
+            @if($kandidaten->isNotEmpty())
+                <div class="bg-white rounded-xl shadow-sm border border-amber-200 p-5" role="radiogroup" aria-labelledby="dsv-target-{{ $mi }}">
+                    <h2 id="dsv-target-{{ $mi }}" class="font-semibold text-gray-900">Wohin importieren?</h2>
+                    <p class="text-sm text-gray-700 mt-1 mb-3">
+                        Im selben Zeitraum gibt es bereits {{ $kandidaten->count() === 1 ? 'einen Wettkampf' : 'Wettkämpfe' }}.
+                        Beim Zusammenführen kommen die Ergebnisse dorthin; schon vorhandene Ergebnisse werden nicht doppelt angelegt,
+                        leere Angaben (Ort, Enddatum, Bahn) aus der Datei ergänzt.
+                    </p>
+                    <div class="space-y-2">
+                        @foreach($kandidaten as $dup)
+                            <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary">
+                                <input type="radio" name="target_competition_id" value="{{ $dup->id }}" x-model="target" class="mt-0.5 text-primary">
+                                <span class="text-sm">
+                                    <span class="font-medium text-gray-900">Zusammenführen mit „{{ $dup->name }}“</span>
+                                    <span class="block text-gray-700">{{ $dup->date->format('d.m.Y') }}{{ $dup->location ? ' · ' . $dup->location : '' }}{{ $dup->course ? ' · ' . $dup->course : '' }}
+                                        · <a href="{{ route('admin.competitions.show', $dup) }}" target="_blank" class="text-primary underline hover:no-underline">ansehen</a></span>
+                                </span>
+                            </label>
                         @endforeach
-                    </ul>
-                    <p class="mt-2">Wenn es derselbe ist: dort unter „Import“ die Datei einlesen, statt hier fortzufahren.</p>
+                        <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary">
+                            <input type="radio" name="target_competition_id" value="" x-model="target" class="mt-0.5 text-primary">
+                            <span class="text-sm">
+                                <span class="font-medium text-gray-900">Neuen Wettkampf anlegen</span>
+                                <span class="block text-gray-700">Nur, wenn es wirklich eine andere Veranstaltung ist.</span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
             @endif
 
+            {{-- Wettkampf-Details: nur fuer einen neuen Wettkampf (gesperrt = nicht gesendet) --}}
+            <fieldset x-show="target === ''" :disabled="target !== ''" class="min-w-0" @if($kandidaten->isNotEmpty()) x-cloak disabled @endif>
             {{-- Wettkampf-Details --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h2 class="font-semibold text-gray-800 mb-4">Wettkampf-Details</h2>
@@ -105,6 +125,8 @@
                     </div>
                 </div>
             </div>
+
+            </fieldset>
 
             {{-- Athleten-Zuordnung --}}
             @foreach($meet['clubs'] as $ci => $club)

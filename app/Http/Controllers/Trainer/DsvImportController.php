@@ -95,8 +95,14 @@ class DsvImportController extends Controller
             } catch (\Throwable $e) {
                 continue;
             }
+            $start = \Illuminate\Support\Carbon::parse($meet['startdate']);
             $possibleDuplicates[$mi] = Competition::whereBetween('date', [$von->toDateString(), $bis->toDateString()])
-                ->orderBy('date')->get(['id', 'name', 'date', 'location']);
+                ->get(['id', 'name', 'date', 'date_end', 'location', 'course'])
+                ->sortBy(function ($c) use ($start, $meet) {
+                    similar_text(mb_strtolower($c->name), mb_strtolower($meet['name']), $prozent);
+                    return abs($c->date->diffInDays($start)) * 1000 - $prozent;
+                })
+                ->values();
         }
 
         return view('trainer.dsv-import.preview', compact('parsed', 'swimmers', 'possibleDuplicates'));
@@ -106,15 +112,22 @@ class DsvImportController extends Controller
 
     public function execute(Request $request)
     {
+        // target_competition_id: in einen vorhandenen Wettkampf zusammenfuehren
+        // (die Vorschau schlaegt ihn vor, wenn es im Zeitraum schon einen gibt).
+        // Ohne Ziel wird wie bisher ein neuer Wettkampf angelegt.
         $data = $request->validate([
-            'meet_index'    => ['required', 'integer', 'min:0'],
-            'comp_name'     => ['required', 'string', 'max:255'],
-            'comp_location' => ['required', 'string', 'max:255'],
-            'comp_date'     => ['required', 'date'],
-            'comp_date_end' => ['nullable', 'date', 'after_or_equal:comp_date'],
-            'comp_type'     => ['required', 'in:vereinsintern,regional,national,international,meisterschaften,einladung'],
-            'comp_course'   => ['required', 'in:Kurzbahn,Langbahn'],
-            'mappings'      => ['present', 'array'],
+            'meet_index'            => ['required', 'integer', 'min:0'],
+            'target_competition_id' => ['nullable', 'integer', 'exists:competitions,id'],
+            'comp_name'             => ['required_without:target_competition_id', 'nullable', 'string', 'max:255'],
+            'comp_location'         => ['required_without:target_competition_id', 'nullable', 'string', 'max:255'],
+            'comp_date'             => ['required_without:target_competition_id', 'nullable', 'date'],
+            'comp_date_end'         => ['nullable', 'date', 'after_or_equal:comp_date'],
+            'comp_type'             => ['required_without:target_competition_id', 'nullable', 'in:vereinsintern,regional,national,international,meisterschaften,einladung'],
+            'comp_course'           => ['required_without:target_competition_id', 'nullable', 'in:Kurzbahn,Langbahn'],
+            'mappings'              => ['present', 'array'],
+        ], [], [
+            'comp_name' => 'Name', 'comp_location' => 'Ort', 'comp_date' => 'Startdatum',
+            'comp_type' => 'Kategorie', 'comp_course' => 'Bahnlänge',
         ]);
 
         $parsed   = session('dsv_import_parsed');
@@ -130,16 +143,32 @@ class DsvImportController extends Controller
             return back()->withErrors(['meet_index' => 'Ungültiger Wettkampf-Index.']);
         }
 
-        $competition = Competition::create([
-            'name'      => $data['comp_name'],
-            'location'  => $data['comp_location'],
-            'date'      => $data['comp_date'],
-            'date_end'  => $data['comp_date_end'] ?: null,
-            'type'      => $data['comp_type'],
-            'course'    => $data['comp_course'],
-        ]);
+        $merged = !empty($data['target_competition_id']);
+        if ($merged) {
+            // Zusammenfuehren: vorhandener Wettkampf bleibt massgeblich, nur
+            // leere Angaben werden aus der Datei ergaenzt
+            $competition = Competition::findOrFail($data['target_competition_id']);
+            $ergaenzt = array_filter([
+                'location' => $competition->location ? null : ($meet['city'] ?: null),
+                'date_end' => $competition->date_end || $meet['enddate'] === $meet['startdate'] ? null : $meet['enddate'],
+                'course'   => $competition->course ? null : ($meet['course'] ?? null),
+            ]);
+            if ($ergaenzt) {
+                $competition->update($ergaenzt);
+            }
+        } else {
+            $competition = Competition::create([
+                'name'      => $data['comp_name'],
+                'location'  => $data['comp_location'],
+                'date'      => $data['comp_date'],
+                'date_end'  => ($data['comp_date_end'] ?? null) ?: null,
+                'type'      => $data['comp_type'],
+                'course'    => $data['comp_course'],
+            ]);
+        }
 
         $imported      = 0;
+        $duplicates    = 0;
         $skipped       = 0;
         $relayImported = 0;
 
@@ -147,8 +176,11 @@ class DsvImportController extends Controller
             foreach ($club['athletes'] as $ai => $athlete) {
                 if ($athlete['is_relay'] ?? false) {
                     foreach ($athlete['results'] as $result) {
-                        $this->importRelayResult($competition->id, $club['name'], $athlete, $result);
-                        $relayImported++;
+                        if ($this->importRelayResult($competition->id, $club['name'], $athlete, $result)) {
+                            $relayImported++;
+                        } else {
+                            $duplicates++;
+                        }
                     }
                     continue;
                 }
@@ -161,8 +193,11 @@ class DsvImportController extends Controller
                 }
 
                 foreach ($athlete['results'] as $result) {
-                    $this->importResult($competition->id, $userId, $result);
-                    $imported++;
+                    if ($this->importResult($competition->id, $userId, $result)) {
+                        $imported++;
+                    } else {
+                        $duplicates++;
+                    }
                 }
             }
         }
@@ -180,6 +215,8 @@ class DsvImportController extends Controller
                 'imported'      => $imported,
                 'skipped'       => $skipped,
                 'relay_imported'=> $relayImported,
+                'duplicates'    => $duplicates,
+                'merged'        => $merged,
                 'comp_id'       => $competition->id,
             ]);
     }
@@ -211,7 +248,8 @@ class DsvImportController extends Controller
         return null;
     }
 
-    private function importRelayResult(int $competitionId, string $clubName, array $athlete, array $result): void
+    /** @return bool true = neu gespeichert, false = schon vorhanden */
+    private function importRelayResult(int $competitionId, string $clubName, array $athlete, array $result): bool
     {
         $exists = RelayResult::where([
             'competition_id' => $competitionId,
@@ -221,7 +259,7 @@ class DsvImportController extends Controller
             'time_ms'        => $result['time_ms'],
         ])->exists();
 
-        if ($exists) return;
+        if ($exists) return false;
 
         RelayResult::create([
             'competition_id' => $competitionId,
@@ -234,9 +272,12 @@ class DsvImportController extends Controller
             'gender'         => $athlete['gender'] ?? null,
             'status'         => 'OK',
         ]);
+
+        return true;
     }
 
-    private function importResult(int $competitionId, int $userId, array $result): void
+    /** @return bool true = neu gespeichert, false = schon vorhanden (Zusammenfuehren) */
+    private function importResult(int $competitionId, int $userId, array $result): bool
     {
         $ageGroup  = $result['age_group'] ?? null;
         $wertungen = !empty($result['wertungen']) ? $result['wertungen'] : ($ageGroup ? [$ageGroup] : null);
@@ -251,7 +292,7 @@ class DsvImportController extends Controller
             ->where('time_ms', $result['time_ms'])
             ->exists();
 
-        if ($exists) return;
+        if ($exists) return false;
 
         $existingBest = CompetitionResult::where('user_id', $userId)
             ->where('discipline', $result['discipline'])
@@ -281,5 +322,7 @@ class DsvImportController extends Controller
             'wertungen'        => $wertungen,
             'is_final'         => $isFinal,
         ]);
+
+        return true;
     }
 }
