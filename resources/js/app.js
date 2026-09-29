@@ -20,6 +20,7 @@ import './polyfills';
 import Alpine from 'alpinejs';
 import focus from '@alpinejs/focus';
 import './ui/api';
+import './ui/scroll-lock';
 import uiDialog from './ui/dialog';
 import { registerConfirm } from './ui/confirm';
 import { registerToast } from './ui/toast';

@@ -70,21 +70,21 @@ window._ltSessionId = {{ $session->id }};
                         ? 'bg-primary text-white border-primary shadow-sm'
                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'">
                 <span x-text="b.label || (b.display + '×' + (b.distance || '?') + 'm')"></span>
-                <span class="opacity-70 ml-1" x-text="'(' + filledCount(b.id) + '/' + (b.reps * activeAthletes.length) + ')'"></span>
+                <span class="opacity-90 ml-1" x-text="'(' + filledCount(b.id) + '/' + (b.reps * activeAthletes.length) + ')'"></span>
             </button>
         </template>
     </div>
 
     {{-- Modus --}}
     <div class="grid grid-cols-2 gap-1.5 mb-3 bg-gray-100 p-1 rounded-lg">
-        <button type="button" @click="mode = 'watch'"
+        <button type="button" @click="mode = 'watch'" :aria-pressed="mode === 'watch' ? 'true' : 'false'"
                 class="py-2 rounded-md text-sm font-semibold transition-colors"
-                :class="mode === 'watch' ? 'bg-white text-primary shadow-sm' : 'text-gray-500'">
+                :class="mode === 'watch' ? 'bg-white text-primary shadow-sm' : 'text-gray-700'">
             Stoppuhr
         </button>
-        <button type="button" @click="mode = 'table'"
+        <button type="button" @click="mode = 'table'" :aria-pressed="mode === 'table' ? 'true' : 'false'"
                 class="py-2 rounded-md text-sm font-semibold transition-colors"
-                :class="mode === 'table' ? 'bg-white text-primary shadow-sm' : 'text-gray-500'">
+                :class="mode === 'table' ? 'bg-white text-primary shadow-sm' : 'text-gray-700'">
             Tabelle
         </button>
     </div>
@@ -132,7 +132,7 @@ window._ltSessionId = {{ $session->id }};
             <div class="grid grid-cols-3 gap-2 mt-3">
                 <button type="button" @click="toggleWatch()"
                         class="col-span-2 py-4 rounded-xl text-white font-bold text-lg shadow-sm transition-colors active:scale-[.98]"
-                        :class="running ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'"
+                        :class="running ? 'bg-red-600 hover:bg-red-700' : 'bg-green-700 hover:bg-green-800'"
                         x-text="running ? 'Stopp' : (elapsedCs > 0 ? 'Weiter' : 'Start')"></button>
                 <button type="button" @click="resetWatch()"
                         class="py-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm transition-colors">
@@ -333,7 +333,7 @@ window._ltSessionId = {{ $session->id }};
                         <template x-for="a in activeAthletes" :key="a.id">
                             <tr>
                                 <td class="px-3 py-1.5 sticky left-0 bg-white z-10 min-w-[104px]">
-                                    <button type="button" @click="openRow(a)"
+                                    <button type="button" @click="openRow(a)" :aria-label="'Alle Zeiten von ' + a.name + ' bearbeiten'"
                                             class="font-medium text-gray-700 hover:text-primary truncate max-w-[96px] block text-left transition-colors"
                                             x-text="a.short"></button>
                                     <span x-show="hasWaves" x-cloak
@@ -347,6 +347,7 @@ window._ltSessionId = {{ $session->id }};
                                                :class="getCs(a.id, i) !== null ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'"
                                                placeholder="–"
                                                :value="fmt(getCs(a.id, i))"
+                                               :aria-label="'Zeit ' + a.name + ', ' + i + '. Wiederholung'"
                                                @focus="$event.target.select()"
                                                @change="setCell(a.id, i, $event.target.value); $event.target.value = fmt(getCs(a.id, i))"
                                                @keydown.enter.prevent="$event.target.blur()">
@@ -362,36 +363,47 @@ window._ltSessionId = {{ $session->id }};
     </div>
 
     {{-- ===================== ZEILEN-EDITOR ===================== --}}
+    {{-- Dialog: Fokus bleibt drin, Escape schliesst nur diesen (nicht auch "Reihenfolge") --}}
     <div x-show="rowAthlete" x-cloak class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
-         @keydown.escape.window="rowAthlete = null">
-        <div class="absolute inset-0 bg-black/50" @click="rowAthlete = null"></div>
-        <div class="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col">
+         role="dialog" aria-modal="true" aria-labelledby="live-row-title">
+        <div class="absolute inset-0 bg-black/50" @click="rowAthlete = null" aria-hidden="true"></div>
+        <div class="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
+             style="max-height: 85vh; max-height: 85dvh"
+             x-trap="!!rowAthlete" @keydown.escape.stop.prevent="rowAthlete = null">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
                 <div class="min-w-0">
-                    <p class="text-base font-semibold text-gray-800 truncate" x-text="rowAthlete ? rowAthlete.name : ''"></p>
+                    <h2 id="live-row-title" class="text-base font-semibold text-gray-800 truncate" x-text="rowAthlete ? rowAthlete.name : ''"></h2>
                     <p class="text-xs text-gray-400" x-text="activeBlock ? (activeBlock.label || activeBlock.display + '×' + (activeBlock.distance || '?') + 'm') : ''"></p>
                 </div>
-                <button type="button" @click="rowAthlete = null" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
+                <button type="button" @click="rowAthlete = null" aria-label="Schließen" class="p-2.5 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div class="overflow-y-auto px-5 py-4 space-y-2">
+            <div class="overflow-y-auto px-5 py-4">
+                {{-- Nur mit gewaehltem Sportler rendern: beim Schliessen (rowAthlete = null)
+                     warfen die Felder sonst bei jedem Schliessen Fehler (rowAthlete.id) --}}
+                <template x-if="rowAthlete">
+                <div class="space-y-2">
                 <template x-for="i in (activeBlock ? activeBlock.reps : 0)" :key="i">
                     <div class="flex items-center gap-3">
                         <span class="w-8 text-sm text-gray-400 font-medium flex-shrink-0" x-text="i + '.'"></span>
                         <input type="text" inputmode="decimal"
                                :data-rowrep="i"
+                               :aria-label="'Zeit ' + i + '. Wiederholung'"
                                class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg font-mono text-base text-center outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                                placeholder="–"
                                :value="fmt(getCs(rowAthlete.id, i))"
                                @focus="$event.target.select()"
                                @change="setCell(rowAthlete.id, i, $event.target.value); $event.target.value = fmt(getCs(rowAthlete.id, i))"
                                @keydown.enter.prevent="focusRowRep(i + 1)">
-                        <button type="button" @click="setCell(rowAthlete.id, i, ''); $event.target.closest('div').querySelector('input').value = ''"
-                                class="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                        <button type="button" @click="setCell(rowAthlete.id, i, ''); $event.currentTarget.closest('div').querySelector('input').value = ''"
+                                :aria-label="'Zeit ' + i + '. Wiederholung löschen'"
+                                class="p-3 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
+                </template>
+                </div>
                 </template>
             </div>
             <div class="px-5 py-3 border-t border-gray-100">
@@ -405,23 +417,27 @@ window._ltSessionId = {{ $session->id }};
 
     {{-- ===================== REIHENFOLGE-MODAL ===================== --}}
     <div x-show="orderModalOpen" x-cloak class="fixed inset-0 z-[110] flex items-end sm:items-center justify-center"
-         @keydown.escape.window="orderModalOpen = false">
-        <div class="absolute inset-0 bg-black/50" @click="orderModalOpen = false"></div>
-        <div class="relative bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col">
+         role="dialog" aria-modal="true" aria-labelledby="live-order-title">
+        <div class="absolute inset-0 bg-black/50" @click="orderModalOpen = false" aria-hidden="true"></div>
+        <div class="relative bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
+             style="max-height: 85vh; max-height: 85dvh"
+             x-trap="orderModalOpen" @keydown.escape.stop.prevent="orderModalOpen = false">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <div>
-                    <p class="font-semibold text-gray-800 text-base">Reihenfolge</p>
+                    <h2 id="live-order-title" class="font-semibold text-gray-800 text-base">Reihenfolge</h2>
                     <p class="text-xs text-gray-400 mt-0.5"
-                       x-text="waveLanes > 1 ? 'Ziehen zum Umsortieren · ' + waveLanes + ' pro Welle' : 'Ziehen zum Umsortieren'"></p>
+                       x-text="waveLanes > 1 ? 'Ziehen oder Pfeile zum Umsortieren · ' + waveLanes + ' pro Welle' : 'Ziehen oder Pfeile zum Umsortieren'"></p>
                 </div>
-                <button type="button" @click="orderModalOpen = false" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
+                <button type="button" @click="orderModalOpen = false" aria-label="Schließen" class="p-2.5 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
             <div class="overflow-y-auto px-4 py-3">
-                <div id="wave-order-list" class="space-y-1.5">
+                <ol id="wave-order-list" class="space-y-1.5" aria-label="Startreihenfolge">
                     {{-- JS-rendered --}}
-                </div>
+                </ol>
+                {{-- Ansage fuer Screenreader nach dem Verschieben --}}
+                <p class="sr-only" aria-live="polite" x-text="orderAnnounce"></p>
             </div>
             <div class="px-5 py-3 border-t border-gray-100">
                 <button type="button" @click="orderModalOpen = false"
@@ -498,10 +514,27 @@ function liveTiming() {
         waveConfig:    initWaveCfg,
         waveOpen:      false,
         orderModalOpen: false,
+        orderAnnounce: '',
         waveSaveState: 'idle',
         _sortable:     null,
 
         init() {
+            // Seite hinter den Dialogen festhalten (iOS-tauglich, ui/scroll-lock.js)
+            // Fokus nach dem Schliessen zurueck zum Ausloeser (der erste Fokus springt ins Zeitfeld,
+            // deshalb kennt x-trap den Ausloeser nicht)
+            this.$watch('rowAthlete', (v, old) => {
+                if (!!v === !!old) return;
+                if (v) { window.uiScroll.lock(); return; }
+                window.uiScroll.unlock();
+                const back = this._opener; this._opener = null;
+                this.$nextTick(() => back?.focus());
+            });
+            this.$watch('orderModalOpen', (v) => {
+                if (v) { window.uiScroll.lock(); return; }
+                window.uiScroll.unlock();
+                const back = this._opener; this._opener = null;
+                this.$nextTick(() => back?.focus());
+            });
             this.voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
             this.restorePending();
             this.render();
@@ -660,6 +693,7 @@ function liveTiming() {
 
         // ---------- Reihenfolge-Modal ----------
         openOrderModal() {
+            this._opener = document.activeElement;
             this.orderModalOpen = true;
             this.$nextTick(() => {
                 this.renderOrderList();
@@ -684,19 +718,31 @@ function liveTiming() {
             container.innerHTML = '';
             sorted.forEach((athlete, idx) => {
                 const wave = Math.floor(idx / lanes);
-                const item = document.createElement('div');
+                const item = document.createElement('li');
                 item.dataset.uid = athlete.id;
-                item.className = 'flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing';
+                item.className = 'flex items-center gap-2 bg-white border border-gray-200 rounded-xl pl-3 pr-1 py-1';
                 const waveLabel = lanes > 1 && gap > 0
-                    ? '<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-semibold flex-shrink-0 wave-badge">W' + (wave + 1) + '</span>'
+                    ? '<span class="text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold flex-shrink-0 wave-badge">W' + (wave + 1) + '</span>'
                     : '';
+                const arrow = (dir, path) => `<button type="button" data-move="${dir}"
+                        class="inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                        ${(dir === 'up' && idx === 0) || (dir === 'down' && idx === sorted.length - 1) ? 'disabled' : ''}>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${path}"/></svg>
+                    </button>`;
                 item.innerHTML = `
-                    <svg class="w-4 h-4 text-gray-300 flex-shrink-0 drag-handle" fill="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0 drag-handle cursor-grab active:cursor-grabbing" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M8 6h2v2H8zm0 4h2v2H8zm0 4h2v2H8zm6-8h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2z"/>
                     </svg>
-                    <span class="flex-1 text-sm font-medium text-gray-700 truncate">${athlete.name}</span>
+                    <span class="flex-1 text-sm font-medium text-gray-700 truncate athlete-name"></span>
                     ${waveLabel}
+                    ${arrow('up', 'M5 15l7-7 7 7')}${arrow('down', 'M19 9l-7 7-7-7')}
                 `;
+                // Namen als Text setzen - nie ungeprueft ins HTML
+                item.querySelector('.athlete-name').textContent = athlete.name;
+                item.querySelector('[data-move="up"]').setAttribute('aria-label', athlete.name + ' nach oben');
+                item.querySelector('[data-move="down"]').setAttribute('aria-label', athlete.name + ' nach unten');
+                item.querySelectorAll('[data-move]').forEach(btn => btn.addEventListener('click', () =>
+                    this.moveInOrder(athlete.id, btn.dataset.move === 'up' ? -1 : 1)));
                 container.appendChild(item);
             });
         },
@@ -714,6 +760,23 @@ function liveTiming() {
                 const wave = Math.floor(idx / lanes);
                 badge.textContent = 'W' + (wave + 1);
             });
+        },
+
+        // Tastatur-/Touch-Alternative zum Ziehen
+        moveInOrder(uid, dir) {
+            const container = document.getElementById('wave-order-list');
+            const ids = [...container.querySelectorAll('[data-uid]')].map(el => parseInt(el.dataset.uid));
+            const i = ids.indexOf(uid), j = i + dir;
+            if (i < 0 || j < 0 || j >= ids.length) return;
+            [ids[i], ids[j]] = [ids[j], ids[i]];
+            this.applyNewOrder(ids);
+            this.renderOrderList();
+            this.initSortable();
+            const name = (this.athletes.find(a => a.id === uid) || {}).name || '';
+            this.orderAnnounce = name + ' ist jetzt auf Platz ' + (j + 1) + '.';
+            // Fokus bleibt am selben Knopf des verschobenen Eintrags
+            const btn = container.querySelector('[data-uid="' + uid + '"] [data-move="' + (dir < 0 ? 'up' : 'down') + '"]');
+            (btn && !btn.disabled ? btn : container.querySelector('[data-uid="' + uid + '"] [data-move]:not([disabled])'))?.focus();
         },
 
         initSortable() {
@@ -902,6 +965,7 @@ function liveTiming() {
         },
 
         openRow(a) {
+            this._opener = document.activeElement;
             this.rowAthlete = a;
             this.$nextTick(() => this.focusRowRep(1));
         },

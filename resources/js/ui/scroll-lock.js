@@ -26,3 +26,6 @@ export function unlockScroll() {
     b.position = b.top = b.left = b.right = b.width = '';
     window.scrollTo(0, savedY);
 }
+
+// Fuer Seiten mit eigenen Dialogen (z. B. Zeiterfassung)
+window.uiScroll = { lock: lockScroll, unlock: unlockScroll };
