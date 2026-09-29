@@ -412,6 +412,12 @@ Route::middleware('auth')->group(function () {
         ->name('sessions.diary');
 });
 
+// Import-Center: alle Datei-Importe; Rechte je Import in App\Support\ImportCatalog
+Route::middleware('auth')->group(function () {
+    Route::get('/import', [\App\Http\Controllers\ImportCenterController::class, 'index'])->name('imports.index');
+    Route::get('/import/{key}', [\App\Http\Controllers\ImportCenterController::class, 'show'])->name('imports.show');
+});
+
 // Rekorde & Bestenlisten zum Lesen (Schwimmer, Eltern); Pflege unter /admin/rekorde
 Route::middleware(['auth', 'menu:club_records'])
     ->get('/rekorde', [RecordController::class, 'publicIndex'])->name('records.public');

@@ -22,6 +22,7 @@ import focus from '@alpinejs/focus';
 import './ui/api';
 import './ui/scroll-lock';
 import uiDialog from './ui/dialog';
+import uiFileDrop from './ui/file-drop';
 import { registerConfirm } from './ui/confirm';
 import { registerToast } from './ui/toast';
 import richTextEditor from './components/rich-text-editor';
@@ -31,6 +32,7 @@ Alpine.plugin(focus);
 registerConfirm(Alpine);
 registerToast(Alpine);
 Alpine.data('uiDialog', uiDialog);
+Alpine.data('uiFileDrop', uiFileDrop);
 // Tiptap selbst laedt erst bei Bedarf nach
 Alpine.data('richTextEditor', richTextEditor);
 

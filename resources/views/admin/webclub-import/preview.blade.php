@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'WebClub Import – Vorschau')
-@section('page-title', 'WebClub Import – Vorschau')
+@section('title', 'Mitglieder aus WebClub – Vorschau')
+@section('page-title', 'Mitglieder aus WebClub – Vorschau')
 
 @section('content')
 <div class="space-y-5">

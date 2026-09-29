@@ -357,26 +357,13 @@
         </div>
 
         <div x-show="open" x-transition class="mt-4 border-t border-gray-100 pt-4">
-            <p class="text-xs text-gray-500 mb-3">
+            <p class="text-xs text-gray-600 mb-3">
                 Ein erneutes Einlesen aktualisiert bestehende Einträge, fügt neue hinzu und entfernt Schwimmer,
                 die nicht mehr in der CSV enthalten sind. Ein Schwimmer kann nur einer Gruppe zugeordnet sein.
             </p>
-            <form method="POST" action="{{ route('admin.training-groups.csv-upload', $trainingGroup) }}"
-                  enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-                @csrf
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">CSV-Datei</label>
-                    <input type="file" name="csv_file" accept=".csv,.txt" required
-                           class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
-                </div>
-                <button type="submit"
-                        class="px-4 py-2 bg-primary text-white font-semibold rounded-lg text-sm hover:bg-primary-dark transition-colors">
-                    Einlesen → Vorschau
-                </button>
-            </form>
-            @error('csv_file')
-                <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
-            @enderror
+            <x-ui.upload-form :action="route('admin.training-groups.csv-upload', $trainingGroup)" layout="inline">
+                <x-ui.file-drop name="csv_file" label="Namensliste (CSV)" accept=".csv,.txt" :max-mb="4" />
+            </x-ui.upload-form>
         </div>
     </div>
 

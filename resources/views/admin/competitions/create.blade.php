@@ -43,29 +43,9 @@
             du kannst sie danach noch bearbeiten.
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <form method="POST" action="{{ route('admin.competitions.lenex') }}"
-                  enctype="multipart/form-data" class="space-y-4">
-                @csrf
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Lenex-Datei <span class="text-red-500">*</span>
-                    </label>
-                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary transition-colors">
-                        <svg class="mx-auto w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                  d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <p class="text-sm text-gray-400 mb-3">.dsv7, .lef, .xml oder .txt – max. 20 MB</p>
-                        <input type="file" name="lenex_file" accept=".xml,.lef,.txt,.dsv7"
-                               class="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
-                    </div>
-                    @error('lenex_file')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
-                </div>
-                <button type="submit"
-                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm">
-                    Datei einlesen →
-                </button>
-            </form>
+            <x-ui.upload-form :action="route('admin.competitions.lenex')" submit="Einlesen und Formular füllen">
+                <x-ui.file-drop name="lenex_file" label="Ausschreibung (Lenex/DSV7)" accept=".dsv7,.lef,.xml,.txt" :max-mb="20" />
+            </x-ui.upload-form>
         </div>
     </div>
 

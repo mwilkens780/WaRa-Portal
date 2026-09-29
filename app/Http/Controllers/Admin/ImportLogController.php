@@ -27,7 +27,7 @@ class ImportLogController extends Controller
         ['id' => 12, 'name' => 'Sachsen',                 'short' => 'SVS'],
     ];
 
-    private const CRAWLERS = [
+    public const CRAWLERS = [
         'shsv' => [
             'label'        => 'SHSV',
             'class'        => ShsvCrawler::class,

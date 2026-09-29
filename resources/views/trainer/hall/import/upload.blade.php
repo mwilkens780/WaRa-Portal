@@ -4,37 +4,19 @@
 
 @section('content')
 <div class="mt-2 max-w-3xl space-y-5">
+    <x-ui.import-steps :current="1" />
 
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h2 class="font-semibold text-gray-800 mb-1">Excel-Datei hochladen</h2>
-        <p class="text-sm text-gray-500 mb-4">
+        <p class="text-sm text-gray-700 mb-4">
             Erwartet wird die Vorlage „Hallenbelegung SuV“ im Format <code class="text-xs">.xlsx</code>.
             Gelesen wird das erste sichtbare Arbeitsblatt – ältere Stände sind dort in der Regel ausgeblendet.
         </p>
 
-        <form method="POST" action="{{ route('trainer.hall.import.upload') }}" enctype="multipart/form-data"
-              class="space-y-4">
-            @csrf
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Belegungsplan</label>
-                <input type="file" name="plan" accept=".xlsx" required
-                       class="block w-full text-sm text-gray-600 border border-gray-200 rounded-lg
-                              file:mr-3 file:py-2 file:px-4 file:rounded-l-lg file:border-0
-                              file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700
-                              hover:file:bg-gray-100 cursor-pointer">
-                @error('plan')
-                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <button type="submit"
-                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2 rounded-lg
-                           text-sm transition-colors">
-                Einlesen und prüfen
-            </button>
-        </form>
+        <x-ui.upload-form :action="route('trainer.hall.import.upload')">
+            <x-ui.file-drop name="plan" label="Belegungsplan" accept=".xlsx" :max-mb="10" />
+        </x-ui.upload-form>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

@@ -285,56 +285,16 @@
     <div x-show="activeTab === 'vr' || activeTab === 'lr'" x-cloak
          class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 class="font-semibold text-gray-800 mb-1">Rekordliste importieren</h3>
-        <p class="text-sm text-gray-500 mb-4">Unterstützte Formate: .xlsx, .xls, .csv, .pdf, .docx — der Import zeigt eine Vorschau zum Prüfen.</p>
-        <form method="POST" action="{{ route('admin.records.import.upload') }}" enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-            @csrf
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Typ</label>
-                <select name="import_type" required
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="vereinsrekord">Vereinsrekorde</option>
-                    <option value="landesrekord">Landesrekorde</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Datei</label>
-                <input type="file" name="record_file" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.txt" required
-                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
-            </div>
-            <button type="submit"
-                    class="px-4 py-2 bg-accent text-white font-semibold rounded-lg text-sm hover:bg-accent-dark transition-colors">
-                Einlesen → Vorschau
-            </button>
-        </form>
-        @error('record_file')
-            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
-        @enderror
+        <p class="text-sm text-gray-700 mb-4">Der Import zeigt vor dem Übernehmen eine Vorschau zum Prüfen.</p>
+        @include('imports._upload', ['import' => \App\Support\ImportCatalog::get('records'), 'layout' => 'inline'])
     </div>
 
     {{-- Import Form: Ewige / Jahres Bestenliste --}}
     <div x-show="activeTab === 'eternal' || activeTab === 'annual'" x-cloak
          class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 class="font-semibold text-gray-800 mb-1">Historische Bestenliste aus Excel importieren</h3>
-        <p class="text-sm text-gray-500 mb-4">
-            Erwartet wird die Vereinsvorlage „Ewige Vereins-Bestenliste“: Kopfzeile mit Bahn und Geschlecht,
-            darunter Blöcke je Strecke mit Platz, Name, Jahrgang (zweistellig), Zeit und Jahr.
-            Bahn und Geschlecht liest der Import aus der Datei; die Plätze werden neu berechnet.
-        </p>
-        <form method="POST" action="{{ route('admin.bestlist.import.upload') }}" enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-            @csrf
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Datei (.xlsx)</label>
-                <input type="file" name="bestlist_file" accept=".xlsx" required
-                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
-            </div>
-            <button type="submit"
-                    class="px-4 py-2 bg-accent text-white font-semibold rounded-lg text-sm hover:bg-accent-dark transition-colors">
-                Einlesen → Vorschau
-            </button>
-        </form>
-        @error('bestlist_file')
-            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
-        @enderror
+        <p class="text-sm text-gray-700 mb-4">Vereinsvorlage „Ewige Vereins-Bestenliste“. Bahn und Geschlecht liest der Import aus der Datei; die Plätze werden neu berechnet.</p>
+        @include('imports._upload', ['import' => \App\Support\ImportCatalog::get('bestlist'), 'layout' => 'inline'])
     </div>
     @endif
 

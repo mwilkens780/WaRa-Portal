@@ -71,13 +71,15 @@ class Navigation
 
         $sections[] = ['Mitglieder', [
             $is('admin')
-                ? self::item('Benutzer', 'admin.users.index', 'users', ['admin.users.*', 'admin.webclub-import.*'], true)
+                ? self::item('Benutzer', 'admin.users.index', 'users', 'admin.users.*', true)
                 : self::item('Benutzer', 'users-lite.index', 'users', 'users-lite.*', $can('users_lite')),
             self::item('Ernährungsberatung', 'nutrition.index', 'document', 'nutrition.*', $is('ernaehrungsberater', 'admin')),
             self::item('Sportmedizin', 'teamdoctor.index', 'heart', 'teamdoctor.*', $is('teamarzt', 'admin')),
         ]];
 
         $sections[] = ['Daten', [
+            // Alle Datei-Importe; sichtbar, sobald die Rolle mindestens einen nutzen darf
+            self::item('Import-Center', 'imports.index', 'upload', ['imports.*', 'trainer.dsv-import.*', 'admin.webclub-import.*'], !empty(ImportCatalog::for($user))),
             self::item('Crawler & Import-Log', 'admin.import-log.index', 'download', 'admin.import-log.*', $is('admin')),
             self::item('Korrekturen', 'admin.corrections.times.index', 'wrench', 'admin.corrections.*', $is('admin')),
         ]];

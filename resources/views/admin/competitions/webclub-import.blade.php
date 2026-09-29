@@ -1,9 +1,10 @@
 @extends('layouts.app')
-@section('title', 'WebClub Terminimport')
-@section('page-title', 'Wettkampf-Termine aus WebClub importieren')
+@section('title', 'Veranstaltungen aus WebClub')
+@section('page-title', 'Veranstaltungen aus WebClub importieren')
 
 @section('content')
 <div class="mt-2 space-y-5 max-w-5xl">
+    <x-ui.import-steps :current="empty($rows) ? 1 : 2" />
 
     {{-- Back link --}}
     <a href="{{ route('admin.competitions.index') }}" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary">
@@ -12,36 +13,18 @@
     </a>
 
 
-    @if($errors->any())
-        <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm space-y-1">
-            @foreach($errors->all() as $err)
-                <p>{{ $err }}</p>
-            @endforeach
-        </div>
-    @endif
-
     @if(empty($rows))
         {{-- ── Upload form ────────────────────────────────────────────── --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-base font-semibold text-gray-800 mb-4">CSV-Datei aus WebClub hochladen</h2>
-            <p class="text-sm text-gray-500 mb-5">
+            <p class="text-sm text-gray-700 mb-5">
                 Exportieren Sie die Saisonliste aus WebClub als CSV (Semikolon-getrennt).<br>
                 Erwartetes Format: Zeile 1 = Saisonüberschrift, Zeile 2 = Spaltenüberschriften, ab Zeile 3 = Termine.
             </p>
 
-            <form method="POST" action="{{ route('admin.competitions.webclub-import.preview') }}" enctype="multipart/form-data" class="space-y-4">
-                @csrf
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">CSV-Datei</label>
-                    <input type="file" name="csv_file" accept=".csv,.txt"
-                           class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-accent file:text-white hover:file:bg-accent-dark cursor-pointer">
-                </div>
-                <button type="submit"
-                        class="flex items-center gap-2 bg-accent text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-accent-dark transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    Vorschau laden
-                </button>
-            </form>
+            <x-ui.upload-form :action="route('admin.competitions.webclub-import.preview')">
+                <x-ui.file-drop name="csv_file" label="Terminliste (CSV)" accept=".csv,.txt" :max-mb="2" />
+            </x-ui.upload-form>
         </div>
 
     @else

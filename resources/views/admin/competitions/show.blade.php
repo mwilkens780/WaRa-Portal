@@ -204,24 +204,16 @@
                 <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
                         <h3 class="text-sm font-semibold text-gray-700">Wettkampfdefinitionsdatei importieren (*-Wk.DSV7)</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">Ersetzt die aktuelle Wettkampffolge durch die Events aus der Definitionsdatei. Pflichtzeiten und Meldegelder werden automatisch übernommen.</p>
+                        <p class="text-xs text-gray-600 mt-0.5">Ersetzt die aktuelle Wettkampffolge durch die Events aus der Definitionsdatei. Pflichtzeiten und Meldegelder werden automatisch übernommen.</p>
                     </div>
                     <div class="p-4">
-                        <form method="POST" action="{{ route('admin.competitions.definition-import', $competition) }}"
-                              enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-                            @csrf
-                            <div>
-                                <input type="file" name="def_file" accept=".dsv7,.txt"
-                                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
-                            </div>
-                            <button type="submit"
-                                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
-                                Wettkampffolge importieren
-                            </button>
-                        </form>
-                        @error('def_file')
-                            <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
-                        @enderror
+                        {{-- Kein Vorschau-Schritt: ersetzt sofort - daher Rueckfrage --}}
+                        <x-ui.upload-form :action="route('admin.competitions.definition-import', $competition)" layout="inline" submit="Wettkampffolge ersetzen"
+                                          data-confirm="Wettkampffolge ersetzen?"
+                                          data-confirm-text="Die aktuelle Wettkampffolge dieses Wettkampfs wird durch die Strecken aus der Datei ersetzt."
+                                          data-confirm-label="Ersetzen">
+                            <x-ui.file-drop name="def_file" label="Definitionsdatei (*-Wk.DSV7)" accept=".dsv7,.txt" :max-mb="10" />
+                        </x-ui.upload-form>
                     </div>
                 </div>
 
@@ -229,24 +221,12 @@
                 <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
                         <h3 class="text-sm font-semibold text-gray-700">Ergebnisse importieren – DSV7 / Lenex XML</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">Dateiendungen: .dsv7, .lef, .xml, .txt – max. 20 MB. Nur Ergebnisse der eigenen Schwimmer werden zugeordnet; Vorschau vor dem Speichern.</p>
+                        <p class="text-xs text-gray-600 mt-0.5">Nur Ergebnisse der eigenen Schwimmer werden zugeordnet; Vorschau vor dem Speichern.</p>
                     </div>
                     <div class="p-4">
-                        <form method="POST" action="{{ route('admin.competitions.results-import.upload', $competition) }}"
-                              enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-                            @csrf
-                            <div>
-                                <input type="file" name="dsv_file" accept=".xml,.lef,.txt,.dsv7"
-                                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
-                            </div>
-                            <button type="submit"
-                                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
-                                Datei einlesen → Vorschau
-                            </button>
-                        </form>
-                        @error('dsv_file')
-                            <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
-                        @enderror
+                        <x-ui.upload-form :action="route('admin.competitions.results-import.upload', $competition)" layout="inline">
+                            <x-ui.file-drop name="dsv_file" label="Ergebnisdatei (DSV7/Lenex)" accept=".dsv7,.lef,.xml,.txt" :max-mb="20" />
+                        </x-ui.upload-form>
                     </div>
                 </div>
 
@@ -254,24 +234,12 @@
                 <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
                         <h3 class="text-sm font-semibold text-gray-700">Ergebnisse importieren – WebClub CSV</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">WebClub-Ergebnisexport (.csv) – enthält PBZ/SBZ/SR-Kennzeichnung. Alle Athleten aus der Datei werden gegen Portal-Schwimmer abgeglichen.</p>
+                        <p class="text-xs text-gray-600 mt-0.5">WebClub-Ergebnisexport (.csv) – enthält PBZ/SBZ/SR-Kennzeichnung. Alle Athleten aus der Datei werden gegen Portal-Schwimmer abgeglichen.</p>
                     </div>
                     <div class="p-4">
-                        <form method="POST" action="{{ route('admin.competitions.wc-import.upload', $competition) }}"
-                              enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
-                            @csrf
-                            <div>
-                                <input type="file" name="csv_file" accept=".csv,.txt"
-                                       class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-700 cursor-pointer">
-                            </div>
-                            <button type="submit"
-                                    class="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
-                                CSV einlesen → Vorschau
-                            </button>
-                        </form>
-                        @error('csv_file')
-                            <p class="text-red-600 text-xs mt-2">{{ $message }}</p>
-                        @enderror
+                        <x-ui.upload-form :action="route('admin.competitions.wc-import.upload', $competition)" layout="inline">
+                            <x-ui.file-drop name="csv_file" label="WebClub-Ergebnisexport (CSV)" accept=".csv,.txt" :max-mb="10" />
+                        </x-ui.upload-form>
                     </div>
                 </div>
 
