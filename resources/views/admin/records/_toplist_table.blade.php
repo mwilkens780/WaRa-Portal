@@ -34,7 +34,7 @@
                     </div>
 
                     @if(!empty($rows))
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Tabelle (waagerecht scrollbar)">
                         {{-- Letzte Spalte bleibt leer und nimmt den Rest der Breite auf,
                              damit die Namensspalte nicht ins Riesenhafte waechst.
                              Die Spaltenbreiten sind zugleich die Mindestbreite. --}}

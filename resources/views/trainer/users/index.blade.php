@@ -15,7 +15,7 @@
                     <option value="{{ $val }}" {{ request('role') === $val ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
-            <select name="active" class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            <select name="active" aria-label="Nach Status filtern" class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 <option value="">Alle</option>
                 <option value="1" {{ request('active') === '1' ? 'selected' : '' }}>Aktives Mitglied</option>
                 <option value="0" {{ request('active') === '0' ? 'selected' : '' }}>Ehemaliges Mitglied</option>

@@ -122,7 +122,7 @@ class User extends Authenticatable
             return ['key' => 'active', 'label' => 'Portal aktiv', 'tone' => 'bg-green-100 text-green-700'];
         }
         if (!$this->email) {
-            return ['key' => 'no-mail', 'label' => 'Keine E-Mail', 'tone' => 'bg-gray-100 text-gray-500'];
+            return ['key' => 'no-mail', 'label' => 'Keine E-Mail', 'tone' => 'bg-gray-100 text-gray-700'];
         }
         return ['key' => 'pending', 'label' => 'Noch nicht aktiviert', 'tone' => 'bg-amber-100 text-amber-700'];
     }

@@ -48,7 +48,7 @@
                     · {{ $section['gender'] === 'M' ? 'Männlich' : 'Weiblich' }}
                 </p>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Tabelle (waagerecht scrollbar)">
             {{-- Feste Spaltenbreiten: alle Abschnitte stehen exakt untereinander.
                  Die letzte Spalte ist leer und nimmt den Rest der Breite auf -
                  sonst wuerde der Name auf grossen Bildschirmen riesig. Die

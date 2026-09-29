@@ -348,7 +348,7 @@
                                     {{ !$day['inMonth'] && $cellBg && $cellBg !== 'bg-gray-50/50' ? 'opacity-70' : '' }}">
                             <div class="flex items-center justify-between mb-0.5">
                                 <span class="text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full
-                                    {{ $day['isToday'] ? 'bg-primary text-white' : ($day['inMonth'] ? ($isWknd ? 'text-blue-600' : 'text-gray-700') : 'text-gray-300') }}">
+                                    {{ $day['isToday'] ? 'bg-primary text-white' : ($day['inMonth'] ? ($isWknd ? 'text-blue-600' : 'text-gray-700') : 'text-gray-400') }}">
                                     {{ $day['date']->day }}
                                 </span>
                                 @if($isTrainer && $day['inMonth'])
