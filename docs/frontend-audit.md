@@ -434,8 +434,28 @@ auswählen“ in Rekord-/Terminvorschau war defekt; Definitionsdatei ersetzt
 nicht mehr ohne Rückfrage. DSV-Import warnt vor Duplikaten.
 Offen für später: echte Auswahl mehrerer Wettkämpfe im Ergebnis-Import;
 Zusammenführen von allgemeinem DSV-Import und Import am Wettkampf
-(fachliche Entscheidung). Nächstes: Phase 5 (Restseiten, Kontrast, u. a.
-unbeschriftete Felder in „Wettkampf anlegen“, doppelte Fehlermeldungen).
+(fachliche Entscheidung). Nachtrag `c5d9f78`: Der DSV-Import führt jetzt
+mit einer vorhandenen Veranstaltung zusammen (Auswahl in der Vorschau,
+keine doppelten Ergebnisse, leere Angaben ergänzt).
+
+Phase 5 erledigt (`081cc0d`, `38d4454`), gemessen mit axe über alle
+GET-Seiten als Admin und Trainer, Desktop und Mobil (186 Aufrufe):
+
+| Regel | vorher | nachher |
+|---|---|---|
+| label | 604 | 1 |
+| select-name | 174 | 4 |
+| color-contrast | 127 | 25 (Rest danach behoben) |
+| nested-interactive | 18 | 0 |
+| button-name | 1 | 0 |
+| Touch-Ziele < 44 px (mobil) | 2.863 | 2.313 |
+
+Globale Regeln in `resources/css/app.css`: Mindestgröße für Bedienelemente
+auf Touch-Geräten (`.touch-exempt` als Ausnahme), scrollbare Flex-Zeilen
+stauchen nicht. Fehlerübersicht im Layout springt zum Feld. Knöpfe auf
+drei Varianten vereinheitlicht. Übrige Touch-Ziele sind überwiegend
+Textlinks (WCAG 2.2 AA verlangt 24 px, nicht 44).
+Nächstes: Phase 6 (Playwright + axe in CI).
 
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
