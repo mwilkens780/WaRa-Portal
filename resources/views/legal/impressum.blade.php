@@ -14,8 +14,8 @@
         <p>
             Wiesenstrasse 50 a, 22850 Norderstedt<br>
             Tel. 040-521 109 37 / Fax: 040-521 109 38<br>
-            Homepage: <a href="https://www.wasserratten.de" class="text-primary hover:underline" target="_blank" rel="noopener">www.wasserratten.de</a><br>
-            E-Mail: <a href="mailto:info@wasserratten.de" class="text-primary hover:underline">info@wasserratten.de</a>
+            Homepage: <a href="https://www.wasserratten.de" class="text-primary underline underline-offset-2 hover:no-underline" target="_blank" rel="noopener">www.wasserratten.de</a><br>
+            E-Mail: <a href="mailto:info@wasserratten.de" class="text-primary underline underline-offset-2 hover:no-underline">info@wasserratten.de</a>
         </p>
     </section>
 

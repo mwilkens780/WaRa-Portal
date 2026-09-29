@@ -192,7 +192,7 @@
     <div class="page-break"></div>
     <h2>Anwesenheitsliste</h2>
     @if($swimmers->isEmpty())
-        <p style="color:#888; font-size:10pt;">Keine Schwimmer zugewiesen.</p>
+        <p style="color:#595959; font-size:10pt;">Keine Schwimmer zugewiesen.</p>
     @else
         <table class="attendance-table" style="max-width:600px;">
             <thead>
@@ -212,7 +212,7 @@
                         <td>
                             {{ $sw->name }}
                             @if($sw->birth_date)
-                                <span style="color:#888; font-size:8.5pt;">({{ $sw->age }} J.)</span>
+                                <span style="color:#595959; font-size:8.5pt;">({{ $sw->age }} J.)</span>
                             @endif
                             @if($att?->pre_absent)
                                 <span class="badge badge-gray" style="font-size:7.5pt;">abgesagt</span>

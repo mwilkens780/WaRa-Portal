@@ -95,7 +95,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-2">
-                                <select name="course[{{ $c->id }}]" x-model="choice[{{ $c->id }}]"
+                                <select name="course[{{ $c->id }}]" x-model="choice[{{ $c->id }}]" aria-label="Bahnlänge: {{ $c->name }}"
                                         class="w-full px-2 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30"
                                         :class="choice[{{ $c->id }}] ? 'border-blue-300 bg-white' : 'border-gray-200 text-gray-400'">
                                     <option value="">– unverändert –</option>

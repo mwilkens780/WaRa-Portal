@@ -13,7 +13,7 @@
                 <button @click="open = !open"
                         class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-100/50 transition-colors">
                     <div class="shrink-0 w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                     </div>
@@ -24,7 +24,7 @@
                             <span class="text-xs text-amber-700 font-medium ml-2">Frist: {{ $signup->deadline->format('d.m.Y') }}</span>
                         @endif
                     </div>
-                    <svg class="w-4 h-4 text-amber-500 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"
+                    <svg class="w-4 h-4 text-amber-700 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"
                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
@@ -48,7 +48,7 @@
                                 @csrf
                                 <input type="hidden" name="status" value="attending">
                                 <button type="submit"
-                                        class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
+                                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
                                     Ich nehme teil
                                 </button>
                             </form>
@@ -66,7 +66,7 @@
                                         Ich kann nicht teilnehmen
                                     </button>
                                     <button x-show="showNote" type="submit"
-                                            class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm transition-colors">
+                                            class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 px-4 py-2 rounded-lg text-sm transition-colors">
                                         Absagen
                                     </button>
                                 </div>
@@ -121,7 +121,7 @@
                                 <form method="POST" action="{{ route('swimmer.signup.bus', $signup) }}">
                                     @csrf
                                     <button type="submit"
-                                            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
+                                            class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
                                         Busplatz buchen
                                     </button>
                                 </form>
@@ -173,7 +173,7 @@
     @endphp
     <div class="flex items-start gap-4 {{ $isUrgent ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200' }} rounded-xl p-5">
         <div class="shrink-0 w-10 h-10 rounded-full {{ $isUrgent ? 'bg-red-100' : 'bg-amber-100' }} flex items-center justify-center">
-            <svg class="w-5 h-5 {{ $isUrgent ? 'text-red-600' : 'text-amber-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            <svg class="w-5 h-5 {{ $isUrgent ? 'text-red-600' : 'text-amber-700' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
         </div>
         <div class="flex-1">
             <p class="font-semibold text-gray-800 text-sm">
@@ -243,7 +243,7 @@
                 </span>
             @endif
             <p class="text-sm text-gray-500">Meine Ziele in dieser Saison</p>
-            <p class="text-3xl font-bold {{ $goalsUnnotified > 0 ? 'text-green-600' : 'text-primary' }} mt-1">
+            <p class="text-3xl font-bold {{ $goalsUnnotified > 0 ? 'text-green-700' : 'text-primary' }} mt-1">
                 {{ $goalsAchieved }}<span class="text-lg font-normal text-gray-400">/{{ $goalsTotal }}</span>
             </p>
             @if($goalsTotal > 0)
@@ -260,7 +260,7 @@
         {{-- km diese Woche --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 col-span-2 lg:col-span-1">
             <p class="text-sm text-gray-500">km diese Woche</p>
-            <p class="text-3xl font-bold text-teal-600 mt-1">
+            <p class="text-3xl font-bold text-teal-700 mt-1">
                 @if($stats['km_this_week'] > 0)
                     {{ number_format($stats['km_this_week'], $stats['km_this_week'] < 10 ? 2 : 1, ',', '') }}
                 @else
@@ -307,8 +307,8 @@
         <div class="flex items-center gap-4">
             <div class="bg-primary/10 rounded-xl p-3 flex-shrink-0 text-center min-w-[64px]">
                 <p class="text-2xl font-bold text-primary leading-none">{{ $next_competition->date->format('d') }}</p>
-                <p class="text-xs font-semibold text-primary/70 mt-0.5">{{ $next_competition->date->isoFormat('MMM') }}</p>
-                <p class="text-xs text-primary/50">{{ $next_competition->date->year }}</p>
+                <p class="text-xs font-semibold text-primary mt-0.5">{{ $next_competition->date->isoFormat('MMM') }}</p>
+                <p class="text-xs text-primary">{{ $next_competition->date->year }}</p>
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-xs font-semibold text-primary uppercase tracking-wide mb-0.5">Nächster Wettkampf</p>
@@ -348,7 +348,7 @@
                     <a href="{{ route('swimmer.session.show', $session) }}" class="flex items-center gap-4 flex-1 min-w-0">
                         <div class="text-center {{ $isAbsent ? 'bg-red-100' : ($regOpen ? 'bg-green-100' : 'bg-primary/10') }} rounded-lg p-2 min-w-[54px]">
                             <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : ($regOpen ? 'text-green-700' : 'text-primary') }}">{{ $session->date->format('d.M') }}</p>
-                            <p class="text-xs {{ $isAbsent ? 'text-red-400' : ($regOpen ? 'text-green-500' : 'text-primary/60') }}">{{ $session->date->isoFormat('ddd') }}</p>
+                            <p class="text-xs {{ $isAbsent ? 'text-red-600' : ($regOpen ? 'text-green-700' : 'text-primary') }}">{{ $session->date->isoFormat('ddd') }}</p>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
@@ -370,7 +370,7 @@
                                 · <span class="{{ $session->type_color }} text-xs px-1.5 py-0.5 rounded-full">{{ $session->type_label }}</span>
                             </p>
                             @if($isAbsent && $my_pre_absences[$session->id])
-                                <p class="text-xs text-red-500 mt-0.5 italic">{{ $my_pre_absences[$session->id] }}</p>
+                                <p class="text-xs text-red-600 mt-0.5 italic">{{ $my_pre_absences[$session->id] }}</p>
                             @endif
                         </div>
                     </a>
@@ -394,7 +394,7 @@
                                 <input type="text" name="note" placeholder="Grund (optional)"
                                        class="text-xs border border-gray-200 rounded px-2 py-1 w-36 focus:outline-none focus:ring-1 focus:ring-primary">
                                 <button type="submit"
-                                        class="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
+                                        class="bg-accent hover:bg-accent-dark text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
                                     Bestätigen
                                 </button>
                                 <button type="button" @click="open = false"
@@ -598,7 +598,7 @@
                            class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
                             <div class="text-center bg-primary/10 rounded-lg p-2 min-w-[50px]">
                                 <p class="text-xs font-semibold text-primary">{{ $session->date->format('d.M') }}</p>
-                                <p class="text-xs text-primary/60">{{ $session->date->isoFormat('ddd') }}</p>
+                                <p class="text-xs text-primary">{{ $session->date->isoFormat('ddd') }}</p>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
@@ -612,7 +612,7 @@
                                 @endphp
                                 <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 {{ $scoreClass }}">{{ $sc }}/10</span>
                             @else
-                                <span class="flex-shrink-0 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Bewerten</span>
+                                <span class="flex-shrink-0 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">Bewerten</span>
                             @endif
                         </a>
                     @empty

@@ -26,26 +26,26 @@
             <div class="px-6 py-5 space-y-4">
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Vorname <span class="text-red-500">*</span></label>
-                        <input type="text" name="firstname" value="{{ old('firstname', $user->firstname) }}" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Vorname <span class="text-red-600">*</span></label>
+                        <input aria-label="Vorname" type="text" name="firstname" value="{{ old('firstname', $user->firstname) }}" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nachname <span class="text-red-500">*</span></label>
-                        <input type="text" name="lastname" value="{{ old('lastname', $user->lastname) }}" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nachname <span class="text-red-600">*</span></label>
+                        <input aria-label="Nachname" type="text" name="lastname" value="{{ old('lastname', $user->lastname) }}" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                 </div>
 
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail (primär) <span class="text-red-500">*</span></label>
-                        <input type="email" name="email" value="{{ old('email', $user->email) }}" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail (primär) <span class="text-red-600">*</span></label>
+                        <input aria-label="E-Mail (primär)" type="email" name="email" value="{{ old('email', $user->email) }}" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail (alternativ)</label>
-                        <input type="email" name="email2" value="{{ old('email2', $user->email2) }}"
+                        <input aria-label="E-Mail (alternativ)" type="email" name="email2" value="{{ old('email2', $user->email2) }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                 </div>
@@ -53,30 +53,30 @@
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                        <input type="text" name="phone" value="{{ old('phone', $user->phone) }}"
+                        <input aria-label="Telefon" type="text" name="phone" value="{{ old('phone', $user->phone) }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Mobil</label>
-                        <input type="text" name="mobile" value="{{ old('mobile', $user->mobile) }}"
+                        <input aria-label="Mobil" type="text" name="mobile" value="{{ old('mobile', $user->mobile) }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Straße & Hausnummer</label>
-                    <input type="text" name="street" value="{{ old('street', $user->street) }}"
+                    <input aria-label="Straße & Hausnummer" type="text" name="street" value="{{ old('street', $user->street) }}"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                 </div>
                 <div class="grid sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
-                        <input type="text" name="postal_code" value="{{ old('postal_code', $user->postal_code) }}"
+                        <input aria-label="PLZ" type="text" name="postal_code" value="{{ old('postal_code', $user->postal_code) }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Ort</label>
-                        <input type="text" name="city" value="{{ old('city', $user->city) }}"
+                        <input aria-label="Ort" type="text" name="city" value="{{ old('city', $user->city) }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
                     </div>
                 </div>

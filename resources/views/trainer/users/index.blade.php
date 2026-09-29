@@ -9,7 +9,7 @@
         <form method="GET" class="flex flex-wrap gap-2 items-center">
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Name oder E-Mail…"
                    class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-48">
-            <select name="role" class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            <select name="role" aria-label="Nach Rolle filtern" class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 <option value="">Alle Rollen</option>
                 @foreach(\App\Models\User::ROLE_LABELS as $val => $label)
                     <option value="{{ $val }}" {{ request('role') === $val ? 'selected' : '' }}>{{ $label }}</option>

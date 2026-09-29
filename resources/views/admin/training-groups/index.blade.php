@@ -36,7 +36,7 @@
                             class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors text-left">
                         <div class="flex items-center gap-3">
                             <span class="font-semibold text-gray-700 text-sm">{{ $typeLabels[$type] ?? $type }}</span>
-                            <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
                                 {{ $typeGroups->count() }} {{ $typeGroups->count() === 1 ? 'Gruppe' : 'Gruppen' }}
                             </span>
                         </div>
@@ -70,7 +70,7 @@
                                                 @endif
                                             </div>
                                             @if(!$group->active)
-                                                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">Inaktiv</span>
+                                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full flex-shrink-0">Inaktiv</span>
                                             @endif
                                         </div>
 
@@ -95,7 +95,7 @@
                                                     <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{{ $trainer->firstname }} {{ $trainer->lastname }}</span>
                                                 @endforeach
                                                 @if($group->trainers->count() > 3)
-                                                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{{ $group->trainers->count() - 3 }}</span>
+                                                    <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">+{{ $group->trainers->count() - 3 }}</span>
                                                 @endif
                                             </div>
                                         @endif

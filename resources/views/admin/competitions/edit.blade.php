@@ -10,33 +10,33 @@
 
             <div class="grid md:grid-cols-2 gap-5">
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Name des Wettkampfs <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" value="{{ old('name', $competition->name) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name des Wettkampfs <span class="text-red-600">*</span></label>
+                    <input aria-label="Name des Wettkampfs" type="text" name="name" value="{{ old('name', $competition->name) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Ort <span class="text-red-500">*</span></label>
-                    <input type="text" name="location" value="{{ old('location', $competition->location) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ort <span class="text-red-600">*</span></label>
+                    <input aria-label="Ort" type="text" name="location" value="{{ old('location', $competition->location) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Veranstalter</label>
-                    <input type="text" name="organizer" value="{{ old('organizer', $competition->organizer) }}"
+                    <input aria-label="Veranstalter" type="text" name="organizer" value="{{ old('organizer', $competition->organizer) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Datum (Beginn) <span class="text-red-500">*</span></label>
-                    <input type="date" name="date" value="{{ old('date', $competition->date->format('Y-m-d')) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Datum (Beginn) <span class="text-red-600">*</span></label>
+                    <input aria-label="Datum (Beginn)" type="date" name="date" value="{{ old('date', $competition->date->format('Y-m-d')) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Datum (Ende)</label>
-                    <input type="date" name="date_end" value="{{ old('date_end', $competition->date_end?->format('Y-m-d')) }}"
+                    <input aria-label="Datum (Ende)" type="date" name="date_end" value="{{ old('date_end', $competition->date_end?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ <span class="text-red-500">*</span></label>
-                    <select name="type" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ <span class="text-red-600">*</span></label>
+                    <select aria-label="Typ" name="type" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach(\App\Models\Competition::TYPE_LABELS as $value => $label)
                             <option value="{{ $value }}" {{ old('type', $competition->type) === $value ? 'selected' : '' }}>{{ $label }}</option>
                         @endforeach
@@ -44,7 +44,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Meisterschaftsebene</label>
-                    <select name="level" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <select aria-label="Meisterschaftsebene" name="level" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">– nicht angegeben –</option>
                         @foreach(\App\Models\Competition::LEVEL_LABELS as $value => $label)
                             <option value="{{ $value }}" {{ old('level', $competition->level) === $value ? 'selected' : '' }}>{{ $label }}</option>
@@ -53,7 +53,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bahnlänge</label>
-                    <select name="course" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <select aria-label="Bahnlänge" name="course" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">– nicht angegeben –</option>
                         <option value="Kurzbahn" {{ old('course', $competition->course) === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
                         <option value="Langbahn" {{ old('course', $competition->course) === 'Langbahn' ? 'selected' : '' }}>Langbahn (50 m)</option>
@@ -61,7 +61,7 @@
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                    <textarea name="description" rows="3"
+                    <textarea aria-label="Beschreibung" name="description" rows="3"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ old('description', $competition->description) }}</textarea>
                 </div>
             </div>

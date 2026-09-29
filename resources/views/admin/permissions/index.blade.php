@@ -51,6 +51,7 @@
                             @foreach($editableRoles as $role)
                             <td class="px-4 py-3 text-center">
                                 <input type="checkbox"
+                                       aria-label="{{ $roleLabels[$role] }}: {{ $item['label'] }}"
                                        name="permissions[{{ $role }}][{{ $key }}]"
                                        value="1"
                                        {{ ($matrix[$role][$key] ?? false) ? 'checked' : '' }}

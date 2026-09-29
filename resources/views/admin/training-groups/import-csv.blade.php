@@ -71,7 +71,7 @@
                             <td class="px-4 py-2 text-gray-500 font-mono text-xs">{{ $row['csv_dsv_id'] ?: '–' }}</td>
                             {{-- Aktiv --}}
                             <td class="px-4 py-2">
-                                <span class="text-xs px-1.5 py-0.5 rounded {{ $row['csv_active'] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500' }}">
+                                <span class="text-xs px-1.5 py-0.5 rounded {{ $row['csv_active'] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
                                     {{ $row['csv_active'] ? 'Ja' : 'Nein' }}
                                 </span>
                             </td>
@@ -95,7 +95,7 @@
                                                class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none">
                                     </div>
                                 @else
-                                    <span class="text-xs text-amber-600">Mehrere Treffer</span>
+                                    <span class="text-xs text-amber-700">Mehrere Treffer</span>
                                 @endif
                             </td>
                             {{-- Aktion --}}
@@ -120,7 +120,7 @@
                                     </label>
                                     <label class="flex items-center gap-2 text-xs cursor-pointer mt-1">
                                         <input type="radio" name="rows[{{ $i }}][action]" value="create"
-                                               class="text-green-600 border-gray-300"
+                                               class="text-green-700 border-gray-300"
                                                onchange="document.getElementById('create-fields-{{ $i }}').classList.remove('hidden')">
                                         <span class="text-green-700 font-medium">Neu anlegen</span>
                                     </label>
@@ -154,7 +154,7 @@
                 <div class="flex items-center gap-3 px-5 py-2.5">
                     <input type="hidden" name="remove[{{ $j }}]" value="0">
                     <input type="checkbox" name="remove[{{ $j }}]" value="1" checked aria-label="{{ $entry['name'] }} aus der Gruppe entfernen"
-                           class="w-4 h-4 rounded text-red-500 border-gray-300">
+                           class="w-4 h-4 rounded text-red-600 border-gray-300">
                     <div>
                         <p class="text-sm font-medium text-gray-800">{{ $entry['name'] }}</p>
                         @if($entry['year'])

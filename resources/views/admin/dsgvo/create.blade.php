@@ -17,7 +17,7 @@
             {{-- Portal-Nutzer (optional) --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Portal-Nutzer (optional)</label>
-                <select name="user_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <select aria-label="Portal-Nutzer (optional)" name="user_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                     <option value="">— kein Portal-Konto zugeordnet —</option>
                     @foreach($users as $u)
                         <option value="{{ $u->id }}" {{ old('user_id') == $u->id ? 'selected' : '' }}>
@@ -26,29 +26,29 @@
                     @endforeach
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Wenn zugeordnet, kann eine vollständige Datenauskunft exportiert werden.</p>
-                @error('user_id')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                @error('user_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
             </div>
 
             {{-- Antragsteller --}}
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Name der anfragenden Person <span class="text-red-500">*</span></label>
-                    <input type="text" name="requester_name" value="{{ old('requester_name') }}"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name der anfragenden Person <span class="text-red-600">*</span></label>
+                    <input aria-label="Name der anfragenden Person" type="text" name="requester_name" value="{{ old('requester_name') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                            required>
-                    @error('requester_name')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                    @error('requester_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail der anfragenden Person</label>
-                    <input type="email" name="requester_email" value="{{ old('requester_email') }}"
+                    <input aria-label="E-Mail der anfragenden Person" type="email" name="requester_email" value="{{ old('requester_email') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                    @error('requester_email')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                    @error('requester_email')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                 </div>
             </div>
 
             {{-- Anfragetyp --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Art der Anfrage <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Art der Anfrage <span class="text-red-600">*</span></label>
                 {{-- Markierung per Alpine statt :has() - das kennt iOS erst ab 15.4 --}}
                 <div class="grid grid-cols-2 gap-2" x-data="{ sel: @js(old('type')) }">
                     @foreach(\App\Models\DsgvoRequest::$types as $key => $label)
@@ -59,16 +59,16 @@
                     </label>
                     @endforeach
                 </div>
-                @error('type')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                @error('type')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
             </div>
 
             {{-- Beschreibung --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Anmerkungen</label>
-                <textarea name="description" rows="4"
+                <textarea aria-label="Beschreibung / Anmerkungen" name="description" rows="4"
                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                           placeholder="Inhalt der Anfrage, Eingangsweg (E-Mail, Post, ...) etc.">{{ old('description') }}</textarea>
-                @error('description')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                @error('description')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
             </div>
 
             <div class="flex items-center gap-3 pt-2">

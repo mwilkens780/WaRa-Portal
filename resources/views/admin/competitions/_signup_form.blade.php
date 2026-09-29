@@ -26,7 +26,7 @@
 
 <div>
     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Zusätzliche Einzelschwimmer</label>
-    <select name="eligible_user_ids[]" multiple
+    <select aria-label="Zusätzliche Einzelschwimmer" name="eligible_user_ids[]" multiple
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             size="5">
         @foreach($swimmers as $s)
@@ -41,7 +41,7 @@
 
 <div>
     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Nachricht an die Schwimmer</label>
-    <textarea name="message" rows="5"
+    <textarea aria-label="Nachricht an die Schwimmer" name="message" rows="5"
               placeholder="Informationen zur Anmeldung, Anforderungen, Besonderheiten..."
               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y">{{ $signupRequest?->message }}</textarea>
 </div>
@@ -49,13 +49,13 @@
 <div class="grid sm:grid-cols-2 gap-4">
     <div>
         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Anmeldefrist</label>
-        <input type="date" name="deadline"
+        <input aria-label="Anmeldefrist" type="date" name="deadline"
                value="{{ $signupRequest?->deadline?->format('Y-m-d') }}"
                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
     </div>
     <div>
         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Anhang (optional)</label>
-        <input type="file" name="attachment"
+        <input aria-label="Anhang (optional)" type="file" name="attachment"
                class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer">
         @if($signupRequest?->attachment_path)
             <p class="text-xs text-gray-400 mt-1">Aktuell: Anhang vorhanden (wird durch Upload ersetzt)</p>
@@ -73,13 +73,13 @@
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Von</label>
-            <input type="date" name="qualifying_period_start"
+            <input aria-label="Von" type="date" name="qualifying_period_start"
                    value="{{ $signupRequest?->qualifying_period_start?->format('Y-m-d') }}"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
         </div>
         <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Bis</label>
-            <input type="date" name="qualifying_period_end"
+            <input aria-label="Bis" type="date" name="qualifying_period_end"
                    value="{{ $signupRequest?->qualifying_period_end?->format('Y-m-d') }}"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
         </div>
@@ -93,14 +93,14 @@
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Treffpunkt</label>
-            <input type="text" name="meeting_point"
+            <input aria-label="Treffpunkt" type="text" name="meeting_point"
                    value="{{ $signupRequest ? $signupRequest->meeting_point : 'Schul- und Vereinsbad Norderstedt' }}"
                    placeholder="z.B. Parkplatz Schwimmhalle Nord"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
         <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Treffpunkt-Uhrzeit</label>
-            <input type="time" name="meeting_time"
+            <input aria-label="Treffpunkt-Uhrzeit" type="time" name="meeting_time"
                    value="{{ $signupRequest?->meeting_time ? \Illuminate\Support\Str::substr($signupRequest->meeting_time, 0, 5) : '' }}"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
@@ -118,7 +118,7 @@
 
         <div x-show="busOn" x-cloak>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Maximale Plätze im Bus</label>
-            <input type="number" name="bus_seats"
+            <input aria-label="Maximale Plätze im Bus" type="number" name="bus_seats"
                    value="{{ $signupRequest?->bus_seats ?? 8 }}"
                    min="1" max="100"
                    class="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">

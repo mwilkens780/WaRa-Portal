@@ -14,13 +14,13 @@
                 {{ ucfirst($trainingGroup->color) }}
             </span>
             @if(!$trainingGroup->active)
-                <span class="bg-gray-100 text-gray-500 text-xs font-medium px-2.5 py-1 rounded-full">Inaktiv</span>
+                <span class="bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">Inaktiv</span>
             @endif
         </div>
         <div class="flex items-center gap-2">
             @if($trainingGroup->motto_week_enabled)
             <a href="{{ route('admin.training-groups.motto-weeks', $trainingGroup) }}"
-               class="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors">
+               class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                 Motto-Wochen
             </a>
@@ -46,7 +46,7 @@
 
     @if($trainingGroup->trainers->isEmpty())
         <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm">
-            <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <svg class="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
             <div>
                 <p class="font-semibold text-amber-800">Kein Trainer zugewiesen</p>
                 <p class="text-amber-700 mt-0.5">
@@ -106,7 +106,7 @@
                         <form method="POST" action="{{ route('admin.training-groups.remove-swimmer', [$trainingGroup, $swimmer]) }}"
                               data-confirm="{{ $swimmer->firstname }} {{ $swimmer->lastname }} aus der Gruppe entfernen?" data-confirm-label="Entfernen" data-confirm-danger>
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-red-400 hover:text-red-600 transition-colors p-1" title="Aus Gruppe entfernen">
+                            <button type="submit" class="text-red-600 hover:text-red-800 transition-colors p-1" title="Aus Gruppe entfernen">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </form>
@@ -160,20 +160,20 @@
                 @csrf
                 <div class="grid sm:grid-cols-3 gap-3">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Kriterium <span class="text-red-500">*</span></label>
-                        <input type="text" name="title" required maxlength="255"
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Kriterium <span class="text-red-600">*</span></label>
+                        <input aria-label="Kriterium" type="text" name="title" required maxlength="255"
                                placeholder="z.B. 1x NDM Norm schwimmen"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Zielwert <span class="text-gray-400">(optional)</span></label>
-                        <input type="text" name="target_value" maxlength="255"
+                        <input aria-label="Zielwert (optional)" type="text" name="target_value" maxlength="255"
                                placeholder="z.B. 80 % oder 1x"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div class="sm:col-span-3">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Beschreibung <span class="text-gray-400">(optional)</span></label>
-                        <textarea name="description" rows="2" maxlength="1000"
+                        <textarea aria-label="Beschreibung (optional)" name="description" rows="2" maxlength="1000"
                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
                     </div>
                 </div>
@@ -203,7 +203,7 @@
                         <div class="flex flex-wrap items-center gap-2 mb-0.5">
                             <span class="text-sm font-semibold text-gray-800">{{ $goal->title }}</span>
                             @if($goal->target_value)
-                                <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Ziel: {{ $goal->target_value }}</span>
+                                <span class="text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">Ziel: {{ $goal->target_value }}</span>
                             @endif
                             <span class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700" title="Erreicht">✓ {{ $cntYes }}</span>
                             <span class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700" title="Nicht erreicht">✗ {{ $cntNo }}</span>
@@ -228,7 +228,7 @@
                         <form method="POST" action="{{ route('admin.training-groups.goals.destroy', [$trainingGroup, $goal]) }}"
                               data-confirm="Leistungskriterium entfernen?" data-confirm-text="Bewertungen vergangener Saisons bleiben erhalten." data-confirm-label="Entfernen" data-confirm-danger>
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-xs text-red-400 hover:text-red-600" title="Entfernen">
+                            <button type="submit" class="text-xs text-red-600 hover:text-red-800" title="Entfernen">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </form>
@@ -243,17 +243,17 @@
                         <div class="grid sm:grid-cols-3 gap-3">
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Kriterium</label>
-                                <input type="text" name="title" value="{{ $goal->title }}" required maxlength="255"
+                                <input aria-label="Kriterium" type="text" name="title" value="{{ $goal->title }}" required maxlength="255"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Zielwert</label>
-                                <input type="text" name="target_value" value="{{ $goal->target_value }}" maxlength="255"
+                                <input aria-label="Zielwert" type="text" name="target_value" value="{{ $goal->target_value }}" maxlength="255"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div class="sm:col-span-3">
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Beschreibung</label>
-                                <textarea name="description" rows="2" maxlength="1000"
+                                <textarea aria-label="Beschreibung" name="description" rows="2" maxlength="1000"
                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ $goal->description }}</textarea>
                             </div>
                         </div>
@@ -379,7 +379,7 @@
                    class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
                     <div class="text-center bg-primary/10 rounded-lg p-2 min-w-[50px]">
                         <p class="text-xs font-semibold text-primary">{{ $session->date->format('d.M') }}</p>
-                        <p class="text-xs text-primary/70">{{ $session->date->isoFormat('ddd') }}</p>
+                        <p class="text-xs text-primary">{{ $session->date->isoFormat('ddd') }}</p>
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
@@ -468,7 +468,7 @@
               data-confirm="Trainingsgruppe „{{ $trainingGroup->name }}“ wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
             @csrf
             @method('DELETE')
-            <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">
+            <button type="submit" class="bg-accent hover:bg-accent-dark text-white px-4 py-2 text-sm font-medium rounded-lg transition-colors">
                 Gruppe löschen
             </button>
         </form>

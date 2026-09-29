@@ -15,26 +15,26 @@
             <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">Gruppendetails</h2>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
-                <input type="text" name="name" value="{{ old('name', $trainingGroup->name) }}" required maxlength="100"
+                <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-600">*</span></label>
+                <input aria-label="Name" type="text" name="name" value="{{ old('name', $trainingGroup->name) }}" required maxlength="100"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('name') border-red-400 @enderror">
-                @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                @error('name') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                <textarea name="description" rows="3"
+                <textarea aria-label="Beschreibung" name="description" rows="3"
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">{{ old('description', $trainingGroup->description) }}</textarea>
             </div>
 
             @if(auth()->user()->isAdmin())
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">WebClub-ID</label>
-                <input type="number" name="webclub_id" value="{{ old('webclub_id', $trainingGroup->webclub_id) }}"
+                <input aria-label="WebClub-ID" type="number" name="webclub_id" value="{{ old('webclub_id', $trainingGroup->webclub_id) }}"
                        min="1" placeholder="Wird automatisch per Crawler gesetzt"
                        class="w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('webclub_id') border-red-400 @enderror">
                 <p class="text-xs text-gray-400 mt-1">Numerische Gruppen-ID aus WebClub (Stammdaten → Gruppen). Wird vom Crawler automatisch befüllt.</p>
-                @error('webclub_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                @error('webclub_id') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
             </div>
             @endif
 
@@ -58,14 +58,14 @@
 
                 {{-- Gruppentyp --}}
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Gruppentyp <span class="text-red-500">*</span></label>
-                    <select name="group_type" x-model="groupType" @change="customColor = ''"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Gruppentyp <span class="text-red-600">*</span></label>
+                    <select aria-label="Gruppentyp" name="group_type" x-model="groupType" @change="customColor = ''"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('group_type') border-red-400 @enderror">
                         @foreach(\App\Models\TrainingGroup::GROUP_TYPES as $key => $label)
                             <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach
                     </select>
-                    @error('group_type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    @error('group_type') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Automatische Standardfarbe --}}
@@ -94,12 +94,12 @@
                         @foreach($customColorKeys as $colorKey)
                         @php $cls = $allColors[$colorKey]; @endphp
                         <label class="cursor-pointer" title="{{ $cls['label'] }}">
-                            <input type="radio" x-model="customColor" value="{{ $colorKey }}" class="sr-only peer">
+                            <input type="radio" x-model="customColor" value="{{ $colorKey }}" aria-label="Farbe {{ $cls['label'] }}" class="sr-only peer">
                             <span class="block w-7 h-7 rounded-full {{ $cls['dot'] }} ring-2 ring-transparent peer-checked:ring-offset-2 peer-checked:ring-gray-400 transition-all"></span>
                         </label>
                         @endforeach
                     </div>
-                    @error('color') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    @error('color') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
                     <p class="text-xs text-gray-400 mt-1">Nur wählen, wenn du von der Standardfarbe des Typs abweichen möchtest.</p>
                 </div>
             </div>
@@ -194,7 +194,7 @@
                         @foreach($linkedSessions as $session)
                             <label class="flex items-center gap-3 text-sm cursor-pointer px-2 py-2 rounded-lg hover:bg-gray-50">
                                 <input type="checkbox" name="unlink_sessions[]" value="{{ $session->id }}"
-                                       class="w-4 h-4 text-red-500 rounded border-gray-300">
+                                       class="w-4 h-4 text-red-600 rounded border-gray-300">
                                 <div class="flex-1 min-w-0">
                                     <span class="font-medium text-gray-800">{{ $session->title }}</span>
                                     <span class="text-gray-400 ml-2">{{ $session->date->format('d.m.Y') }}</span>

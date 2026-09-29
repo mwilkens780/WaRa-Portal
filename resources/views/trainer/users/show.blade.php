@@ -83,7 +83,7 @@
                   class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
                 @csrf
                 <label class="text-sm text-gray-600">Zu meiner Gruppe hinzufügen:</label>
-                <select name="group_id" required
+                <select aria-label="Zu meiner Gruppe hinzufügen" name="group_id" required
                         class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">Gruppe wählen…</option>
                     @foreach($offeneGruppen as $gruppe)
@@ -111,9 +111,9 @@
                         <dt class="text-xs text-gray-500">{{ $label }}</dt>
                         <dd class="text-sm text-gray-800">
                             @if($wert && in_array($label, ['E-Mail (Login)', 'E-Mail privat'], true))
-                                <a href="mailto:{{ $wert }}" class="text-primary hover:underline">{{ $wert }}</a>
+                                <a href="mailto:{{ $wert }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $wert }}</a>
                             @elseif($wert && ($label === 'Telefon' || $label === 'Mobil'))
-                                <a href="tel:{{ $wert }}" class="text-primary hover:underline">{{ $wert }}</a>
+                                <a href="tel:{{ $wert }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $wert }}</a>
                             @else
                                 {{ $wert ?: '–' }}
                             @endif
@@ -134,7 +134,7 @@
                         <li class="py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
                             <span class="text-gray-800">{{ $person->name }}</span>
                             <span class="text-gray-500 text-xs">
-                                @if($person->email)<a href="mailto:{{ $person->email }}" class="text-primary hover:underline">{{ $person->email }}</a>@endif
+                                @if($person->email)<a href="mailto:{{ $person->email }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $person->email }}</a>@endif
                                 @if($person->email && ($person->mobile || $person->phone)) · @endif
                                 {{ $person->mobile ?: $person->phone }}
                             </span>

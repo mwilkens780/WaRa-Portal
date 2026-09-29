@@ -37,12 +37,12 @@ window._ltSessionId = {{ $session->id }};
             Einheit
         </a>
         <div class="flex items-center gap-2 text-xs">
-            <span x-show="saveState === 'saved'" class="flex items-center gap-1 text-green-600 font-medium">
+            <span x-show="saveState === 'saved'" class="flex items-center gap-1 text-green-700 font-medium">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                 gespeichert
             </span>
             <span x-show="saveState === 'saving'" x-cloak class="text-gray-400">speichert…</span>
-            <span x-show="saveState === 'error'" x-cloak class="flex items-center gap-1 text-amber-600 font-medium">
+            <span x-show="saveState === 'error'" x-cloak class="flex items-center gap-1 text-amber-700 font-medium">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                 <span x-text="pending.length + ' offen'"></span>
             </span>
@@ -57,7 +57,7 @@ window._ltSessionId = {{ $session->id }};
             und werden nach dem Neuladen übertragen.
         </span>
         <button type="button" @click="window.location.reload()"
-                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg">
+                class="bg-primary hover:bg-primary-dark text-white px-4 py-2 font-semibold rounded-lg">
             Neu laden
         </button>
     </div>
@@ -233,7 +233,7 @@ window._ltSessionId = {{ $session->id }};
                         Reihenfolge bearbeiten
                     </button>
                     <span x-show="waveSaveState === 'saving'" x-cloak class="text-xs text-gray-400">speichert…</span>
-                    <span x-show="waveSaveState === 'saved'" x-cloak class="text-xs text-green-600">gespeichert</span>
+                    <span x-show="waveSaveState === 'saved'" x-cloak class="text-xs text-green-700">gespeichert</span>
                     <span x-show="waveSaveState === 'error'" x-cloak class="text-xs text-red-600">Fehler</span>
                 </div>
             </div>
@@ -261,7 +261,7 @@ window._ltSessionId = {{ $session->id }};
                                     : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
                             <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
                             <span class="block text-xs mt-0.5"
-                                  :class="nextRep(a.id) === null ? 'text-green-600 font-medium' : 'text-gray-400'"
+                                  :class="nextRep(a.id) === null ? 'text-green-700 font-medium' : 'text-gray-400'"
                                   x-text="nextRep(a.id) === null
                                     ? 'komplett'
                                     : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
@@ -293,7 +293,7 @@ window._ltSessionId = {{ $session->id }};
                                             : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
                                     <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
                                     <span class="block text-xs mt-0.5"
-                                          :class="nextRep(a.id) === null ? 'text-green-600 font-medium' : 'text-gray-400'"
+                                          :class="nextRep(a.id) === null ? 'text-green-700 font-medium' : 'text-gray-400'"
                                           x-text="nextRep(a.id) === null
                                             ? 'komplett'
                                             : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
@@ -337,7 +337,7 @@ window._ltSessionId = {{ $session->id }};
                                             class="font-medium text-gray-700 hover:text-primary truncate max-w-[96px] block text-left transition-colors"
                                             x-text="a.short"></button>
                                     <span x-show="hasWaves" x-cloak
-                                          class="text-[10px] text-blue-400"
+                                          class="text-[10px] text-blue-600"
                                           x-text="'W' + (waveOf(a.id) + 1)"></span>
                                 </td>
                                 <template x-for="i in (activeBlock ? activeBlock.reps : 0)" :key="i">

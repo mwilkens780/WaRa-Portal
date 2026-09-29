@@ -26,7 +26,7 @@
             <form method="POST" action="{{ route('admin.training-groups.motto-generate', $trainingGroup) }}">
                 @csrf
                 <button type="submit"
-                        class="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors"
+                        class="bg-primary hover:bg-primary-dark text-white flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                         data-confirm="Wochen für die aktuelle Saison generieren? Bestehende Zuweisungen bleiben erhalten." data-confirm-label="Generieren">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     Wochen generieren
@@ -36,7 +36,7 @@
                 @csrf
                 <input type="hidden" name="force" value="0">
                 <button type="submit"
-                        class="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                        class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                         data-confirm="Alle Wochen ohne eingetragenes Motto zurücksetzen und in der eingestellten Reihenfolge neu verteilen?" data-confirm-text="Wochen mit bereits eingetragenem Motto-Text bleiben erhalten." data-confirm-label="Zurücksetzen" data-confirm-danger>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     Neu verteilen
@@ -60,14 +60,14 @@
 
     @if(!$season)
         <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm">
-            <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <svg class="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
             <p class="text-amber-800">Keine aktive Saison gefunden. Bitte zuerst eine Saison anlegen, um Wochen generieren zu können.</p>
         </div>
     @endif
 
     @if($ledBy)
         <div class="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-sm">
-            <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <p class="text-blue-900">
                 Diese Gruppe läuft im Zyklus von <strong>{{ $ledBy->name }}</strong> mit – die Mitglieder kommen dort in der
                 Wochenliste vor. Ein eigener Zyklus hier würde dieselben Personen ein zweites Mal einteilen.
@@ -89,7 +89,7 @@
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Gemeinsam mit Gruppe</label>
-                    <select name="motto_partner_group_id"
+                    <select aria-label="Gemeinsam mit Gruppe" name="motto_partner_group_id"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">– keine, nur diese Gruppe –</option>
                         @foreach($partnerOptions as $option)
@@ -197,7 +197,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Noch ausstehend</p>
-                <p class="font-semibold text-amber-600 mt-0.5">{{ $weeks->filter(fn($w) => !$w->motto && $w->week_start->gte($monday))->count() }}</p>
+                <p class="font-semibold text-amber-700 mt-0.5">{{ $weeks->filter(fn($w) => !$w->motto && $w->week_start->gte($monday))->count() }}</p>
             </div>
             <div>
                 <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Beteiligte</p>

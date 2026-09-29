@@ -102,7 +102,7 @@
                                 {{-- Time (hidden ms + displayed string) --}}
                                 <td class="px-3 py-2">
                                     <input type="hidden" name="rows[{{ $i }}][time_ms]" value="{{ $row['time_ms'] }}">
-                                    <span class="font-mono {{ $row['time_ms'] <= 0 ? 'text-red-500' : 'text-primary font-semibold' }}">
+                                    <span class="font-mono {{ $row['time_ms'] <= 0 ? 'text-red-600' : 'text-primary font-semibold' }}">
                                         {{ $row['time_ms'] > 0 ? \App\Models\SwimmingTime::formatMs($row['time_ms']) : '–' }}
                                     </span>
                                 </td>

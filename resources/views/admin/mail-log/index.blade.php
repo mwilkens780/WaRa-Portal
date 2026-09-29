@@ -30,7 +30,7 @@
     <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap items-end gap-3">
         <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
-            <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
+            <select aria-label="Status" name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
                 <option value="">alle</option>
                 @foreach(\App\Models\MailMessage::STATUS_LABELS as $key => $label)
                     <option value="{{ $key }}" {{ $filters['status'] === $key ? 'selected' : '' }}>{{ $label }}</option>
@@ -39,7 +39,7 @@
         </div>
         <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Thema</label>
-            <select name="topic" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
+            <select aria-label="Thema" name="topic" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
                 <option value="">alle</option>
                 @foreach($topics as $key => $topic)
                     <option value="{{ $key }}" {{ $filters['topic'] === $key ? 'selected' : '' }}>{{ $topic['label'] }}</option>
@@ -48,7 +48,7 @@
         </div>
         <div class="flex-1 min-w-[200px]">
             <label class="block text-xs font-medium text-gray-700 mb-1">Suche</label>
-            <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Adresse oder Betreff"
+            <input aria-label="Suche" type="search" name="q" value="{{ $filters['q'] }}" placeholder="Adresse oder Betreff"
                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
         </div>
         <button type="submit" class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
@@ -91,7 +91,7 @@
                                 </p>
                                 <p class="text-xs text-gray-400 truncate">{{ $message->recipient_email }}</p>
                                 @if($message->wasRedirected())
-                                    <p class="text-xs text-amber-600 mt-0.5">umgeleitet an {{ $message->sent_to }}</p>
+                                    <p class="text-xs text-amber-700 mt-0.5">umgeleitet an {{ $message->sent_to }}</p>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-600 text-xs">{{ $message->topicLabel() }}</td>

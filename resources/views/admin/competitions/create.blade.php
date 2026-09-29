@@ -23,12 +23,12 @@
     {{-- Tab-Auswahl --}}
     <div class="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-5">
         <button type="button" @click="tab = 'manual'"
-                :class="tab === 'manual' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+                :class="tab === 'manual' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-900'"
                 class="px-5 py-2 rounded-lg text-sm font-medium transition-all">
             Manuell anlegen
         </button>
         <button type="button" @click="tab = 'lenex'"
-                :class="tab === 'lenex' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+                :class="tab === 'lenex' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-900'"
                 class="px-5 py-2 rounded-lg text-sm font-medium transition-all">
             Aus Lenex-Datei
             <span class="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">DSV7</span>
@@ -54,7 +54,7 @@
 
         @if(session('duplicate_competition_id'))
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div>
@@ -70,7 +70,7 @@
 
         @if(session('lenex_loaded') && $lenexData)
             <div class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
-                <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-green-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div>
@@ -89,8 +89,8 @@
 
                 <div class="grid md:grid-cols-2 gap-5">
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
-                        <input type="text" name="name" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-600">*</span></label>
+                        <input aria-label="Name" type="text" name="name" required
                                value="{{ old('name', $lenexData['name'] ?? '') }}"
                                placeholder="z.B. Hamburger Meisterschaften 2024"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('name') ? 'border-red-400' : '' }}">
@@ -98,8 +98,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Austragungsort <span class="text-red-500">*</span></label>
-                        <input type="text" name="location" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Austragungsort <span class="text-red-600">*</span></label>
+                        <input aria-label="Austragungsort" type="text" name="location" required
                                value="{{ old('location', $lenexData['city'] ?? '') }}"
                                placeholder="z.B. Hamburg"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
@@ -108,15 +108,15 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Veranstalter</label>
-                        <input type="text" name="organizer"
+                        <input aria-label="Veranstalter" type="text" name="organizer"
                                value="{{ old('organizer', $lenexData['organizer'] ?? '') }}"
                                placeholder="z.B. Hamburger Schwimm-Verband"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Startdatum <span class="text-red-500">*</span></label>
-                        <input type="date" name="date" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Startdatum <span class="text-red-600">*</span></label>
+                        <input aria-label="Startdatum" type="date" name="date" required
                                value="{{ old('date', $lenexData['startdate'] ?? '') }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         @error('date')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -124,14 +124,14 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Enddatum</label>
-                        <input type="date" name="date_end"
+                        <input aria-label="Enddatum" type="date" name="date_end"
                                value="{{ old('date_end', ($lenexData['enddate'] ?? '') !== ($lenexData['startdate'] ?? '') ? ($lenexData['enddate'] ?? '') : '') }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Wettkampftyp <span class="text-red-500">*</span></label>
-                        <select name="type" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Wettkampftyp <span class="text-red-600">*</span></label>
+                        <select aria-label="Wettkampftyp" name="type" required
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             @foreach(\App\Models\Competition::TYPE_LABELS as $v => $l)
                                 <option value="{{ $v }}" {{ old('type', 'regional') === $v ? 'selected' : '' }}>{{ $l }}</option>
@@ -141,7 +141,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Meisterschaftsebene</label>
-                        <select name="level"
+                        <select aria-label="Meisterschaftsebene" name="level"
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">– nicht angegeben –</option>
                             @foreach(\App\Models\Competition::LEVEL_LABELS as $v => $l)
@@ -152,7 +152,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Bahnlänge</label>
-                        <select name="course"
+                        <select aria-label="Bahnlänge" name="course"
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">– nicht angegeben –</option>
                             <option value="Kurzbahn" {{ old('course', $lenexData['course'] ?? '') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
@@ -162,7 +162,7 @@
 
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                        <textarea name="description" rows="2"
+                        <textarea aria-label="Beschreibung" name="description" rows="2"
                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                                   placeholder="Weitere Informationen...">{{ old('description') }}</textarea>
                     </div>

@@ -18,7 +18,7 @@
         <div class="flex flex-wrap gap-4 items-end">
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Jahr</label>
-                <select name="year" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                <select aria-label="Jahr" name="year" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                     @foreach($years as $y)
                         <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>WA {{ $y }}</option>
                     @endforeach
@@ -27,7 +27,7 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
-                <select name="pool_length" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                <select aria-label="Bahnlänge" name="pool_length" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="50" {{ $poolLength == 50 ? 'selected' : '' }}>Langbahn (50m)</option>
                     <option value="25" {{ $poolLength == 25 ? 'selected' : '' }}>Kurzbahn (25m)</option>
                 </select>
@@ -146,7 +146,7 @@
                                     <form method="POST" action="{{ route('admin.wa-scoring.destroy', $entry) }}"
                                           data-confirm="Basiszeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 text-xs">Löschen</button>
+                                        <button type="submit" class="text-red-600 hover:text-red-700 text-xs">Löschen</button>
                                     </form>
                                 </td>
                             </tr>

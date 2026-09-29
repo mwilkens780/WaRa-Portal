@@ -35,23 +35,23 @@
         <div class="flex flex-wrap gap-3 items-end">
             <div class="flex-1 min-w-36">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Ort</label>
-                <input type="text" name="ort" value="{{ $filters['ort'] ?? '' }}"
+                <input aria-label="Ort" type="text" name="ort" value="{{ $filters['ort'] ?? '' }}"
                        placeholder="Ortsname…"
                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Von</label>
-                <input type="date" name="von" value="{{ $filters['von'] ?? '' }}"
+                <input aria-label="Von" type="date" name="von" value="{{ $filters['von'] ?? '' }}"
                        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Bis</label>
-                <input type="date" name="bis" value="{{ $filters['bis'] ?? '' }}"
+                <input aria-label="Bis" type="date" name="bis" value="{{ $filters['bis'] ?? '' }}"
                        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Typ</label>
-                <select name="typ" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40">
+                <select aria-label="Typ" name="typ" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40">
                     <option value="">Alle Typen</option>
                     @foreach(\App\Models\Competition::TYPE_LABELS as $val => $label)
                         <option value="{{ $val }}" @selected(($filters['typ'] ?? '') === $val)>{{ $label }}</option>
@@ -144,7 +144,7 @@
                                         <form method="POST" action="{{ route('admin.competitions.destroy', $comp) }}"
                                               data-confirm="Wettkampf und alle Ergebnisse löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 text-xs">Löschen</button>
+                                            <button type="submit" class="text-red-600 hover:text-red-700 text-xs">Löschen</button>
                                         </form>
                                     @endif
                                 </div>

@@ -69,7 +69,7 @@
                                         <td class="px-5 py-2 text-gray-500 text-xs">{{ $row['year'] ?? '–' }}</td>
                                         <td class="px-5 py-2">
                                             @if($row['source'] === 'portal')
-                                                <span class="text-xs text-green-600" title="{{ $row['event'] }}">Wettkampf</span>
+                                                <span class="text-xs text-green-700" title="{{ $row['event'] }}">Wettkampf</span>
                                             @else
                                                 <span class="text-xs text-gray-400" title="{{ $row['event'] }}">historisch</span>
                                             @endif
@@ -83,7 +83,7 @@
                                                       action="{{ route('admin.bestlist.destroy', ['bestListEntry' => $row['entry_id'], 'tab' => $tab]) }}"
                                                       data-confirm="Eintrag löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
-                                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600 ml-1">Löschen</button>
+                                                    <button type="submit" class="text-xs text-red-600 hover:text-red-800 ml-1">Löschen</button>
                                                 </form>
                                             @else
                                                 <a href="{{ route('admin.competitions.index') }}"
@@ -107,12 +107,12 @@
                                                 <input type="hidden" name="course" value="{{ $course }}">
                                                 <div>
                                                     <label class="block text-[10px] text-gray-500 mb-1">Name</label>
-                                                    <input type="text" name="swimmer_name" value="{{ $row['name'] }}" required
+                                                    <input aria-label="Name" type="text" name="swimmer_name" value="{{ $row['name'] }}" required
                                                            class="px-2 py-1.5 border border-gray-300 rounded text-xs w-48 outline-none focus:ring-1 focus:ring-primary/40">
                                                 </div>
                                                 <div>
                                                     <label class="block text-[10px] text-gray-500 mb-1">Jahrgang</label>
-                                                    <input type="number" name="birth_year" value="{{ $row['birth_year'] }}" min="1900" max="{{ now()->year }}"
+                                                    <input aria-label="Jahrgang" type="number" name="birth_year" value="{{ $row['birth_year'] }}" min="1900" max="{{ now()->year }}"
                                                            class="px-2 py-1.5 border border-gray-300 rounded text-xs w-20 outline-none focus:ring-1 focus:ring-primary/40">
                                                 </div>
                                                 <div>
@@ -131,12 +131,12 @@
                                                 </div>
                                                 <div>
                                                     <label class="block text-[10px] text-gray-500 mb-1">Jahr</label>
-                                                    <input type="number" name="set_year" value="{{ $row['year'] }}" min="1900" max="{{ now()->year }}" required
+                                                    <input aria-label="Jahr" type="number" name="set_year" value="{{ $row['year'] }}" min="1900" max="{{ now()->year }}" required
                                                            class="px-2 py-1.5 border border-gray-300 rounded text-xs w-20 outline-none focus:ring-1 focus:ring-primary/40">
                                                 </div>
                                                 <div class="flex-1 min-w-[160px]">
                                                     <label class="block text-[10px] text-gray-500 mb-1">Veranstaltung / Ort</label>
-                                                    <input type="text" name="location" value="{{ $row['event'] }}"
+                                                    <input aria-label="Veranstaltung / Ort" type="text" name="location" value="{{ $row['event'] }}"
                                                            class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
                                                 </div>
                                                 <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">Speichern</button>

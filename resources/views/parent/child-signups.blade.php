@@ -38,7 +38,7 @@
                             @if($competition->location) · {{ $competition->location }} @endif
                         </p>
                         @if($signupRequest->deadline)
-                            <p class="text-xs {{ now()->gt($signupRequest->deadline) ? 'text-red-500' : 'text-amber-600' }} mt-1 font-medium">
+                            <p class="text-xs {{ now()->gt($signupRequest->deadline) ? 'text-red-600' : 'text-amber-700' }} mt-1 font-medium">
                                 Frist: {{ $signupRequest->deadline->format('d.m.Y') }}
                             </p>
                         @endif
@@ -122,7 +122,7 @@
                         {{-- Note --}}
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Notiz (optional)</label>
-                            <input type="text" name="note" value="{{ old('note', $response?->note) }}"
+                            <input aria-label="Notiz (optional)" type="text" name="note" value="{{ old('note', $response?->note) }}"
                                    placeholder="z.B. Verspätung möglich"
                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         </div>
@@ -132,7 +132,7 @@
                             <p class="text-xs font-semibold text-gray-600 mb-2">Fahrgemeinschaft</p>
                             <div class="flex items-center gap-3">
                                 <label class="text-sm text-gray-700 whitespace-nowrap">Freie Plätze (außer Fahrer):</label>
-                                <input type="number" name="carpool_seats"
+                                <input aria-label="Freie Plätze (außer Fahrer)" type="number" name="carpool_seats"
                                        value="{{ old('carpool_seats', $response?->carpool_seats) }}"
                                        min="0" max="20" placeholder="0"
                                        class="w-20 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">

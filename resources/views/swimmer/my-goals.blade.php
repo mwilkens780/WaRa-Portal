@@ -30,15 +30,15 @@
         <div class="bg-green-50 border border-green-300 rounded-xl px-5 py-4">
             <p class="text-sm font-bold text-green-700 mb-1">🎉 Automatisch erreichtes Ziel!</p>
             @foreach(session('auto_achieved') as $title)
-                <p class="text-sm text-green-600">→ {{ $title }}</p>
+                <p class="text-sm text-green-700">→ {{ $title }}</p>
             @endforeach
-            <p class="text-xs text-green-500 mt-1">Deine Trainingszeit hat das Ziel automatisch erfüllt.</p>
+            <p class="text-xs text-green-700 mt-1">Deine Trainingszeit hat das Ziel automatisch erfüllt.</p>
         </div>
     @endif
 
     {{-- Quote of the day --}}
     <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
-        <span class="text-amber-400 text-lg flex-shrink-0 mt-0.5">✦</span>
+        <span class="text-amber-700 text-lg flex-shrink-0 mt-0.5">✦</span>
         <p class="text-sm text-amber-700 italic leading-relaxed">"{{ $quote }}"</p>
     </div>
 
@@ -96,7 +96,7 @@
                      Speichern daraus. --}}
                 <div x-show="type !== 'time'" x-cloak>
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Titel</label>
-                    <input type="text" name="title" maxlength="255" :required="type !== 'time'"
+                    <input aria-label="Titel" type="text" name="title" maxlength="255" :required="type !== 'time'"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none"
                            :placeholder="type === 'qualification'
                                ? 'z.B. Qualifikation für DJM'
@@ -109,8 +109,8 @@
                 </p>
                 <div x-show="type === 'time'" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">Disziplin <span class="text-red-400">*</span></label>
-                        <select name="discipline" :required="type === 'time'" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Disziplin <span class="text-red-600">*</span></label>
+                        <select aria-label="Disziplin" name="discipline" :required="type === 'time'" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                             <option value="">–</option>
                             @foreach(['F' => 'Freistil','B' => 'Brust','R' => 'Rücken','S' => 'Schmetterling','L' => 'Lagen'] as $v => $l)
                                 <option value="{{ $v }}">{{ $l }}</option>
@@ -118,20 +118,20 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">Distanz (m) <span class="text-red-400">*</span></label>
-                        <input type="number" name="distance" min="25" step="25" :required="type === 'time'"
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Distanz (m) <span class="text-red-600">*</span></label>
+                        <input aria-label="Distanz (m)" type="number" name="distance" min="25" step="25" :required="type === 'time'"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="200">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1">Bahn</label>
-                        <select name="course" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
+                        <select aria-label="Bahn" name="course" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                             <option value="">–</option>
                             <option value="Kurzbahn">Kurzbahn (25 m)</option>
                             <option value="Langbahn">Langbahn (50 m)</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">Zielzeit <span class="text-red-400">*</span></label>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Zielzeit <span class="text-red-600">*</span></label>
                         <div class="flex items-center gap-1">
                             <input type="number" name="target_minutes" min="0" placeholder="0"
                                    class="w-12 px-1.5 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary/30 outline-none">
@@ -146,7 +146,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notizen <span class="font-normal normal-case text-gray-400">(optional)</span></label>
-                    <textarea name="notes" rows="2" maxlength="1000"
+                    <textarea aria-label="Notizen (optional)" name="notes" rows="2" maxlength="1000"
                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none"
                               placeholder="Weitere Details oder Motivation..."></textarea>
                 </div>
@@ -196,13 +196,13 @@
                             <div class="flex-shrink-0 mt-0.5">
                                 @if($goal->achieved)
                                     <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                                        <svg class="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <svg class="w-3.5 h-3.5 text-green-700" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                         </svg>
                                     </div>
                                 @elseif($status === 'not_achieved')
                                     <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
-                                        <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                         </svg>
                                     </div>
@@ -229,7 +229,7 @@
                                     @elseif($status === 'not_achieved')
                                         <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">Nicht erreicht</span>
                                     @elseif($status === 'cancelled')
-                                        <span class="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-semibold">Abgebrochen</span>
+                                        <span class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-semibold">Abgebrochen</span>
                                     @endif
                                 </div>
 
@@ -243,7 +243,7 @@
                                             @if($goal->course) · {{ $goal->course }}@endif
                                             @if($goal->formatted_target_time) · Ziel: <span class="font-mono font-semibold">{{ $goal->formatted_target_time }}</span>@endif
                                             @if($goal->achieved && $goal->formatted_achieved_time)
-                                                · Erreicht: <span class="font-mono font-semibold text-green-600">{{ $goal->formatted_achieved_time }}</span>
+                                                · Erreicht: <span class="font-mono font-semibold text-green-700">{{ $goal->formatted_achieved_time }}</span>
                                             @endif
                                         </p>
                                         @endif
@@ -261,7 +261,7 @@
                                                         $s = intdiv($absDiff, 1000);
                                                         $cs = intdiv($absDiff % 1000, 10);
                                                     @endphp
-                                                    <span class="ml-1 font-semibold {{ $diff <= 0 ? 'text-green-600' : 'text-gray-500' }}">
+                                                    <span class="ml-1 font-semibold {{ $diff <= 0 ? 'text-green-700' : 'text-gray-500' }}">
                                                         ({{ $sign }}{{ $s }},{{ str_pad($cs, 2, '0', STR_PAD_LEFT) }} s)
                                                     </span>
                                                 @endif
@@ -277,7 +277,7 @@
                                 @endif
 
                                 @if($goal->achieved_at && $goal->type !== 'time')
-                                    <p class="text-xs text-green-600 mt-0.5">Am {{ $goal->achieved_at->format('d.m.Y') }} erreicht</p>
+                                    <p class="text-xs text-green-700 mt-0.5">Am {{ $goal->achieved_at->format('d.m.Y') }} erreicht</p>
                                 @endif
                                 @if($goal->notes)
                                     <p class="text-xs text-gray-400 mt-1 italic">{{ $goal->notes }}</p>
@@ -326,7 +326,7 @@
                                 <form method="POST" action="{{ route('swimmer.goals.destroy', $goal) }}"
                                       data-confirm="Dieses Ziel wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50">
+                                    <button type="submit" aria-label="Ziel löschen" title="Ziel löschen" class="w-11 h-11 sm:w-7 sm:h-7 flex items-center justify-center text-gray-500 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                         </svg>

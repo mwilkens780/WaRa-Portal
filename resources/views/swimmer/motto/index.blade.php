@@ -117,17 +117,17 @@
                             @if($isCurrent)
                                 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Diese Woche</span>
                             @elseif($isPast)
-                                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Vergangen</span>
+                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Vergangen</span>
                             @elseif($days === 7)
                                 <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Nächste Woche</span>
                             @else
-                                <span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">In {{ $days }} Tagen</span>
+                                <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">In {{ $days }} Tagen</span>
                             @endif
                         </div>
                         @if($week->motto)
                             <div class="mt-2 bg-green-50 border border-green-100 rounded-lg px-4 py-3">
                                 <p class="text-sm text-green-800 font-medium leading-relaxed">"{{ $week->motto }}"</p>
-                                <p class="text-xs text-green-600 mt-1">Eingetragen</p>
+                                <p class="text-xs text-green-700 mt-1">Eingetragen</p>
                             </div>
                         @else
                             <p class="text-sm text-gray-400 italic mt-1">Noch kein Motto eingetragen.</p>
@@ -177,7 +177,7 @@
                         @csrf
                         <div class="space-y-2">
                             <label class="block text-xs font-medium text-gray-700">Dein Motto für KW {{ $week->week_start->weekOfYear }}</label>
-                            <textarea name="motto" rows="3" maxlength="500" required
+                            <textarea aria-label="Dein Motto für KW {{ $week->week_start->weekOfYear }}" name="motto" rows="3" maxlength="500" required
                                       x-ref="mottoTextarea{{ $week->id }}"
                                       placeholder="Schreib ein motivierendes Motto für deine Gruppe... (max. 500 Zeichen)"
                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ $week->motto }}</textarea>
@@ -247,7 +247,7 @@
                                 @if($week->user)
                                     @if($isMe)
                                         <span class="font-semibold text-amber-700">{{ $week->user->firstname }} {{ $week->user->lastname }}</span>
-                                        <span class="text-amber-500 ml-1 text-[10px]">Du</span>
+                                        <span class="text-amber-700 ml-1 text-[10px]">Du</span>
                                     @else
                                         {{ $week->user->firstname }} {{ $week->user->lastname }}
                                     @endif

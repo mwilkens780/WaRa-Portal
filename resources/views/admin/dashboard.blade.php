@@ -9,7 +9,7 @@
     @if($maintenanceMode)
     <div class="flex items-center justify-between gap-4 bg-amber-50 border border-amber-300 rounded-xl px-5 py-4">
         <div class="flex items-center gap-3">
-            <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
@@ -29,7 +29,7 @@
             </div>
         </div>
         <a href="{{ route('admin.settings.index') }}"
-           class="flex-shrink-0 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors">
+           class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 flex-shrink-0 text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
             Einstellungen
         </a>
     </div>
@@ -41,7 +41,7 @@
             <p class="text-sm text-gray-500">Benutzer gesamt</p>
             <p class="text-3xl font-bold text-primary mt-1">{{ $stats['total_users'] }}</p>
             @if($stats['inactive_users'] > 0)
-                <p class="text-xs text-amber-600 mt-1">{{ $stats['inactive_users'] }} inaktiv</p>
+                <p class="text-xs text-amber-700 mt-1">{{ $stats['inactive_users'] }} inaktiv</p>
             @endif
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -57,7 +57,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <p class="text-sm text-gray-500">Wettkämpfe</p>
             <p class="text-3xl font-bold text-primary mt-1">{{ $stats['competitions_total'] }}</p>
-            <p class="text-xs text-green-600 mt-1">{{ $stats['upcoming_competitions'] }} bevorstehend</p>
+            <p class="text-xs text-green-700 mt-1">{{ $stats['upcoming_competitions'] }} bevorstehend</p>
         </div>
     </div>
 
@@ -66,7 +66,7 @@
     <a href="{{ $githubIssuesUrl }}" target="_blank" rel="noopener"
        class="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 hover:bg-amber-100 transition-colors group">
         <div class="bg-amber-100 rounded-lg p-2.5 flex-shrink-0 group-hover:bg-amber-200 transition-colors">
-            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
             </svg>
@@ -77,7 +77,7 @@
             </p>
             <p class="text-xs text-amber-700 mt-0.5">Auf GitHub Issues ansehen und bearbeiten →</p>
         </div>
-        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
         </svg>
     </a>
@@ -131,7 +131,7 @@
                 @empty
                     <div class="px-5 py-4 text-sm text-gray-400">
                         Keine bevorstehenden Wettkämpfe.
-                        <a href="{{ route('admin.competitions.create') }}" class="text-primary hover:underline">Jetzt anlegen</a>
+                        <a href="{{ route('admin.competitions.create') }}" class="text-primary underline underline-offset-2 hover:no-underline">Jetzt anlegen</a>
                     </div>
                 @endforelse
             </div>

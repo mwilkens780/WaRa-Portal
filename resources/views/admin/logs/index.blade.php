@@ -39,7 +39,7 @@
             <div class="flex flex-wrap gap-3 items-end">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Aktion</label>
-                    <select name="tx_action" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <select aria-label="Aktion" name="tx_action" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Alle</option>
                         <option value="created" {{ request('tx_action') === 'created' ? 'selected' : '' }}>Erstellt</option>
                         <option value="updated" {{ request('tx_action') === 'updated' ? 'selected' : '' }}>Geändert</option>
@@ -48,7 +48,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Objekt-Typ</label>
-                    <select name="tx_model" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <select aria-label="Objekt-Typ" name="tx_model" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Alle</option>
                         @foreach($modelTypes as $mt)
                             <option value="{{ $mt }}" {{ request('tx_model') === $mt ? 'selected' : '' }}>{{ $mt }}</option>
@@ -57,17 +57,17 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Benutzer</label>
-                    <input type="text" name="tx_user" value="{{ request('tx_user') }}" placeholder="Name..."
+                    <input aria-label="Benutzer" type="text" name="tx_user" value="{{ request('tx_user') }}" placeholder="Name..."
                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 w-36">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Von</label>
-                    <input type="date" name="tx_from" value="{{ request('tx_from') }}"
+                    <input aria-label="Von" type="date" name="tx_from" value="{{ request('tx_from') }}"
                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bis</label>
-                    <input type="date" name="tx_to" value="{{ request('tx_to') }}"
+                    <input aria-label="Bis" type="date" name="tx_to" value="{{ request('tx_to') }}"
                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">Filtern</button>
@@ -120,7 +120,7 @@
                                                         <span class="text-gray-500 w-28 flex-shrink-0">{{ $field }}</span>
                                                         @if(isset($tx->changes['before'][$field]))
                                                             @php $bv = $tx->changes['before'][$field]; $bv = is_array($bv) ? json_encode($bv) : (string) $bv; @endphp
-                                                            <span class="line-through text-red-400">{{ Str::limit($bv, 40) }}</span>
+                                                            <span class="line-through text-red-600">{{ Str::limit($bv, 40) }}</span>
                                                             <span class="text-gray-400">→</span>
                                                         @endif
                                                         @php $nv = is_array($newVal) ? json_encode($newVal) : (string) $newVal; @endphp
@@ -151,7 +151,7 @@
               class="flex items-center gap-3 mt-3">
             @csrf @method('DELETE')
             <label class="text-sm text-gray-600">Einträge älter als</label>
-            <input type="date" name="before" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+            <input aria-label="Einträge älter als" type="date" name="before" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
             <button type="submit" class="px-4 py-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
                 Löschen
             </button>
@@ -168,7 +168,7 @@
             <div class="flex flex-wrap gap-3 items-end">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Level</label>
-                    <select name="tr_level" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <select aria-label="Level" name="tr_level" class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Alle</option>
                         <option value="1" {{ request('tr_level') === '1' ? 'selected' : '' }}>Fehler</option>
                         <option value="2" {{ request('tr_level') === '2' ? 'selected' : '' }}>Warnungen</option>
@@ -176,12 +176,12 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Von</label>
-                    <input type="date" name="tr_from" value="{{ request('tr_from') }}"
+                    <input aria-label="Von" type="date" name="tr_from" value="{{ request('tr_from') }}"
                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bis</label>
-                    <input type="date" name="tr_to" value="{{ request('tr_to') }}"
+                    <input aria-label="Bis" type="date" name="tr_to" value="{{ request('tr_to') }}"
                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">Filtern</button>
@@ -250,7 +250,7 @@
               class="flex items-center gap-3 mt-3">
             @csrf @method('DELETE')
             <label class="text-sm text-gray-600">Einträge älter als</label>
-            <input type="date" name="before" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
+            <input aria-label="Einträge älter als" type="date" name="before" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500">
             <button type="submit" class="px-4 py-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
                 Löschen
             </button>

@@ -43,7 +43,7 @@
                 <div class="flex flex-wrap items-end gap-5">
                     <div class="flex-1 min-w-48">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Saison zuordnen</label>
-                        <select name="season_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                        <select aria-label="Saison zuordnen" name="season_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
                             <option value="">— keine Saison —</option>
                             @foreach($seasons as $season)
                                 <option value="{{ $season->id }}"

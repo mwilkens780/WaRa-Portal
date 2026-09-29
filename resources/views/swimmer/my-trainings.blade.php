@@ -47,7 +47,7 @@
             <div class="flex items-center gap-3">
                 @if($diaryPendingCount > 0)
                     <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
                     </div>
@@ -57,7 +57,7 @@
                     </div>
                 @else
                     <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
                     </div>
@@ -75,7 +75,7 @@
                 @php $absenceCount = $preAbsenceMap->count(); @endphp
                 @if($absenceCount > 0)
                     <div class="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </div>
@@ -85,7 +85,7 @@
                     </div>
                 @else
                     <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                     </div>
@@ -106,12 +106,12 @@
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <h2 class="text-sm font-semibold text-gray-700">Trainingsplanung</h2>
-                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{{ $trainingSeries->count() }} Serien</span>
+                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{{ $trainingSeries->count() }} Serien</span>
                 @if($excludedSeriesIds->isNotEmpty())
                     <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{{ $excludedSeriesIds->count() }} dauerhaft abgesagt</span>
                 @endif
             </div>
-            <button type="button" @click="toggle()" class="p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
+            <button type="button" @click="toggle()" class="p-2 -m-1 text-gray-500 hover:text-gray-700" :aria-expanded="open ? 'true' : 'false'" :aria-label="open ? 'Bereich zuklappen' : 'Bereich aufklappen'">
                 <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -125,7 +125,7 @@
                 {{-- Main row --}}
                 <div class="flex items-center gap-3 flex-wrap">
                     {{-- Day badge --}}
-                    <span class="flex-shrink-0 w-8 text-center text-xs font-bold {{ $series->is_excluded ? 'text-red-400' : 'text-primary' }}">
+                    <span class="flex-shrink-0 w-8 text-center text-xs font-bold {{ $series->is_excluded ? 'text-red-600' : 'text-primary' }}">
                         {{ $series->day_label }}
                     </span>
 
@@ -174,7 +174,7 @@
 
                 {{-- Exclusion comment display (when excluded) --}}
                 @if($series->is_excluded && $series->exclusion_comment)
-                    <p class="mt-1.5 ml-11 text-xs text-red-500">Grund: {{ $series->exclusion_comment }}</p>
+                    <p class="mt-1.5 ml-11 text-xs text-red-600">Grund: {{ $series->exclusion_comment }}</p>
                 @endif
 
                 {{-- Exclude form (when not excluded, toggled) --}}
@@ -232,13 +232,13 @@
     <div class="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden"
          x-data="collapsibleBlock('mytraining-guest')">
         <div class="px-5 py-3 bg-purple-50 border-b border-purple-100 flex items-center gap-2">
-            <svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
             <h2 class="text-sm font-semibold text-purple-700">Gasttraining verfügbar</h2>
             <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-semibold">{{ $guestSessions->count() }}</span>
-            <span class="text-xs text-purple-400 ml-1">– Freie Plätze in anderen Gruppen</span>
-            <button type="button" @click="toggle()" class="ml-auto p-1 text-purple-400 hover:text-purple-600" :aria-expanded="open ? 'true' : 'false'">
+            <span class="text-xs text-purple-600 ml-1">– Freie Plätze in anderen Gruppen</span>
+            <button type="button" @click="toggle()" class="ml-auto p-2 -m-1 text-purple-600 hover:text-purple-800" :aria-expanded="open ? 'true' : 'false'" :aria-label="open ? 'Gasttrainings zuklappen' : 'Gasttrainings aufklappen'">
                 <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -288,7 +288,7 @@
                         <form method="POST" action="{{ route('swimmer.session.book-guest', $s) }}">
                             @csrf
                             <button type="submit"
-                                    class="text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-1.5 rounded-lg transition-colors">
+                                    class="bg-primary hover:bg-primary-dark text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors">
                                 Platz buchen
                             </button>
                         </form>
@@ -298,7 +298,7 @@
             @endforeach
         </div>
         <div class="px-5 py-2.5 bg-purple-50/50 border-t border-purple-100">
-            <p class="text-xs text-purple-400">
+            <p class="text-xs text-purple-600">
                 Du erhältst automatisch eine E-Mail, wenn durch Absagen weitere Plätze frei werden. Buchungen erfolgen nach dem First-come-first-served-Prinzip.
             </p>
         </div>
@@ -314,7 +314,7 @@
             @if($upcoming->count())
                 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{{ $upcoming->count() }}</span>
             @endif
-            <button type="button" @click="toggle()" class="ml-auto p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
+            <button type="button" @click="toggle()" class="ml-auto p-2 -m-1 text-gray-500 hover:text-gray-700" :aria-expanded="open ? 'true' : 'false'" :aria-label="open ? 'Bereich zuklappen' : 'Bereich aufklappen'">
                 <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -341,7 +341,7 @@
                             {{-- Date block --}}
                             <div class="text-center rounded-lg p-2 min-w-[52px] flex-shrink-0 {{ $isAbsent ? 'bg-red-100' : ($regOpen ? 'bg-green-100' : 'bg-primary/10') }}">
                                 <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : ($regOpen ? 'text-green-700' : 'text-primary') }}">{{ $session->date->format('d.M') }}</p>
-                                <p class="text-[10px] {{ $isAbsent ? 'text-red-400' : ($regOpen ? 'text-green-500' : 'text-primary/60') }}">{{ $session->date->isoFormat('ddd') }}</p>
+                                <p class="text-[10px] {{ $isAbsent ? 'text-red-600' : ($regOpen ? 'text-green-700' : 'text-primary') }}">{{ $session->date->isoFormat('ddd') }}</p>
                             </div>
 
                             {{-- Session info --}}
@@ -371,7 +371,7 @@
                                     · {{ $session->trainer?->name ?? '–' }}
                                 </p>
                                 @if($isAbsent && $absence->pre_absent_note)
-                                    <p class="text-xs text-red-500 mt-0.5">Grund: {{ $absence->pre_absent_note }}</p>
+                                    <p class="text-xs text-red-600 mt-0.5">Grund: {{ $absence->pre_absent_note }}</p>
                                 @endif
                             </div>
 
@@ -388,7 +388,7 @@
                                     @elseif(!$noSpots)
                                         <form method="POST" action="{{ route('swimmer.session.register', $session) }}">
                                             @csrf
-                                            <button type="submit" class="text-xs text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-semibold">
+                                            <button type="submit" class="bg-primary hover:bg-primary-dark text-white text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold">
                                                 Anmelden
                                             </button>
                                         </form>
@@ -406,7 +406,7 @@
                                     </form>
                                 @else
                                     <button type="button" @click="showNote = !showNote"
-                                            class="text-xs text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                            class="text-xs text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                             x-text="showNote ? 'Abbrechen' : 'Absagen'">
                                         Absagen
                                     </button>
@@ -448,7 +448,7 @@
             <div class="flex items-center gap-2">
                 <h2 class="text-sm font-semibold text-gray-700">Letzte Trainings – Trainingstagebuch / Selbsteinschätzung</h2>
                 <span class="text-xs text-gray-400">{{ $pastWindowLabel }}</span>
-                <button type="button" @click="toggle()" class="p-1 text-gray-400 hover:text-gray-600" :aria-expanded="open ? 'true' : 'false'">
+                <button type="button" @click="toggle()" class="p-2 -m-1 text-gray-500 hover:text-gray-700" :aria-expanded="open ? 'true' : 'false'" :aria-label="open ? 'Bereich zuklappen' : 'Bereich aufklappen'">
                     <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
@@ -525,13 +525,13 @@
                                 <div class="flex-shrink-0 mt-0.5">
                                     @if($isPresent)
                                         <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center" title="Anwesend (bestätigt)">
-                                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-4 h-4 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                                             </svg>
                                         </div>
                                     @elseif($trainerAbsent)
                                         <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center" title="Vom Trainer als abwesend markiert">
-                                            <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-4 h-4 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                             </svg>
                                         </div>
@@ -576,7 +576,7 @@
                                         </div>
                                     @elseif($darfBewerten)
                                         <div class="mt-1.5">
-                                            <span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Noch nicht bewertet</span>
+                                            <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">Noch nicht bewertet</span>
                                         </div>
                                     @endif
                                 </div>

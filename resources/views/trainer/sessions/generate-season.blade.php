@@ -8,7 +8,7 @@
     {{-- Info-Banner --}}
     @if($hasFuture)
     <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex items-start gap-3">
-        <svg class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
         <p class="text-sm text-blue-700">
@@ -18,7 +18,7 @@
     </div>
     @else
     <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
-        <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
         </svg>
         <p class="text-sm text-amber-800">
@@ -87,17 +87,17 @@
                        min="{{ today()->format('Y-m-d') }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>
-                @error('start_date') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                @error('start_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- Enddatum --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Enddatum</label>
-                <input type="date" name="end_date"
+                <input aria-label="Enddatum" type="date" name="end_date"
                        value="{{ old('end_date', $suggestedSeason?->end_date?->format('Y-m-d') ?? '') }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>
-                @error('end_date') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                @error('end_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- Kadenz --}}
@@ -121,7 +121,7 @@
 
             <div class="flex items-center gap-3 pt-2">
                 <button type="submit"
-                        class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
                     Einheiten generieren
                 </button>
                 <a href="{{ route('trainer.sessions.index') }}"

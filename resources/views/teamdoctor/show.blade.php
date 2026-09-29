@@ -25,13 +25,13 @@
         <form method="POST" action="{{ route('teamdoctor.upload', $user) }}" enctype="multipart/form-data" class="px-6 py-5 space-y-4">
             @csrf
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-500">*</span></label>
-                <input type="text" name="title" value="{{ old('title') }}" required maxlength="255"
+                <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-600">*</span></label>
+                <input aria-label="Titel" type="text" name="title" value="{{ old('title') }}" required maxlength="255"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">PDF-Datei <span class="text-red-500">*</span></label>
-                <input type="file" name="document" accept=".pdf" required
+                <label class="block text-sm font-medium text-gray-700 mb-1">PDF-Datei <span class="text-red-600">*</span></label>
+                <input aria-label="PDF-Datei" type="file" name="document" accept=".pdf" required
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700">
                 <p class="text-xs text-gray-400 mt-1">Nur PDF, max. 20 MB</p>
             </div>
@@ -63,7 +63,7 @@
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Enter oder Komma zum Hinzufügen.</p>
             </div>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
+            <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
                 Hochladen
             </button>
         </form>
@@ -80,7 +80,7 @@
             @foreach($documents as $doc)
             <div class="flex items-start justify-between px-6 py-3.5 gap-4">
                 <div class="flex items-start gap-3 min-w-0">
-                    <svg class="w-8 h-8 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <svg class="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-gray-800">{{ $doc->title }}</p>
                         <p class="text-xs text-gray-400 mt-0.5">

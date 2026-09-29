@@ -46,10 +46,11 @@
             </div>
         </template>
         <div class="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-            <x-ui.button variant="secondary" @click="$store.confirm.answer(false)" x-text="$store.confirm.cancelLabel" class="order-first sm:order-none">Abbrechen</x-ui.button>
-            <button type="button" @click="$store.confirm.answer(true)" x-text="$store.confirm.confirmLabel" :disabled="!$store.confirm.canConfirm"
+            {{-- Rueckfalltexte, solange keine Rueckfrage offen ist (sonst leerer Knopf ohne Namen) --}}
+            <x-ui.button variant="secondary" @click="$store.confirm.answer(false)" x-text="$store.confirm.cancelLabel || 'Abbrechen'" class="order-first sm:order-none">Abbrechen</x-ui.button>
+            <button type="button" @click="$store.confirm.answer(true)" x-text="$store.confirm.confirmLabel || 'Bestätigen'" :disabled="!$store.confirm.canConfirm"
                     :class="$store.confirm.danger ? 'bg-accent hover:bg-accent-dark' : 'bg-primary hover:bg-primary-dark'"
-                    class="inline-flex items-center justify-center min-h-[44px] sm:min-h-[40px] px-4 rounded-lg text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"></button>
+                    class="inline-flex items-center justify-center min-h-[44px] sm:min-h-[40px] px-4 rounded-lg text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed">Bestätigen</button>
         </div>
     </div>
 </div>

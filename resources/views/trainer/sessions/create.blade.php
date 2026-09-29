@@ -71,8 +71,8 @@ function trainingCreateForm() {
             <div class="grid md:grid-cols-2 gap-5">
                 {{-- Titel --}}
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-500">*</span></label>
-                    <input type="text" name="title" value="{{ old('title') }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-600">*</span></label>
+                    <input aria-label="Titel" type="text" name="title" value="{{ old('title') }}" required
                            placeholder="z.B. Techniktraining Freistil"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('title') ? 'border-red-400' : '' }}">
                     @error('title')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -80,16 +80,16 @@ function trainingCreateForm() {
 
                 {{-- Datum --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Datum <span class="text-red-500">*</span></label>
-                    <input type="date" name="date" value="{{ old('date', date('Y-m-d')) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Datum <span class="text-red-600">*</span></label>
+                    <input aria-label="Datum" type="date" name="date" value="{{ old('date', date('Y-m-d')) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     @error('date')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
 
                 {{-- Typ --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ <span class="text-red-500">*</span></label>
-                    <select name="type" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ <span class="text-red-600">*</span></label>
+                    <select aria-label="Typ" name="type" required
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach([
                             'technik'        => 'Technik',
@@ -107,23 +107,23 @@ function trainingCreateForm() {
 
                 {{-- Zeiten --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Beginn <span class="text-red-500">*</span></label>
-                    <input type="time" name="start_time" value="{{ old('start_time', '07:00') }}" required step="900"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Beginn <span class="text-red-600">*</span></label>
+                    <input aria-label="Beginn" type="time" name="start_time" value="{{ old('start_time', '07:00') }}" required step="900"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     @error('start_time')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Ende</label>
-                    <input type="time" name="end_time" value="{{ old('end_time', '08:30') }}" step="900"
+                    <input aria-label="Ende" type="time" name="end_time" value="{{ old('end_time', '08:30') }}" step="900"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     @error('end_time')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
 
                 {{-- Ort --}}
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Trainingsort <span class="text-red-500">*</span></label>
-                    <input type="text" name="location" value="{{ old('location', 'Schul- und Vereinsbad Norderstedt') }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Trainingsort <span class="text-red-600">*</span></label>
+                    <input aria-label="Trainingsort" type="text" name="location" value="{{ old('location', 'Schul- und Vereinsbad Norderstedt') }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
 
@@ -177,8 +177,8 @@ function trainingCreateForm() {
 
                 {{-- Wiederholung --}}
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung <span class="text-red-500">*</span></label>
-                    <select name="recurrence_type" x-model="recurrence" @change="handleRecurrenceChange()"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung <span class="text-red-600">*</span></label>
+                    <select aria-label="Wiederholung" name="recurrence_type" x-model="recurrence" @change="handleRecurrenceChange()"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="none">Einmalig</option>
                         <option value="weekly">Wöchentlich</option>
@@ -193,8 +193,8 @@ function trainingCreateForm() {
 
                 {{-- Wiederholung bis (nur wenn kein Saisonende gewählt) --}}
                 <div class="md:col-span-2" x-show="showRecurrence && showUntil" x-transition>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung bis <span class="text-red-500">*</span></label>
-                    <input type="date" name="recurrence_until" value="{{ old('recurrence_until') }}"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Wiederholung bis <span class="text-red-600">*</span></label>
+                    <input aria-label="Wiederholung bis" type="date" name="recurrence_until" value="{{ old('recurrence_until') }}"
                            :required="showRecurrence && showUntil"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('recurrence_until') ? 'border-red-400' : '' }}">
                     @error('recurrence_until')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -203,7 +203,7 @@ function trainingCreateForm() {
                 {{-- Info-Text für Saisonende --}}
                 <div class="md:col-span-2" x-show="showRecurrence && !showUntil" x-transition>
                     <div class="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
-                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>
                             Wöchentliche Wiederholung bis zum Saisonende am
                             <strong>{{ $currentSeason?->end_date->format('d.m.Y') }}</strong>.
@@ -223,7 +223,7 @@ function trainingCreateForm() {
                 {{-- Notizen --}}
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notizen / Trainingsplan</label>
-                    <textarea name="notes" rows="4"
+                    <textarea aria-label="Notizen / Trainingsplan" name="notes" rows="4"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                               placeholder="Beschreibung des Trainings, besondere Übungen, Ziele...">{{ old('notes') }}</textarea>
                 </div>
@@ -231,7 +231,7 @@ function trainingCreateForm() {
                 {{-- Teamplan Anhang --}}
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Teamplan (Anhang)</label>
-                    <input type="file" name="team_plan" accept=".pdf,.doc,.docx,.jpg,.png"
+                    <input aria-label="Teamplan (Anhang)" type="file" name="team_plan" accept=".pdf,.doc,.docx,.jpg,.png"
                            class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                     <p class="text-xs text-gray-400 mt-1">PDF, Word, JPG oder PNG – max. 5 MB</p>
                     @error('team_plan')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -240,7 +240,7 @@ function trainingCreateForm() {
                 {{-- Teilnehmerlimit & Anmeldung --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Max. Teilnehmer <span class="text-gray-400 font-normal">(optional)</span></label>
-                    <input type="number" name="max_participants" min="1" max="999" value="{{ old('max_participants') }}"
+                    <input aria-label="Max. Teilnehmer (optional)" type="number" name="max_participants" min="1" max="999" value="{{ old('max_participants') }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                            placeholder="Unbegrenzt">
                     @error('max_participants')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -251,7 +251,7 @@ function trainingCreateForm() {
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Gastgruppe <span class="text-gray-400 font-normal">(optional – nur bei gesetztem Teilnehmerlimit wirksam)</span>
                     </label>
-                    <select name="guest_group_id"
+                    <select aria-label="Gastgruppe (optional – nur bei gesetztem Teilnehmerlimit wirksam)" name="guest_group_id"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">— Keine Gastgruppe —</option>
                         @foreach($allGroups as $g)

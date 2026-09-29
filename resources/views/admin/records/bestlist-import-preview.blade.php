@@ -66,7 +66,7 @@
                                 @foreach($rows->sortBy('time_ms') as $e)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-5 py-1.5 text-gray-800 truncate">{{ $e['swimmer_name'] }}</td>
-                                        <td class="px-5 py-1.5 text-xs {{ $e['birth_year'] ? 'text-gray-500' : 'text-amber-600' }}">
+                                        <td class="px-5 py-1.5 text-xs {{ $e['birth_year'] ? 'text-gray-500' : 'text-amber-700' }}">
                                             {{ $e['birth_year'] ?? 'Jahrgang fehlt' }}
                                         </td>
                                         <td class="px-5 py-1.5 text-right tabular-nums font-mono text-gray-700">

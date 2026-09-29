@@ -10,13 +10,13 @@
         <form method="GET" class="flex flex-wrap gap-3 items-end">
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Suche</label>
-                <input type="text" name="search" value="{{ request('search') }}"
+                <input aria-label="Suche" type="text" name="search" value="{{ request('search') }}"
                        placeholder="Name oder E-Mail..."
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Portal-Zugang</label>
-                <select name="role" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <select aria-label="Portal-Zugang" name="role" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">Alle</option>
                     @foreach(\App\Models\User::ROLE_LABELS as $value => $label)
                         <option value="{{ $value }}" {{ request('role') === $value ? 'selected' : '' }}>{{ $label }}</option>
@@ -25,7 +25,7 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Mitgliedschaft</label>
-                <select name="active" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <select aria-label="Mitgliedschaft" name="active" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">Alle</option>
                     <option value="1" {{ request('active') === '1' ? 'selected' : '' }}>Aktives Mitglied</option>
                     <option value="0" {{ request('active') === '0' ? 'selected' : '' }}>Ehemaliges Mitglied</option>
@@ -33,7 +33,7 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Portal-Account</label>
-                <select name="portal" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <select aria-label="Portal-Account" name="portal" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">Alle</option>
                     <option value="active"  {{ request('portal') === 'active'  ? 'selected' : '' }}>Aktiviert</option>
                     <option value="pending" {{ request('portal') === 'pending' ? 'selected' : '' }}>Noch nicht aktiviert</option>
@@ -133,7 +133,7 @@
                                     @endif
                                     {{-- Vereinsrollen aus user_roles --}}
                                     @foreach($user->userRoles->where('role', '!=', $user->role) as $ur)
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $roleColors[$ur->role] ?? 'bg-gray-100 text-gray-500' }} opacity-75">
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $roleColors[$ur->role] ?? 'bg-gray-100 text-gray-700' }} opacity-75">
                                             {{ \App\Models\User::ROLE_LABELS[$ur->role] ?? $ur->role }}
                                         </span>
                                     @endforeach
@@ -182,20 +182,20 @@
                                     @if($user->id !== auth()->id())
                                         <form method="POST" action="{{ route('admin.users.toggle-portal', $user) }}">
                                             @csrf @method('PATCH')
-                                            <button type="submit" class="text-xs {{ $user->portal_active ? 'text-amber-600 hover:text-amber-800' : 'text-green-600 hover:text-green-800' }} font-medium">
+                                            <button type="submit" class="text-xs {{ $user->portal_active ? 'text-amber-700 hover:text-amber-800' : 'text-green-700 hover:text-green-800' }} font-medium">
                                                 {{ $user->portal_active ? 'Portal sperren' : 'Portal freigeben' }}
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.users.toggle-active', $user) }}">
                                             @csrf @method('PATCH')
-                                            <button type="submit" class="text-xs {{ $user->active ? 'text-amber-600 hover:text-amber-800' : 'text-green-600 hover:text-green-800' }} font-medium">
+                                            <button type="submit" class="text-xs {{ $user->active ? 'text-amber-700 hover:text-amber-800' : 'text-green-700 hover:text-green-800' }} font-medium">
                                                 {{ $user->active ? 'Mitgliedschaft beenden' : 'Mitglied aktivieren' }}
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
                                               data-confirm="{{ $user->name }} wirklich löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 font-medium text-xs">Löschen</button>
+                                            <button type="submit" class="text-red-600 hover:text-red-700 font-medium text-xs">Löschen</button>
                                         </form>
                                     @endif
                                 </div>
@@ -245,7 +245,7 @@
                   data-confirm="Alle DSV-IDs mit Nullwert (000000, 0 etc.) auf leer setzen?" data-confirm-label="Bereinigen">
                 @csrf
                 <button type="submit"
-                        class="flex-shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                        class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 flex-shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors">
                     DSV-IDs bereinigen
                 </button>
             </form>
@@ -260,7 +260,7 @@
                 <p class="text-xs text-red-600 mt-0.5">Löscht alle Benutzerkonten außer deinem eigenen. Diese Aktion ist nicht rückgängig zu machen.</p>
             </div>
             <button @click="open = !open" type="button"
-                    class="flex-shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                    class="bg-accent hover:bg-accent-dark text-white flex-shrink-0 px-4 py-2 text-sm font-semibold rounded-lg transition-colors">
                 Alle löschen…
             </button>
         </div>
@@ -275,7 +275,7 @@
                     <input type="text" name="confirm_text" placeholder="ALLE LÖSCHEN"
                            class="flex-1 px-3 py-2 border border-red-300 rounded-lg text-sm focus:ring-2 focus:ring-red-400 outline-none bg-white">
                     <button type="submit"
-                            class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white text-sm font-bold rounded-lg transition-colors">
+                            class="bg-accent hover:bg-accent-dark text-white px-4 py-2 text-sm font-bold rounded-lg transition-colors">
                         Endgültig löschen
                     </button>
                 </div>

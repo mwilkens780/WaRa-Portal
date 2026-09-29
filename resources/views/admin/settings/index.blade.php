@@ -11,7 +11,7 @@
         {{-- Wartungsmodus --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
@@ -29,7 +29,7 @@
                             @if($settings['mail_test_address'])
                                 an <span class="font-medium">{{ $settings['mail_test_address'] }}</span> statt an die Mitglieder.
                             @else
-                                an die Testadresse – <span class="font-medium text-amber-600">die ist noch nicht hinterlegt,
+                                an die Testadresse – <span class="font-medium text-amber-700">die ist noch nicht hinterlegt,
                                 solange geht gar keine Mail raus</span>.
                             @endif
                         </p>
@@ -48,7 +48,7 @@
                 {{-- Meldungstext --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Wartungsmeldung</label>
-                    <textarea name="maintenance_message" rows="3"
+                    <textarea aria-label="Wartungsmeldung" name="maintenance_message" rows="3"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                               placeholder="Wird den Benutzern angezeigt…">{{ old('maintenance_message', $settings['maintenance_message']) }}</textarea>
                 </div>
@@ -96,7 +96,7 @@
     {{-- E-Mail-Versand --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             </svg>
@@ -129,7 +129,7 @@
                 @csrf @method('PUT')
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Testadresse für den Wartungsmodus</label>
-                    <input type="email" name="mail_test_address" value="{{ $settings['mail_test_address'] }}"
+                    <input aria-label="Testadresse für den Wartungsmodus" type="email" name="mail_test_address" value="{{ $settings['mail_test_address'] }}"
                            placeholder="test@example.de"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
                     <p class="text-xs text-gray-500 mt-1">
@@ -166,7 +166,7 @@
             <div class="pt-4 border-t border-gray-100 flex items-center justify-between gap-4 flex-wrap">
                 <div class="text-sm text-gray-600">
                     <span class="font-medium">{{ $mailStats['sent'] }}</span> versendet ·
-                    <span class="font-medium text-amber-600">{{ $mailStats['pending'] }}</span> wartend ·
+                    <span class="font-medium text-amber-700">{{ $mailStats['pending'] }}</span> wartend ·
                     <span class="font-medium {{ $mailStats['failed'] ? 'text-red-600' : '' }}">{{ $mailStats['failed'] }}</span> fehlgeschlagen
                 </div>
                 <a href="{{ route('admin.mail-log.index') }}"
@@ -180,7 +180,7 @@
     {{-- WebClub: Hinweis, Konfig jetzt direkt in der Crawler-Seite --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-6 py-4 flex items-center gap-3">
-            <svg class="w-5 h-5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
             </svg>
@@ -201,13 +201,13 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
                 </svg>
                 <div>
                     <h2 class="text-base font-semibold text-gray-800">WebClub-Schnittstelle</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Playwright-Crawler für web-club.app · Zeitplan im <a href="{{ route('admin.import-log.index') }}" class="text-primary hover:underline">Import-Log</a> konfigurierbar</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Playwright-Crawler für web-club.app · Zeitplan im <a href="{{ route('admin.import-log.index') }}" class="text-primary underline underline-offset-2 hover:no-underline">Import-Log</a> konfigurierbar</p>
                 </div>
             </div>
 
@@ -249,7 +249,7 @@
                         WebClub-URL
                         <span class="text-xs text-gray-400 font-normal ml-1">z.B. https://meinverein.web-club.app</span>
                     </label>
-                    <input type="url" name="webclub_base_url"
+                    <input aria-label="WebClub-URL z.B. https://meinverein.web-club.app" type="url" name="webclub_base_url"
                            value="{{ old('webclub_base_url', $webclub['base_url']) }}"
                            placeholder="https://…"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono">
@@ -258,7 +258,7 @@
                 {{-- Benutzername --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Benutzername oder E-Mail</label>
-                    <input type="text" name="webclub_username"
+                    <input aria-label="Benutzername oder E-Mail" type="text" name="webclub_username"
                            value="{{ old('webclub_username', $webclub['username']) }}"
                            placeholder="benutzername oder name@example.de"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -304,17 +304,17 @@
                             Rückblick (Tage)
                             <span class="text-xs text-gray-400 font-normal ml-1">vergangene Veranstaltungen</span>
                         </label>
-                        <input type="number" name="webclub_lookback_days" min="0" max="3650"
+                        <input aria-label="Rückblick (Tage) vergangene Veranstaltungen" type="number" name="webclub_lookback_days" min="0" max="3650"
                                value="{{ old('webclub_lookback_days', $webclub['lookback_days']) }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <p class="text-xs text-amber-600 mt-1">Gilt nur für manuellen Artisan-Befehl. Für den GitHub-Actions-Crawler: beim manuellen Starten im Workflow-Feld angeben.</p>
+                        <p class="text-xs text-amber-700 mt-1">Gilt nur für manuellen Artisan-Befehl. Für den GitHub-Actions-Crawler: beim manuellen Starten im Workflow-Feld angeben.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             Vorschau (Tage)
                             <span class="text-xs text-gray-400 font-normal ml-1">zukünftige Veranstaltungen</span>
                         </label>
-                        <input type="number" name="webclub_lookahead_days" min="0" max="730"
+                        <input aria-label="Vorschau (Tage) zukünftige Veranstaltungen" type="number" name="webclub_lookahead_days" min="0" max="730"
                                value="{{ old('webclub_lookahead_days', $webclub['lookahead_days']) }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
@@ -341,13 +341,13 @@
                                 Selektor-Timeout (ms)
                                 <span class="text-xs text-gray-400 font-normal ml-1">Standard: 15000</span>
                             </label>
-                            <input type="number" name="webclub_timeout_ms" min="5000" max="60000" step="1000"
+                            <input aria-label="Selektor-Timeout (ms) Standard: 15000" type="number" name="webclub_timeout_ms" min="5000" max="60000" step="1000"
                                    value="{{ old('webclub_timeout_ms', $webclub['timeout_ms']) }}"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Prozess-Timeout (Sekunden)</label>
-                            <input type="number" name="webclub_timeout_seconds" min="60" max="1800"
+                            <input aria-label="Prozess-Timeout (Sekunden)" type="number" name="webclub_timeout_seconds" min="60" max="1800"
                                    value="{{ old('webclub_timeout_seconds', $webclub['timeout_seconds']) }}"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
@@ -356,7 +356,7 @@
                                 Node.js-Pfad
                                 <span class="text-xs text-gray-400 font-normal ml-1">leer lassen = automatisch suchen</span>
                             </label>
-                            <input type="text" name="webclub_node_path"
+                            <input aria-label="Node.js-Pfad leer lassen = automatisch suchen" type="text" name="webclub_node_path"
                                    value="{{ old('webclub_node_path', $webclub['node_path']) }}"
                                    placeholder="/usr/bin/node"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono">
@@ -368,7 +368,7 @@
                 {{-- GitHub Actions Import-Token --}}
                 <div class="border border-blue-100 bg-blue-50 rounded-xl p-4">
                     <div class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        <svg class="w-5 h-5 text-blue-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                         <div class="flex-1">
                             <p class="text-sm font-medium text-blue-800">GitHub Actions Import-Token</p>
                             <p class="text-xs text-blue-600 mt-0.5">
@@ -391,7 +391,7 @@
                                     Generieren
                                 </button>
                             </div>
-                            <p class="text-xs text-blue-500 mt-1.5">
+                            <p class="text-xs text-blue-600 mt-1.5">
                                 GitHub Secrets: <strong>WEBCLUB_BASE_URL</strong>, <strong>WEBCLUB_USERNAME</strong>, <strong>WEBCLUB_PASSWORD</strong>, <strong>WEBCLUB_IMPORT_TOKEN</strong>, <strong>PORTAL_URL</strong>
                             </p>
                         </div>
@@ -403,7 +403,7 @@
 
         <div class="flex gap-3">
             <button type="submit"
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm">
+                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm">
                 WebClub-Einstellungen speichern
             </button>
         </div>
@@ -422,7 +422,7 @@
 
         <a href="{{ route('admin.wa-scoring.index') }}"
            class="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-            <svg class="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-amber-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
             </svg>
@@ -451,7 +451,7 @@
 
         <a href="{{ route('admin.corrections.course.index') }}"
            class="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-            <svg class="w-5 h-5 {{ $missingCourse ? 'text-amber-500' : 'text-green-500' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 {{ $missingCourse ? 'text-amber-700' : 'text-green-700' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
             </svg>
             <div class="flex-1 min-w-0">
@@ -478,7 +478,7 @@
         @endphp
         <a href="{{ route('admin.corrections.times.index') }}"
            class="flex items-center gap-4 px-6 py-4 border-t border-gray-100 hover:bg-gray-50 transition-colors">
-            <svg class="w-5 h-5 {{ $implausible ? 'text-red-500' : 'text-green-500' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 {{ $implausible ? 'text-red-600' : 'text-green-700' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>

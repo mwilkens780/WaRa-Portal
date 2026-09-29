@@ -53,7 +53,7 @@ function seriesEditForm() {
     <div class="{{ $isExpired ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200' }} border rounded-xl px-5 py-4">
         <div class="flex items-start gap-3">
             @if($isExpired)
-                <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                 </svg>
                 <div>
@@ -64,7 +64,7 @@ function seriesEditForm() {
                     </p>
                 </div>
             @else
-                <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div>
@@ -90,16 +90,16 @@ function seriesEditForm() {
             {{-- Titel --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Titel</label>
-                <input type="text" name="title" value="{{ old('title', $rep->title) }}"
+                <input aria-label="Titel" type="text" name="title" value="{{ old('title', $rep->title) }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>
-                @error('title') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                @error('title') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- Typ --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Typ</label>
-                <select name="type"
+                <select aria-label="Typ" name="type"
                         class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                     @foreach(['kondition' => 'Kondition', 'technik' => 'Technik', 'wettkampf' => 'Wettkampfvorbereitung', 'ausdauer' => 'Ausdauer', 'krafttraining' => 'Krafttraining', 'physio' => 'Physiotherapie', 'mentaltraining' => 'Mentaltraining', 'sonstiges' => 'Sonstiges'] as $val => $label)
                         <option value="{{ $val }}" {{ old('type', $rep->type) === $val ? 'selected' : '' }}>{{ $label }}</option>
@@ -111,14 +111,14 @@ function seriesEditForm() {
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Startzeit</label>
-                    <input type="time" name="start_time" value="{{ old('start_time', substr($rep->start_time, 0, 5)) }}"
+                    <input aria-label="Startzeit" type="time" name="start_time" value="{{ old('start_time', substr($rep->start_time, 0, 5)) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                            required>
-                    @error('start_time') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    @error('start_time') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Endzeit</label>
-                    <input type="time" name="end_time" value="{{ old('end_time', substr($rep->end_time ?? '', 0, 5)) }}"
+                    <input aria-label="Endzeit" type="time" name="end_time" value="{{ old('end_time', substr($rep->end_time ?? '', 0, 5)) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
@@ -126,7 +126,7 @@ function seriesEditForm() {
             {{-- Ort --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Ort</label>
-                <input type="text" name="location" value="{{ old('location', $rep->location) }}"
+                <input aria-label="Ort" type="text" name="location" value="{{ old('location', $rep->location) }}"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                        required>
             </div>
@@ -134,7 +134,7 @@ function seriesEditForm() {
             {{-- Notizen --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
-                <textarea name="notes" rows="2"
+                <textarea aria-label="Notizen" name="notes" rows="2"
                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ old('notes', $rep->notes) }}</textarea>
             </div>
 
@@ -169,7 +169,7 @@ function seriesEditForm() {
                                    class="w-4 h-4 rounded text-primary border-gray-300">
                             <span class="text-sm text-gray-700">{{ $t->lastname }}, {{ $t->firstname }}</span>
                             <span x-show="suggestedTrainerIds.includes({{ $t->id }})"
-                                  class="ml-auto text-xs text-blue-500 font-medium">Gruppen-Trainer</span>
+                                  class="ml-auto text-xs text-blue-600 font-medium">Gruppen-Trainer</span>
                         </label>
                     @endforeach
                 </div>
@@ -185,7 +185,7 @@ function seriesEditForm() {
                             Max. Teilnehmer
                             <span class="text-gray-400 font-normal">(optional)</span>
                         </label>
-                        <input type="number" name="max_participants" min="1" max="999"
+                        <input aria-label="Max. Teilnehmer (optional)" type="number" name="max_participants" min="1" max="999"
                                value="{{ old('max_participants', $rep->max_participants) }}"
                                placeholder="Unbegrenzt"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -216,7 +216,7 @@ function seriesEditForm() {
                         Gastgruppe
                         <span class="text-gray-400 font-normal">(nur bei gesetztem Teilnehmerlimit)</span>
                     </label>
-                    <select name="guest_group_id"
+                    <select aria-label="Gastgruppe (nur bei gesetztem Teilnehmerlimit)" name="guest_group_id"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         <option value="">— Keine Gastgruppe —</option>
                         @foreach($allGroups as $g)
@@ -271,7 +271,7 @@ function seriesEditForm() {
                 <div class="ml-auto flex items-center gap-4">
                     @if(!$isExpired)
                         <a href="{{ route('trainer.sessions.series.generate', $group) }}"
-                           class="text-sm text-green-600 hover:text-green-800 font-medium">
+                           class="text-sm text-green-700 hover:text-green-800 font-medium">
                             + Neue Saison generieren
                         </a>
                     @endif
@@ -288,7 +288,7 @@ function seriesEditForm() {
     @if($exclusions->isNotEmpty())
     <div class="bg-white rounded-xl shadow-sm border border-orange-100 overflow-hidden">
         <div class="px-5 py-3 border-b border-orange-100 flex items-center gap-2 bg-orange-50/50">
-            <svg class="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-orange-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
             </svg>
             <h3 class="text-sm font-semibold text-gray-700">
@@ -300,7 +300,7 @@ function seriesEditForm() {
             @foreach($exclusions as $ex)
                 <div class="flex items-center gap-3 px-5 py-2.5 text-sm">
                     <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                         </svg>
                     </div>
@@ -310,7 +310,7 @@ function seriesEditForm() {
                     @if($ex->comment)
                         <span class="text-gray-400 text-xs truncate max-w-xs">„{{ $ex->comment }}"</span>
                     @endif
-                    <span class="ml-auto text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">
+                    <span class="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
                         Dauerhaft abgesagt
                     </span>
                 </div>
@@ -367,14 +367,14 @@ function seriesEditForm() {
                     <div class="flex items-center gap-1.5 min-w-0 flex-1">
                         @if($isPast && $showAttendance)
                             {{-- Vergangene Einheit mit erfasster Anwesenheit --}}
-                            <span class="text-xs {{ $isOverCap ? 'text-red-500 font-semibold' : 'text-gray-500' }}">
+                            <span class="text-xs {{ $isOverCap ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
                                 {{ $effectiveCount }}{{ $cap ? '/'.$cap : '' }} anwesend
                             </span>
                         @elseif(!$isPast && $cap)
                             {{-- Zukünftige Einheit mit Kapazitätslimit --}}
-                            <span class="text-xs {{ $isOverCap ? 'text-red-500 font-semibold' : ($isAtCap ? 'text-amber-500' : 'text-gray-500') }}">
+                            <span class="text-xs {{ $isOverCap ? 'text-red-600 font-semibold' : ($isAtCap ? 'text-amber-700' : 'text-gray-500') }}">
                                 {{ $effectiveCount }}/{{ $cap }}
-                                @if($isOverCap) · <span class="text-red-500">Überlastet</span>@endif
+                                @if($isOverCap) · <span class="text-red-600">Überlastet</span>@endif
                             </span>
                         @elseif(!$isPast && $expectedCount > 0)
                             <span class="text-xs text-gray-400">{{ $effectiveCount }} erwartet</span>
@@ -382,7 +382,7 @@ function seriesEditForm() {
 
                         {{-- Absage-Badge --}}
                         @if($preAbsent > 0)
-                            <span class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                            <span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
                                 {{ $preAbsent }} Absage{{ $preAbsent === 1 ? '' : 'n' }}
                             </span>
                         @endif
@@ -390,7 +390,7 @@ function seriesEditForm() {
 
                     {{-- Status-Badge + Link --}}
                     @if($isPast)
-                        <span class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">vergangen</span>
+                        <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full flex-shrink-0">vergangen</span>
                     @else
                         <span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full flex-shrink-0">zukünftig</span>
                     @endif

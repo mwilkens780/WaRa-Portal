@@ -60,7 +60,7 @@
                     <span class="font-semibold text-gray-800 text-sm">{{ $comp->name }}</span>
                     <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium shrink-0">{{ $comp->type_label }}</span>
                     @if($comp->course)
-                        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full shrink-0">{{ $comp->course }}</span>
+                        <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">{{ $comp->course }}</span>
                     @endif
                 </div>
                 <p class="text-xs text-gray-400 mt-0.5">
@@ -76,7 +76,7 @@
                     @elseif($isDeclined)
                         <span class="text-xs bg-red-100 text-red-600 px-2.5 py-1 rounded-full font-semibold">Abgesagt</span>
                     @else
-                        <span class="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Abgeschlossen</span>
+                        <span class="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">Abgeschlossen</span>
                     @endif
                 @elseif($response)
                     @if($isAttending)
@@ -87,7 +87,7 @@
                         <span class="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-semibold">Ausstehend</span>
                     @endif
                 @elseif($hasSignup)
-                    <span class="text-xs bg-gray-100 text-gray-400 px-2.5 py-1 rounded-full">Kein Status</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">Kein Status</span>
                 @endif
                 <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="{ 'rotate-180': open }"
                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -173,7 +173,7 @@
 
                 @if($signupRequest->bus_available && $isFuture)
                     <div class="flex items-center gap-2 text-sm">
-                        <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8M7 9h10M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14"/>
                         </svg>
                         <span class="text-gray-600">Bus verfügbar ({{ $signupRequest->bus_seats ?? '–' }} Plätze)</span>
@@ -184,7 +184,7 @@
                 @endif
 
                 @if($signupRequest->deadline)
-                    <p class="text-xs font-medium {{ now()->gt($signupRequest->deadline) ? 'text-red-500' : 'text-amber-600' }}">
+                    <p class="text-xs font-medium {{ now()->gt($signupRequest->deadline) ? 'text-red-600' : 'text-amber-700' }}">
                         Anmeldefrist: {{ $signupRequest->deadline->format('d.m.Y') }}
                     </p>
                 @endif
@@ -215,7 +215,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Notiz (optional)</label>
-                            <input type="text" name="note" value="{{ old('note', $response->note) }}"
+                            <input aria-label="Notiz (optional)" type="text" name="note" value="{{ old('note', $response->note) }}"
                                    placeholder="z.B. Verspätung möglich"
                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         </div>
@@ -344,7 +344,7 @@
                                 @if($entry->status === 'entered')
                                     <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Gemeldet</span>
                                 @elseif($entry->status)
-                                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{{ ucfirst($entry->status) }}</span>
+                                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full">{{ ucfirst($entry->status) }}</span>
                                 @endif
                             </div>
                         </div>
@@ -417,7 +417,7 @@
                                 <td class="py-2.5 pl-3 text-gray-500 text-xs hidden sm:table-cell">
                                     @if(!empty($swim->placements) && !$swim->is_dns)
                                         @foreach($swim->placements as $p)
-                                            <span class="{{ $p->placement <= 3 ? 'font-bold text-amber-600' : '' }}">
+                                            <span class="{{ $p->placement <= 3 ? 'font-bold text-amber-700' : '' }}">
                                                 @if($p->age_group)<span class="text-gray-400 font-normal">{{ $p->age_group }}: </span>@endif
                                                 Platz {{ $p->placement }}
                                             </span>{{ !$loop->last ? ' · ' : '' }}

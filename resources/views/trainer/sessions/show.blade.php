@@ -73,7 +73,7 @@
         {{-- Missing trainer warning --}}
         @if($session->has_missing_trainer)
         <div class="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm">
-            <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <svg class="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
             <div>
                 <p class="font-semibold text-amber-800">Kein Trainer zugewiesen</p>
                 <p class="text-amber-700 text-xs mt-0.5">
@@ -87,7 +87,7 @@
         {{-- Überfüllt-Banner --}}
         @if($isOverCapacity)
         <div class="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
-            <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
             <div>
@@ -166,7 +166,7 @@
                 <p class="text-xs text-gray-400 mt-0.5">Schwimmer unabhängig von ihrer Gruppe zuweisen</p>
             </div>
             <button @click="showAssignForm = !showAssignForm" type="button"
-                    class="text-xs text-primary hover:underline font-medium" x-text="showAssignForm ? 'Schließen' : '+ Schwimmer zuweisen'"></button>
+                    class="text-sm text-primary hover:underline font-medium py-2" :aria-expanded="showAssignForm ? 'true' : 'false'" x-text="showAssignForm ? 'Schließen' : '+ Schwimmer zuweisen'">+ Schwimmer zuweisen</button>
         </div>
 
         {{-- Add form --}}
@@ -177,7 +177,7 @@
                     @csrf
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Schwimmer (nur diese Einheit)</label>
-                        <select name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select aria-label="Schwimmer (nur diese Einheit)" name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">Wählen...</option>
                             @foreach($allSwimmersForAssign as $s)
                                 <option value="{{ $s->id }}">{{ $s->lastname }}, {{ $s->firstname }}</option>
@@ -195,14 +195,14 @@
                     @csrf
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Schwimmer (zur ganzen Serie)</label>
-                        <select name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select aria-label="Schwimmer (zur ganzen Serie)" name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">Wählen...</option>
                             @foreach($allSwimmersForAssign as $s)
                                 <option value="{{ $s->id }}">{{ $s->lastname }}, {{ $s->firstname }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap">
+                    <button type="submit" class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 px-4 py-2 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
                         Zur Serie
                     </button>
                 </form>
@@ -220,7 +220,7 @@
                     <span class="font-medium text-blue-800">{{ $assign->user?->name }}</span>
                     <form method="POST" action="{{ route('trainer.sessions.swimmer.remove', [$session, $assign->user_id]) }}">
                         @csrf @method('DELETE')
-                        <button type="submit" class="text-blue-400 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
+                        <button type="submit" class="text-blue-600 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
                     </form>
                 </div>
                 @endforeach
@@ -235,11 +235,11 @@
             <div class="flex flex-wrap gap-2">
                 @foreach($seriesIndividualSwimmers as $assign)
                 <div class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1 text-xs">
-                    <span class="text-indigo-400 font-semibold">≈</span>
+                    <span class="text-indigo-600 font-semibold">≈</span>
                     <span class="font-medium text-indigo-800">{{ $assign->user?->name }}</span>
                     <form method="POST" action="{{ route('trainer.sessions.series.swimmer.remove', [$session->recurrence_group_id, $assign->user_id]) }}">
                         @csrf @method('DELETE')
-                        <button type="submit" class="text-indigo-400 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
+                        <button type="submit" class="text-indigo-600 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
                     </form>
                 </div>
                 @endforeach
@@ -259,7 +259,7 @@
                 @if($session->registration_open)
                     <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">offen</span>
                 @else
-                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">geschlossen</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">geschlossen</span>
                 @endif
                 @if($session->max_participants)
                     <span class="text-xs text-gray-400">{{ $sessionRegistrations->count() }}/{{ $session->max_participants }} Plätze</span>
@@ -272,7 +272,7 @@
                 @foreach($sessionRegistrations as $reg)
                 <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
                     {{ $reg->user?->name }}
-                    <span class="text-green-400 text-[10px]">{{ $reg->registered_at->deBerlin('d.m. H:i') }}</span>
+                    <span class="text-green-700 text-[10px]">{{ $reg->registered_at->deBerlin('d.m. H:i') }}</span>
                 </span>
                 @endforeach
             </div>
@@ -327,7 +327,7 @@
             <div class="flex flex-wrap gap-2">
                 @foreach($guestBookings as $booking)
                 <span class="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-full px-3 py-1 text-xs font-medium text-purple-800">
-                    <svg class="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                     {{ $booking->user?->name }}
@@ -360,7 +360,7 @@
                 <span class="text-gray-400">{{ $hb->formatted_time }}</span>
                 <form method="POST" action="{{ route('trainer.sessions.remove-lane', [$session, $hb]) }}">
                     @csrf @method('DELETE')
-                    <button type="submit" class="text-red-400 hover:text-red-600 ml-1" title="Entfernen">×</button>
+                    <button type="submit" class="text-red-600 hover:text-red-800 ml-1" title="Entfernen">×</button>
                 </form>
             </div>
             @endforeach
@@ -478,7 +478,7 @@
             <div class="flex items-center gap-2">
                 @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->tracksTime())->isNotEmpty())
                     <a href="{{ route('trainer.sessions.live', $session) }}"
-                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm">
+                       class="bg-primary hover:bg-primary-dark text-white inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
@@ -513,7 +513,7 @@
 
             @if($session->trainingPlan->attachment_path)
                 <div class="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 mb-4">
-                    <svg class="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     <a href="{{ route('sessions.plan.attachment.download', $session) }}"
@@ -597,7 +597,7 @@
                 @endforeach
             @else
                 <p class="text-sm text-gray-400">Keine Blöcke definiert.
-                    <a href="{{ route('trainer.sessions.plan.builder', $session) }}" class="text-primary hover:underline">Blöcke hinzufügen</a>
+                    <a href="{{ route('trainer.sessions.plan.builder', $session) }}" class="text-primary underline underline-offset-2 hover:no-underline">Blöcke hinzufügen</a>
                 </p>
             @endif
         @else
@@ -719,7 +719,7 @@
                                             <span class="text-xs text-gray-400 ml-1">({{ $swimmer->age }} J.)</span>
                                         @endif
                                         @if($att?->pre_absent_note)
-                                            <span class="block text-xs text-red-500 mt-0.5">{{ $att->pre_absent_note }}</span>
+                                            <span class="block text-xs text-red-600 mt-0.5">{{ $att->pre_absent_note }}</span>
                                         @endif
                                     </div>
                                 </label>
@@ -819,7 +819,7 @@
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                         <div class="col-span-2 sm:col-span-1">
                             <label class="block text-xs text-gray-500 mb-1">Schwimmer</label>
-                            <select name="user_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select aria-label="Schwimmer" name="user_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <option value="">Wählen...</option>
                                 @foreach($swimmers as $s)
                                     <option value="{{ $s->id }}">{{ $s->name }}</option>
@@ -828,7 +828,7 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">Disziplin</label>
-                            <select name="discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select aria-label="Disziplin" name="discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <option value="F">Freistil</option>
                                 <option value="B">Brust</option>
                                 <option value="R">Rücken</option>
@@ -838,7 +838,7 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">Distanz (m)</label>
-                            <select name="distance" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select aria-label="Distanz (m)" name="distance" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 @foreach([25, 50, 100, 200, 400, 800, 1500] as $d)
                                     <option value="{{ $d }}">{{ $d }} m</option>
                                 @endforeach
@@ -895,7 +895,7 @@
                                     <form method="POST" action="{{ route('trainer.times.destroy', $time) }}"
                                           data-confirm="Zeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                                        <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Löschen</button>
                                     </form>
                                 </td>
                             </tr>
@@ -959,10 +959,10 @@
                                                    class="w-14 text-center border border-primary rounded-lg px-1 py-0.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30"
                                                    x-ref="scoreInput"
                                                    x-init="$nextTick(() => $refs.scoreInput?.focus())">
-                                            <button type="submit" class="text-green-600 hover:text-green-700">
+                                            <button type="submit" aria-label="Bewertung speichern" title="Speichern" class="p-1.5 text-green-700 hover:text-green-900">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                             </button>
-                                            <button type="button" @click="editing = false" class="text-gray-400 hover:text-gray-600">
+                                            <button type="button" @click="editing = false" aria-label="Bearbeiten abbrechen" title="Abbrechen" class="p-1.5 text-gray-500 hover:text-gray-700">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                             </button>
                                         </form>

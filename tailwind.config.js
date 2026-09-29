@@ -18,7 +18,7 @@ export default {
         './app/**/*.php',
         './config/**/*.php',
         // Laravels Seiten-Navigation ($items->links()) kommt aus vendor/
-        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
+        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php', // Rueckfall; eigene Kopie unter resources/views/vendor/pagination
     ],
     theme: {
         extend: {

@@ -90,7 +90,7 @@
                                 <td class="px-4 py-2.5 text-xs hidden lg:table-cell">
                                     @if(isset($row['email']) && $row['email'])
                                         @if(str_contains($row['email'], '@mitglied.wasserratten.intern'))
-                                            <span class="text-amber-600" title="Platzhalter-E-Mail">{{ $row['email'] }}</span>
+                                            <span class="text-amber-700" title="Platzhalter-E-Mail">{{ $row['email'] }}</span>
                                         @else
                                             <span class="text-gray-500">{{ $row['email'] }}</span>
                                         @endif
@@ -113,14 +113,14 @@
                                         @endif
                                     @elseif($isUnassigned && ($row['user_id'] ?? null))
                                         {{-- Skip-Zeile, aber Zuordnung zu bestehendem User gefunden --}}
-                                        <span class="font-semibold text-orange-600">
+                                        <span class="font-semibold text-orange-700">
                                             ⚠ Zuordnung zu User #{{ $row['user_id'] }}
                                             @if($row['existing_name'] ?? null)({{ $row['existing_name'] }})@endif
                                         </span>
                                         @if(($row['matched_by'] ?? null) === 'dsv_id')
-                                            <span class="text-orange-500">via DSV-ID</span>
+                                            <span class="text-orange-700">via DSV-ID</span>
                                         @elseif(($row['matched_by'] ?? null) === 'name_birthdate')
-                                            <span class="text-orange-500">via Name+Geb.</span>
+                                            <span class="text-orange-700">via Name+Geb.</span>
                                         @endif
                                         <br><span class="text-gray-400">→ Rollenzuweisung aktualisiert bestehenden User, legt keinen neuen an</span>
                                     @elseif($isUnassigned)

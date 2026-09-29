@@ -592,7 +592,7 @@ function hallApp() {
 <div x-show="pageError" x-cloak role="alert"
      class="mb-3 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
     <span class="flex-1" x-text="pageError"></span>
-    <button type="button" @click="pageError = ''" class="text-red-400 hover:text-red-600" aria-label="Meldung schließen">
+    <button type="button" @click="pageError = ''" class="text-red-600 hover:text-red-800" aria-label="Meldung schließen">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
     </button>
 </div>
@@ -809,7 +809,7 @@ function hallApp() {
             <div class="flex-shrink-0 border-l border-gray-200"{{ $dayNum == 7 ? ' x-show="!compactMode"' : '' }}
                  style="height:52px">
                 <button type="button" @click="view='day'; currentDay={{ $dayNum }}" aria-label="{{ $dayName }} in der Tagesansicht öffnen"
-                        class="w-full text-center text-xs font-bold text-gray-700 hover:text-primary py-1.5 transition-colors"
+                        class="touch-exempt w-full text-center text-xs font-bold text-gray-700 hover:text-primary py-1.5 transition-colors"
                         style="width:{{ count($resources) * $weekColPx }}px">
                     {{ $dayName }}
                 </button>
@@ -1218,7 +1218,7 @@ function hallApp() {
                             <button type="button"
                                     @click="deleteBooking(c.id)"
                                     :aria-label="'Überschneidende Belegung ' + c.label + ' löschen'"
-                                    class="flex-shrink-0 text-xs px-2.5 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded font-medium transition-colors">
+                                    class="bg-accent hover:bg-accent-dark text-white flex-shrink-0 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
                                 Löschen
                             </button>
                         </li>

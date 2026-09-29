@@ -94,7 +94,7 @@
                                 <td class="px-5 py-2.5 text-gray-700 truncate" title="{{ $record->swimmer_name }}">
                                     {{ $record->swimmer_name }}
                                     @if($record->user)
-                                        <span class="text-xs text-green-600 ml-1">✓</span>
+                                        <span class="text-xs text-green-700 ml-1">✓</span>
                                     @endif
                                 </td>
                                 <td class="px-5 py-2.5 text-gray-500 text-xs">
@@ -105,7 +105,7 @@
                                 </td>
                                 <td class="px-5 py-2.5">
                                     @if($record->competitionResult)
-                                        <span class="text-xs text-green-600 font-medium">Im Portal</span>
+                                        <span class="text-xs text-green-700 font-medium">Im Portal</span>
                                     @else
                                         <span class="text-xs text-gray-400">Extern</span>
                                     @endif
@@ -117,7 +117,7 @@
                                     <form method="POST" class="inline" action="{{ route('admin.records.destroy', $record) }}"
                                           data-confirm="Rekord löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-400 hover:text-red-600 text-xs ml-1">Löschen</button>
+                                        <button type="submit" class="text-red-600 hover:text-red-800 text-xs ml-1">Löschen</button>
                                     </form>
                                 </td>
                                 @endif
@@ -139,7 +139,7 @@
                                     @csrf @method('PUT')
                                     <div>
                                         <label class="block text-[10px] text-gray-500 mb-1">Name</label>
-                                        <input type="text" name="swimmer_name" value="{{ $record->swimmer_name }}" required
+                                        <input aria-label="Name" type="text" name="swimmer_name" value="{{ $record->swimmer_name }}" required
                                                class="px-2 py-1.5 border border-gray-300 rounded text-xs w-48 outline-none focus:ring-1 focus:ring-primary/40">
                                     </div>
                                     <div>
@@ -158,12 +158,12 @@
                                     </div>
                                     <div>
                                         <label class="block text-[10px] text-gray-500 mb-1">Datum</label>
-                                        <input type="date" name="set_date" value="{{ $record->set_date?->format('Y-m-d') }}"
+                                        <input aria-label="Datum" type="date" name="set_date" value="{{ $record->set_date?->format('Y-m-d') }}"
                                                class="px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
                                     </div>
                                     <div class="flex-1 min-w-[160px]">
                                         <label class="block text-[10px] text-gray-500 mb-1">Veranstaltung / Ort</label>
-                                        <input type="text" name="location" value="{{ $record->location }}"
+                                        <input aria-label="Veranstaltung / Ort" type="text" name="location" value="{{ $record->location }}"
                                                class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
                                     </div>
                                     <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">Speichern</button>

@@ -45,13 +45,13 @@
             <h2 class="text-sm font-semibold text-gray-700 mb-3">Meine Anmeldung</h2>
             @if($myAttendance?->pre_absent)
                 <div class="flex items-center gap-3 mb-3 p-3 bg-red-50 rounded-lg border border-red-100">
-                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div>
                         <p class="text-sm font-medium text-red-700">Du hast für diese Einheit abgesagt.</p>
                         @if($myAttendance->pre_absent_note)
-                            <p class="text-xs text-red-500 mt-0.5">Grund: {{ $myAttendance->pre_absent_note }}</p>
+                            <p class="text-xs text-red-600 mt-0.5">Grund: {{ $myAttendance->pre_absent_note }}</p>
                         @endif
                     </div>
                 </div>
@@ -166,7 +166,7 @@
             </div>
         @else
             <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center gap-3">
-                <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
                 <p class="text-sm text-amber-700">Der Trainingsplan wird nach Abschluss der Einheit freigeschaltet.</p>

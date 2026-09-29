@@ -9,7 +9,7 @@
     @if(isset($upcomingMottoWarnings) && $upcomingMottoWarnings->isNotEmpty())
     <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
         <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <svg class="w-5 h-5 text-amber-700 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
             <div class="flex-1">
                 <p class="font-semibold text-amber-800 text-sm mb-2">Motto der Woche: Einträge fehlen</p>
                 <div class="space-y-2">
@@ -19,9 +19,9 @@
                         <span class="text-xs font-medium px-2 py-0.5 rounded-full {{ $gc['badge'] }}">{{ $mw->group->name }}</span>
                         <span class="text-xs text-amber-700">KW {{ $mw->week_start->weekOfYear }} ({{ $mw->week_start->format('d.m.Y') }})</span>
                         @if($mw->user)
-                            <span class="text-xs text-amber-600">Zuständig: {{ $mw->user->firstname }} {{ $mw->user->lastname }}</span>
+                            <span class="text-xs text-amber-700">Zuständig: {{ $mw->user->firstname }} {{ $mw->user->lastname }}</span>
                         @else
-                            <span class="text-xs text-amber-600">Niemand zugewiesen</span>
+                            <span class="text-xs text-amber-700">Niemand zugewiesen</span>
                         @endif
                     </div>
                     @endforeach
@@ -65,7 +65,7 @@
                        class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
                         <div class="text-center bg-primary/10 rounded-lg p-2 min-w-[50px]">
                             <p class="text-xs font-semibold text-primary">{{ $session->date->format('d.M') }}</p>
-                            <p class="text-xs text-primary/70">{{ $session->date->isoFormat('ddd') }}</p>
+                            <p class="text-xs text-primary">{{ $session->date->isoFormat('ddd') }}</p>
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>

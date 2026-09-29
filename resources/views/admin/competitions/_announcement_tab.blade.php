@@ -84,7 +84,7 @@
                 <div class="bg-white rounded-lg px-3 py-2 border border-blue-100">
                     <p class="text-gray-400 mb-0.5">Meldeanschrift</p>
                     <p class="font-medium text-gray-700">{{ $e['contact_name'] ?? '' }}</p>
-                    <a href="mailto:{{ $e['contact_email'] }}" class="text-primary hover:underline">{{ $e['contact_email'] }}</a>
+                    <a href="mailto:{{ $e['contact_email'] }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $e['contact_email'] }}</a>
                 </div>
                 @endif
                 @if(!empty($e['fee_individual_cents']))

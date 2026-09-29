@@ -186,14 +186,40 @@
             @if(session('warning'))
                 <x-ui.alert tone="warning" dismissible>{{ session('warning') }}</x-ui.alert>
             @endif
-            @if($errors->any())
+            {{-- Fehlerübersicht: Jeder Eintrag springt zum Feld (die Meldung am Feld
+                 bleibt). Vorher stand dieselbe Meldung einfach zweimal da. Fehler des
+                 Passwort-Dialogs zeigt der Dialog selbst. --}}
+            @php
+                $fehler = collect($errors->getMessages())->except(['current_password', 'password']);
+            @endphp
+            @if($fehler->isNotEmpty())
                 <x-ui.alert tone="error">
-                    <ul class="list-disc list-inside space-y-1">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
+                    <p class="font-semibold">
+                        {{ $fehler->count() === 1 ? 'Bitte prüfe diese Angabe:' : 'Bitte prüfe diese ' . $fehler->count() . ' Angaben:' }}
+                    </p>
+                    <ul class="mt-1 list-disc list-inside space-y-1">
+                        @foreach($fehler as $feld => $meldungen)
+                            <li><span data-error-field="{{ $feld }}">{{ $meldungen[0] }}</span></li>
                         @endforeach
                     </ul>
                 </x-ui.alert>
+                <script>
+                    // Eintraege mit passendem Feld auf der Seite werden zu Sprungmarken
+                    document.addEventListener('DOMContentLoaded', () => {
+                        document.querySelectorAll('[data-error-field]').forEach((el) => {
+                            const key = el.dataset.errorField;
+                            const name = key.split('.').map((p, i) => (i ? '[' + p + ']' : p)).join('');
+                            const field = [name, name + '[]', key].map((n) => document.querySelector('[name="' + CSS.escape(n) + '"]')).find(Boolean);
+                            if (!field || field.type === 'hidden') return;
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'text-left underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 rounded';
+                            btn.textContent = el.textContent;
+                            btn.addEventListener('click', () => { field.scrollIntoView({ block: 'center' }); field.focus({ preventScroll: true }); });
+                            el.replaceWith(btn);
+                        });
+                    });
+                </script>
             @endif
         </div>
 

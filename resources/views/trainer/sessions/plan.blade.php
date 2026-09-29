@@ -48,7 +48,7 @@
                 {{-- Beschreibung --}}
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Beschreibung / Trainingsziel</label>
-                    <textarea name="description" rows="3" x-model="description"
+                    <textarea aria-label="Beschreibung / Trainingsziel" name="description" rows="3" x-model="description"
                               placeholder="Ziel der Einheit, Schwerpunkte, Hinweise für Trainer..."
                               class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-y">{{ old('description', $plan?->description) }}</textarea>
                 </div>
@@ -122,7 +122,7 @@
 
                                     {{-- Zusammenfassung z.B. "4×6×2×100m = 4800m" --}}
                                     <span x-show="blockTotalReps(block) > 0 && block.distance"
-                                          class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full font-mono"
+                                          class="text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded-full font-mono"
                                           x-text="blockRepDisplay(block) + '×' + block.distance + 'm = ' + blockTotalReps(block) * (parseInt(block.distance)||0) + 'm'">
                                     </span>
                                 </div>
@@ -206,7 +206,7 @@
                                             ? 'bg-amber-50 border-amber-300'
                                             : 'bg-gray-50 border-gray-200 hover:border-gray-300'">
                                     <input type="checkbox" x-model="block.time_tracking"
-                                           class="mt-0.5 w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-2 focus:ring-amber-400 cursor-pointer">
+                                           class="mt-0.5 w-5 h-5 rounded border-gray-300 text-amber-700 focus:ring-2 focus:ring-amber-400 cursor-pointer">
                                     <span class="min-w-0">
                                         <span class="flex items-center gap-2 text-sm font-semibold"
                                               :class="block.time_tracking ? 'text-amber-900' : 'text-gray-700'">
@@ -256,7 +256,7 @@
                                             <p class="text-xs font-medium text-blue-700 mb-1">Block-Dauer</p>
                                             <p class="text-lg font-bold text-blue-700"
                                                x-text="formatTime(blockSeconds(block))"></p>
-                                            <p class="text-xs text-blue-500"
+                                            <p class="text-xs text-blue-600"
                                                x-show="blockTotalReps(block) > 0 && blockIntervalSeconds(block) > 0"
                                                x-text="blockRepDisplay(block) + ' × ' + formatTime(blockIntervalSeconds(block))
                                                     + (blockRecoverySeconds(block) > 0 ? ' + ' + formatTime(blockRecoverySeconds(block)) + ' Pause' : '')">
@@ -286,7 +286,7 @@
                     <p class="text-sm font-semibold text-gray-700 mb-3">Anhang (PDF oder Bild)</p>
                     @if($plan?->attachment_path)
                         <div class="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 mb-3">
-                            <svg class="w-7 h-7 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-7 h-7 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                             <div class="flex-1 min-w-0">
@@ -297,7 +297,7 @@
                             <form method="POST" action="{{ route('trainer.sessions.plan.attachment.delete', $session) }}"
                                   data-confirm="Anhang löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors">
+                                <button type="submit" class="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors">
                                     Löschen
                                 </button>
                             </form>

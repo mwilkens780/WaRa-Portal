@@ -15,7 +15,7 @@
     <p>
         Diese Datenschutzerklärung gilt für das WaRa-Portal. Sie ergänzt die Datenschutzerklärung des Vereins
         (gemäß § 23 unserer Satzung) und die
-        <a href="https://www.wasserratten.de/index.php/datenschutzhinweise" class="text-primary hover:underline" target="_blank" rel="noopener">Datenschutzhinweise für Mitarbeiter, Mitglieder und andere Betroffene</a>
+        <a href="https://www.wasserratten.de/index.php/datenschutzhinweise" class="text-primary underline underline-offset-2 hover:no-underline" target="_blank" rel="noopener">Datenschutzhinweise für Mitarbeiter, Mitglieder und andere Betroffene</a>
         auf der Vereinsseite um die Verarbeitungen, die nur im Portal stattfinden.
     </p>
 
@@ -30,8 +30,8 @@
             Wiesenstraße 50 a<br>
             22850 Norderstedt<br>
             Deutschland<br>
-            E-Mail: <a href="mailto:info@wasserratten.de" class="text-primary hover:underline">info@wasserratten.de</a><br>
-            Webseite: <a href="https://www.wasserratten.de" class="text-primary hover:underline" target="_blank" rel="noopener">www.wasserratten.de</a>
+            E-Mail: <a href="mailto:info@wasserratten.de" class="text-primary underline underline-offset-2 hover:no-underline">info@wasserratten.de</a><br>
+            Webseite: <a href="https://www.wasserratten.de" class="text-primary underline underline-offset-2 hover:no-underline" target="_blank" rel="noopener">www.wasserratten.de</a>
         </p>
         <p class="mt-2">
             Bei Fragen zum Datenschutz oder zur Geltendmachung Ihrer Rechte wenden Sie sich bitte an die oben genannte Adresse
@@ -269,8 +269,8 @@
             <strong>Unabhängiges Landeszentrum für Datenschutz Schleswig-Holstein (ULD)</strong><br>
             Holstenstraße 98, 24103 Kiel<br>
             Telefon: 0431 988-1200<br>
-            E-Mail: <a href="mailto:mail@datenschutzzentrum.de" class="text-primary hover:underline">mail@datenschutzzentrum.de</a><br>
-            <a href="https://www.datenschutzzentrum.de" class="text-primary hover:underline" target="_blank" rel="noopener">www.datenschutzzentrum.de</a>
+            E-Mail: <a href="mailto:mail@datenschutzzentrum.de" class="text-primary underline underline-offset-2 hover:no-underline">mail@datenschutzzentrum.de</a><br>
+            <a href="https://www.datenschutzzentrum.de" class="text-primary underline underline-offset-2 hover:no-underline" target="_blank" rel="noopener">www.datenschutzzentrum.de</a>
         </p>
     </section>
 

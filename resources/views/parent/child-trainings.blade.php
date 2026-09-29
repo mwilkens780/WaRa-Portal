@@ -33,7 +33,7 @@
                             {{-- Date block --}}
                             <div class="text-center rounded-lg p-2 min-w-[52px] flex-shrink-0 {{ $isAbsent ? 'bg-red-100' : 'bg-primary/10' }}">
                                 <p class="text-xs font-bold {{ $isAbsent ? 'text-red-600' : 'text-primary' }}">{{ $session->date->format('d.M') }}</p>
-                                <p class="text-[10px] {{ $isAbsent ? 'text-red-400' : 'text-primary/60' }}">{{ $session->date->isoFormat('ddd') }}</p>
+                                <p class="text-[10px] {{ $isAbsent ? 'text-red-600' : 'text-primary' }}">{{ $session->date->isoFormat('ddd') }}</p>
                             </div>
 
                             {{-- Session info --}}
@@ -58,7 +58,7 @@
                                     {{ $session->location }} · {{ $session->trainer?->name ?? '–' }}
                                 </p>
                                 @if($isAbsent && $absence->pre_absent_note)
-                                    <p class="text-xs text-red-500 mt-0.5">Grund: {{ $absence->pre_absent_note }}</p>
+                                    <p class="text-xs text-red-600 mt-0.5">Grund: {{ $absence->pre_absent_note }}</p>
                                 @endif
                             </div>
 
@@ -75,7 +75,7 @@
                                     @elseif(!$noSpots)
                                         <form method="POST" action="{{ route('parent.child.session.register', [$child->id, $session]) }}">
                                             @csrf
-                                            <button type="submit" class="text-xs text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-semibold">
+                                            <button type="submit" class="bg-primary hover:bg-primary-dark text-white text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold">
                                                 Anmelden
                                             </button>
                                         </form>
@@ -93,7 +93,7 @@
                                     </form>
                                 @else
                                     <button type="button" @click="showNote = !showNote"
-                                            class="text-xs text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                            class="text-xs text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                             x-text="showNote ? 'Abbrechen' : 'Absagen'">Absagen</button>
                                 @endif
                             </div>

@@ -82,7 +82,7 @@
                 Dokumente
                 @php $docCount = $documents->flatten()->count(); @endphp
                 @if($docCount > 0)
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $docCount }}</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $docCount }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'wettkampf'"
@@ -92,7 +92,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Wettkampffolge
                 @if($competition->events->isNotEmpty())
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">
                         {{ $competition->events->unique('event_number')->count() }}
                     </span>
                 @endif
@@ -122,7 +122,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Ergebnisse
                 @if($results->isNotEmpty())
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $results->sum(fn($g) => $g->count()) }}</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $results->sum(fn($g) => $g->count()) }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'auswertung'"
@@ -342,7 +342,7 @@
                                             </div>
                                             <div>
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Stichtag (optional)</label>
-                                                <input type="date" name="qualifying_deadline"
+                                                <input aria-label="Stichtag (optional)" type="date" name="qualifying_deadline"
                                                        value="{{ $baseWk->qualifying_deadline?->format('Y-m-d') }}"
                                                        class="px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                             </div>
@@ -477,8 +477,8 @@
                     @csrf
                     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Schwimmer <span class="text-red-500">*</span></label>
-                            <select name="user_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Schwimmer <span class="text-red-600">*</span></label>
+                            <select aria-label="Schwimmer" name="user_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <option value="">Bitte wählen...</option>
                                 @foreach($swimmers as $s)
                                     <option value="{{ $s->id }}">{{ $s->name }}</option>
@@ -486,8 +486,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-500">*</span></label>
-                            <select name="discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-600">*</span></label>
+                            <select aria-label="Disziplin" name="discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <option value="F">Freistil</option>
                                 <option value="B">Brust</option>
                                 <option value="R">Rücken</option>
@@ -496,15 +496,15 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Distanz (m) <span class="text-red-500">*</span></label>
-                            <select name="distance" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Distanz (m) <span class="text-red-600">*</span></label>
+                            <select aria-label="Distanz (m)" name="distance" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 @foreach([25, 50, 100, 200, 400, 800, 1500] as $d)
                                     <option value="{{ $d }}">{{ $d }} m</option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Zeit <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Zeit <span class="text-red-600">*</span></label>
                             <div class="flex gap-1 items-center">
                                 <input type="number" name="time_minutes" min="0" placeholder="Min" value="0"
                                        class="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
@@ -519,17 +519,17 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Platzierung</label>
-                            <input type="number" name="placement" min="1"
+                            <input aria-label="Platzierung" type="number" name="placement" min="1"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Altersklasse</label>
-                            <input type="text" name="age_group" placeholder="z.B. AK12, AK14"
+                            <input aria-label="Altersklasse" type="text" name="age_group" placeholder="z.B. AK12, AK14"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Geschlecht</label>
-                            <select name="gender" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select aria-label="Geschlecht" name="gender" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <option value="">– unbekannt –</option>
                                 <option value="M">Männlich</option>
                                 <option value="F">Weiblich</option>
@@ -538,7 +538,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Notizen</label>
-                        <input type="text" name="notes" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input aria-label="Notizen" type="text" name="notes" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div class="flex gap-3">
                         <button type="submit" class="bg-accent hover:bg-accent-dark text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
@@ -617,7 +617,7 @@
                                                 @if(!empty($swim->placements))
                                                     <div class="flex flex-col gap-0.5">
                                                         @foreach($swim->placements as $p)
-                                                            <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-600 font-semibold' : 'text-gray-500' }}">
+                                                            <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-700 font-semibold' : 'text-gray-500' }}">
                                                                 @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
                                                                 Platz {{ $p->placement }}
                                                             </span>
@@ -654,7 +654,7 @@
                                                 <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
                                                       data-confirm="Ergebnis löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                                                    <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Löschen</button>
                                                 </form>
                                             </td>
                                             @endif
@@ -729,7 +729,7 @@
                                                 @if(!empty($swim->placements))
                                                     <div class="flex flex-col gap-0.5">
                                                         @foreach($swim->placements as $p)
-                                                            <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-600 font-semibold' : 'text-gray-500' }}">
+                                                            <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-700 font-semibold' : 'text-gray-500' }}">
                                                                 @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
                                                                 Platz {{ $p->placement }}
                                                             </span>
@@ -777,7 +777,7 @@
                                                 <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
                                                       data-confirm="Ergebnis löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                                                    <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Löschen</button>
                                                 </form>
                                             </td>
                                             @endif
@@ -825,7 +825,7 @@
                                         @if(!empty($swim->placements))
                                             <div class="flex flex-col gap-0.5">
                                                 @foreach($swim->placements as $p)
-                                                    <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-600 font-semibold' : 'text-gray-600' }}">
+                                                    <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-700 font-semibold' : 'text-gray-600' }}">
                                                         @if($p->age_group)<span class="text-gray-400 font-normal">{{ $p->age_group }}:</span> @endif
                                                         Platz {{ $p->placement }}
                                                     </span>
@@ -888,7 +888,7 @@
 
                             {{-- Speichern --}}
                             <button @click="save()" :disabled="saving"
-                                    class="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50">
+                                    class="bg-primary hover:bg-primary-dark text-white flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
                                 <svg x-show="saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -952,7 +952,7 @@
                     <div class="flex gap-2">
                         <form method="POST" action="{{ route('admin.competitions.signup.activate', [$competition, $signupRequest]) }}">
                             @csrf
-                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors">
+                            <button type="submit" class="bg-primary hover:bg-primary-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors">
                                 Abfrage starten
                             </button>
                         </form>
@@ -1009,7 +1009,7 @@
 
                 @if($signupRequest->meeting_point || $signupRequest->meeting_time)
                     <div class="bg-sky-50 border border-sky-100 rounded-lg px-4 py-3 mb-4 text-sm text-gray-700 flex items-center gap-3">
-                        <svg class="w-4 h-4 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-sky-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
@@ -1050,15 +1050,15 @@
                 @endphp
                 <div class="flex gap-6 mb-4 flex-wrap items-end">
                     <div class="text-center">
-                        <p class="text-2xl font-bold text-green-600">{{ $countAttending }}</p>
+                        <p class="text-2xl font-bold text-green-700">{{ $countAttending }}</p>
                         <p class="text-xs text-gray-500">Zusagen</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-2xl font-bold text-red-500">{{ $countNotAttending }}</p>
+                        <p class="text-2xl font-bold text-red-600">{{ $countNotAttending }}</p>
                         <p class="text-xs text-gray-500">Absagen</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-2xl font-bold text-amber-500">{{ $countPending }}</p>
+                        <p class="text-2xl font-bold text-amber-700">{{ $countPending }}</p>
                         <p class="text-xs text-gray-500">Ausstehend</p>
                     </div>
                     @if($signupRequest->bus_available)
@@ -1146,7 +1146,7 @@
 
                 @if($signupRequest->meeting_point || $signupRequest->meeting_time)
                     <div class="bg-sky-50 border border-sky-100 rounded-lg px-4 py-3 mb-4 text-sm text-gray-700 flex items-center gap-3">
-                        <svg class="w-4 h-4 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-sky-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
@@ -1188,7 +1188,7 @@
                                         @elseif($response->isNotAttending())
                                             <span class="text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">Absage</span>
                                         @else
-                                            <span class="text-xs font-semibold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Keine Antwort</span>
+                                            <span class="text-xs font-semibold bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">Keine Antwort</span>
                                         @endif
                                     </td>
                                     @if($signupRequest->bus_available)
@@ -1272,7 +1272,7 @@
                         @if($competition->contact_info['email'] ?? null)
                         <div class="flex gap-2">
                             <dt class="text-gray-400 w-28 shrink-0">E-Mail</dt>
-                            <dd><a href="mailto:{{ $competition->contact_info['email'] }}" class="text-primary hover:underline">{{ $competition->contact_info['email'] }}</a></dd>
+                            <dd><a href="mailto:{{ $competition->contact_info['email'] }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $competition->contact_info['email'] }}</a></dd>
                         </div>
                         @endif
                         @if($competition->contact_info['melde_name'] ?? null)
@@ -1284,7 +1284,7 @@
                         @if($competition->contact_info['melde_email'] ?? null)
                         <div class="flex gap-2">
                             <dt class="text-gray-400 w-28 shrink-0">Melde-Mail</dt>
-                            <dd><a href="mailto:{{ $competition->contact_info['melde_email'] }}" class="text-primary hover:underline">{{ $competition->contact_info['melde_email'] }}</a></dd>
+                            <dd><a href="mailto:{{ $competition->contact_info['melde_email'] }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $competition->contact_info['melde_email'] }}</a></dd>
                         </div>
                         @endif
                         @if($competition->contact_info['melde_phone'] ?? null)
@@ -1338,17 +1338,17 @@
                     <div class="flex flex-wrap gap-4 items-end">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Von</label>
-                            <input type="date" name="qualifying_period_start"
+                            <input aria-label="Von" type="date" name="qualifying_period_start"
                                    value="{{ $signupRequest->qualifying_period_start?->format('Y-m-d') }}"
                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Bis</label>
-                            <input type="date" name="qualifying_period_end"
+                            <input aria-label="Bis" type="date" name="qualifying_period_end"
                                    value="{{ $signupRequest->qualifying_period_end?->format('Y-m-d') }}"
                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         </div>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                        <button type="submit" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 text-sm font-semibold rounded-lg transition-colors">
                             Speichern
                         </button>
                     </div>
@@ -1393,7 +1393,7 @@
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-semibold text-gray-800 text-sm">Qualifikationsstand der Schwimmer</h3>
                     @if(!$signupRequest->qualifying_period_start && !$signupRequest->qualifying_period_end)
-                        <span class="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                        <span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
                             Kein Zeitraum gesetzt – alle Ergebnisse werden berücksichtigt
                         </span>
                     @else
@@ -1461,10 +1461,10 @@
                                     @if(!$genderOk || !$ageOk)
                                         <span class="text-gray-300">–</span>
                                     @elseif($bestMs !== null)
-                                        <span class="font-mono {{ $qualOk ? 'text-green-700 font-semibold' : 'text-red-500' }}">
+                                        <span class="font-mono {{ $qualOk ? 'text-green-700 font-semibold' : 'text-red-600' }}">
                                             {{ \App\Models\SwimmingTime::formatMs($bestMs) }}
                                         </span>
-                                        <span class="{{ $qualOk ? 'text-green-600' : 'text-red-400' }} ml-0.5">{{ $qualOk ? '✓' : '✗' }}</span>
+                                        <span class="{{ $qualOk ? 'text-green-700' : 'text-red-600' }} ml-0.5">{{ $qualOk ? '✓' : '✗' }}</span>
                                     @else
                                         <span class="text-gray-300">keine</span>
                                     @endif
@@ -1478,7 +1478,7 @@
                                             @csrf
                                             <input type="hidden" name="user_id" value="{{ $qs->id }}">
                                             <button type="submit"
-                                                    class="text-xs bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg transition-colors font-medium">
+                                                    class="bg-primary hover:bg-primary-dark text-white text-xs px-2.5 py-1 rounded-lg transition-colors font-medium">
                                                 Zuweisen
                                             </button>
                                         </form>
@@ -1745,10 +1745,10 @@
                                                 <div class="text-right shrink-0 space-y-0.5">
                                                     @if($entered && $entryTime)
                                                         {{-- Already entered: show entry time --}}
-                                                        <div class="text-xs font-mono {{ $meetsPflicht ? 'text-green-600' : 'text-red-600' }}">{{ $entryTime }}</div>
+                                                        <div class="text-xs font-mono {{ $meetsPflicht ? 'text-green-700' : 'text-red-600' }}">{{ $entryTime }}</div>
                                                     @elseif(!$entered && $qualBestMs)
                                                         {{-- Not yet entered: show best qualifying-period time as suggestion --}}
-                                                        <div class="text-xs font-mono {{ $qualOk ? 'text-green-600' : 'text-orange-500' }}">
+                                                        <div class="text-xs font-mono {{ $qualOk ? 'text-green-700' : 'text-orange-700' }}">
                                                             {{ \App\Models\SwimmingTime::formatMs($qualBestMs) }}
                                                         </div>
                                                         <div class="text-xs text-gray-400">Vorschlag</div>
@@ -1767,7 +1767,7 @@
                                                     @elseif(!$entered && $qualOk && $qualBestMs)
                                                         <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full shrink-0">PZ ✓</span>
                                                     @elseif(!$entered && $event->qualifying_time_ms && !$qualBestMs)
-                                                        <span class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">PZ?</span>
+                                                        <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full shrink-0">PZ?</span>
                                                     @endif
                                                 @endif
                                             </form>
@@ -1882,7 +1882,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-sm font-semibold text-indigo-800">Kopfdaten aus DSV7-Definitionsdatei</h3>
                     @if($hd['software'] ?? null)
-                        <span class="text-xs text-indigo-400">{{ $hd['software'] }}</span>
+                        <span class="text-xs text-indigo-600">{{ $hd['software'] }}</span>
                     @endif
                 </div>
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
@@ -1965,7 +1965,7 @@
                             <span class="font-medium">Abschnitt {{ $sess['nr'] }}:</span>
                             {{ $sess['date'] ?? '' }}
                             @if($sess['pause_after'] ?? null)
-                                · <span class="text-amber-600">+{{ $sess['pause_after'] }} nach Ende des vorherigen Abschnitts</span>
+                                · <span class="text-amber-700">+{{ $sess['pause_after'] }} nach Ende des vorherigen Abschnitts</span>
                             @elseif(($sess['start_time'] ?? '') && $sess['start_time'] !== '00:00')
                                 · Start {{ $sess['start_time'] }} Uhr
                             @endif
@@ -2036,7 +2036,7 @@
                         </div>
                         <button @click="save()"
                                 :disabled="saving"
-                                class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors flex items-center gap-2">
+                                class="bg-primary hover:bg-primary-dark text-white disabled:opacity-50 font-semibold px-5 py-2 rounded-lg text-sm transition-colors flex items-center gap-2">
                             <svg x-show="saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
@@ -2212,7 +2212,7 @@
                                             <template x-if="rule.is_deviation_from_wb">
                                                 <span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">Abweichung WB</span>
                                             </template>
-                                            <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full" x-text="rule.category"></span>
+                                            <span class="text-xs text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-full" x-text="rule.category"></span>
                                         </div>
                                         <p class="text-sm text-gray-600 leading-relaxed" x-text="rule.text"></p>
                                     </div>
@@ -2410,7 +2410,7 @@
                                           class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-medium">Löschen</button>
+                                        <button type="submit" class="text-xs text-red-600 hover:text-red-700 font-medium">Löschen</button>
                                     </form>
                                 </div>
                             </li>

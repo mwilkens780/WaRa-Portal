@@ -86,7 +86,7 @@
                                         {{ $rep->type_label }}
                                     </span>
                                     @if($isSeries)
-                                        <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                                        <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full">
                                             {{ $all->count() }}×
                                         </span>
                                     @endif
@@ -109,25 +109,9 @@
                                 <span class="text-xs text-gray-400 hidden lg:block shrink-0">{{ $trainerNames }}</span>
                             @endif
 
-                            {{-- Serien-Aktionen --}}
-                            @if($isSeries && $rep->recurrence_group_id)
-                                <span class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
-                                    @if($s['is_expired'])
-                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Abgelaufen</span>
-                                        <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
-                                           class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-0.5 rounded-full font-semibold transition-colors">
-                                            + Neue Saison
-                                        </a>
-                                    @endif
-                                    <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
-                                       class="text-xs text-gray-500 hover:text-primary underline transition-colors">
-                                        Serie bearbeiten
-                                    </a>
-                                    <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
-                                       class="text-xs text-red-500 hover:text-red-700 underline transition-colors">
-                                       Löschen…
-                                    </a>
-                                </span>
+                            {{-- Serien-Status (Aktionen stehen unter der Kopfzeile: Links im <summary> sind fuer Tastatur und Screenreader verschachtelt) --}}
+                            @if($isSeries && $rep->recurrence_group_id && $s['is_expired'])
+                                <span class="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium shrink-0">Abgelaufen</span>
                             @endif
 
                             {{-- Expand-Icon --}}
@@ -136,6 +120,26 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </summary>
+
+                        @if($isSeries && $rep->recurrence_group_id)
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2 bg-gray-50/60 border-t border-gray-100 text-sm">
+                                <span class="text-xs font-medium text-gray-600">Serie:</span>
+                                @if($s['is_expired'])
+                                    <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
+                                           class="inline-block text-sm bg-green-100 text-green-800 hover:bg-green-200 px-3 py-1.5 rounded-full font-semibold transition-colors">
+                                            + Neue Saison
+                                        </a>
+                                @endif
+                                <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
+                                       class="inline-block py-2 text-sm text-gray-700 hover:text-primary underline transition-colors">
+                                        Serie bearbeiten
+                                    </a>
+                                <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
+                                       class="inline-block py-2 text-sm text-red-700 hover:text-red-800 underline transition-colors">
+                                       Löschen…
+                                    </a>
+                            </div>
+                        @endif
 
                         {{-- Einzelne Iterationen --}}
                         <div class="bg-gray-50 border-t border-gray-100">
@@ -188,7 +192,7 @@
                                         <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
                                               data-confirm="Trainingseinheit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700">Löschen</button>
+                                            <button type="submit" class="text-red-600 hover:text-red-700">Löschen</button>
                                         </form>
                                     </div>
                                 </div>
@@ -227,7 +231,7 @@
                                     <span class="font-medium text-gray-800 text-sm">{{ $rep->title }}</span>
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$rep->type] ?? 'bg-gray-100' }}">{{ $rep->type_label }}</span>
                                     @if($isSeries)
-                                        <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{{ $all->count() }}×</span>
+                                        <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full">{{ $all->count() }}×</span>
                                     @endif
                                 </div>
                                 <div class="text-xs text-gray-400 mt-0.5">
@@ -241,30 +245,28 @@
                                     @endif
                                 </div>
                             </div>
-                            @if($isSeries && $rep->recurrence_group_id)
-                                <span class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
-                                    @if($s['is_expired'])
-                                        <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Abgelaufen</span>
-                                        <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
-                                           class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-0.5 rounded-full font-semibold transition-colors">
-                                            + Neue Saison
-                                        </a>
-                                    @endif
-                                    <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
-                                       class="text-xs text-gray-500 hover:text-primary underline transition-colors">
-                                        Serie bearbeiten
-                                    </a>
-                                    <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
-                                       class="text-xs text-red-500 hover:text-red-700 underline transition-colors">
-                                       Löschen…
-                                    </a>
-                                </span>
+                            @if($isSeries && $rep->recurrence_group_id && $s['is_expired'])
+                                <span class="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium shrink-0">Abgelaufen</span>
                             @endif
                             <svg class="w-4 h-4 text-gray-400 shrink-0 group-open/series:rotate-180 transition-transform"
                                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </summary>
+                        {{-- Serien-Aktionen unter der Kopfzeile (nicht im summary verschachtelt) --}}
+                        @if($isSeries && $rep->recurrence_group_id)
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2 bg-gray-50/60 border-t border-gray-100 text-sm">
+                                <span class="text-xs font-medium text-gray-600">Serie:</span>
+                                @if($s['is_expired'])
+                                    <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
+                                       class="inline-block text-sm bg-green-100 text-green-800 hover:bg-green-200 px-3 py-1.5 rounded-full font-semibold transition-colors">+ Neue Saison</a>
+                                @endif
+                                <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
+                                   class="inline-block py-2 text-sm text-gray-700 hover:text-primary underline transition-colors">Serie bearbeiten</a>
+                                <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
+                                   class="inline-block py-2 text-sm text-red-700 hover:text-red-800 underline transition-colors">Löschen…</a>
+                            </div>
+                        @endif
                         <div class="bg-gray-50 border-t border-gray-100">
                             @foreach($all as $session)
                                 @php
@@ -300,7 +302,7 @@
                                         <a href="{{ route('trainer.sessions.edit', $session) }}" class="text-gray-500 hover:text-gray-700">Bearbeiten</a>
                                         <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}" data-confirm="Trainingseinheit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700">Löschen</button>
+                                            <button type="submit" class="text-red-600 hover:text-red-700">Löschen</button>
                                         </form>
                                     </div>
                                 </div>

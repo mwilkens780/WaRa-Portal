@@ -10,7 +10,7 @@
         <form method="GET" action="{{ route('trainer.diary.overview') }}" class="flex flex-wrap gap-3 items-end">
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Sportler</label>
-                <select name="user_id" onchange="this.form.submit()"
+                <select aria-label="Sportler" name="user_id" onchange="this.form.submit()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                     <option value="">– Sportler wählen –</option>
                     @foreach($swimmers as $s)
@@ -65,7 +65,7 @@
                 <p class="text-2xl font-bold text-primary">{{ $avgTrainer !== null ? number_format($avgTrainer, 1) : '–' }}</p>
             </div>
             <div class="bg-white rounded-xl border border-green-100 shadow-sm px-4 py-3 text-center bg-green-50">
-                <p class="text-xs text-green-600">Übereinstimmung</p>
+                <p class="text-xs text-green-700">Übereinstimmung</p>
                 <p class="text-2xl font-bold text-green-700">{{ $matches }}</p>
             </div>
             <div class="bg-white rounded-xl border border-red-100 shadow-sm px-4 py-3 text-center bg-red-50">
@@ -130,10 +130,10 @@
                                                min="0" max="10" required
                                                class="w-14 text-center border border-primary rounded-lg px-1 py-0.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30"
                                                x-init="$nextTick(() => $el.focus())">
-                                        <button type="submit" class="text-green-600 hover:text-green-700">
+                                        <button type="submit" aria-label="Bewertung speichern" title="Speichern" class="p-1.5 text-green-700 hover:text-green-900">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                         </button>
-                                        <button type="button" @click="editing = false" class="text-gray-400 hover:text-gray-600">
+                                        <button type="button" @click="editing = false" aria-label="Bearbeiten abbrechen" title="Abbrechen" class="p-1.5 text-gray-500 hover:text-gray-700">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                         </button>
                                     </form>

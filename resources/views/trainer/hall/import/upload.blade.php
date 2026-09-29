@@ -44,7 +44,7 @@
                       und sparen Ferien aus.</span>
             </li>
             <li class="flex gap-2">
-                <span class="text-green-500">•</span>
+                <span class="text-green-700">•</span>
                 <span><strong>Bestehendes wird nie verändert.</strong> Überschneidet sich eine Zeile
                       mit einer vorhandenen Belegung, wird sie übersprungen und in der Vorschau
                       ausgewiesen.</span>

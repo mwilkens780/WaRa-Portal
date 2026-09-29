@@ -38,7 +38,7 @@
             @foreach($documents as $doc)
             <div class="flex items-start justify-between px-6 py-3.5 gap-4">
                 <div class="flex items-start gap-3 min-w-0">
-                    <svg class="w-8 h-8 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <svg class="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-gray-800">{{ $doc->title }}</p>
                         <p class="text-xs text-gray-400 mt-0.5">

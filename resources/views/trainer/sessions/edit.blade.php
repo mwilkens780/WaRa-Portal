@@ -57,7 +57,7 @@ function trainingEditForm() {
             @if($seriesCount > 1)
             <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 -mt-1">
                 <p class="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <svg class="w-4 h-4 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     Wiederholungsserie ({{ $seriesCount }} Einheiten)
                 </p>
                 <div class="flex flex-wrap gap-4">
@@ -74,7 +74,7 @@ function trainingEditForm() {
                                {{ old('edit_scope') === 'series' ? 'checked' : '' }}
                                class="w-4 h-4 text-primary border-gray-300">
                         <span class="font-medium text-gray-700">Alle {{ $seriesCount }} Einheiten der Serie</span>
-                        <span class="text-xs text-amber-600 font-normal">(Datum je Einheit bleibt)</span>
+                        <span class="text-xs text-amber-700 font-normal">(Datum je Einheit bleibt)</span>
                     </label>
                 </div>
             </div>
@@ -82,48 +82,48 @@ function trainingEditForm() {
 
             <div class="grid md:grid-cols-2 gap-5">
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-500">*</span></label>
-                    <input type="text" name="title" value="{{ old('title', $session->title) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-600">*</span></label>
+                    <input aria-label="Titel" type="text" name="title" value="{{ old('title', $session->title) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Datum <span class="text-red-500">*</span>
+                        Datum <span class="text-red-600">*</span>
                         <span x-show="editScope === 'series'" class="text-xs text-gray-400 font-normal ml-1">(Starttermin der Serie)</span>
                     </label>
-                    <input type="date" name="date" value="{{ old('date', $session->date->format('Y-m-d')) }}" required
+                    <input aria-label="Datum (Starttermin der Serie)" type="date" name="date" value="{{ old('date', $session->date->format('Y-m-d')) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    <p x-show="editScope === 'series'" class="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <p x-show="editScope === 'series'" class="text-xs text-amber-700 mt-1 flex items-center gap-1">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         Wochentag ändern → alle Serientermine werden neu berechnet (Ferienzeiten ausgespart).
                     </p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ <span class="text-red-500">*</span></label>
-                    <select name="type" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ <span class="text-red-600">*</span></label>
+                    <select aria-label="Typ" name="type" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach(['technik' => 'Technik', 'ausdauer' => 'Ausdauer', 'wettkampf' => 'Wettkampfvorbereitung', 'sonstiges' => 'Sonstiges'] as $val => $label)
                             <option value="{{ $val }}" {{ old('type', $session->type) === $val ? 'selected' : '' }}>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Beginn <span class="text-red-500">*</span></label>
-                    <input type="time" name="start_time" value="{{ old('start_time', substr($session->start_time ?? '', 0, 5)) }}" required step="900"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Beginn <span class="text-red-600">*</span></label>
+                    <input aria-label="Beginn" type="time" name="start_time" value="{{ old('start_time', substr($session->start_time ?? '', 0, 5)) }}" required step="900"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Ende</label>
-                    <input type="time" name="end_time" value="{{ old('end_time', substr($session->end_time ?? '', 0, 5)) }}" step="900"
+                    <input aria-label="Ende" type="time" name="end_time" value="{{ old('end_time', substr($session->end_time ?? '', 0, 5)) }}" step="900"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Ort <span class="text-red-500">*</span></label>
-                    <input type="text" name="location" value="{{ old('location', $session->location) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ort <span class="text-red-600">*</span></label>
+                    <input aria-label="Ort" type="text" name="location" value="{{ old('location', $session->location) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
-                    <textarea name="notes" rows="4"
+                    <textarea aria-label="Notizen" name="notes" rows="4"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ old('notes', $session->notes) }}</textarea>
                 </div>
                 @if($groups->isNotEmpty())
@@ -176,7 +176,7 @@ function trainingEditForm() {
                 {{-- Teilnehmerlimit & Anmeldung --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Max. Teilnehmer <span class="text-gray-400 font-normal">(optional)</span></label>
-                    <input type="number" name="max_participants" min="1" max="999"
+                    <input aria-label="Max. Teilnehmer (optional)" type="number" name="max_participants" min="1" max="999"
                            value="{{ old('max_participants', $session->max_participants) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                            placeholder="Unbegrenzt">
@@ -199,7 +199,7 @@ function trainingEditForm() {
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Gastgruppe <span class="text-gray-400 font-normal">(optional – nur bei gesetztem Teilnehmerlimit wirksam)</span>
                     </label>
-                    <select name="guest_group_id"
+                    <select aria-label="Gastgruppe (optional – nur bei gesetztem Teilnehmerlimit wirksam)" name="guest_group_id"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">— Keine Gastgruppe —</option>
                         @foreach($allGroups as $g)

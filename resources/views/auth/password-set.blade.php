@@ -49,6 +49,6 @@
 </form>
 
 <p class="text-center text-sm text-gray-500 mt-6">
-    <a href="{{ route('login') }}" class="text-primary hover:underline">Zurück zur Anmeldung</a>
+    <a href="{{ route('login') }}" class="text-primary underline underline-offset-2 hover:no-underline">Zurück zur Anmeldung</a>
 </p>
 @endsection

@@ -16,6 +16,36 @@
         border-radius: 0.25rem;
     }
 
+    /*
+     * Touch-Geraete: Mindestgroesse fuer Bedienelemente. Die Audit-Messung fand
+     * rund 2.800 Ziele unter 44 px (docs/frontend-audit.md, 4.6) - einzeln nicht
+     * zu schaffen, daher hier global. :where() haelt die Spezifitaet bei 0, eine
+     * bewusst gesetzte Klasse (min-h-0 o. ae.) gewinnt weiterhin.
+     * Ausgenommen: Elemente, deren Groesse etwas bedeutet (Hallenplan-Bloecke:
+     * Hoehe = Dauer) und alles mit .touch-exempt.
+     */
+    @media (pointer: coarse) {
+        :where(button, [role="button"], select, summary,
+               input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"])):where(:not([data-booking-id], .touch-exempt, .sr-only)) {
+            min-height: 44px;
+        }
+        :where(button, [role="button"]):where(:not([data-booking-id], .touch-exempt, .sr-only)) {
+            min-width: 44px;
+        }
+        :where(input[type="checkbox"], input[type="radio"]):where(:not(.touch-exempt, .sr-only)) {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+    }
+
+    /*
+     * Waagerecht scrollbare Zeilen (Reiter, Filter-Chips): Eintraege nicht
+     * stauchen, sonst laufen Beschriftungen ineinander - die Zeile scrollt ja.
+     */
+    :where(.flex.overflow-x-auto) > * {
+        flex-shrink: 0;
+    }
+
     /* Wer "Bewegung reduzieren" eingestellt hat, bekommt keine Animationen */
     @media (prefers-reduced-motion: reduce) {
         *, ::before, ::after {

@@ -98,7 +98,7 @@
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Typ</label>
-                    <select name="type" x-model="addType" required
+                    <select aria-label="Typ" name="type" x-model="addType" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="vereinsrekord">Vereinsrekord</option>
                         <option value="landesrekord">Landesrekord</option>
@@ -106,15 +106,15 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
-                    <select name="course" required
+                    <select aria-label="Bahnlänge" name="course" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="Langbahn">Langbahn (50 m)</option>
                         <option value="Kurzbahn">Kurzbahn (25 m)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-500">*</span></label>
-                    <select name="discipline" required
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-600">*</span></label>
+                    <select aria-label="Disziplin" name="discipline" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="F">Freistil</option>
                         <option value="B">Brust</option>
@@ -124,8 +124,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Distanz (m) <span class="text-red-500">*</span></label>
-                    <select name="distance" required
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Distanz (m) <span class="text-red-600">*</span></label>
+                    <select aria-label="Distanz (m)" name="distance" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach([25, 50, 100, 200, 400, 800, 1500] as $d)
                             <option value="{{ $d }}">{{ $d }} m</option>
@@ -133,20 +133,20 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Geschlecht <span class="text-red-500">*</span></label>
-                    <select name="gender" required
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Geschlecht <span class="text-red-600">*</span></label>
+                    <select aria-label="Geschlecht" name="gender" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="M">Männlich</option>
                         <option value="F">Weiblich</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Name Rekordhalter <span class="text-red-500">*</span></label>
-                    <input type="text" name="swimmer_name" required placeholder="Vorname Nachname"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Name Rekordhalter <span class="text-red-600">*</span></label>
+                    <input aria-label="Name Rekordhalter" type="text" name="swimmer_name" required placeholder="Vorname Nachname"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Zeit <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Zeit <span class="text-red-600">*</span></label>
                     <div class="flex gap-1 items-center">
                         <input type="number" name="time_minutes" min="0" placeholder="Min" value="0"
                                class="w-14 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
@@ -160,12 +160,12 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Datum</label>
-                    <input type="date" name="set_date"
+                    <input aria-label="Datum" type="date" name="set_date"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Veranstaltungsort</label>
-                    <input type="text" name="location" placeholder="Wettkampf / Ort"
+                    <input aria-label="Veranstaltungsort" type="text" name="location" placeholder="Wettkampf / Ort"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
@@ -193,15 +193,15 @@
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Bahnlänge</label>
-                    <select name="course" required
+                    <select aria-label="Bahnlänge" name="course" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="Langbahn">Langbahn (50 m)</option>
                         <option value="Kurzbahn">Kurzbahn (25 m)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-500">*</span></label>
-                    <select name="discipline" required
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Disziplin <span class="text-red-600">*</span></label>
+                    <select aria-label="Disziplin" name="discipline" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="F">Freistil</option>
                         <option value="B">Brust</option>
@@ -211,8 +211,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Distanz (m) <span class="text-red-500">*</span></label>
-                    <select name="distance" required
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Distanz (m) <span class="text-red-600">*</span></label>
+                    <select aria-label="Distanz (m)" name="distance" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         @foreach([25, 50, 100, 200, 400, 800, 1500] as $d)
                             <option value="{{ $d }}">{{ $d }} m</option>
@@ -220,8 +220,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Geschlecht <span class="text-red-500">*</span></label>
-                    <select name="gender" required
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Geschlecht <span class="text-red-600">*</span></label>
+                    <select aria-label="Geschlecht" name="gender" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="M">Männlich</option>
                         <option value="F">Weiblich</option>
@@ -229,21 +229,21 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Jahrgang</label>
-                    <input type="number" name="birth_year" min="1900" max="{{ now()->year }}" placeholder="z.B. 1987"
+                    <input aria-label="Jahrgang" type="number" name="birth_year" min="1900" max="{{ now()->year }}" placeholder="z.B. 1987"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Jahr der Leistung <span class="text-red-500">*</span></label>
-                    <input type="number" name="set_year" min="1900" max="{{ now()->year }}" required placeholder="{{ now()->year }}"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Jahr der Leistung <span class="text-red-600">*</span></label>
+                    <input aria-label="Jahr der Leistung" type="number" name="set_year" min="1900" max="{{ now()->year }}" required placeholder="{{ now()->year }}"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="swimmer_name" required placeholder="Vorname Nachname"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Name <span class="text-red-600">*</span></label>
+                    <input aria-label="Name" type="text" name="swimmer_name" required placeholder="Vorname Nachname"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Zeit <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Zeit <span class="text-red-600">*</span></label>
                     <div class="flex gap-1 items-center">
                         <input type="number" name="time_minutes" min="0" placeholder="Min" value="0"
                                class="w-14 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
@@ -257,7 +257,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Veranstaltung / Ort</label>
-                    <input type="text" name="location" placeholder="Wettkampf / Ort"
+                    <input aria-label="Veranstaltung / Ort" type="text" name="location" placeholder="Wettkampf / Ort"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
@@ -281,21 +281,6 @@
         </form>
     </div>
 
-    {{-- Import Form: VR / LR --}}
-    <div x-show="activeTab === 'vr' || activeTab === 'lr'" x-cloak
-         class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 class="font-semibold text-gray-800 mb-1">Rekordliste importieren</h3>
-        <p class="text-sm text-gray-700 mb-4">Der Import zeigt vor dem Übernehmen eine Vorschau zum Prüfen.</p>
-        @include('imports._upload', ['import' => \App\Support\ImportCatalog::get('records'), 'layout' => 'inline'])
-    </div>
-
-    {{-- Import Form: Ewige / Jahres Bestenliste --}}
-    <div x-show="activeTab === 'eternal' || activeTab === 'annual'" x-cloak
-         class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 class="font-semibold text-gray-800 mb-1">Historische Bestenliste aus Excel importieren</h3>
-        <p class="text-sm text-gray-700 mb-4">Vereinsvorlage „Ewige Vereins-Bestenliste“. Bahn und Geschlecht liest der Import aus der Datei; die Plätze werden neu berechnet.</p>
-        @include('imports._upload', ['import' => \App\Support\ImportCatalog::get('bestlist'), 'layout' => 'inline'])
-    </div>
     @endif
 
     {{-- Main Card: Tabs --}}
@@ -308,7 +293,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Vereinsrekorde
                 @if($vereinsrekorde->isNotEmpty())
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $vereinsrekorde->count() }}</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $vereinsrekorde->count() }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'eternal'"
@@ -316,7 +301,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Ewige Bestenlisten
                 @if($eternalCount > 0)
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $eternalCount }}</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $eternalCount }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'annual'"
@@ -324,7 +309,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Jahresbestenlisten
                 @if($annualCount > 0)
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $annualCount }}</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $annualCount }}</span>
                 @endif
             </button>
             <button @click="activeTab = 'lr'"
@@ -332,7 +317,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
                 Landesrekorde
                 @if($landesrekorde->isNotEmpty())
-                    <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">{{ $landesrekorde->count() }}</span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $landesrekorde->count() }}</span>
                 @endif
             </button>
         </div>
@@ -415,6 +400,25 @@
         </div>
 
     </div>
+
+    {{-- Importe unter der Tabelle: Pflege-Werkzeug, nicht der Inhalt der Seite --}}
+    @if($userIsAdmin)
+    {{-- Import Form: VR / LR --}}
+    <div x-show="activeTab === 'vr' || activeTab === 'lr'" x-cloak
+         class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-800 mb-1">Rekordliste importieren</h3>
+        <p class="text-sm text-gray-700 mb-4">Der Import zeigt vor dem Übernehmen eine Vorschau zum Prüfen.</p>
+        @include('imports._upload', ['import' => \App\Support\ImportCatalog::get('records'), 'layout' => 'inline'])
+    </div>
+
+    {{-- Import Form: Ewige / Jahres Bestenliste --}}
+    <div x-show="activeTab === 'eternal' || activeTab === 'annual'" x-cloak
+         class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-800 mb-1">Historische Bestenliste aus Excel importieren</h3>
+        <p class="text-sm text-gray-700 mb-4">Vereinsvorlage „Ewige Vereins-Bestenliste“. Bahn und Geschlecht liest der Import aus der Datei; die Plätze werden neu berechnet.</p>
+        @include('imports._upload', ['import' => \App\Support\ImportCatalog::get('bestlist'), 'layout' => 'inline'])
+    </div>
+    @endif
 
 </div>
 @endsection

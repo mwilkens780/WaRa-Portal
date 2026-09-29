@@ -29,7 +29,7 @@
                     <label class="flex items-start gap-3 p-3.5 border rounded-xl cursor-pointer transition-colors"
                            :class="type === 'bug' ? 'border-red-300 bg-red-50/50' : 'border-gray-200 hover:bg-gray-50'">
                         <input type="radio" name="type" value="bug" x-model="type"
-                               class="mt-0.5 text-red-500 border-gray-300 focus:ring-red-400">
+                               class="mt-0.5 text-red-600 border-gray-300 focus:ring-red-400">
                         <div>
                             <p class="text-sm font-semibold text-gray-800">Fehler melden</p>
                             <p class="text-xs text-gray-500 mt-0.5">Etwas funktioniert nicht wie erwartet</p>
@@ -50,8 +50,8 @@
 
             {{-- Titel --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-500">*</span></label>
-                <input type="text" name="title" value="{{ old('title') }}" required maxlength="255"
+                <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-600">*</span></label>
+                <input aria-label="Titel" type="text" name="title" value="{{ old('title') }}" required maxlength="255"
                        placeholder="Kurze, prägnante Beschreibung"
                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none {{ $errors->has('title') ? 'border-red-400' : '' }}">
                 @error('title')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -60,9 +60,9 @@
             {{-- Beschreibung --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Beschreibung <span class="text-red-500">*</span>
+                    Beschreibung <span class="text-red-600">*</span>
                 </label>
-                <textarea name="description" rows="6" required maxlength="5000"
+                <textarea aria-label="Beschreibung" name="description" rows="6" required maxlength="5000"
                           :placeholder="type === 'bug'
                               ? 'Was ist passiert? Was hast du erwartet? Wie lässt sich der Fehler reproduzieren?'
                               : 'Was soll verbessert werden? Warum wäre das nützlich? Wie könnte es aussehen?'"

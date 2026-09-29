@@ -20,7 +20,7 @@
         <p class="text-xs text-amber-700 mb-3">Der Benutzer hat sein Passwort noch nicht selbst geändert.</p>
         <div class="flex items-center gap-3">
             <div class="flex items-center gap-2 bg-white border border-amber-300 rounded-lg px-4 py-2 font-mono text-base tracking-widest text-amber-900 select-all">
-                <span x-show="!shown" class="text-amber-400 tracking-widest">••••••••</span>
+                <span x-show="!shown" class="text-amber-700 tracking-widest">••••••••</span>
                 <span x-show="shown" x-cloak>{{ $initialPassword }}</span>
             </div>
             <button type="button" @click="shown = !shown" class="text-xs text-amber-700 hover:text-amber-900 font-medium underline">
@@ -83,7 +83,7 @@
             <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
                   data-confirm="Passwort für {{ $user->name }} zurücksetzen?" data-confirm-label="Zurücksetzen" data-confirm-danger>
                 @csrf
-                <button type="submit" class="whitespace-nowrap flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+                <button type="submit" class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 whitespace-nowrap flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     Neues Passwort
                 </button>
@@ -104,25 +104,25 @@
             <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Stammdaten</h2>
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Vorname <span class="text-red-500">*</span></label>
-                    <input type="text" name="firstname" value="{{ old('firstname', $user->firstname) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vorname <span class="text-red-600">*</span></label>
+                    <input aria-label="Vorname" type="text" name="firstname" value="{{ old('firstname', $user->firstname) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('firstname') ? 'border-red-400' : '' }}">
                     @error('firstname')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nachname <span class="text-red-500">*</span></label>
-                    <input type="text" name="lastname" value="{{ old('lastname', $user->lastname) }}" required
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nachname <span class="text-red-600">*</span></label>
+                    <input aria-label="Nachname" type="text" name="lastname" value="{{ old('lastname', $user->lastname) }}" required
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('lastname') ? 'border-red-400' : '' }}">
                     @error('lastname')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Geburtsdatum</label>
-                    <input type="date" name="birth_date" value="{{ old('birth_date', $user->birth_date?->format('Y-m-d')) }}"
+                    <input aria-label="Geburtsdatum" type="date" name="birth_date" value="{{ old('birth_date', $user->birth_date?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Geschlecht</label>
-                    <select name="gender" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <select aria-label="Geschlecht" name="gender" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">– keine Angabe –</option>
                         <option value="M" {{ old('gender', $user->gender) === 'M' ? 'selected' : '' }}>Männlich</option>
                         <option value="F" {{ old('gender', $user->gender) === 'F' ? 'selected' : '' }}>Weiblich</option>
@@ -130,18 +130,18 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Mitgliedsnummer</label>
-                    <input type="text" name="membership_number" value="{{ old('membership_number', $user->membership_number) }}"
+                    <input aria-label="Mitgliedsnummer" type="text" name="membership_number" value="{{ old('membership_number', $user->membership_number) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">DSV-ID</label>
-                    <input type="text" name="dsv_id" value="{{ old('dsv_id', $user->dsv_id) }}"
+                    <input aria-label="DSV-ID" type="text" name="dsv_id" value="{{ old('dsv_id', $user->dsv_id) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('dsv_id') ? 'border-red-400' : '' }}">
                     @error('dsv_id')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Eintrittsdatum</label>
-                    <input type="date" name="member_since" value="{{ old('member_since', $user->member_since?->format('Y-m-d')) }}"
+                    <input aria-label="Eintrittsdatum" type="date" name="member_since" value="{{ old('member_since', $user->member_since?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 @if($user->id !== auth()->id())
@@ -186,24 +186,24 @@
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail (Portal-Login)</label>
-                    <input type="email" name="email" value="{{ old('email', $user->email) }}"
+                    <input aria-label="E-Mail (Portal-Login)" type="email" name="email" value="{{ old('email', $user->email) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none {{ $errors->has('email') ? 'border-red-400' : '' }}">
                     <p class="text-xs text-gray-400 mt-1">Leer lassen wenn kein Portal-Zugang gewünscht.</p>
                     @error('email')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail 2</label>
-                    <input type="email" name="email2" value="{{ old('email2', $user->email2) }}"
+                    <input aria-label="E-Mail 2" type="email" name="email2" value="{{ old('email2', $user->email2) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                    <input type="tel" name="phone" value="{{ old('phone', $user->phone) }}"
+                    <input aria-label="Telefon" type="tel" name="phone" value="{{ old('phone', $user->phone) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Mobil</label>
-                    <input type="tel" name="mobile" value="{{ old('mobile', $user->mobile) }}"
+                    <input aria-label="Mobil" type="tel" name="mobile" value="{{ old('mobile', $user->mobile) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
@@ -215,22 +215,22 @@
             <div class="grid md:grid-cols-2 gap-4">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Straße</label>
-                    <input type="text" name="street" value="{{ old('street', $user->street) }}"
+                    <input aria-label="Straße" type="text" name="street" value="{{ old('street', $user->street) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
-                    <input type="text" name="postal_code" value="{{ old('postal_code', $user->postal_code) }}"
+                    <input aria-label="PLZ" type="text" name="postal_code" value="{{ old('postal_code', $user->postal_code) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Ort</label>
-                    <input type="text" name="city" value="{{ old('city', $user->city) }}"
+                    <input aria-label="Ort" type="text" name="city" value="{{ old('city', $user->city) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Land</label>
-                    <input type="text" name="country" value="{{ old('country', $user->country) }}" placeholder="Deutschland"
+                    <input aria-label="Land" type="text" name="country" value="{{ old('country', $user->country) }}" placeholder="Deutschland"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
@@ -258,7 +258,7 @@
                     Portal-Zugang
                     <span class="ml-1 text-xs text-gray-400 font-normal">(welcher App-Bereich beim Login angezeigt wird)</span>
                 </label>
-                <select name="role" x-model="role"
+                <select aria-label="Portal-Zugang (welcher App-Bereich beim Login angezeigt wird)" name="role" x-model="role"
                         class="w-full md:w-64 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         {{ $user->id === auth()->id() ? 'disabled' : '' }}>
                     <option value="">– kein Portal-Zugang –</option>
@@ -268,7 +268,7 @@
                 </select>
                 @if($user->id === auth()->id())
                     <input type="hidden" name="role" value="{{ $user->role }}">
-                    <p class="text-xs text-amber-600 mt-1">Eigener Portal-Zugang kann nicht geändert werden.</p>
+                    <p class="text-xs text-amber-700 mt-1">Eigener Portal-Zugang kann nicht geändert werden.</p>
                 @endif
                 @error('role')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
@@ -297,27 +297,27 @@
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Trainerlizenz-Nr.</label>
-                    <input type="text" name="trainer_license_nr" value="{{ old('trainer_license_nr', $user->trainer_license_nr) }}"
+                    <input aria-label="Trainerlizenz-Nr." type="text" name="trainer_license_nr" value="{{ old('trainer_license_nr', $user->trainer_license_nr) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Trainerlizenz gültig bis</label>
-                    <input type="date" name="trainer_license_valid_until" value="{{ old('trainer_license_valid_until', $user->trainer_license_valid_until?->format('Y-m-d')) }}"
+                    <input aria-label="Trainerlizenz gültig bis" type="date" name="trainer_license_valid_until" value="{{ old('trainer_license_valid_until', $user->trainer_license_valid_until?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rettungsnachweis bis</label>
-                    <input type="date" name="rescue_certificate_until" value="{{ old('rescue_certificate_until', $user->rescue_certificate_until?->format('Y-m-d')) }}"
+                    <input aria-label="Rettungsnachweis bis" type="date" name="rescue_certificate_until" value="{{ old('rescue_certificate_until', $user->rescue_certificate_until?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Erste-Hilfe bis</label>
-                    <input type="date" name="first_aid_until" value="{{ old('first_aid_until', $user->first_aid_until?->format('Y-m-d')) }}"
+                    <input aria-label="Erste-Hilfe bis" type="date" name="first_aid_until" value="{{ old('first_aid_until', $user->first_aid_until?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Führungszeugnis vom</label>
-                    <input type="date" name="police_clearance_date" value="{{ old('police_clearance_date', $user->police_clearance_date?->format('Y-m-d')) }}"
+                    <input aria-label="Führungszeugnis vom" type="date" name="police_clearance_date" value="{{ old('police_clearance_date', $user->police_clearance_date?->format('Y-m-d')) }}"
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 @if($user->role === 'kampfrichter' || $user->userRoles->contains('role', 'kampfrichter'))
@@ -326,17 +326,17 @@
                     <div class="grid md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Lizenz-Nr.</label>
-                            <input type="text" name="kampfrichter_license_nr" value="{{ old('kampfrichter_license_nr', $user->kampfrichter_license_nr) }}"
+                            <input aria-label="Lizenz-Nr." type="text" name="kampfrichter_license_nr" value="{{ old('kampfrichter_license_nr', $user->kampfrichter_license_nr) }}"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Ausstellungsdatum</label>
-                            <input type="date" name="kampfrichter_license_issued" value="{{ old('kampfrichter_license_issued', $user->kampfrichter_license_issued?->format('Y-m-d')) }}"
+                            <input aria-label="Ausstellungsdatum" type="date" name="kampfrichter_license_issued" value="{{ old('kampfrichter_license_issued', $user->kampfrichter_license_issued?->format('Y-m-d')) }}"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Gültig bis</label>
-                            <input type="date" name="kampfrichter_license_valid_until" value="{{ old('kampfrichter_license_valid_until', $user->kampfrichter_license_valid_until?->format('Y-m-d')) }}"
+                            <input aria-label="Gültig bis" type="date" name="kampfrichter_license_valid_until" value="{{ old('kampfrichter_license_valid_until', $user->kampfrichter_license_valid_until?->format('Y-m-d')) }}"
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>

@@ -85,6 +85,7 @@
                             <tr class="hover:bg-gray-50" :class="chosen['r{{ $r->id }}'] ? 'bg-red-50/40' : ''">
                                 <td class="px-3 py-2">
                                     <input type="checkbox" name="results[]" value="{{ $r->id }}"
+                                           aria-label="Ergebnis auswählen: {{ $r->competition?->name ?? 'ohne Wettkampf' }}, {{ $r->competition?->date?->format('d.m.Y') }}"
                                            x-model="chosen['r{{ $r->id }}']" class="rounded text-primary">
                                 </td>
                                 <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ $r->competition?->date?->format('d.m.Y') ?? '–' }}</td>
@@ -154,6 +155,7 @@
                             <tr class="hover:bg-gray-50" :class="chosen['k{{ $rec->id }}'] ? 'bg-red-50/40' : ''">
                                 <td class="px-3 py-2">
                                     <input type="checkbox" name="records[]" value="{{ $rec->id }}"
+                                           aria-label="Rekord auswählen: {{ $rec->swimmer_name }}"
                                            x-model="chosen['k{{ $rec->id }}']" class="rounded text-primary">
                                 </td>
                                 <td class="px-3 py-2 text-gray-600 text-xs">
@@ -211,6 +213,7 @@
                             <tr class="hover:bg-gray-50" :class="chosen['e{{ $e->id }}'] ? 'bg-red-50/40' : ''">
                                 <td class="px-3 py-2">
                                     <input type="checkbox" name="entries[]" value="{{ $e->id }}"
+                                           aria-label="Eintrag auswählen: {{ $e->swimmer_name }}"
                                            x-model="chosen['e{{ $e->id }}']" class="rounded text-primary">
                                 </td>
                                 <td class="px-3 py-2 text-gray-700 truncate">{{ $e->swimmer_name }}</td>
@@ -236,7 +239,7 @@
 
         <div class="flex items-center gap-4">
             <button type="submit" :disabled="Object.values(chosen).filter(Boolean).length === 0"
-                    class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    class="bg-accent hover:bg-accent-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 Ausgewählte löschen und neu berechnen
             </button>
             <span class="text-sm text-gray-500">

@@ -30,7 +30,7 @@
                 @endif
             </p>
             @if($dsgvoRequest->requester_email)
-                <p class="text-sm text-gray-500 mt-0.5">E-Mail: <a href="mailto:{{ $dsgvoRequest->requester_email }}" class="text-primary hover:underline">{{ $dsgvoRequest->requester_email }}</a></p>
+                <p class="text-sm text-gray-500 mt-0.5">E-Mail: <a href="mailto:{{ $dsgvoRequest->requester_email }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $dsgvoRequest->requester_email }}</a></p>
             @endif
             @if($dsgvoRequest->description)
                 <p class="text-sm text-gray-700 mt-3 whitespace-pre-wrap">{{ $dsgvoRequest->description }}</p>
@@ -48,7 +48,7 @@
                     @csrf @method('PATCH')
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                        <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        <select aria-label="Status" name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                             @foreach(\App\Models\DsgvoRequest::$statuses as $key => $info)
                                 <option value="{{ $key }}" {{ $dsgvoRequest->status === $key ? 'selected' : '' }}>{{ $info['label'] }}</option>
                             @endforeach
@@ -56,7 +56,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Interne Notizen</label>
-                        <textarea name="admin_notes" rows="5"
+                        <textarea aria-label="Interne Notizen" name="admin_notes" rows="5"
                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                                   placeholder="Maßnahmen, Kontaktversuche, Begründungen…">{{ old('admin_notes', $dsgvoRequest->admin_notes) }}</textarea>
                     </div>
@@ -76,7 +76,7 @@
                     Profildaten werden überschrieben, Trainings- und Wettkampfdaten bleiben für Vereinsstatistiken erhalten.
                 </p>
                 <button type="button" @click="show = true"
-                        class="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
+                        class="bg-accent hover:bg-accent-dark text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
                     Anonymisierung einleiten
                 </button>
 
@@ -88,11 +88,11 @@
                                class="w-full border border-red-300 rounded px-3 py-1.5 text-sm focus:outline-none">
                         <button type="submit"
                                 :disabled="confirm !== 'LOESCHEN'"
-                                class="w-full bg-red-600 text-white rounded py-1.5 text-xs font-semibold hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                                class="bg-accent hover:bg-accent-dark text-white w-full rounded py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                             Jetzt anonymisieren
                         </button>
                     </form>
-                    <button @click="show = false" class="text-xs text-red-500 hover:underline">Abbrechen</button>
+                    <button @click="show = false" class="text-xs text-red-600 hover:underline">Abbrechen</button>
                 </div>
             </div>
             @endif

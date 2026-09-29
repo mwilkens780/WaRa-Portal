@@ -8,7 +8,7 @@
 @props(['icon' => 'inbox', 'title', 'text' => null])
 
 <div {{ $attributes->merge(['class' => 'flex flex-col items-center text-center px-6 py-10']) }}>
-    <span class="rounded-full bg-gray-100 p-3 text-gray-500">
+    <span class="rounded-full bg-gray-100 p-3 text-gray-700">
         <x-ui.icon :name="$icon" class="w-6 h-6" />
     </span>
     <p class="mt-3 text-sm font-semibold text-gray-900">{{ $title }}</p>

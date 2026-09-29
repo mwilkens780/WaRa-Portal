@@ -62,7 +62,7 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="text-sm font-semibold text-gray-800">{{ $goal->title }}</span>
                             @if($goal->target_value)
-                                <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">Ziel: {{ $goal->target_value }}</span>
+                                <span class="text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">Ziel: {{ $goal->target_value }}</span>
                             @endif
                         </div>
                         @if($goal->description)
