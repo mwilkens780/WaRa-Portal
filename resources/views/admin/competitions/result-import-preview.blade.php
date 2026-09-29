@@ -39,6 +39,8 @@
         <span class="text-gray-800">Ergebnisse importieren</span>
     </div>
 
+    <x-ui.import-steps :current="2" />
+
     {{-- Datums-Mismatch Warnung --}}
     @if($mismatch)
         <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
@@ -52,21 +54,15 @@
     <form method="POST" action="{{ route('admin.competitions.results-import.execute', $competition) }}" class="space-y-6">
         @csrf
 
-        {{-- Meet-Auswahl --}}
+        {{-- Nur der erste Wettkampf der Datei: Vereine und Zuordnungen unten gehoeren zu ihm.
+             Vorher liess sich ein anderer waehlen, der dann mit diesen Zuordnungen gespeichert wurde. --}}
+        <input type="hidden" name="meet_index" value="0">
         @if(count($parsed['meets']) > 1)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Mehrere Wettkämpfe in der Datei – bitte einen auswählen:
-                </label>
-                <select name="meet_index" x-model.number="meetIndex"
-                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    @foreach($parsed['meets'] as $i => $m)
-                        <option value="{{ $i }}">{{ $m['name'] }} ({{ $m['startdate'] }}, {{ $m['city'] }})</option>
-                    @endforeach
-                </select>
+            <div role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                Die Datei enthält {{ count($parsed['meets']) }} Wettkämpfe. Übernommen wird der erste:
+                <strong>{{ $meet['name'] }}</strong> ({{ $meet['startdate'] }}, {{ $meet['city'] }}).
+                Für einen der anderen bitte eine Datei nur mit diesem Wettkampf verwenden.
             </div>
-        @else
-            <input type="hidden" name="meet_index" value="0">
         @endif
 
         {{-- Wettkampf-Info --}}
@@ -224,7 +220,7 @@
                                     @if($athlete['matched_user_id'])
                                         <div class="flex items-center gap-2">
                                             <span class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                                            <select name="mappings[{{ $ci }}][{{ $ai }}]"
+                                            <select name="mappings[{{ $ci }}][{{ $ai }}]" aria-label="Portal-Schwimmer für {{ $athlete['firstname'] }} {{ $athlete['lastname'] }}"
                                                     class="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                                 <option value="0">– überspringen –</option>
                                                 @foreach($swimmers as $sw)
@@ -235,11 +231,11 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <p class="text-xs text-green-600 mt-0.5 ml-4">Automatisch erkannt</p>
+                                        <p class="text-xs text-green-700 mt-0.5 ml-4">Automatisch erkannt</p>
                                     @else
                                         <div class="flex items-center gap-2">
                                             <span class="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0"></span>
-                                            <select name="mappings[{{ $ci }}][{{ $ai }}]"
+                                            <select name="mappings[{{ $ci }}][{{ $ai }}]" aria-label="Portal-Schwimmer für {{ $athlete['firstname'] }} {{ $athlete['lastname'] }}"
                                                     class="flex-1 px-3 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-amber-50">
                                                 <option value="0">– überspringen –</option>
                                                 @foreach($swimmers as $sw)
@@ -247,7 +243,7 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <p class="text-xs text-amber-600 mt-0.5 ml-4">Bitte manuell zuordnen</p>
+                                        <p class="text-xs text-amber-700 mt-0.5 ml-4">Bitte manuell zuordnen</p>
                                     @endif
                                 </td>
                             </tr>
@@ -259,8 +255,9 @@
         @endforeach
 
         {{-- Aktions-Leiste --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-wrap items-center justify-between gap-4">
-            <div class="text-sm text-gray-500">
+        <x-ui.import-bar :cancel="route('admin.competitions.show', $competition)"
+                         count="select[name^='mappings'] option:checked:not([value='0'])"
+                         singular="zugeordneten Schwimmer" plural="zugeordnete Schwimmer">
                 @php
                     $totalAthletes = collect($allClubs)->sum(fn($c) => collect($c['athletes'])->where('is_relay', false)->count());
                     $autoMatched   = collect($allClubs)->sum(fn($c) =>
@@ -278,21 +275,7 @@
                 @if($totalRelay > 0)
                     · <strong>{{ $totalRelay }}</strong> Staffelergebnis{{ $totalRelay !== 1 ? 'se' : '' }} (werden importiert)
                 @endif
-            </div>
-            <div class="flex gap-3">
-                <a href="{{ route('admin.competitions.show', $competition) }}"
-                   class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    Abbrechen
-                </a>
-                <button type="submit"
-                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                    </svg>
-                    Ergebnisse importieren
-                </button>
-            </div>
-        </div>
+        </x-ui.import-bar>
 
     </form>
 </div>

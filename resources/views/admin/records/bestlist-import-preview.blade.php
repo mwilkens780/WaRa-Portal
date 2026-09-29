@@ -9,35 +9,16 @@
 @endphp
 
 @section('content')
-<div class="mt-2 space-y-5">
+<form method="POST" action="{{ route('admin.bestlist.import.execute') }}" class="mt-2 space-y-5">
+    @csrf
+    <x-ui.import-steps :current="2" />
 
-    <a href="{{ route('admin.records.index', ['tab' => 'eternal']) }}"
-       class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-        Zurück zu Rekorde &amp; Bestenlisten
-    </a>
-
-    {{-- Zusammenfassung --}}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-gray-500">Einträge</p>
-            <p class="text-2xl font-bold text-gray-800">{{ $entries->count() }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-blue-100 bg-blue-50 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-blue-600">Bahn</p>
-            <p class="text-lg font-bold text-blue-700">{{ $courses->implode(', ') }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-gray-500">Ohne Jahrgang</p>
-            <p class="text-2xl font-bold {{ $withoutBirthYear ? 'text-amber-600' : 'text-gray-800' }}">{{ $withoutBirthYear }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-gray-500">Ohne Jahr</p>
-            <p class="text-2xl font-bold {{ $withoutYear ? 'text-amber-600' : 'text-gray-800' }}">{{ $withoutYear }}</p>
-        </div>
-    </div>
+    <x-ui.import-summary :items="[
+        ['label' => 'Einträge', 'count' => $entries->count(), 'tone' => 'success', 'hint' => 'Bahn: ' . $courses->implode(', ')],
+        ['label' => 'bisher importiert', 'count' => $existing, 'tone' => 'neutral', 'hint' => 'werden ersetzt, wenn unten gewählt'],
+        ['label' => 'ohne Jahrgang', 'count' => $withoutBirthYear, 'tone' => 'warning'],
+        ['label' => 'ohne Jahr', 'count' => $withoutYear, 'tone' => 'warning'],
+    ]" />
 
     @if($warnings)
         <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -48,32 +29,21 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('admin.bestlist.import.execute') }}"
-          class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
-        @csrf
+    <x-ui.card>
         <label class="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" name="replace" value="1" checked class="mt-1 rounded text-primary">
-            <span class="text-sm text-gray-700">
+            <span class="text-sm text-gray-800">
                 Früher importierte Einträge dieser Bahn ersetzen
                 @if($existing > 0)
-                    <span class="text-gray-500">({{ $existing }} vorhanden)</span>
+                    <span class="text-gray-600">({{ $existing }} vorhanden)</span>
                 @endif
-                <span class="block text-xs text-gray-400">
+                <span class="block text-xs text-gray-600">
                     Von Hand angelegte Einträge und Wettkampfergebnisse bleiben in jedem Fall erhalten.
+                    Korrekturen an einzelnen Zeilen sind nach dem Import direkt in der Bestenliste möglich.
                 </span>
             </span>
         </label>
-        <div class="flex items-center gap-3 pt-1">
-            <button type="submit"
-                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
-                {{ $entries->count() }} Einträge importieren
-            </button>
-            <a href="{{ route('admin.records.index', ['tab' => 'eternal']) }}" class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>
-        </div>
-        <p class="text-xs text-gray-400">
-            Korrekturen an einzelnen Zeilen sind nach dem Import direkt in der Bestenliste möglich.
-        </p>
-    </form>
+    </x-ui.card>
 
     {{-- Gelesene Daten --}}
     @foreach($entries->groupBy('gender') as $gender => $byGender)
@@ -112,5 +82,8 @@
             @endforeach
         </div>
     @endforeach
-</div>
+
+    <x-ui.import-bar :cancel="route('admin.records.index', ['tab' => 'eternal'])" :total="$entries->count()"
+                     singular="Eintrag" plural="Einträge" />
+</form>
 @endsection

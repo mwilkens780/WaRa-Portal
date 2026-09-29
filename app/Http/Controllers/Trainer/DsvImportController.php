@@ -84,7 +84,22 @@ class DsvImportController extends Controller
         $parsed   = session('dsv_import_parsed');
         $swimmers = User::where('role', 'schwimmer')->where('active', true)->orderBy('name')->get();
 
-        return view('trainer.dsv-import.preview', compact('parsed', 'swimmers'));
+        // Dieser Import legt immer einen neuen Wettkampf an. Gibt es im selben
+        // Zeitraum schon einen (aus WebClub, Ausschreibung, Crawler), entstuende
+        // er doppelt - die Vorschau weist darauf hin und verlinkt den Import dort.
+        $possibleDuplicates = [];
+        foreach ($parsed['meets'] as $mi => $meet) {
+            try {
+                $von = \Illuminate\Support\Carbon::parse($meet['startdate'])->subDay();
+                $bis = \Illuminate\Support\Carbon::parse($meet['enddate'] ?: $meet['startdate'])->addDay();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            $possibleDuplicates[$mi] = Competition::whereBetween('date', [$von->toDateString(), $bis->toDateString()])
+                ->orderBy('date')->get(['id', 'name', 'date', 'location']);
+        }
+
+        return view('trainer.dsv-import.preview', compact('parsed', 'swimmers', 'possibleDuplicates'));
     }
 
     // ── Schritt 4: Import durchführen ───────────────────────────────────────

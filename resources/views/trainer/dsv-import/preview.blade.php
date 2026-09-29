@@ -1,10 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Import-Vorschau')
-@section('page-title', 'Import-Vorschau')
+@section('title', 'Ergebnisse importieren – Vorschau')
+@section('page-title', 'Ergebnisse importieren – Vorschau')
 
 @section('content')
 <div class="mt-2 space-y-6"
      x-data="{ meetIndex: 0 }">
+
+    <x-ui.import-steps :current="2" />
 
     <form method="POST" action="{{ route('trainer.dsv-import.execute') }}" class="space-y-6">
         @csrf
@@ -12,10 +14,10 @@
         {{-- Meet-Auswahl (bei mehreren Wettkämpfen in der Datei) --}}
         @if(count($parsed['meets']) > 1)
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label for="dsv-meet" class="block text-sm font-medium text-gray-700 mb-2">
                     Mehrere Wettkämpfe in der Datei – bitte einen auswählen:
                 </label>
-                <select name="meet_index" x-model.number="meetIndex"
+                <select id="dsv-meet" name="meet_index" x-model.number="meetIndex"
                         class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     @foreach($parsed['meets'] as $i => $meet)
                         <option value="{{ $i }}">{{ $meet['name'] }} ({{ $meet['startdate'] }}, {{ $meet['city'] }})</option>
@@ -27,31 +29,50 @@
         @endif
 
         @foreach($parsed['meets'] as $mi => $meet)
-        <div x-show="meetIndex === {{ $mi }}" @if($mi > 0) x-cloak @endif>
+        {{-- Gesperrtes fieldset: Felder nicht gewaehlter Wettkaempfe werden nicht
+             gesendet. Vorher gingen alle mit - bei gleichen Namen gewann der letzte. --}}
+        <fieldset x-show="meetIndex === {{ $mi }}" :disabled="meetIndex !== {{ $mi }}" @if($mi > 0) x-cloak disabled @endif class="space-y-6 min-w-0">
+            <legend class="sr-only">{{ $meet['name'] }}</legend>
+
+            @if(($possibleDuplicates[$mi] ?? collect())->isNotEmpty())
+                <div role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p class="font-semibold">Gibt es diesen Wettkampf schon?</p>
+                    <p class="mt-1">Dieser Import legt einen <strong>neuen</strong> Wettkampf an. Im selben Zeitraum ist bereits vorhanden:</p>
+                    <ul class="mt-2 space-y-1">
+                        @foreach($possibleDuplicates[$mi] as $dup)
+                            <li>
+                                <a href="{{ route('admin.competitions.show', $dup) }}" class="font-medium underline hover:no-underline">{{ $dup->name }}</a>
+                                <span class="text-amber-800">· {{ $dup->date->format('d.m.Y') }}{{ $dup->location ? ' · ' . $dup->location : '' }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    <p class="mt-2">Wenn es derselbe ist: dort unter „Import“ die Datei einlesen, statt hier fortzufahren.</p>
+                </div>
+            @endif
 
             {{-- Wettkampf-Details --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h2 class="font-semibold text-gray-800 mb-4">Wettkampf-Details</h2>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Name <span class="text-red-500">*</span></label>
-                        <input type="text" name="comp_name" required
+                        <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-name-{{ $mi }}">Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="comp_name" id="dsv-name-{{ $mi }}" required
                                value="{{ old('comp_name', $meet['name']) }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                         @error('comp_name')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Ort <span class="text-red-500">*</span></label>
-                        <input type="text" name="comp_location" required
+                        <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-location-{{ $mi }}">Ort <span class="text-red-500">*</span></label>
+                        <input type="text" name="comp_location" id="dsv-location-{{ $mi }}" required
                                value="{{ old('comp_location', $meet['city']) }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                         @error('comp_location')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Kategorie <span class="text-red-500">*</span></label>
-                        <select name="comp_type" required
+                        <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-type-{{ $mi }}">Kategorie <span class="text-red-500">*</span></label>
+                        <select name="comp_type" id="dsv-type-{{ $mi }}" required
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                             @foreach(\App\Models\Competition::TYPE_LABELS as $v => $l)
                                 <option value="{{ $v }}" {{ old('comp_type', 'regional') === $v ? 'selected' : '' }}>{{ $l }}</option>
@@ -60,23 +81,23 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Startdatum <span class="text-red-500">*</span></label>
-                        <input type="date" name="comp_date" required
+                        <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-date-{{ $mi }}">Startdatum <span class="text-red-500">*</span></label>
+                        <input type="date" name="comp_date" id="dsv-date-{{ $mi }}" required
                                value="{{ old('comp_date', $meet['startdate']) }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                         @error('comp_date')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Enddatum</label>
-                        <input type="date" name="comp_date_end"
+                        <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-date-end-{{ $mi }}">Enddatum</label>
+                        <input type="date" name="comp_date_end" id="dsv-date-end-{{ $mi }}"
                                value="{{ old('comp_date_end', $meet['enddate'] !== $meet['startdate'] ? $meet['enddate'] : '') }}"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Bahnlänge <span class="text-red-500">*</span></label>
-                        <select name="comp_course"
+                        <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-course-{{ $mi }}">Bahnlänge <span class="text-red-500">*</span></label>
+                        <select name="comp_course" id="dsv-course-{{ $mi }}"
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
                             <option value="Kurzbahn" {{ ($meet['course'] ?? 'Kurzbahn') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
                             <option value="Langbahn" {{ ($meet['course'] ?? '') === 'Langbahn' ? 'selected' : '' }}>Langbahn (50 m)</option>
@@ -109,9 +130,9 @@
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50/50 border-b border-gray-100">
                             <tr>
-                                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Athlet in Datei</th>
-                                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Ergebnisse</th>
-                                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Zuordnung im Portal</th>
+                                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Athlet in Datei</th>
+                                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Ergebnisse</th>
+                                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-600">Zuordnung im Portal</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50">
@@ -152,7 +173,7 @@
                                         @if($athlete['matched_user_id'])
                                             <div class="flex items-center gap-2">
                                                 <span class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                                                <select name="mappings[{{ $ci }}][{{ $ai }}]"
+                                                <select name="mappings[{{ $ci }}][{{ $ai }}]" aria-label="Portal-Schwimmer für {{ $athlete['firstname'] }} {{ $athlete['lastname'] }}"
                                                         class="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                                     <option value="0">– überspringen –</option>
                                                     @foreach($swimmers as $sw)
@@ -163,11 +184,11 @@
                                                     @endforeach
                                                 </select>
                                             </div>
-                                            <p class="text-xs text-green-600 mt-0.5 ml-4">Automatisch erkannt</p>
+                                            <p class="text-xs text-green-700 mt-0.5 ml-4">Automatisch erkannt</p>
                                         @else
                                             <div class="flex items-center gap-2">
                                                 <span class="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0"></span>
-                                                <select name="mappings[{{ $ci }}][{{ $ai }}]"
+                                                <select name="mappings[{{ $ci }}][{{ $ai }}]" aria-label="Portal-Schwimmer für {{ $athlete['firstname'] }} {{ $athlete['lastname'] }}"
                                                         class="flex-1 px-3 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-amber-50">
                                                     <option value="0">– überspringen –</option>
                                                     @foreach($swimmers as $sw)
@@ -175,7 +196,7 @@
                                                     @endforeach
                                                 </select>
                                             </div>
-                                            <p class="text-xs text-amber-600 mt-0.5 ml-4">Nicht automatisch erkannt</p>
+                                            <p class="text-xs text-amber-700 mt-0.5 ml-4">Nicht automatisch erkannt</p>
                                         @endif
                                     </td>
                                 </tr>
@@ -185,12 +206,13 @@
                 </div>
             @endforeach
 
-        </div>
+        </fieldset>
         @endforeach
 
         {{-- Aktions-Leiste --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-wrap items-center justify-between gap-4">
-            <div class="text-sm text-gray-500">
+        <x-ui.import-bar :cancel="route('trainer.dsv-import.index')"
+                         count="fieldset:not([disabled]) select[name^='mappings'] option:checked:not([value='0'])"
+                         singular="zugeordneten Schwimmer" plural="zugeordnete Schwimmer">
                 @php
                     $totalAthletes = collect($parsed['meets'][0]['clubs'] ?? [])->sum(fn($c) => count($c['athletes']));
                     $autoMatched   = collect($parsed['meets'][0]['clubs'] ?? [])->sum(fn($c) =>
@@ -200,23 +222,9 @@
                         collect($c['athletes'])->sum(fn($a) => count($a['results']))
                     );
                 @endphp
-                <strong>{{ $autoMatched }}/{{ $totalAthletes }}</strong> Athleten automatisch zugeordnet ·
-                <strong>{{ $totalResults }}</strong> Ergebnisse bereit
-            </div>
-            <div class="flex gap-3">
-                <a href="{{ route('trainer.dsv-import.index') }}"
-                   class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    Abbrechen
-                </a>
-                <button type="submit"
-                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                    </svg>
-                    Import jetzt ausführen
-                </button>
-            </div>
-        </div>
+                <strong>{{ $autoMatched }}/{{ $totalAthletes }}</strong> automatisch erkannt ·
+                <strong>{{ $totalResults }}</strong> Ergebnisse in der Datei
+        </x-ui.import-bar>
 
     </form>
 </div>

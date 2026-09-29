@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('title', 'WebClub CSV – Import-Vorschau')
-@section('page-title', 'WebClub CSV – Ergebnisse importieren')
+@section('title', 'Ergebnisse aus WebClub-CSV – Vorschau')
+@section('page-title', 'Ergebnisse aus WebClub-CSV – Vorschau')
 
 @section('content')
 @php
@@ -16,8 +16,10 @@
         <span>›</span>
         <a href="{{ route('admin.competitions.show', $competition) }}" class="hover:text-primary">{{ $competition->name }}</a>
         <span>›</span>
-        <span class="text-gray-800">WebClub CSV Import</span>
+        <span class="text-gray-800">Ergebnisse aus WebClub-CSV</span>
     </div>
+
+    <x-ui.import-steps :current="2" />
 
     {{-- Datums-Warnung --}}
     @if($mismatch)
@@ -138,11 +140,11 @@
                                                 @if(!empty($r['rek']))
                                                     @php $rek = $r['rek']; @endphp
                                                     @if($rek === 'PBZ')
-                                                        <span class="ml-1 px-1 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">PBZ</span>
+                                                        <span class="ml-1 px-1 py-0.5 bg-green-100 text-green-800 rounded text-xs font-semibold">PBZ</span>
                                                     @elseif($rek === 'SBZ')
                                                         <span class="ml-1 px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">SBZ</span>
                                                     @elseif(str_contains($rek, 'SR') || str_contains($rek, 'VR'))
-                                                        <span class="ml-1 px-1 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">{{ $rek }}</span>
+                                                        <span class="ml-1 px-1 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-semibold">{{ $rek }}</span>
                                                     @elseif(str_contains($rek, 'LR'))
                                                         <span class="ml-1 px-1 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">LR</span>
                                                     @else
@@ -157,7 +159,7 @@
                                     @if($athlete['matched_user_id'])
                                         <div class="flex items-center gap-2">
                                             <span class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-                                            <select name="mappings[{{ $ci }}][{{ $ai }}]"
+                                            <select name="mappings[{{ $ci }}][{{ $ai }}]" aria-label="Portal-Schwimmer für {{ $athlete['firstname'] }} {{ $athlete['lastname'] }}"
                                                     class="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                                 <option value="0">– überspringen –</option>
                                                 @foreach($swimmers as $sw)
@@ -168,11 +170,11 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <p class="text-xs text-green-600 mt-0.5 ml-4">Automatisch erkannt</p>
+                                        <p class="text-xs text-green-700 mt-0.5 ml-4">Automatisch erkannt</p>
                                     @else
                                         <div class="flex items-center gap-2">
                                             <span class="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0"></span>
-                                            <select name="mappings[{{ $ci }}][{{ $ai }}]"
+                                            <select name="mappings[{{ $ci }}][{{ $ai }}]" aria-label="Portal-Schwimmer für {{ $athlete['firstname'] }} {{ $athlete['lastname'] }}"
                                                     class="flex-1 px-3 py-1.5 border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-amber-50">
                                                 <option value="0">– überspringen –</option>
                                                 @foreach($swimmers as $sw)
@@ -180,7 +182,7 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <p class="text-xs text-amber-600 mt-0.5 ml-4">Nicht erkannt – manuell zuordnen</p>
+                                        <p class="text-xs text-amber-700 mt-0.5 ml-4">Nicht erkannt – manuell zuordnen</p>
                                     @endif
                                 </td>
                             </tr>
@@ -194,9 +196,9 @@
         {{-- Legende --}}
         <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-500 flex flex-wrap gap-4">
             <span class="font-semibold text-gray-600">Rek-Kennzeichnung:</span>
-            <span><span class="px-1 py-0.5 bg-green-100 text-green-700 rounded font-semibold">PBZ</span> = Persönliche Bestzeit → <code>is_personal_best</code></span>
+            <span><span class="px-1 py-0.5 bg-green-100 text-green-800 rounded font-semibold">PBZ</span> = Persönliche Bestzeit → <code>is_personal_best</code></span>
             <span><span class="px-1 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">SBZ</span> = Saisonbestzeit → <code>is_season_best</code></span>
-            <span><span class="px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-semibold">SR/VR</span> = Vereinsrekord → <code>breaks_vereinsrekord</code></span>
+            <span><span class="px-1 py-0.5 bg-amber-100 text-amber-800 rounded font-semibold">SR/VR</span> = Vereinsrekord → <code>breaks_vereinsrekord</code></span>
             <span><span class="px-1 py-0.5 bg-red-100 text-red-700 rounded font-semibold">LR</span> = Landesrekord → <code>breaks_landesrekord</code></span>
         </div>
 
@@ -218,27 +220,14 @@
                 )
             );
         @endphp
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-wrap items-center justify-between gap-4">
-            <div class="text-sm text-gray-500">
+        <x-ui.import-bar :cancel="route('admin.competitions.show', $competition)"
+                         count="select[name^='mappings'] option:checked:not([value='0'])"
+                         singular="zugeordneten Schwimmer" plural="zugeordnete Schwimmer">
                 <strong>{{ $autoMatchedAll }}/{{ $totalIndivAll }}</strong> Athleten erkannt ·
                 <strong>{{ $totalResultsAll }}</strong> Einzelergebnisse
                 @if($pbzCount > 0) · <strong class="text-green-700">{{ $pbzCount }} PBZ</strong> @endif
                 @if($totalRelayAll > 0) · <strong>{{ $totalRelayAll }}</strong> Staffel{{ $totalRelayAll !== 1 ? 'n' : '' }} @endif
-            </div>
-            <div class="flex gap-3">
-                <a href="{{ route('admin.competitions.show', $competition) }}"
-                   class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    Abbrechen
-                </a>
-                <button type="submit"
-                        class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                    </svg>
-                    Ergebnisse importieren
-                </button>
-            </div>
-        </div>
+        </x-ui.import-bar>
 
     </form>
 </div>

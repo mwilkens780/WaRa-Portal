@@ -1,25 +1,20 @@
 @extends('layouts.app')
-@section('title', 'CSV-Import: ' . $trainingGroup->name)
-@section('page-title', 'CSV-Import: ' . $trainingGroup->name)
+@section('title', 'Gruppenliste abgleichen: ' . $trainingGroup->name)
+@section('page-title', 'Gruppenliste abgleichen: ' . $trainingGroup->name)
 
 @section('content')
 <div class="mt-2 space-y-4">
 
-    {{-- Info banner --}}
-    <div class="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
-        <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <div>
-            <strong>{{ count($rows) }} CSV-Zeilen erkannt</strong> –
-            {{ collect($rows)->where('status', 'matched')->count() }} gefunden,
-            {{ collect($rows)->where('status', 'unmatched')->count() }} nicht gefunden,
-            {{ collect($rows)->where('status', 'ambiguous')->count() }} mehrdeutig.
-            @if(count($toRemove) > 0)
-                <span class="ml-2 text-amber-700">{{ count($toRemove) }} Mitglieder nicht in CSV (werden entfernt).</span>
-            @endif
-        </div>
-    </div>
+    <x-ui.import-steps :current="2" />
 
-    <form method="POST" action="{{ route('admin.training-groups.csv-execute', $trainingGroup) }}">
+    <x-ui.import-summary :items="[
+        ['label' => 'gefunden', 'count' => collect($rows)->where('status', 'matched')->count(), 'tone' => 'success', 'hint' => 'Konto im Portal erkannt'],
+        ['label' => 'mehrdeutig', 'count' => collect($rows)->where('status', 'ambiguous')->count(), 'tone' => 'warning', 'hint' => 'bitte zuordnen'],
+        ['label' => 'nicht gefunden', 'count' => collect($rows)->where('status', 'unmatched')->count(), 'tone' => 'warning', 'hint' => 'neu anlegen oder überspringen'],
+        ['label' => 'werden entfernt', 'count' => count($toRemove), 'tone' => 'danger', 'hint' => 'nicht mehr in der Liste'],
+    ]" />
+
+    <form method="POST" action="{{ route('admin.training-groups.csv-execute', $trainingGroup) }}" class="space-y-4">
         @csrf
 
         {{-- CSV rows --}}
@@ -36,12 +31,12 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Status</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">CSV-Name</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Jg.</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">DSV-Id</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Aktiv</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Datenbank-Benutzer</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Status</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">CSV-Name</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Jg.</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">DSV-Id</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Aktiv</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Datenbank-Benutzer</th>
                             <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 min-w-[160px]">Aktion</th>
                         </tr>
                     </thead>
@@ -49,9 +44,9 @@
                         @foreach($rows as $i => $row)
                         @php
                             $statusColor = match($row['status']) {
-                                'matched'   => 'bg-green-100 text-green-700',
-                                'ambiguous' => 'bg-amber-100 text-amber-700',
-                                default     => 'bg-red-100 text-red-600',
+                                'matched'   => 'bg-green-100 text-green-800',
+                                'ambiguous' => 'bg-amber-100 text-amber-800',
+                                default     => 'bg-red-100 text-red-700',
                             };
                             $statusLabel = match($row['status']) {
                                 'matched'   => '✓ Gefunden',
@@ -76,7 +71,7 @@
                             <td class="px-4 py-2 text-gray-500 font-mono text-xs">{{ $row['csv_dsv_id'] ?: '–' }}</td>
                             {{-- Aktiv --}}
                             <td class="px-4 py-2">
-                                <span class="text-xs px-1.5 py-0.5 rounded {{ $row['csv_active'] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                                <span class="text-xs px-1.5 py-0.5 rounded {{ $row['csv_active'] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500' }}">
                                     {{ $row['csv_active'] ? 'Ja' : 'Nein' }}
                                 </span>
                             </td>
@@ -158,7 +153,7 @@
                 @foreach($toRemove as $j => $entry)
                 <div class="flex items-center gap-3 px-5 py-2.5">
                     <input type="hidden" name="remove[{{ $j }}]" value="0">
-                    <input type="checkbox" name="remove[{{ $j }}]" value="1" checked
+                    <input type="checkbox" name="remove[{{ $j }}]" value="1" checked aria-label="{{ $entry['name'] }} aus der Gruppe entfernen"
                            class="w-4 h-4 rounded text-red-500 border-gray-300">
                     <div>
                         <p class="text-sm font-medium text-gray-800">{{ $entry['name'] }}</p>
@@ -172,17 +167,13 @@
         </div>
         @endif
 
-        {{-- Actions --}}
-        <div class="flex gap-3">
-            <button type="submit"
-                    class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
-                Import ausführen
-            </button>
-            <a href="{{ route('admin.training-groups.show', $trainingGroup) }}"
-               class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                Abbrechen
-            </a>
-        </div>
+        <x-ui.import-bar :cancel="route('admin.training-groups.show', $trainingGroup)"
+                         count="input[name$='[action]']:checked:not([value='skip'])"
+                         singular="Schwimmer" plural="Schwimmer">
+            @if(count($toRemove) > 0)
+                Ausgewählte „Nicht mehr in CSV“ werden aus der Gruppe entfernt.
+            @endif
+        </x-ui.import-bar>
     </form>
 </div>
 @endsection

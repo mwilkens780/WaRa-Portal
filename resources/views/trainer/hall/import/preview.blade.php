@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('title', 'Import prüfen')
-@section('page-title', 'Import prüfen')
+@section('title', 'Hallenbelegungsplan – Vorschau')
+@section('page-title', 'Hallenbelegungsplan – Vorschau')
 
 @section('content')
 @php
@@ -17,25 +17,14 @@
       x-data="{ onlyOpen: false }" class="mt-2 space-y-5">
     @csrf
 
-    {{-- Zusammenfassung --}}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-gray-500">Einträge</p>
-            <p class="text-2xl font-bold text-gray-800">{{ count($entries) }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-green-100 bg-green-50 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-green-600">Belegungen</p>
-            <p class="text-2xl font-bold text-green-700">{{ $preview['bookings'] }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-blue-100 bg-blue-50 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-blue-600">Trainingseinheiten</p>
-            <p class="text-2xl font-bold text-blue-700">{{ number_format($preview['sessions'], 0, ',', '.') }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-amber-100 bg-amber-50 shadow-sm px-4 py-3 text-center">
-            <p class="text-xs text-amber-700">Übersprungen</p>
-            <p class="text-2xl font-bold text-amber-700">{{ $blocked->count() }}</p>
-        </div>
-    </div>
+    <x-ui.import-steps :current="2" />
+
+    <x-ui.import-summary :items="[
+        ['label' => 'Einträge', 'count' => count($entries), 'tone' => 'neutral', 'hint' => 'Blatt: ' . $sheet],
+        ['label' => 'neue Belegungen', 'count' => $preview['bookings'], 'tone' => 'success'],
+        ['label' => 'Trainingseinheiten', 'count' => $preview['sessions'], 'tone' => 'brand', 'hint' => 'aus den Serien'],
+        ['label' => 'übersprungen', 'count' => $blocked->count(), 'tone' => 'warning', 'hint' => 'Überschneidung mit Bestehendem'],
+    ]" />
 
     @if($preview['sessions'] > 1000)
         <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -68,7 +57,6 @@
             <input type="checkbox" x-model="onlyOpen" class="rounded text-primary">
             Nur Zeilen mit offener Zuordnung zeigen
         </label>
-        <span class="text-xs text-gray-400">Blatt: {{ $sheet }}</span>
         <div class="ml-auto flex gap-2">
             <button type="button"
                     @click="$root.querySelectorAll('input[name^=selected]:not(:disabled)').forEach(c => c.checked = true)"
@@ -108,7 +96,7 @@
                         x-show="!onlyOpen || {{ $openRow ? 'true' : 'false' }}" x-cloak>
 
                         <td class="px-3 py-2">
-                            <input type="checkbox" name="selected[]" value="{{ $i }}"
+                            <input type="checkbox" name="selected[]" value="{{ $i }}" aria-label="Zeile {{ $i + 1 }} übernehmen"
                                    {{ $conflict ? 'disabled' : 'checked' }}
                                    class="rounded text-primary disabled:opacity-30">
                         </td>
@@ -186,14 +174,7 @@
         </table>
     </div>
 
-    <div class="flex items-center gap-3">
-        <button type="submit"
-                class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg
-                       text-sm transition-colors">
-            Ausgewählte Einträge importieren
-        </button>
-        <a href="{{ route('trainer.hall.import.index') }}"
-           class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>
-    </div>
+    <x-ui.import-bar :cancel="route('trainer.hall.import.index')" count="input[name='selected[]']:checked"
+                     singular="Eintrag" plural="Einträge" />
 </form>
 @endsection
