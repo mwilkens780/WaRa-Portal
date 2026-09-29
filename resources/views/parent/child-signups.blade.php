@@ -171,6 +171,23 @@
                             Speichern
                         </button>
                     </form>
+
+                    {{-- Vereinsbus: Eltern minderjaehriger Kinder buchen wie das Kind selbst --}}
+                    @if($signupRequest->bus_available && $isAttending && auth()->user()->isGuardianOf($child))
+                        <div class="mt-3 flex flex-wrap items-center gap-3">
+                            <form method="POST" action="{{ route('parent.child.signup.bus', [$child->id, $signupRequest]) }}">
+                                @csrf
+                                <button type="submit"
+                                        class="text-sm px-4 py-2 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">
+                                    {{ $response->bus_booked ? 'Busplatz stornieren' : 'Busplatz buchen' }}
+                                </button>
+                            </form>
+                            <span class="text-xs text-gray-500">
+                                @if($response->bus_booked) Busplatz für {{ $child->firstname }} gebucht · @endif
+                                {{ $signupRequest->busSeatsRemaining() }} Plätze frei
+                            </span>
+                        </div>
+                    @endif
                 </div>
             </div>
         @endforeach

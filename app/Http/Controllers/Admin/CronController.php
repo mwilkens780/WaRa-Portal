@@ -13,6 +13,9 @@ class CronController extends Controller
             abort(403);
         }
 
+        // Lebenszeichen fuer die Import-Log-Seite: laeuft der Server-Cron wirklich minuetlich?
+        \Illuminate\Support\Facades\Cache::forever('scheduler.last_run', now()->toIso8601String());
+
         Artisan::call('schedule:run');
 
         return response('OK ' . now()->toDateTimeString(), 200)

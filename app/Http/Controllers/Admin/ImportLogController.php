@@ -131,7 +131,12 @@ class ImportLogController extends Controller
 
         $dsvStates = self::DSV_STATES;
 
-        return view('admin.import-log.index', compact('logs', 'filters', 'crawlerStats', 'dsvStates'));
+        // Letzter Aufruf durch den Server-Cron (CronController). Geplante Aufgaben
+        // wie "taeglich 00:15" laufen nur, wenn der Cron jede Minute kommt.
+        $lastRun          = \Illuminate\Support\Facades\Cache::get('scheduler.last_run');
+        $schedulerLastRun = $lastRun ? \Carbon\Carbon::parse($lastRun) : null;
+
+        return view('admin.import-log.index', compact('logs', 'filters', 'crawlerStats', 'dsvStates', 'schedulerLastRun'));
     }
 
     public function run(string $source)

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\ParentArea;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompetitionSignupRequest;
-use App\Models\CompetitionSignupResponse;
+use App\Services\SignupResponder;
 use Illuminate\Http\Request;
 
 class SignupController extends Controller
@@ -25,14 +25,9 @@ class SignupController extends Controller
         return view('parent.child-signups', compact('child', 'signupRequests'));
     }
 
-    public function respond(Request $request, int $childId, CompetitionSignupRequest $signupRequest)
+    public function respond(Request $request, int $childId, CompetitionSignupRequest $signupRequest, SignupResponder $responder)
     {
-        $parent = auth()->user();
-        $child  = $parent->children()->findOrFail($childId);
-
-        if (!$signupRequest->isActive()) {
-            return back()->with('error', 'Diese Anmeldeabfrage ist nicht mehr aktiv.');
-        }
+        $child = auth()->user()->children()->findOrFail($childId);
 
         $data = $request->validate([
             'status'          => ['required', 'in:attending,not_attending'],
@@ -42,30 +37,20 @@ class SignupController extends Controller
             'wants_dinner'    => ['boolean'],
         ]);
 
-        $response = CompetitionSignupResponse::where('competition_signup_request_id', $signupRequest->id)
-            ->where('user_id', $child->id)
-            ->first();
+        [$ok, $msg] = $responder->respond($signupRequest, $child, $data, byParent: true);
+        return back()->with($ok ? 'success' : 'error', $msg);
+    }
 
-        if (!$response) {
-            return back()->with('error', $child->firstname . ' ist nicht für diese Anmeldeabfrage eingeladen.');
-        }
+    /**
+     * Busplatz fuer ein minderjaehriges Kind buchen/stornieren - viele Kinder
+     * haben noch kein Handy und keine Mail-Adresse.
+     */
+    public function toggleBus(int $childId, CompetitionSignupRequest $signupRequest, SignupResponder $responder)
+    {
+        $child = auth()->user()->children()->findOrFail($childId);
+        abort_unless(auth()->user()->isGuardianOf($child), 403);
 
-        $update = [
-            'status'       => $data['status'],
-            'note'         => $data['note'] ?? null,
-            'responded_at' => now(),
-            'carpool_seats'=> isset($data['carpool_seats']) ? (int) $data['carpool_seats'] : null,
-        ];
-        if ($signupRequest->offer_overnight) {
-            $update['wants_overnight'] = $data['wants_overnight'] ?? false;
-        }
-        if ($signupRequest->offer_dinner) {
-            $update['wants_dinner'] = $data['wants_dinner'] ?? false;
-        }
-
-        $response->update($update);
-
-        $label = $data['status'] === 'attending' ? 'Zusage' : 'Absage';
-        return back()->with('success', "{$label} für {$child->firstname} gespeichert.");
+        [$ok, $msg] = $responder->toggleBus($signupRequest, $child, byParent: true);
+        return back()->with($ok ? 'success' : 'error', $msg);
     }
 }

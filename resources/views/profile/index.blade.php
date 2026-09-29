@@ -95,56 +95,18 @@
                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                 <div>
                     <h2 class="text-base font-semibold text-gray-800">Einwilligungen</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">
-                        Du kannst diese Einwilligungen jederzeit widerrufen. Danach kann außer dir niemand mehr
-                        auf die betreffenden Dokumente zugreifen.
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        @if($consentByParents)
+                            Weil du noch minderjährig bist, entscheiden deine Eltern über diese Einwilligungen.
+                        @else
+                            Du kannst diese Einwilligungen jederzeit widerrufen. Danach kann außer dir niemand mehr
+                            auf die betreffenden Dokumente zugreifen.
+                        @endif
                     </p>
                 </div>
             </div>
-            <div class="px-6 py-5 space-y-4">
-                <div x-data="{ on: {{ old('opt_nutrition', $user->opt_nutrition) ? 'true' : 'false' }} }"
-                     class="flex items-start gap-4 p-4 border rounded-xl transition-colors"
-                     :class="on ? 'border-green-300 bg-green-50/40' : 'border-gray-200'">
-                    <div class="flex-shrink-0 pt-0.5">
-                        <input type="hidden" name="opt_nutrition" :value="on ? '1' : '0'">
-                        <div class="relative w-10 h-5 rounded-full transition-colors cursor-pointer"
-                             :class="on ? 'bg-green-500' : 'bg-gray-300'"
-                             @click="on = !on">
-                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
-                                 :class="on ? 'translate-x-5' : 'translate-x-0'"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">Ernährungsberatung</p>
-                        <p class="text-xs text-gray-500 mt-0.5">
-                            Ich stimme zu, dass meine Daten im Rahmen der Ernährungsberatung erfasst und Messwerte
-                            gespeichert werden dürfen. Einsehen dürfen sie die Ernährungsberatung, die Trainer
-                            meiner Trainingsgruppen und die Administratoren des Portals.
-                        </p>
-                    </div>
-                </div>
-
-                <div x-data="{ on: {{ old('opt_sports_medicine', $user->opt_sports_medicine) ? 'true' : 'false' }} }"
-                     class="flex items-start gap-4 p-4 border rounded-xl transition-colors"
-                     :class="on ? 'border-blue-300 bg-blue-50/40' : 'border-gray-200'">
-                    <div class="flex-shrink-0 pt-0.5">
-                        <input type="hidden" name="opt_sports_medicine" :value="on ? '1' : '0'">
-                        <div class="relative w-10 h-5 rounded-full transition-colors cursor-pointer"
-                             :class="on ? 'bg-primary' : 'bg-gray-300'"
-                             @click="on = !on">
-                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
-                                 :class="on ? 'translate-x-5' : 'translate-x-0'"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">Sportmedizinische Untersuchung</p>
-                        <p class="text-xs text-gray-500 mt-0.5">
-                            Ich stimme zu, dass meine sportmedizinischen Untersuchungsergebnisse im Rahmen der
-                            Leistungssporteignung erfasst werden dürfen. Einsehen dürfen sie der Teamarzt, die
-                            Trainer meiner Trainingsgruppen und die Administratoren des Portals.
-                        </p>
-                    </div>
-                </div>
+            <div class="px-6 py-5">
+                @include('profile._consents', ['person' => $user, 'forChild' => false, 'readonly' => $consentByParents])
             </div>
         </div>
 
@@ -159,6 +121,30 @@
             </a>
         </div>
     </form>
+
+    {{-- ── Einwilligungen für minderjährige Kinder (Eltern entscheiden) ───── --}}
+    @foreach($wards as $child)
+        <form method="POST" action="{{ route('profile.ward-consents', $child) }}" class="mt-8">
+            @csrf
+            @method('PUT')
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h2 class="text-base font-semibold text-gray-800">Einwilligungen für {{ $child->name }}</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        Als Elternteil entscheidest du für {{ $child->firstname }}. Ein Widerruf wirkt sofort:
+                        Danach sehen nur noch {{ $child->firstname }} und die Eltern die betreffenden Dokumente.
+                    </p>
+                </div>
+                <div class="px-6 py-5 space-y-4">
+                    @include('profile._consents', ['person' => $child, 'forChild' => true, 'readonly' => false])
+                    <button type="submit"
+                            class="bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                        Für {{ $child->firstname }} speichern
+                    </button>
+                </div>
+            </div>
+        </form>
+    @endforeach
 
     {{-- ── E-Mail-Benachrichtigungen ──────────────────────────────────────── --}}
     <form method="POST" action="{{ route('profile.mail-preferences') }}" class="mt-8">

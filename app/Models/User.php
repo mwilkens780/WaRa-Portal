@@ -303,6 +303,19 @@ class User extends Authenticatable
         return $child->age === null || $child->age < 18;
     }
 
+    /**
+     * Entscheiden die Eltern ueber die Gesundheits-Einwilligungen?
+     *
+     * Ja bei Minderjaehrigen (bzw. ohne Geburtsdatum) mit mindestens einem
+     * verknuepften, aktiven Elternteil. Ohne Eltern im Portal entscheidet
+     * das Kind selbst - sonst koennte niemand einwilligen.
+     */
+    public function consentManagedByParents(): bool
+    {
+        return ($this->age === null || $this->age < 18)
+            && $this->parents()->where('active', true)->exists();
+    }
+
     /** Kinder, fuer die dieses Konto gesetzlicher Vertreter ist */
     public function wards(): \Illuminate\Support\Collection
     {

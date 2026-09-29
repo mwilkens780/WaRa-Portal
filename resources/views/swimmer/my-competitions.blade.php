@@ -2,6 +2,8 @@
     // Schwimmer sieht sich selbst; Eltern sehen hier ein Kind (ParentAreaDashboardController)
     $subject   = $subject ?? auth()->user();
     $asParent  = $asParent ?? false;
+    // Eltern minderjaehriger Kinder duerfen alles, was das Kind selbst darf (auch Bus)
+    $canActFully = !$asParent || auth()->user()->isGuardianOf($subject);
     $pageTitle = $asParent ? 'Wettkämpfe: ' . $subject->firstname : 'Meine Wettkämpfe';
 @endphp
 @extends('layouts.app')
@@ -253,8 +255,8 @@
                             Speichern
                         </button>
                     </form>
-                    @if($signupRequest->bus_available && $isAttending && !$asParent)
-                        <form method="POST" action="{{ route('swimmer.signup.bus', $signupRequest) }}" class="mt-2">
+                    @if($signupRequest->bus_available && $isAttending && $canActFully)
+                        <form method="POST" action="{{ $asParent ? route('parent.child.signup.bus', [$subject->id, $signupRequest]) : route('swimmer.signup.bus', $signupRequest) }}" class="mt-2">
                             @csrf
                             <button type="submit"
                                     class="text-xs px-4 py-2 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors">

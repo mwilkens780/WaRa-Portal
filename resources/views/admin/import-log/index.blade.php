@@ -5,6 +5,22 @@
 @section('content')
 <div class="space-y-5">
 
+    {{-- Lebenszeichen des Server-Crons: ohne minuetlichen Aufruf fallen geplante Aufgaben aus --}}
+    @php $cronOk = $schedulerLastRun && $schedulerLastRun->gt(now()->subMinutes(5)); @endphp
+    <div role="status" class="flex flex-wrap items-center gap-2 text-sm rounded-xl px-4 py-3 border
+                {{ $cronOk ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800' }}">
+        <span class="font-semibold">Scheduler:</span>
+        @if(!$schedulerLastRun)
+            noch kein Aufruf durch den Server-Cron erfasst.
+        @else
+            zuletzt aufgerufen {{ $schedulerLastRun->diffForHumans() }}
+            ({{ $schedulerLastRun->timezone('Europe/Berlin')->format('d.m.Y H:i') }}).
+        @endif
+        @unless($cronOk)
+            <span>Der Cron muss jede Minute <code class="text-xs">/cron/run/…</code> aufrufen, sonst fallen geplante Aufgaben aus.</span>
+        @endunless
+    </div>
+
     {{-- Flash-Nachrichten --}}
     {{-- success/error zeigt das Layout; hier nur das Crawler-Ergebnis. Klassen
          ausgeschrieben, damit der Tailwind-Build sie findet. --}}

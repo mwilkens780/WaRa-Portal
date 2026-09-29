@@ -84,6 +84,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profil', [ProfileController::class, 'index'])->name('profile.index');
     Route::put('/profil', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profil/benachrichtigungen', [ProfileController::class, 'updateMailPreferences'])->name('profile.mail-preferences');
+    Route::put('/profil/einwilligungen/{child}', [ProfileController::class, 'updateWardConsents'])->name('profile.ward-consents');
 
     // Gesundheitsdaten (alle Rollen – Zugriff je nach Rolle im Controller geregelt)
     Route::prefix('gesundheit')->name('health.')->group(function () {
@@ -541,4 +542,5 @@ Route::middleware(['auth', 'role:elternteil'])->prefix('eltern')->name('parent.'
     // Competition signups: view + respond on behalf of child (with carpool/overnight/dinner)
     Route::get('/kind/{childId}/anmeldungen', [ParentSignupController::class, 'childSignups'])->name('child.signups');
     Route::post('/kind/{childId}/anmeldungen/{signupRequest}/antworten', [ParentSignupController::class, 'respond'])->name('child.signup.respond');
+    Route::post('/kind/{childId}/anmeldungen/{signupRequest}/bus', [ParentSignupController::class, 'toggleBus'])->name('child.signup.bus');
 });
