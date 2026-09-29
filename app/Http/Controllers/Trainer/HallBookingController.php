@@ -148,7 +148,7 @@ class HallBookingController extends Controller
                 'color'               => $data['color'] ?? null,
                 'created_by_id'       => auth()->id(),
             ]);
-            $booking->load(['resource', 'trainingGroup', 'trainer']);
+            $booking->load(['resource', 'trainingGroup', 'trainer', 'trainingSession']);
             $created[] = $booking->toGridArray();
         }
 
@@ -201,7 +201,10 @@ class HallBookingController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true]);
+        // Aktueller Stand fuer den Plan - er wird ohne Neuladen aktualisiert
+        $booking->load(['resource', 'trainingGroup', 'trainer', 'trainingSession']);
+
+        return response()->json(['success' => true, 'booking' => $booking->toGridArray()]);
     }
 
     public function destroy(HallBooking $booking): JsonResponse

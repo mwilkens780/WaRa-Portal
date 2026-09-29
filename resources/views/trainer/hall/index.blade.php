@@ -332,7 +332,11 @@ function hallApp() {
                 training_session_id: booking.training_session_id,
                 notes: booking.notes ?? '',
             });
-            if (res.ok) return;
+            if (res.ok) {
+                if (res.data.booking) this.replaceBooking(res.data.booking);
+                window.toast?.(`„${booking.display_title}“ verschoben auf ${st}–${et}`);
+                return;
+            }
 
             zuruecksetzen();
             if (res.status === 409) {
@@ -348,34 +352,16 @@ function hallApp() {
             this.pageError = res.message;
         },
 
-        /**
-         * Einheitlicher JSON-Request mit lesbarer Fehlermeldung.
-         * Liefert { ok, status, data, message } und wirft nie.
-         */
-        async request(url, method = 'GET', body = null) {
-            try {
-                const r = await fetch(url, {
-                    method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: body ? JSON.stringify(body) : null,
-                });
-                const data = await r.json().catch(() => ({}));
-                let message = '';
-                if (!r.ok) {
-                    message = r.status === 422 ? (Object.values(data.errors ?? {}).flat().join(' ') || data.message)
-                            : r.status === 419 ? 'Deine Sitzung ist abgelaufen. Bitte Seite neu laden und erneut anmelden.'
-                            : r.status === 403 ? 'Dafür fehlt dir die Berechtigung.'
-                            : (data.message || `Aktion fehlgeschlagen (Fehler ${r.status}).`);
-                }
-                return { ok: r.ok, status: r.status, data, message };
-            } catch (e) {
-                return { ok: false, status: 0, data: {}, message: 'Keine Verbindung zum Server. Bitte erneut versuchen.' };
-            }
+        // Gemeinsamer JSON-Helfer (resources/js/ui/api.js): { ok, status, data, message }
+        request(url, method = 'GET', body = null) {
+            return window.api(url, { method, body });
+        },
+
+        // Belegung im Plan ersetzen (Server liefert den aktuellen Stand)
+        replaceBooking(fresh) {
+            const i = this.bookings.findIndex(b => b.id === fresh.id);
+            if (i === -1) this.bookings.push(fresh);
+            else this.bookings.splice(i, 1, fresh);
         },
 
         // ── Bookings for a given resource + day ───────────────────────
@@ -413,6 +399,49 @@ function hallApp() {
         },
 
         // ── Modal helpers ─────────────────────────────────────────────
+        //
+        // Dialog-Verhalten wie der Baustein x-ui.dialog: Fokus bleibt drin (x-trap),
+        // kehrt danach zum Ausloeser zurueck, Seite dahinter scrollt nicht,
+        // und ungespeicherte Eingaben gehen nicht per Escape verloren.
+        _opener: null,
+        _formSnapshot: '',
+        openModal() {
+            this._opener = document.activeElement;
+            this._formSnapshot = JSON.stringify(this.form);
+            this.showModal = true;
+            window.uiScroll?.lock();
+            setTimeout(() => this.$refs.bookingLabel?.focus(), 60);
+        },
+        async closeModal(force = false) {
+            if (!this.showModal) return;
+            if (!force && !this.saving && JSON.stringify(this.form) !== this._formSnapshot) {
+                const leave = await window.confirmDialog({
+                    title: 'Änderungen verwerfen?',
+                    text: 'Du hast Eingaben gemacht, die noch nicht gespeichert sind.',
+                    confirmLabel: 'Verwerfen', cancelLabel: 'Weiter bearbeiten', danger: true,
+                });
+                if (!leave) return;
+            }
+            this.showModal = false;
+            window.uiScroll?.unlock();
+            const back = this._opener;
+            this._opener = null;
+            // Der Ausloeser kann inzwischen neu gezeichnet sein (gespeicherte Belegung)
+            this.$nextTick(() => {
+                if (back && document.body.contains(back)) back.focus();
+                else if (this._focusBookingId) document.querySelector(`[data-booking-id="${this._focusBookingId}"]`)?.focus();
+                this._focusBookingId = null;
+            });
+        },
+        _focusBookingId: null,
+        bookingAria(b) {
+            const res = this.resources.find(r => r.id === b.hall_resource_id);
+            const tag = ['','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'][b.day_of_week];
+            let t = `${b.display_title}, ${tag} ${b.start_time}–${b.end_time}, ${res ? res.name : ''}`;
+            if (this.hasConflict(b)) t += ', Überschneidung';
+            if (b.has_missing_trainer) t += ', kein Trainer';
+            return t;
+        },
         openCreate(resourceId, day, slot) {
             this.editId = null; this.conflicts = []; this.linkedSession = null; this.sessionResults = [];
             this.formError = ''; this.sessionError = '';
@@ -427,7 +456,7 @@ function hallApp() {
                 training_session_id: null,
                 notes: '', color: '',
             };
-            this.showModal = true;
+            this.openModal();
         },
         openEdit(b) {
             if (this._recentDrag) return;  // suppress click fired after a drag
@@ -440,10 +469,10 @@ function hallApp() {
                 start_time: b.start_time, end_time: b.end_time,
                 label: b.label, type: b.type,
                 training_group_id: b.training_group_id,
-                trainer_id: b.trainer_id ?? null, notes: b.notes ?? '', color: '',
+                trainer_id: b.trainer_id ?? null, notes: b.notes ?? '', color: b.color ?? '',
                 training_session_id: b.training_session_id ?? null,
             };
-            this.showModal = true;
+            this.openModal();
         },
         async searchSessions() {
             if (!this.form.day_of_week || !this.form.start_time || !this.form.end_time) return;
@@ -485,8 +514,16 @@ function hallApp() {
             const url    = this.editId ? `/trainer/hall/bookings/${this.editId}` : '/trainer/hall/bookings';
             const method = this.editId ? 'PUT' : 'POST';
             const res = await this.request(url, method, { ...this.form, force });
-            if (res.ok) { window.location.reload(); return; }
             this.saving = false;
+            if (res.ok) {
+                // Ohne Neuladen: Plan, Filter und Scrollposition bleiben erhalten
+                const fresh = res.data.bookings ?? (res.data.booking ? [res.data.booking] : []);
+                fresh.forEach(b => this.replaceBooking(b));
+                this._focusBookingId = fresh[0]?.id ?? null;
+                window.toast?.(this.editId ? 'Belegung gespeichert' : (fresh.length > 1 ? `${fresh.length} Belegungen angelegt` : 'Belegung angelegt'));
+                this.closeModal(true);
+                return;
+            }
             if (res.status === 409) {
                 this.conflicts = res.data.conflicts ?? [];
                 this.formError = 'Überschneidung mit bestehenden Belegungen – prüfen oder „Trotzdem speichern“.';
@@ -497,7 +534,15 @@ function hallApp() {
         async deleteBooking(id) {
             if (!(await window.confirmDialog({ title: 'Belegung löschen?', confirmLabel: 'Löschen', danger: true }))) return;
             const res = await this.request(`/trainer/hall/bookings/${id}`, 'DELETE');
-            if (res.ok) { window.location.reload(); return; }
+            if (res.ok) {
+                const weg = this.bookings.find(b => b.id === id);
+                this.bookings = this.bookings.filter(b => b.id !== id);
+                this.conflicts = this.conflicts.filter(c => c.id !== id);
+                window.toast?.(`„${weg?.display_title ?? 'Belegung'}“ gelöscht`);
+                // Aus der Konfliktliste heraus geloescht: der bearbeitete Eintrag bleibt offen
+                if (this.showModal && this.editId === id) this.closeModal(true);
+                return;
+            }
             if (this.showModal) this.formError = res.message;
             else this.pageError = res.message;
         },
@@ -556,25 +601,25 @@ function hallApp() {
 <div class="flex flex-wrap items-center gap-3 mb-4">
 
     {{-- View toggle --}}
-    <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium shadow-sm">
-        <button @click="view='week'"
+    <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium shadow-sm" role="group" aria-label="Ansicht">
+        <button type="button" @click="view='week'" :aria-pressed="view==='week' ? 'true' : 'false'"
                 :class="view==='week' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                class="px-4 py-2 transition-colors">
-            <svg class="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                class="px-3 sm:px-4 py-2 transition-colors">
+            <svg class="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Woche
         </button>
-        <button @click="view='day'"
+        <button type="button" @click="view='day'" :aria-pressed="view==='day' ? 'true' : 'false'"
                 :class="view==='day' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                class="px-4 py-2 border-l border-gray-200 transition-colors">
-            <svg class="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                class="px-3 sm:px-4 py-2 border-l border-gray-200 transition-colors">
+            <svg class="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Tag
         </button>
     </div>
 
     {{-- Day selector (day view) --}}
-    <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs shadow-sm" x-show="view==='day'" x-transition>
+    <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs shadow-sm" x-show="view==='day'" x-transition role="group" aria-label="Wochentag">
         @foreach($days as $num => $name)
-        <button @click="currentDay={{ $num }}"
+        <button type="button" @click="currentDay={{ $num }}" :aria-pressed="currentDay==={{ $num }} ? 'true' : 'false'" aria-label="{{ $name }}"
                 :class="currentDay==={{ $num }} ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
                 class="px-3 py-2 {{ $num > 1 ? 'border-l border-gray-200' : '' }} transition-colors font-medium">
             {{ substr($name, 0, 2) }}
@@ -583,9 +628,9 @@ function hallApp() {
     </div>
 
     {{-- Group filter --}}
-    <select x-model="filterGroup" @change="filterTrainer = null; filterFree = false"
+    <select x-model="filterGroup" @change="filterTrainer = null; filterFree = false" aria-label="Nach Gruppe filtern"
             :class="filterGroup ? 'border-primary ring-1 ring-primary/30 bg-primary/5 text-primary font-medium' : 'border-gray-200 bg-white text-gray-700'"
-            class="text-sm rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-400 outline-none transition-colors border">
+            class="text-sm rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-400 outline-none transition-colors border max-w-[11rem]">
         <option value="">Alle Gruppen</option>
         @foreach($groups as $g)
         <option value="{{ $g->id }}">{{ $g->name }}</option>
@@ -593,9 +638,9 @@ function hallApp() {
     </select>
 
     {{-- Trainer filter --}}
-    <select x-model="filterTrainer" @change="filterGroup = null; filterFree = false"
+    <select x-model="filterTrainer" @change="filterGroup = null; filterFree = false" aria-label="Nach Trainer filtern"
             :class="filterTrainer ? 'border-indigo-400 ring-1 ring-indigo-300 bg-indigo-50 text-indigo-700 font-medium' : 'border-gray-200 bg-white text-gray-700'"
-            class="text-sm rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-indigo-400 outline-none transition-colors border">
+            class="text-sm rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-indigo-400 outline-none transition-colors border max-w-[11rem]">
         <option value="">Alle Trainer</option>
         @foreach($trainers as $t)
         <option value="{{ $t->id }}">{{ $t->lastname }}, {{ $t->firstname }}</option>
@@ -603,7 +648,7 @@ function hallApp() {
     </select>
 
     {{-- Active filter reset badge --}}
-    <button x-show="activeFilter" x-transition
+    <button type="button" x-show="activeFilter" x-transition
             @click="clearFilters()"
             class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 bg-white text-xs text-gray-600 hover:bg-gray-50 shadow-sm transition-colors font-medium">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -611,38 +656,41 @@ function hallApp() {
     </button>
 
     {{-- Conflict filter --}}
-    <button @click="filterConflicts = !filterConflicts; if(filterConflicts) { filterGroup = null; filterTrainer = null; filterFree = false; }"
+    <button type="button" :aria-pressed="filterConflicts ? 'true' : 'false'" aria-label="Konflikte hervorheben" title="Konflikte hervorheben"
+            @click="filterConflicts = !filterConflicts; if(filterConflicts) { filterGroup = null; filterTrainer = null; filterFree = false; }"
             :class="filterConflicts ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
             class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium shadow-sm transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-        Konflikte
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        <span class="hidden sm:inline">Konflikte</span>
     </button>
 
     {{-- Free capacity --}}
-    <button @click="filterFree = !filterFree; if(filterFree) { filterGroup = null; filterTrainer = null; filterConflicts = false; }"
+    <button type="button" :aria-pressed="filterFree ? 'true' : 'false'" aria-label="Freie Kapazitäten zeigen" title="Freie Kapazitäten zeigen"
+            @click="filterFree = !filterFree; if(filterFree) { filterGroup = null; filterTrainer = null; filterConflicts = false; }"
             :class="filterFree ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
             class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium shadow-sm transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        Freie Kapazitäten
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <span class="hidden sm:inline">Freie Kapazitäten</span>
     </button>
 
     {{-- Kompaktansicht: blendet 05:30–13:00 und Sonntag aus --}}
-    <button @click="compactMode = !compactMode"
+    <button type="button" @click="compactMode = !compactMode" :aria-pressed="compactMode ? 'true' : 'false'"
+            aria-label="Kompaktansicht (08–13 Uhr und Sonntag ausblenden)" title="Kompaktansicht: 08–13 Uhr und Sonntag ausblenden"
             :class="compactMode ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
             class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium shadow-sm transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 11h16M4 16h10"/></svg>
-        <span x-text="compactMode ? 'Vollansicht' : 'Kompaktansicht'"></span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 11h16M4 16h10"/></svg>
+        <span class="hidden sm:inline">Kompakt</span>
     </button>
 
-    <a href="{{ route('trainer.hall.import.index') }}"
-       class="ml-auto flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium shadow-sm transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
-        Plan importieren
+    <a href="{{ route('trainer.hall.import.index') }}" aria-label="Plan importieren" title="Plan importieren"
+       class="sm:ml-auto flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium shadow-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+        <span class="hidden xl:inline">Plan importieren</span>
     </a>
 
-    <button @click="openCreate(null, view==='day' ? currentDay : 1, null)"
-            class="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+    <button type="button" @click="openCreate(null, view==='day' ? currentDay : 1, null)"
+            class="ml-auto sm:ml-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
         Neue Belegung
     </button>
 </div>
@@ -760,7 +808,7 @@ function hallApp() {
             @foreach($days as $dayNum => $dayName)
             <div class="flex-shrink-0 border-l border-gray-200"{{ $dayNum == 7 ? ' x-show="!compactMode"' : '' }}
                  style="height:52px">
-                <button @click="view='day'; currentDay={{ $dayNum }}"
+                <button type="button" @click="view='day'; currentDay={{ $dayNum }}" aria-label="{{ $dayName }} in der Tagesansicht öffnen"
                         class="w-full text-center text-xs font-bold text-gray-700 hover:text-primary py-1.5 transition-colors"
                         style="width:{{ count($resources) * $weekColPx }}px">
                     {{ $dayName }}
@@ -768,7 +816,9 @@ function hallApp() {
                 <div class="flex">
                     @foreach($resources as $resource)
                     <div class="text-center border-l border-gray-100 first:border-0" style="width:{{ $weekColPx }}px">
-                        <span class="text-[9px] font-bold uppercase tracking-wide" style="color:{{ $resource->color }}">
+                        {{-- Farbe als Balken: farbige 9-px-Schrift war auf Grau nicht lesbar --}}
+                        <span class="inline-block text-[10px] font-bold uppercase tracking-wide text-gray-700 px-0.5"
+                              style="border-bottom:3px solid {{ $resource->color }}" title="{{ $resource->name }}">
                             {{ $abbrevFn($resource->name) }}
                         </span>
                     </div>
@@ -872,8 +922,10 @@ function hallApp() {
                     <div :style="weekBookingStyle(b)"
                          :title="b.display_title + ' · ' + b.start_time + '–' + b.end_time + (b.label && b.label !== b.display_title ? ' · ' + b.label : '')"
                          :class="[bookingOpacity(b), (hasConflict(b) && !filterConflicts) ? 'ring-1 ring-inset ring-red-500' : '']"
-                         class="transition-opacity select-none"
+                         class="transition-opacity select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-gray-900"
                          style="touch-action:none; cursor:grab"
+                         role="button" :tabindex="filterFree ? -1 : 0" :aria-label="bookingAria(b)" :data-booking-id="b.id"
+                         @keydown.enter.prevent="openEdit(b)" @keydown.space.prevent="openEdit(b)"
                          @click.stop="openEdit(b)"
                          @pointerdown.stop="startDrag(b, $event)"
                          @pointermove.stop="moveDrag($event)"
@@ -885,7 +937,7 @@ function hallApp() {
                              style="font-size:10px; font-weight:700; padding:1px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25"
                              x-text="b.display_title"></div>
                         <div x-show="b.duration_slots >= 4"
-                             style="font-size:9px; opacity:.85; padding:0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
+                             style="font-size:9px; padding:0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2"
                              x-text="b.start_time + '–' + b.end_time"></div>
                         <span x-show="b.has_missing_trainer" title="Kein Trainer"
                               style="position:absolute; top:3px; right:3px; width:5px; height:5px; border-radius:50%; background:rgba(0,0,0,0.35)"></span>
@@ -902,8 +954,9 @@ function hallApp() {
 </div>
 </div>
 </div>
-<p class="text-xs text-gray-400 mt-2 text-center">
+<p class="text-xs text-gray-600 mt-2 text-center">
     Klick auf einen Tagnamen → Tagesdetailansicht &nbsp;·&nbsp; Klick in eine Spalte → neue Belegung &nbsp;·&nbsp; Blöcke verschieben per Drag &amp; Drop
+    &nbsp;·&nbsp; Tastatur: Belegungen mit Tab erreichen, Enter öffnet (dort auch Zeit und Bahn ändern)
 </p>
 </div>
 
@@ -1016,8 +1069,10 @@ function hallApp() {
                 <template x-for="b in weekVisibleBookings({{ $resource->id }}, currentDay)" :key="b.id">
                     <div :style="dayBookingStyle(b)"
                          :class="[bookingOpacity(b), (hasConflict(b) && !filterConflicts) ? 'ring-2 ring-inset ring-red-500' : '']"
-                         class="transition-opacity select-none"
+                         class="transition-opacity select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-gray-900"
                          style="touch-action:none; cursor:grab"
+                         role="button" :tabindex="filterFree ? -1 : 0" :aria-label="bookingAria(b)" :data-booking-id="b.id"
+                         @keydown.enter.prevent="openEdit(b)" @keydown.space.prevent="openEdit(b)"
                          @click.stop="openEdit(b)"
                          @pointerdown.stop="startDrag(b, $event)"
                          @pointermove.stop="moveDrag($event)"
@@ -1034,16 +1089,16 @@ function hallApp() {
                         </div>
                         {{-- Uhrzeit ab 30 min --}}
                         <div x-show="b.duration_slots >= 2"
-                             style="font-size:10px; padding:1px 7px; opacity:0.85"
+                             style="font-size:10px; padding:1px 7px"
                              x-text="b.start_time + ' – ' + b.end_time"></div>
                         {{-- Bezeichnung der Belegung, sofern sie etwas anderes sagt
                              als der Titel (dort steht bei Gruppen deren Name) --}}
                         <div x-show="b.duration_slots >= 3 && b.label && b.label !== b.display_title"
-                             style="font-size:10px; padding:0 7px; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
+                             style="font-size:10px; padding:0 7px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
                              x-text="b.label"></div>
                         {{-- Linked session icon --}}
                         <div x-show="b.duration_slots >= 4 && b.session_title"
-                             style="font-size:9px; padding:0 7px; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
+                             style="font-size:10px; padding:0 7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
                              x-text="'▶ ' + b.session_title"></div>
                     </div>
                 </template>
@@ -1053,42 +1108,52 @@ function hallApp() {
         </div>
     </div>
 </div>
-<p class="text-xs text-gray-400 mt-2 text-center">
+<p class="text-xs text-gray-600 mt-2 text-center">
     Klick in eine Spalte → neue Belegung für diesen Zeitpunkt
 </p>
 </div>
 
 {{-- ════════════════════════════════════════════════════════════════════════════
      MODAL – Belegung anlegen / bearbeiten
+     Verhalten wie der Baustein x-ui.dialog (role=dialog, Fokus gefangen und zurueck,
+     Escape/Hintergrund schliessen mit Rueckfrage bei Aenderungen). Mobil als
+     Blatt von unten, Kopf und Fuss bleiben stehen, nur der Inhalt scrollt.
 ════════════════════════════════════════════════════════════════════════════ --}}
-<div x-show="showModal" x-transition.opacity
-     class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4"
-     @keydown.escape.window="showModal=false">
+<div x-show="showModal" x-cloak
+     class="fixed inset-0 z-40 flex items-end sm:items-center justify-center sm:p-4"
+     role="dialog" aria-modal="true" aria-labelledby="hall-dlg-title">
 
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="absolute inset-0 bg-gray-900/50" @click="closeModal()" aria-hidden="true"
+         x-show="showModal" x-transition.opacity></div>
 
-        {{-- Header --}}
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 class="font-bold text-gray-800" x-text="editId ? 'Belegung bearbeiten' : 'Neue Belegung'"></h2>
-            <button @click="showModal=false" class="text-gray-400 hover:text-gray-600 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+    <div x-show="showModal" x-trap="showModal"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         @keydown.escape.stop.prevent="closeModal()"
+         style="max-height: 90vh; max-height: 90dvh"
+         class="relative flex flex-col w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl">
+
+        {{-- Kopf --}}
+        <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+            <h2 id="hall-dlg-title" class="text-base font-semibold text-gray-900" x-text="editId ? 'Belegung bearbeiten' : 'Neue Belegung'"></h2>
+            <x-ui.icon-button icon="x" label="Schließen" @click="closeModal()" class="-mr-2" />
         </div>
 
-        <div class="px-6 py-5 space-y-4">
+        <div class="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
 
             {{-- Ressourcen --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Ressource(n) <span class="text-red-500">*</span>
-                </label>
-                <p class="text-xs text-gray-400 mb-2">
+            <fieldset>
+                <legend class="block text-sm font-medium text-gray-700 mb-1">
+                    Ressource(n) <span class="text-red-600" aria-hidden="true">*</span>
+                </legend>
+                <p class="text-xs text-gray-600 mb-2">
                     <span x-show="!editId">Mehrere Auswahlen legen je eine eigene Buchung an.</span>
                     <span x-show="editId">Andere Bahn auswählen, um die Buchung umzubuchen.</span>
                 </p>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach($resources as $resource)
-                    <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border transition-colors"
+                    <label class="flex items-center gap-2 text-sm cursor-pointer p-2 min-h-[44px] rounded-lg border transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary"
                            :class="form.hall_resource_ids.includes({{ $resource->id }})
                                ? 'border-primary bg-primary/5'
                                : 'border-gray-200 hover:bg-gray-50'">
@@ -1102,56 +1167,58 @@ function hallApp() {
                                        : form.hall_resource_ids = form.hall_resource_ids.filter(id => id != {{ $resource->id }})));
                                    form.hall_resource_ids.length ? checkConflicts() : conflicts = []"
                                class="w-4 h-4 rounded text-primary border-gray-300">
-                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $resource->color }}"></span>
+                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $resource->color }}" aria-hidden="true"></span>
                         <span class="text-gray-700 truncate">{{ $resource->name }}</span>
                     </label>
                     @endforeach
                 </div>
-            </div>
+            </fieldset>
 
             {{-- Wochentag + Uhrzeit --}}
             <div class="grid grid-cols-3 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Wochentag</label>
-                    <select x-model.number="form.day_of_week" @change="checkConflicts()"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-day" class="block text-sm font-medium text-gray-700 mb-1">Wochentag</label>
+                    <select id="hall-day" x-model.number="form.day_of_week" @change="checkConflicts()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         @foreach($days as $num => $name)
                         <option value="{{ $num }}">{{ $name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Von <span class="text-red-500">*</span></label>
-                    <input type="time" x-model="form.start_time" step="900" @change="checkConflicts()"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-start" class="block text-sm font-medium text-gray-700 mb-1">Von <span class="text-red-600" aria-hidden="true">*</span></label>
+                    <input id="hall-start" type="time" x-model="form.start_time" step="900" @change="checkConflicts()" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Bis <span class="text-red-500">*</span></label>
-                    <input type="time" x-model="form.end_time" step="900" @change="checkConflicts()"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-end" class="block text-sm font-medium text-gray-700 mb-1">Bis <span class="text-red-600" aria-hidden="true">*</span></label>
+                    <input id="hall-end" type="time" x-model="form.end_time" step="900" @change="checkConflicts()" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                 </div>
             </div>
 
             {{-- Konflikte --}}
-            <div x-show="conflicts.length > 0" x-transition
+            <div x-show="conflicts.length > 0" x-transition role="status"
                  class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
                 <p class="font-semibold text-red-700 mb-2 flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <x-ui.icon name="alert" class="w-4 h-4" />
                     Überschneidung mit bestehenden Belegungen:
                 </p>
                 <ul class="space-y-2">
                     <template x-for="c in conflicts" :key="c.id">
-                        <li class="flex items-center gap-2 bg-red-100/60 rounded-lg px-2 py-1.5">
+                        <li class="flex flex-wrap items-center gap-2 bg-red-100/60 rounded-lg px-2 py-1.5">
                             <span class="font-mono text-[11px] bg-white border border-red-200 px-1.5 py-0.5 rounded text-red-700 flex-shrink-0" x-text="c.time"></span>
-                            <span class="flex-1 text-red-800 text-xs truncate" x-text="c.resource + ': ' + c.label"></span>
+                            <span class="flex-1 min-w-[8rem] text-red-800 text-xs truncate" x-text="c.resource + ': ' + c.label"></span>
                             <button type="button"
-                                    @click="showModal=false; $nextTick(() => { const bk = bookings.find(b => b.id === c.id); if(bk) openEdit(bk); })"
-                                    class="flex-shrink-0 text-xs px-2 py-1 bg-white border border-red-300 text-red-600 hover:bg-red-600 hover:text-white rounded font-medium transition-colors">
+                                    @click="const bk = bookings.find(b => b.id === c.id); await closeModal(true); if (bk) $nextTick(() => openEdit(bk))"
+                                    :aria-label="'Überschneidende Belegung ' + c.label + ' bearbeiten'"
+                                    class="flex-shrink-0 text-xs px-2.5 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white rounded font-medium transition-colors">
                                 Bearbeiten
                             </button>
                             <button type="button"
                                     @click="deleteBooking(c.id)"
-                                    class="flex-shrink-0 text-xs px-2 py-1 bg-red-600 text-white hover:bg-red-700 rounded font-medium transition-colors">
+                                    :aria-label="'Überschneidende Belegung ' + c.label + ' löschen'"
+                                    class="flex-shrink-0 text-xs px-2.5 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded font-medium transition-colors">
                                 Löschen
                             </button>
                         </li>
@@ -1162,14 +1229,14 @@ function hallApp() {
             {{-- Bezeichnung + Typ --}}
             <div class="grid grid-cols-2 gap-3">
                 <div class="col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Bezeichnung <span class="text-red-500">*</span></label>
-                    <input type="text" x-model="form.label" placeholder="z.B. SG Wasserratten – Gruppe A"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-label" class="block text-sm font-medium text-gray-700 mb-1">Bezeichnung <span class="text-red-600" aria-hidden="true">*</span></label>
+                    <input id="hall-label" x-ref="bookingLabel" type="text" x-model="form.label" required placeholder="z.B. SG Wasserratten – Gruppe A"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Typ</label>
-                    <select x-model="form.type"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-type" class="block text-sm font-medium text-gray-700 mb-1">Typ</label>
+                    <select id="hall-type" x-model="form.type"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         <option value="training">Training</option>
                         <option value="course">Kurs</option>
                         <option value="school">Schule</option>
@@ -1178,12 +1245,26 @@ function hallApp() {
                         <option value="other">Sonstiges</option>
                     </select>
                 </div>
+                {{-- Farbe: leer heisst "wie Gruppe/Typ". Ein leeres Farbfeld zeigte
+                     Schwarz und sah aus, als waere Schwarz gewaehlt. --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Farbe (optional)</label>
-                    <div class="flex gap-2 items-center">
-                        <input type="color" x-model="form.color"
-                               class="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5">
-                        <button @click="form.color=''" class="text-xs text-gray-400 hover:text-gray-600">zurücksetzen</button>
+                    <span id="hall-color-label" class="block text-sm font-medium text-gray-700 mb-1">Farbe</span>
+                    <div class="flex gap-2 items-center min-h-[40px]" role="group" aria-labelledby="hall-color-label">
+                        <template x-if="form.color">
+                            <div class="flex gap-2 items-center">
+                                <input type="color" x-model="form.color" aria-label="Eigene Farbe"
+                                       class="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5">
+                                <button type="button" @click="form.color = ''" class="text-xs text-gray-600 hover:text-gray-900 underline">Automatisch</button>
+                            </div>
+                        </template>
+                        <template x-if="!form.color">
+                            <div class="flex gap-2 items-center">
+                                <span class="text-xs text-gray-600">Automatisch</span>
+                                <button type="button"
+                                        @click="form.color = (editId && bookings.find(b => b.id === editId)?.display_color) || '#1B5EAB'"
+                                        class="text-xs text-primary hover:underline font-medium">Eigene Farbe</button>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -1191,9 +1272,9 @@ function hallApp() {
             {{-- Gruppe + Trainer --}}
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Trainingsgruppe</label>
-                    <select x-model.number="form.training_group_id" @change="onGroupChange()"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-group" class="block text-sm font-medium text-gray-700 mb-1">Trainingsgruppe</label>
+                    <select id="hall-group" x-model.number="form.training_group_id" @change="onGroupChange()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         <option :value="null">– keine –</option>
                         <template x-for="g in groups" :key="g.id">
                             <option :value="g.id" x-text="g.name"></option>
@@ -1201,9 +1282,9 @@ function hallApp() {
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Trainer</label>
-                    <select x-model.number="form.trainer_id"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <label for="hall-trainer" class="block text-sm font-medium text-gray-700 mb-1">Trainer</label>
+                    <select id="hall-trainer" x-model.number="form.trainer_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         <option :value="null">– auto / keiner –</option>
                         <template x-for="t in trainers" :key="t.id">
                             <option :value="t.id" x-text="t.name"></option>
@@ -1214,35 +1295,37 @@ function hallApp() {
 
             {{-- Trainingseinheit verknüpfen --}}
             <div class="border-t border-gray-100 pt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Trainingseinheit</label>
+                <p class="block text-sm font-medium text-gray-700 mb-2">Trainingseinheit</p>
 
-                {{-- Linked session display --}}
                 <div x-show="linkedSession" class="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 mb-2 text-sm">
-                    <svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <x-ui.icon name="link" class="w-4 h-4 text-primary flex-shrink-0" />
                     <span class="flex-1 text-primary font-medium truncate" x-text="linkedSession?.title"></span>
-                    <button @click="unlinkSession()" type="button" class="text-gray-400 hover:text-red-500 text-xs">Entfernen</button>
+                    <button @click="unlinkSession()" type="button" class="text-gray-600 hover:text-red-600 text-xs px-2 py-1">Verknüpfung lösen</button>
                 </div>
 
                 <div x-show="!linkedSession" class="space-y-2">
                     <button @click="searchSessions()" type="button"
                             :disabled="sessionSearching"
-                            class="text-xs text-primary hover:underline font-medium disabled:opacity-50">
+                            class="text-sm text-primary hover:underline font-medium disabled:opacity-50 py-1">
                         <span x-text="sessionSearching ? 'Suche…' : 'Passende Trainingseinheiten suchen'"></span>
                     </button>
-                    <div x-show="sessionResults.length > 0" class="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
+                    <ul x-show="sessionResults.length > 0" class="border border-gray-200 rounded-lg divide-y max-h-48 overflow-y-auto" aria-label="Gefundene Trainingseinheiten">
                         <template x-for="s in sessionResults" :key="s.id">
-                            <div class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer" @click="linkSession(s)">
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-medium text-gray-800 truncate" x-text="s.title"></p>
-                                    <p class="text-[10px] text-gray-400" x-text="s.time + ' · ' + (s.groups || s.trainer || '')"></p>
-                                </div>
-                                <span x-show="s.recurring" class="text-[10px] text-primary bg-primary/10 px-1.5 rounded">Wiederkehrend</span>
-                                <span class="text-xs text-primary font-medium">+ Verknüpfen</span>
-                            </div>
+                            <li>
+                                <button type="button" @click="linkSession(s)"
+                                        class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 focus-visible:outline-none focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
+                                    <span class="flex-1 min-w-0">
+                                        <span class="block text-xs font-medium text-gray-800 truncate" x-text="s.title"></span>
+                                        <span class="block text-[11px] text-gray-600" x-text="s.date + ' · ' + s.time + ' · ' + (s.groups || s.trainer || '')"></span>
+                                    </span>
+                                    <span x-show="s.recurring" class="text-[10px] text-primary bg-primary/10 px-1.5 rounded">Wiederkehrend</span>
+                                    <span class="text-xs text-primary font-medium">Verknüpfen</span>
+                                </button>
+                            </li>
                         </template>
-                    </div>
+                    </ul>
                     <p x-show="sessionError" x-cloak class="text-xs text-red-600" role="alert" x-text="sessionError"></p>
-                    <p x-show="sessionResults.length === 0 && !sessionSearching && !sessionError" class="text-xs text-gray-400">
+                    <p x-show="sessionResults.length === 0 && !sessionSearching && !sessionError" class="text-xs text-gray-600">
                         Keine passenden Einheiten gefunden – oder manuell verknüpfen nach dem Anlegen.
                     </p>
                 </div>
@@ -1250,40 +1333,37 @@ function hallApp() {
 
             {{-- Notizen --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
-                <textarea x-model="form.notes" rows="2"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-none"
+                <label for="hall-notes" class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                <textarea id="hall-notes" x-model="form.notes" rows="2"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-none"
                           placeholder="Anmerkungen, Kontaktperson, etc."></textarea>
             </div>
+
+            {{-- Fehler beim Speichern/Loeschen --}}
+            <div x-show="formError" x-cloak role="alert"
+                 class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2"
+                 x-text="formError"></div>
         </div>
 
-        {{-- Fehler beim Speichern/Loeschen --}}
-        <div x-show="formError" x-cloak role="alert"
-             class="mx-6 mb-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2"
-             x-text="formError"></div>
-
-        {{-- Footer --}}
-        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
-            <button x-show="editId" @click="deleteBooking(editId)"
-                    class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors">
-                Löschen
+        {{-- Fuss: bleibt sichtbar, auch wenn der Inhalt scrollt --}}
+        <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-t border-gray-100"
+             style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+            <button type="button" x-show="editId" @click="deleteBooking(editId)"
+                    class="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-2 text-sm text-red-700 hover:text-red-800 font-medium">
+                <x-ui.icon name="trash" class="w-4 h-4" /> Löschen
             </button>
-            <div class="flex gap-3 ml-auto">
-                <button @click="showModal=false"
-                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    Abbrechen
-                </button>
-                <button x-show="conflicts.length > 0" @click="save(true)" :disabled="saving"
-                        class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
+            <div class="flex gap-2 ml-auto">
+                <x-ui.button variant="secondary" @click="closeModal()">Abbrechen</x-ui.button>
+                <button type="button" x-show="conflicts.length > 0" @click="save(true)" :disabled="saving"
+                        class="inline-flex items-center justify-center min-h-[44px] sm:min-h-[36px] px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
                     Trotzdem speichern
                 </button>
-                <button x-show="conflicts.length === 0" @click="save()" :disabled="saving"
-                        class="px-4 py-2 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
+                <button type="button" x-show="conflicts.length === 0" @click="save()" :disabled="saving"
+                        class="inline-flex items-center justify-center min-h-[44px] sm:min-h-[36px] px-4 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
                     <span x-text="saving ? 'Speichern…' : 'Speichern'"></span>
                 </button>
             </div>
         </div>
-
     </div>
 </div>
 

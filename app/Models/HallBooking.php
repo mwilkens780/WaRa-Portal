@@ -106,10 +106,21 @@ class HallBooking extends Model
         }
         if (strlen($hex) !== 6 || !ctype_xdigit($hex)) return '#ffffff';
 
-        [$r, $g, $b] = [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
-        $helligkeit  = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
+        // WCAG-Kontrast statt Helligkeitsschwelle: Die alte Schwelle (0.62)
+        // gab mittleren Farben wie Blau #3B82F6 weisse Schrift mit nur 3,7:1.
+        // Jetzt gewinnt die Schriftfarbe mit dem hoeheren Kontrast.
+        $lin = function (string $c): float {
+            $v = hexdec($c) / 255;
+            return $v <= 0.03928 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4;
+        };
+        $l = 0.2126 * $lin(substr($hex, 0, 2)) + 0.7152 * $lin(substr($hex, 2, 2)) + 0.0722 * $lin(substr($hex, 4, 2));
 
-        return $helligkeit > 0.62 ? '#1f2937' : '#ffffff';
+        // Dunkel = Schwarz: Mit Dunkelgrau erreichten mittlere Toene (Blau,
+        // Rot, Lila, Indigo) mit keiner der beiden Schriften 4,5:1.
+        $kontrastWeiss   = 1.05 / ($l + 0.05);
+        $kontrastSchwarz = ($l + 0.05) / 0.05;
+
+        return $kontrastSchwarz > $kontrastWeiss ? '#000000' : '#ffffff';
     }
 
     public function getTypeLabelAttribute(): string
@@ -181,6 +192,9 @@ class HallBooking extends Model
             'session_title'        => $this->trainingSession?->title,
             'recurrence_group_id'  => $this->trainingSession?->recurrence_group_id,
             'notes'                => $this->notes,
+            // Eigene Farbe: fehlte hier, der Dialog kannte sie nicht und hat
+            // sie beim Speichern geloescht
+            'color'                => $this->color,
             'display_color'        => $this->display_color,
             'text_color'           => $this->text_color,
             'group_color'          => $this->trainingGroup?->color,

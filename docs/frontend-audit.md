@@ -410,8 +410,17 @@ Phase 3 zu drei Vierteln erledigt: Trainingsplan (Rückgängig, Verlassen-Warnun
 benannte Symbol-Knöpfe), Zeiterfassung (Dialog-Semantik, Fokusrückgabe,
 Reihenfolge per Tastatur mit Ansage), Kalender (`e9f0f63`: Termine als Knöpfe
 mit Detail-Sheet `calendar/_event-sheet`, Daten aus `App\Support\CalendarEventPayload`,
-„+N weitere“ im Sheet, Monat mobil als Agenda, Filter mit `aria-pressed`).
-Offen: Hallenplan.
+„+N weitere“ im Sheet, Monat mobil als Agenda, Filter mit `aria-pressed`;
+Sprung in Einheit/Wettkampf auch für Schwimmer und Eltern; Schulferien SH/HH
+nach amtlichen Quellen).
+
+Phase 3 erledigt: Hallenplan – Belegungen fokussierbar und benannt (Enter
+öffnet), Dialog mit Dialog-Semantik, Fokusfalle und -rückgabe, Rückfrage bei
+ungespeicherten Änderungen, festem Fuß und Bottom-Sheet mobil; Speichern,
+Verschieben und Löschen ohne Neuladen (`api()`, Toast); Farbfeld ohne
+schwarzen Leerzustand (und eigene Farbe geht beim Bearbeiten nicht mehr
+verloren); Suchergebnisse als Knöpfe; Werkzeugleiste mit `aria-pressed` und
+mobil kompakt; Schriftfarbe der Blöcke nach WCAG-Kontrast.
 
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
