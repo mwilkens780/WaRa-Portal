@@ -4,15 +4,15 @@
 
 @section('content')
 <div class="mt-2 space-y-4"
-     x-data="planBuilder({{ json_encode($initialBlocks) }}, {{ $targetSeconds }})"
-     x-init="init()">
+     x-data="planBuilder({{ json_encode($initialBlocks) }}, {{ $targetSeconds }})">
+    {{-- Kein x-init="init()": Alpine ruft init() selbst auf, doppelt legte es bei neuen Plaenen zwei leere Bloecke an --}}
 
     {{-- Session-Header --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-4">
             <div class="bg-primary/10 rounded-lg p-2 text-center min-w-[52px]">
                 <p class="text-sm font-bold text-primary leading-none">{{ $session->date->format('d') }}</p>
-                <p class="text-xs text-primary/70">{{ $session->date->isoFormat('MMM') }}</p>
+                <p class="text-xs text-primary">{{ $session->date->isoFormat('MMM') }}</p>
             </div>
             <div>
                 <p class="font-semibold text-gray-800">{{ $session->title }}</p>
@@ -62,32 +62,14 @@
                             <div class="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
                                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wide w-16 flex-shrink-0"
                                       x-text="'Block ' + (index + 1)"></span>
-                                <input type="text" x-model="block.label"
+                                <input type="text" x-model="block.label" :aria-label="'Bezeichnung Block ' + (index + 1)"
                                        placeholder="Bezeichnung (z.B. Aufwärmen, Hauptset, Abwärmen)"
                                        class="flex-1 text-sm font-medium border-0 bg-transparent focus:ring-0 outline-none text-gray-700 placeholder-gray-300 min-w-0">
-                                <div class="flex items-center gap-1 flex-shrink-0">
-                                    <button type="button" @click="moveBlock(index, -1)"
-                                            :disabled="index === 0"
-                                            class="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                                            title="Nach oben">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-                                    </button>
-                                    <button type="button" @click="moveBlock(index, 1)"
-                                            :disabled="index === blocks.length - 1"
-                                            class="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                                            title="Nach unten">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
-                                    </button>
-                                    <button type="button" @click="duplicateBlock(index)"
-                                            class="p-1.5 rounded hover:bg-blue-100 text-gray-300 hover:text-blue-500 transition-colors"
-                                            title="Block kopieren (ans Ende)">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                    </button>
-                                    <button type="button" @click="removeBlock(index)"
-                                            class="p-1.5 rounded hover:bg-red-100 text-gray-300 hover:text-red-500 transition-colors ml-1"
-                                            title="Block löschen">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                    </button>
+                                <div class="flex items-center flex-shrink-0">
+                                    <x-ui.icon-button icon="chevron-up" label="Block nach oben" @click="moveBlock(index, -1)" ::disabled="index === 0" />
+                                    <x-ui.icon-button icon="chevron-down" label="Block nach unten" @click="moveBlock(index, 1)" ::disabled="index === blocks.length - 1" />
+                                    <x-ui.icon-button icon="copy" label="Block kopieren (ans Ende)" @click="duplicateBlock(index)" />
+                                    <x-ui.icon-button icon="trash" label="Block löschen" tone="danger" @click="removeBlock(index)" />
                                 </div>
                             </div>
 
@@ -105,6 +87,7 @@
                                             <input type="number"
                                                    :value="lvl"
                                                    @input="block.repetition_levels[li] = $event.target.value"
+                                                   :aria-label="'Wiederholungen, Ebene ' + (li + 1)"
                                                    min="1" max="999"
                                                    placeholder="—"
                                                    class="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary outline-none font-semibold">
@@ -112,8 +95,8 @@
                                             <button type="button"
                                                     x-show="block.repetition_levels.length > 1"
                                                     @click="block.repetition_levels.splice(li, 1)"
-                                                    class="text-gray-300 hover:text-red-400 transition-colors p-0.5"
-                                                    title="Ebene entfernen">
+                                                    class="text-gray-500 hover:text-red-600 transition-colors p-2 -m-1 rounded"
+                                                    title="Ebene entfernen" aria-label="Ebene entfernen">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                                             </button>
                                         </div>
@@ -131,7 +114,7 @@
 
                                     {{-- Distanz --}}
                                     <div class="flex items-center gap-1.5">
-                                        <input type="number" x-model="block.distance" min="1" max="9999"
+                                        <input type="number" x-model="block.distance" min="1" max="9999" aria-label="Distanz in Metern"
                                                placeholder="100"
                                                class="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary outline-none font-semibold">
                                         <span class="text-sm text-gray-500 font-medium">m</span>
@@ -150,7 +133,7 @@
                                     <div class="flex flex-wrap gap-2">
                                         <template x-for="disc in disciplineOptions" :key="disc.key">
                                             <button type="button"
-                                                    @click="toggleItem(block.disciplines, disc.key)"
+                                                    @click="toggleItem(block.disciplines, disc.key)" :aria-pressed="block.disciplines.includes(disc.key) ? 'true' : 'false'"
                                                     :class="block.disciplines.includes(disc.key)
                                                         ? 'bg-primary text-white border-primary shadow-sm'
                                                         : 'bg-white text-gray-600 border-gray-200 hover:border-primary/50 hover:text-primary'"
@@ -168,7 +151,7 @@
                                     <div class="flex flex-wrap gap-2">
                                         <template x-for="mat in materialOptions" :key="mat">
                                             <button type="button"
-                                                    @click="toggleItem(block.materials, mat)"
+                                                    @click="toggleItem(block.materials, mat)" :aria-pressed="block.materials.includes(mat) ? 'true' : 'false'"
                                                     :class="block.materials.includes(mat)
                                                         ? 'bg-teal-500 text-white border-teal-500 shadow-sm'
                                                         : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'"
@@ -185,7 +168,7 @@
                                     <div class="flex flex-wrap gap-2">
                                         <template x-for="add in additionOptions" :key="add">
                                             <button type="button"
-                                                    @click="toggleItem(block.additions, add)"
+                                                    @click="toggleItem(block.additions, add)" :aria-pressed="block.additions.includes(add) ? 'true' : 'false'"
                                                     :class="block.additions.includes(add)
                                                         ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
                                                         : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-700'"
@@ -195,7 +178,7 @@
                                         </template>
                                         {{-- Freie Zusatz-Eingabe --}}
                                         <div class="flex items-center gap-1">
-                                            <input type="text" x-ref="addInput" @keydown.enter.prevent="addCustomAddition(block)"
+                                            <input type="text" x-ref="addInput" @keydown.enter.prevent="addCustomAddition(block)" aria-label="Eigener Zusatz (mit Enter hinzufügen)"
                                                    placeholder="Eigener Zusatz + Enter"
                                                    class="px-3 py-1.5 border border-dashed border-gray-200 rounded-lg text-sm text-gray-600 focus:ring-2 focus:ring-amber-300 outline-none w-44">
                                         </div>
@@ -203,7 +186,7 @@
                                         <template x-for="add in block.additions.filter(a => !additionOptions.includes(a))" :key="add">
                                             <span class="flex items-center gap-1 bg-amber-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg">
                                                 <span x-text="add"></span>
-                                                <button type="button" @click="toggleItem(block.additions, add)" class="ml-1 hover:opacity-70">×</button>
+                                                <button type="button" @click="toggleItem(block.additions, add)" class="ml-1 -mr-1 px-1 hover:opacity-70" :aria-label="'Zusatz ' + add + ' entfernen'">×</button>
                                             </span>
                                         </template>
                                     </div>
@@ -212,7 +195,7 @@
                                 {{-- Zeile 5: Kommentar --}}
                                 <div>
                                     <label class="text-xs font-medium text-gray-500 mb-1.5 block">Kommentar / Hinweise</label>
-                                    <textarea x-model="block.comment" rows="2"
+                                    <textarea x-model="block.comment" rows="2" aria-label="Kommentar / Hinweise"
                                               placeholder='z.B. "Wende bis Wende", "3er/5er Atmung", "Sonderregel für Sportler X", "Achten auf Körperlage"...'
                                               class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-y"></textarea>
                                 </div>
@@ -245,11 +228,11 @@
                                     <div>
                                         <p class="text-xs font-medium text-blue-700 mb-1.5">Startzeit / Intervall</p>
                                         <div class="flex items-center gap-1">
-                                            <input type="number" x-model="block.start_interval_min"
+                                            <input type="number" x-model="block.start_interval_min" aria-label="Intervall Minuten"
                                                    min="0" max="99" placeholder="0"
                                                    class="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-400 outline-none bg-white">
                                             <span class="text-gray-400 font-semibold">:</span>
-                                            <input type="number" x-model="block.start_interval_sec"
+                                            <input type="number" x-model="block.start_interval_sec" aria-label="Intervall Sekunden"
                                                    min="0" max="59" placeholder="00"
                                                    class="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-400 outline-none bg-white">
                                             <span class="text-xs text-gray-400 ml-1">min:sek</span>
@@ -258,11 +241,11 @@
                                     <div>
                                         <p class="text-xs font-medium text-blue-700 mb-1.5">Regeneration / Pause</p>
                                         <div class="flex items-center gap-1">
-                                            <input type="number" x-model="block.recovery_min"
+                                            <input type="number" x-model="block.recovery_min" aria-label="Pause Minuten"
                                                    min="0" max="99" placeholder="0"
                                                    class="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-400 outline-none bg-white">
                                             <span class="text-gray-400 font-semibold">:</span>
-                                            <input type="number" x-model="block.recovery_sec"
+                                            <input type="number" x-model="block.recovery_sec" aria-label="Pause Sekunden"
                                                    min="0" max="59" placeholder="00"
                                                    class="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-400 outline-none bg-white">
                                             <span class="text-xs text-gray-400 ml-1">min:sek</span>
@@ -311,7 +294,8 @@
                                 <a href="{{ route('sessions.plan.download', [$session, 'team']) }}"
                                    class="text-xs text-blue-600 hover:underline">Herunterladen</a>
                             </div>
-                            <form method="POST" action="{{ route('trainer.sessions.plan.attachment.delete', $session) }}">
+                            <form method="POST" action="{{ route('trainer.sessions.plan.attachment.delete', $session) }}"
+                                  data-confirm="Anhang löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors">
                                     Löschen
@@ -320,7 +304,7 @@
                         </div>
                     @endif
                     <div class="flex gap-2 items-center">
-                        <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png"
+                        <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png" aria-label="Anhang hochladen (PDF oder Bild)"
                                class="flex-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
                     </div>
                     @error('attachment')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
@@ -467,6 +451,18 @@ function planBuilder(initialBlocks, targetSeconds) {
             } else {
                 this.addBlock();
             }
+
+            this.$nextTick(() => { this._saved = this.snapshot(); });
+            window.addEventListener('beforeunload', (e) => {
+                if (this._submitting || this._saved === undefined || this.snapshot() === this._saved) return;
+                e.preventDefault();
+                e.returnValue = '';
+            });
+        },
+
+        // Vergleichsstand ohne interne Schluessel (_key)
+        snapshot() {
+            return JSON.stringify([this.description, this.blocks.map(({ _key, ...b }) => b)]);
         },
 
         addBlock() {
@@ -499,8 +495,14 @@ function planBuilder(initialBlocks, targetSeconds) {
             return (block.repetition_levels || []).filter(r => r !== '' && parseInt(r) > 0).join('×');
         },
 
+        // Loeschen sofort, aber mit Rueckgaengig - keine Rueckfrage, die bei
+        // jedem Block nervt, und trotzdem kein endgueltiger Verlust
         removeBlock(index) {
-            this.blocks.splice(index, 1);
+            const [removed] = this.blocks.splice(index, 1);
+            const name = removed.label || ('Block ' + (index + 1));
+            window.toast(name + ' gelöscht.', {
+                action: { label: 'Rückgängig', run: () => this.blocks.splice(Math.min(index, this.blocks.length), 0, removed) },
+            });
         },
 
         moveBlock(index, dir) {
@@ -617,6 +619,7 @@ function planBuilder(initialBlocks, targetSeconds) {
                 recovery_sec:        b.recovery_sec        || 0,
             }));
             this.$refs.blocksJson.value = JSON.stringify(payload);
+            this._submitting = true;
             this.$refs.form.submit();
         },
     };
