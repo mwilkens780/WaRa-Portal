@@ -112,7 +112,7 @@ Serie (ab heute).
 | 1 ✓ | Doppelbelegungen stoppen, Datenprüfung | Regressionstest `tests/e2e/series.spec.js` |
 | 2 | Datenprüfung in Produktion ansehen, Bereinigung abstimmen | nur nach Freigabe |
 | 3 ✓ (`eb4fcad`) | Tabelle `training_series` (Migration legt **nur die Struktur** an – der Deploy migriert automatisch). Übernahme des Bestands in einem eigenen Befehl mit Probelauf (`--dry-run` zeigt, was entstehen würde): Serienwerte = kommende Einheiten, Abweichungen erkennen, Belegungen an Serien (inkl. unverknüpfte Import-Belegungen). Ausgeführt erst nach Sichtung der Datenprüfung und Freigabe. | Probelauf, Datenprüfung vorher/nachher |
-| 4 | Oberflächen Serie + Einheit (neue Bausteine, `x-ui.table`), alte Bearbeitungsseiten entfallen | Browsertests je Ablauf |
+| 4 ✓ (`a4cac4c`, `4a915ee`) | Oberflächen Serie + Einheit (neue Bausteine, `x-ui.table`), alte Bearbeitungsseiten entfallen | Browsertests je Ablauf |
 | 5 | Saisonplanung, Excel-Import und Hallenplan-Konflikte auf Serienebene | Browsertests |
 | 6 | Live-Zeitnahme und Trainingsplan in der neuen Einheit-Seite prüfen | bestehende Tests |
 
