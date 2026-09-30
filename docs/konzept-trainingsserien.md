@@ -1,6 +1,6 @@
 # Konzept: Trainingsserien, Einheiten und Hallenbelegung
 
-Stand 30.09.2026 · Entwurf zur Abstimmung mit Martin (Entscheidungen in Abschnitt 5)
+Stand 30.09.2026 · Entscheidungen von Martin eingearbeitet (Abschnitt 5)
 
 ## 1. Ausgangslage – warum es heute hakt
 
@@ -39,8 +39,9 @@ Blöcken und Live-Zeiten, Tagebuch/Einschätzungen.
 
 ```
 Serie (training_series)                      Hallenplan
-  Titel, Art, Wochentag, Beginn, Ende,  ───1:n──  Wöchentliche Belegung (hall_bookings.series_id)
-  Ort, Rhythmus, gültig von/bis,                  – je Bahn genau eine, sichtbar im Plan
+  Saison, Titel, Art, Wochentag,        ───1:n──  Wöchentliche Belegung (hall_bookings.series_id)
+  Beginn, Ende, Ort, Rhythmus,                    – je Bahn genau eine, sichtbar im Plan
+  gültig von/bis, SH-Ferien auslassen (ja)
   Plätze, Anmeldung, Gastgruppe
   Gruppen, Trainer
   Einzel-Teilnehmer, ständige Absagen
@@ -49,8 +50,9 @@ Serie (training_series)                      Hallenplan
 Einheit (training_sessions)
   Datum + geerbte Werte der Serie
   Abweichungen (nur was bewusst anders ist: Zeit, Ort, Titel …)
-  Status: geplant | fällt aus
-  Ausnahme-Bahnen (nur für diesen Termin, NICHT im Hallenplan)
+  Status: geplant | fällt aus (Benachrichtigung per Mail)
+  Ausnahme-Bahnen (nur für diesen Termin, NICHT im Hallenplan,
+                   erzeugen dort keinen Konflikt)
   Anwesenheit, Absagen, Gäste, Trainingsplan, Live-Zeiten, Tagebuch
 ```
 
@@ -63,7 +65,12 @@ Grundsätze:
 3. **Hallenplan = Serien.** Er zeigt nur regelmäßige Belegungen; jede gehört entweder zu einer
    Serie oder ist eine freie Belegung (Kurse, Schule, Wartung).
 4. **Ausnahmen gehören zur Einheit** – z. B. Workshop auf Bahn 3 an einem Termin. Sie
-   erscheinen in der Einheit und im Kalender, nicht im Hallenplan.
+   erscheinen in der Einheit und im Kalender, nicht im Hallenplan, und erzeugen dort keinen
+   Konflikt. Beim Anlegen zeigt die Einheit Überschneidungen als Hinweis, speichern geht trotzdem.
+6. **Eine Serie je Saison.** Zur neuen Saison wird eine neue Serie angelegt (Vorschlag aus der
+   alten: Zeit, Gruppen, Trainer, Bahnen), weil sich Zusammensetzung und Zeiten ändern.
+7. **Ferien:** Serien lassen Schulferien Schleswig-Holstein aus – einstellbar je Serie
+   (Voreinstellung: auslassen).
 5. **Absagen statt Löschen:** Ein ausfallender Termin wird als „fällt aus“ markiert
    (Schwimmer sehen es, Anwesenheit/Statistik bleiben stimmig), gelöscht wird nur Falsches.
 
@@ -81,7 +88,9 @@ Künftig **zwei** Seiten mit klaren Zuständigkeiten:
 - *Überblick:* Stammdaten direkt bearbeitbar („gilt ab …“), Bahnen, nächste Termine
 - *Termine:* Liste mit Status und Abweichungen; Termin ausfallen lassen, einzeln ändern
 - *Teilnehmer:* Gruppen, Einzel-Teilnehmer, ständige Absagen, erwartete Zahl
-- *Saison:* verlängern / nächste Saison planen (Ferien ausgelassen), Serie beenden ab Datum
+- *Saison:* nächste Saison planen (legt eine neue Serie an, vorbefüllt aus dieser),
+  Serie beenden ab Datum, Serie komplett löschen (mit Übersicht, was verloren geht –
+  auch vergangene Termine, Anwesenheiten, Pläne)
 
 **Einheit** (ein Termin):
 - Kopf: „Teil der Serie *Frühtraining* – Di 06:00, Bahn 1+2“ mit Link zur Serie;
@@ -102,31 +111,35 @@ Serie (ab heute).
 |---|---|---|
 | 1 ✓ | Doppelbelegungen stoppen, Datenprüfung | Regressionstest `tests/e2e/series.spec.js` |
 | 2 | Datenprüfung in Produktion ansehen, Bereinigung abstimmen | nur nach Freigabe |
-| 3 | Tabelle `training_series`, Übernahme des Bestands (Serienwerte = kommende Einheiten, Abweichungen erkennen), Belegungen an Serien (inkl. unverknüpfte Import-Belegungen), Datenprüfung vorher/nachher | Migration mit Probelauf auf Kopie |
+| 3 | Tabelle `training_series` (Migration legt **nur die Struktur** an – der Deploy migriert automatisch). Übernahme des Bestands in einem eigenen Befehl mit Probelauf (`--dry-run` zeigt, was entstehen würde): Serienwerte = kommende Einheiten, Abweichungen erkennen, Belegungen an Serien (inkl. unverknüpfte Import-Belegungen). Ausgeführt erst nach Sichtung der Datenprüfung und Freigabe. | Probelauf, Datenprüfung vorher/nachher |
 | 4 | Oberflächen Serie + Einheit (neue Bausteine, `x-ui.table`), alte Bearbeitungsseiten entfallen | Browsertests je Ablauf |
 | 5 | Saisonplanung, Excel-Import und Hallenplan-Konflikte auf Serienebene | Browsertests |
 | 6 | Live-Zeitnahme und Trainingsplan in der neuen Einheit-Seite prüfen | bestehende Tests |
 
-## 5. Entscheidungen für Martin
+## 5. Entscheidungen (Martin, 30.09.2026)
 
-1. **Gültigkeit von Serienänderungen:** ab heute für alle kommenden Termine – oder ab einem
-   wählbaren Datum (z. B. „ab den Herbstferien neue Zeit“)? *Vorschlag: wählbares Datum,
-   vorbelegt mit heute.*
-2. **Einzeländerung vs. spätere Serienänderung:** Termin am 14.10. wurde einzeln auf 07:00
-   gelegt, danach ändert sich die Serie auf 06:30. Behält der 14.10. seine 07:00?
-   *Vorschlag: ja, Einzeländerungen gewinnen; die Serie zeigt sie als Abweichung an.*
-3. **Ausfall statt Löschen:** Soll ein Termin „fällt aus“ statt gelöscht werden (bleibt im
-   Kalender durchgestrichen, Schwimmer werden benachrichtigt)? *Vorschlag: ja.*
-4. **Saisonwechsel:** Dieselbe Serie über Saisons fortsetzen oder je Saison eine neue Serie?
-   (Fortsetzen hält Teilnehmer/ständige Absagen; neue Serie trennt Statistiken.)
-5. **Ferien:** Serien lassen Schulferien automatisch aus – SH, HH oder beide? Gilt das für
-   alle Gruppen (z. B. auch Masters)?
-6. **Ausnahme-Bahn einer Einheit (Workshop):** Soll gegen den Hallenplan geprüft werden
-   (Warnung, wenn z. B. Bahn 3 an diesem Tag regulär belegt ist)? *Vorschlag: ja, Warnung.*
-7. **Konflikt im Hallenplan mit einer Serie:** „Serie ab Datum beenden“ (Vergangenheit
-   bleibt) oder auch komplett löschen anbieten? *Vorschlag: nur beenden; Löschen bleibt in
-   der Serie mit Übersicht, was verloren geht.*
-8. **Trainingsplan:** Heute je Einheit. Wünschst du Vorlagen je Serie („Plan der Vorwoche
-   übernehmen“)?
-9. **Excel-Import des Hallenplans:** Sollen importierte Belegungen und Serien künftig
-   automatisch verbunden werden? *Vorschlag: ja.*
+| # | Frage | Entscheidung |
+|---|---|---|
+| 1 | Gültigkeit von Serienänderungen | ab wählbarem Datum, vorbelegt mit heute |
+| 2 | Einzeländerung vs. spätere Serienänderung | Einzeländerung gewinnt, Serie zeigt sie als Abweichung |
+| 3 | Ausfall statt Löschen | ja, Termin „fällt aus“ – Benachrichtigung **auch per Mail** |
+| 4 | Saisonwechsel | **neue Serie je Saison** (Gruppen und Zeiten ändern sich) |
+| 5 | Ferien | nur **Schleswig-Holstein**; Attribut je Serie, Voreinstellung „auslassen“ |
+| 6 | Ausnahme-Bahn einer Einheit | in der Einheit buchbar, Überschneidung wird angezeigt, **Speichern trotzdem möglich**; im Hallenplan **kein** Konflikt (Ausnahme) |
+| 7 | Konflikt im Hallenplan mit Serie | dort „Serie ab Datum beenden“; in der Serie selbst ist **komplettes Löschen inkl. Vergangenheit** möglich |
+| 8 | Trainingsplan-Vorlagen | **nicht** aus der Vorwoche. Stattdessen eigenes Konzept: KI-Vorschläge zur Vervollständigung eines Plans auf Basis früherer Pläne, lernend mit jedem Plan, ausgerichtet am Saisonverlauf (trainingsmethodische Makrozyklen) – siehe Abschnitt 6 |
+| 9 | Excel-Import | automatische Verbindung von Belegung und Serie – neu versuchen, mit Vorschau und Datenprüfung |
+
+## 6. Folgethema: KI-Unterstützung für Trainingspläne (eigenes Konzept)
+
+Nicht Teil dieses Umbaus, aber durch ihn vorbereitet (Serie → Saison → Einheit gibt die
+Einordnung im Saisonverlauf). Vor der Umsetzung mit Martin zu klären, weil es
+trainingswissenschaftliche Fachfragen sind:
+
+- Welche Zyklen gelten im Verein (Makro-/Meso-/Mikrozyklus, Wettkampfhöhepunkte der Saison,
+  Periodisierungsmodell) und wo werden sie hinterlegt – je Gruppe, je Saison?
+- Welche Merkmale eines Plans zählen für einen Vorschlag (Umfang, Intensitätsbereiche,
+  Technik-/Ausdaueranteile, Lagen, Hilfsmittel)?
+- „Lernfähig“: aus welchen Signalen – übernommene/abgelehnte Vorschläge, tatsächlich
+  geschwommene Zeiten, Einschätzungen der Schwimmer?
+- Datenschutz und Kosten der KI-Nutzung (bestehende Anbindung wie beim „Motto der Woche“?).
