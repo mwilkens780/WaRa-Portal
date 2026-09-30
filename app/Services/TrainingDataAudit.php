@@ -171,15 +171,24 @@ class TrainingDataAudit
     {
         $rows = [];
         foreach ($series as $id => $all) {
-            $days = $all->map(fn($s) => $s->date->dayOfWeekIso)->unique();
-            if ($days->count() > 1) {
-                $rows[] = ['serie' => $all->first()->title, 'wochentage' => $days->map(fn($d) => HallBooking::DAY_NAMES[$d] ?? $d)->implode(', '), 'einheiten' => $all->count(), 'serie_id' => $id];
+            $byDay = $all->groupBy(fn($s) => $s->date->dayOfWeekIso);
+            if ($byDay->count() > 1) {
+                // Je Wochentag: Anzahl und Zeitraum - zeigt, ob einzelne Termine verlegt oder die Serie umgeschrieben wurde
+                $verteilung = $byDay->sortByDesc(fn($g) => $g->count())->map(fn($g, $d) => (HallBooking::DAY_NAMES[$d] ?? $d) . ': ' . $g->count()
+                    . ($g->count() === 1 ? ' (' . $g->first()->date->format('d.m.Y') . ')' : ' (' . $g->first()->date->format('d.m.') . '–' . $g->last()->date->format('d.m.Y') . ')'))
+                    ->implode('; ');
+                $rows[] = [
+                    'serie'      => $all->first()->title,
+                    'verteilung' => $verteilung,
+                    'einheiten'  => $all->count(),
+                    'serie_id'   => $id,
+                ];
             }
         }
 
         return [
             'title'   => 'Serien mit Einheiten an verschiedenen Wochentagen',
-            'explain' => '„Einheit bearbeiten → ganze Serie“ mit geändertem Wochentag schreibt auch vergangene Termine um.',
+            'explain' => 'Ein einzelner Termin an einem anderen Tag ist meist eine gewollte Verlegung. Viele Termine an einem zweiten Tag deuten auf „Einheit bearbeiten → ganze Serie“ mit geändertem Wochentag.',
             'rows'    => $rows,
         ];
     }
@@ -215,17 +224,27 @@ class TrainingDataAudit
                 && substr($b->start_time, 0, 5) === substr($next->start_time, 0, 5)
                 && substr($b->end_time ?? '', 0, 5) === substr($next->end_time ?? '', 0, 5));
             if ($match->isNotEmpty()) {
+                // Gleiche Zeit allein reicht nicht: parallel trainieren oft mehrere Gruppen.
+                // Passend ist eine Belegung erst, wenn Gruppe oder Bezeichnung zur Serie gehoert.
+                $gruppen = $next->trainingGroups;
+                $namen = $gruppen->pluck('name')->push($next->title)->map(fn($n) => mb_strtolower(trim($n)))->filter();
+                [$passt, $fremd] = $match->partition(fn($b) => ($b->training_group_id && $gruppen->contains('id', $b->training_group_id))
+                    || $namen->contains(mb_strtolower(trim($b->trainingGroup?->name ?? $b->label ?? ''))));
+                $liste = fn($c) => $c->map(fn($b) => ($b->resource?->name) . ': ' . ($b->trainingGroup?->name ?? $b->label) . ' (#' . $b->id . ')')->implode('; ') ?: '–';
                 $rows[] = [
                     'serie'     => $next->title,
+                    'gruppen'   => $gruppen->pluck('name')->implode(', ') ?: '–',
                     'tag_zeit'  => (HallBooking::DAY_NAMES[$next->date->dayOfWeekIso] ?? '') . ' ' . substr($next->start_time, 0, 5) . '–' . substr($next->end_time ?? '', 0, 5),
-                    'passende_belegungen' => $match->map(fn($b) => ($b->resource?->name) . ': ' . $b->label . ' (#' . $b->id . ')')->implode('; '),
+                    'verknuepfbar' => $liste($passt),
+                    'nur_gleiche_zeit' => $liste($fremd),
+                    'serie_id'  => $id,
                 ];
             }
         }
 
         return [
             'title'   => 'Serien ohne Verknüpfung, zu denen eine passende Belegung existiert',
-            'explain' => 'Typisch für den Excel-Import: Belegung und Serie wurden angelegt, aber nicht verbunden. Beim Umbau automatisch verknüpfbar.',
+            'explain' => 'Typisch für den Excel-Import: Belegung und Serie wurden angelegt, aber nicht verbunden. „Verknüpfbar“ = gleiche Zeit UND passende Gruppe/Bezeichnung. „Nur gleiche Zeit“ sind meist andere Gruppen, die parallel trainieren – die werden nicht verknüpft.',
             'rows'    => $rows,
         ];
     }
