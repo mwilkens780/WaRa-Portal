@@ -101,7 +101,9 @@ class SeriesHallBookings
                 $keep = $list->sortBy('id')->first();
                 $keep->update($werte);
                 $stats['kept']++;
-                $dupes = $list->where('id', '!=', $keep->id)->pluck('id');
+                // Duplikate: weitere Belegungen der Serie und unverknuepfte mit exakt gleicher Zeit (z. B. aus dem Import)
+                $dupes = $list->where('id', '!=', $keep->id)->pluck('id')
+                    ->merge(($adoptable->get($resourceId) ?? collect())->pluck('id'));
                 $stats['removed'] += $dupes->count();
                 HallBooking::whereIn('id', $dupes)->delete();
             }
