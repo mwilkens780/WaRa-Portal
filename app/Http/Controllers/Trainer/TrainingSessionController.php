@@ -231,9 +231,12 @@ class TrainingSessionController extends Controller
                 ->with('warning', 'Alle Termine im gewählten Zeitraum liegen in den Ferien. Bitte ein anderes Startdatum oder einen anderen Zeitraum wählen.');
         }
 
+        // Serie als eigener Datensatz (Werte der ersten Einheit)
+        app(\App\Services\TrainingSeriesBackfill::class)->ensure($recurrenceGroupId);
+
         $holidayNote = $holidays->isNotEmpty() ? " ({$holidays->count()} Ferienperiode(n) ausgespart)" : '';
-        return redirect()->route('trainer.sessions.show', $firstSession)
-            ->with('success', "{$created} Trainingseinheiten angelegt{$holidayNote}.");
+        return redirect()->route('trainer.sessions.series.show', $recurrenceGroupId)
+            ->with('success', "Serie mit {$created} Terminen angelegt{$holidayNote}. Bahnen im Überblick buchen.");
     }
 
     public function show(TrainingSession $session)
@@ -422,70 +425,16 @@ class TrainingSessionController extends Controller
 
         $groupIds     = $request->input('groups', []);
         $coTrainerIds = $request->input('co_trainer_ids', []);
-        $editScope    = $data['edit_scope'] ?? 'single';
 
-        // ── Serie komplett aktualisieren ──────────────────────────────
-        if ($editScope === 'series' && $session->recurrence_group_id) {
-            // Nur kommende Einheiten: Vergangene tragen Anwesenheiten und Zeiten und
-            // duerfen nicht nachtraeglich verschoben oder umbenannt werden.
-            $allSessions = TrainingSession::where('recurrence_group_id', $session->recurrence_group_id)
-                ->where('date', '>=', today())
-                ->orderBy('date')->get();
-            if ($allSessions->isEmpty()) {
-                $allSessions = collect([$session]);
-            }
-
-            $seriesData = array_intersect_key($data, array_flip([
-                'title', 'start_time', 'end_time', 'location', 'type', 'notes',
-                'max_participants', 'registration_open', 'guest_group_id',
-            ]));
-
-            $newDate   = Carbon::parse($data['date']);
-            $firstDate = $allSessions->first()->date; // Carbon via cast
-
-            if ($newDate->dayOfWeekIso !== $firstDate->dayOfWeekIso) {
-                // ── Wochentag geändert: Termine neu berechnen ──────────
-                $first           = $allSessions->first();
-                $recurrenceType  = $first->recurrence_type ?? 'weekly';
-                $recurrenceUntil = $first->recurrence_until ?? $allSessions->last()->date;
-
-                $newDates = $this->generateSeriesDates($newDate, $recurrenceType, $recurrenceUntil);
-
-                foreach ($allSessions as $idx => $s) {
-                    if (!isset($newDates[$idx])) {
-                        app(\App\Services\SeriesHallBookings::class)->moveAwayFrom($s);
-                        $s->delete();
-                        continue;
-                    }
-                    $s->update(array_merge($seriesData, [
-                        'date'             => $newDates[$idx]->format('Y-m-d'),
-                        'recurrence_until' => $recurrenceUntil->format('Y-m-d'),
-                    ]));
-                    $s->trainingGroups()->sync($groupIds);
-                    $s->coTrainers()->sync($coTrainerIds);
-                }
-            } else {
-                // ── Wochentag unverändert: nur Metadaten aktualisieren ─
-                $allSessions->each(function ($s) use ($seriesData, $groupIds, $coTrainerIds) {
-                    $s->update($seriesData);
-                    $s->trainingGroups()->sync($groupIds);
-                    $s->coTrainers()->sync($coTrainerIds);
-                });
-            }
-
-            // Serienbelegung an neue Zeit/Wochentag anpassen (eine je Bahn)
-            $lanes = app(\App\Services\SeriesHallBookings::class);
-            $lanes->sync($session->recurrence_group_id, $lanes->bookingsOf($session->recurrence_group_id)->pluck('hall_resource_id')->unique()->all(), auth()->id());
-
-            return redirect()->route('trainer.sessions.show', $session->fresh() ?? $allSessions->first())
-                ->with('success', 'Alle kommenden Einheiten der Serie wurden aktualisiert. Vergangene bleiben unverändert.');
-        }
-
-        // ── Einzelne Instanz aktualisieren ────────────────────────────
+        // Nur DIESER Termin. Die ganze Serie aendert sich auf der Serienseite.
         $timeChanged = substr($session->start_time ?? '', 0, 5) !== $data['start_time']
             || substr($session->end_time   ?? '', 0, 5) !== ($data['end_time'] ?? '');
 
         unset($data['edit_scope'], $data['co_trainer_ids']);
+        if ($series = $session->recurrence_group_id ? app(\App\Services\TrainingSeriesBackfill::class)->ensure($session->recurrence_group_id) : null) {
+            // Was bewusst anders ist als in der Serie, merken - spaetere Serienaenderungen lassen es stehen
+            $data['overridden_fields'] = $this->overridesAgainst($series, $data, $groupIds, $coTrainerIds) ?: null;
+        }
         $session->update($data);
         $session->trainingGroups()->sync($groupIds);
         $session->coTrainers()->sync($coTrainerIds);
@@ -582,7 +531,8 @@ class TrainingSessionController extends Controller
         $title = $sessions->first()->title;
 
         DB::transaction(function () use ($targets, $sessions, $data, $group) {
-            \App\Models\HallBooking::whereIn('training_session_id', $targets->pluck('id'))->delete();
+            // Belegung an eine verbleibende kommende Einheit haengen - oder mit loeschen, wenn keine bleibt
+            app(\App\Services\TrainingSeriesService::class)->releaseBookings($group, $targets->pluck('id'));
 
             // Einzeln loeschen, damit jede Einheit im Aenderungsprotokoll steht
             $targets->each->delete();
@@ -591,11 +541,13 @@ class TrainingSessionController extends Controller
                 // Serie existiert nicht mehr: serienbezogene Zuordnungen mit weg
                 TrainingSessionSwimmer::where('recurrence_group_id', $group)->delete();
                 \App\Models\SwimmerSeriesExclusion::where('recurrence_group_id', $group)->delete();
+                \App\Models\TrainingSeries::whereKey($group)->delete();
             } else {
                 // Serie endet vorzeitig: Enddatum der verbleibenden Einheiten anpassen
                 $remaining = $sessions->diff($targets);
                 TrainingSession::whereIn('id', $remaining->pluck('id'))
                     ->update(['recurrence_until' => $remaining->max('date')->format('Y-m-d')]);
+                \App\Models\TrainingSeries::whereKey($group)->update(['valid_until' => $remaining->max('date')->format('Y-m-d')]);
             }
         });
 
@@ -603,7 +555,9 @@ class TrainingSessionController extends Controller
             ? "Serie „{$title}“ vollständig gelöscht ({$targets->count()} Einheiten)."
             : "{$targets->count()} Einheiten der Serie „{$title}“ ab {$targets->min('date')->format('d.m.Y')} gelöscht. Frühere Einheiten bleiben erhalten.";
 
-        return redirect()->route('trainer.sessions.index')->with('success', $msg);
+        return TrainingSession::where('recurrence_group_id', $group)->exists()
+            ? redirect()->route('trainer.sessions.series.show', $group)->with('success', $msg)
+            : redirect()->route('trainer.sessions.index')->with('success', $msg);
     }
 
     /** Was an einer Menge Einheiten haengt - fuer die Warnung vor dem Loeschen */
@@ -938,261 +892,20 @@ class TrainingSessionController extends Controller
 
     // ── Helper ──────────────────────────────────────────────────────────────
 
-    /**
-     * Generates a list of Carbon dates for a recurring series,
-     * starting from $start with the given frequency until $until,
-     * automatically skipping school/holiday periods.
-     */
-    // ── Trainingsserien-Verwaltung ───────────────────────────────────────────
-
-    public function editSeries(string $group)
+    /** Felder, in denen ein Termin von seiner Serie abweicht */
+    private function overridesAgainst(\App\Models\TrainingSeries $series, array $data, array $groupIds, array $trainerIds): array
     {
-        $sessions = TrainingSession::where('recurrence_group_id', $group)
-            ->with(['coTrainers', 'trainingGroups.swimmers' => fn($q) => $q->where('active', true), 'hallBookings.resource'])
-            ->orderBy('date')
-            ->get();
+        $norm = fn($f, $v) => in_array($f, ['start_time', 'end_time'], true) ? substr((string) $v, 0, 5) : (string) ($v ?? '');
+        $over = collect(\App\Models\TrainingSeries::INHERITED)
+            ->filter(fn($f) => array_key_exists($f, $data) && $norm($f, $data[$f]) !== $norm($f, $series->$f))
+            ->values()->all();
+        if (Carbon::parse($data['date'])->dayOfWeekIso !== $series->day_of_week) $over[] = 'date';
+        $sorted = fn($ids) => collect($ids)->map(fn($i) => (int) $i)->sort()->values()->all();
+        if ($sorted($groupIds) !== $sorted($series->trainingGroups()->pluck('training_groups.id'))) $over[] = 'groups';
+        if ($sorted($trainerIds) !== $sorted($series->trainers()->pluck('users.id'))) $over[] = 'trainers';
 
-        if ($sessions->isEmpty()) abort(404);
-
-        $this->authorizeSeriesAccess($sessions->first());
-
-        $rep            = $sessions->first();
-        $last           = $sessions->last();
-        $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
-        $isExpired      = $futureSessions->isEmpty();
-        $groups         = $this->availableGroups();
-        $allGroups      = TrainingGroup::where('active', true)->orderBy('name')->get();
-        $allTrainers    = User::whereIn('role', ['trainer', 'admin'])->where('active', true)
-                              ->orderBy('lastname')->orderBy('firstname')->get();
-        $coTrainerIds   = $rep->coTrainers->pluck('id')->toArray();
-        $groupIds       = $rep->trainingGroups->pluck('id')->toArray();
-        $allResources   = \App\Models\HallResource::where('active', true)->orderBy('sort_order')->get();
-        // Bahnen der ganzen Serie - nicht nur der ersten (oft vergangenen) Einheit.
-        // Sonst waren die Haken leer und Speichern loeschte die Belegung.
-        $bookedResourceIds = app(\App\Services\SeriesHallBookings::class)->bookingsOf($group)->pluck('hall_resource_id')->unique()->values()->toArray();
-
-        // Permanent series exclusions (swimmers who opted out of the whole series)
-        $exclusions = \App\Models\SwimmerSeriesExclusion::where('recurrence_group_id', $group)
-            ->with('user:id,firstname,lastname')
-            ->get()
-            ->sortBy('user.lastname');
-
-        // Expected swimmer count from current group memberships (minus series exclusions)
-        $groupSwimmerIds = $rep->trainingGroups
-            ->flatMap(fn($g) => $g->swimmers->pluck('id'))
-            ->unique();
-        $excludedIds      = $exclusions->pluck('user_id');
-        $expectedCount    = $groupSwimmerIds->diff($excludedIds)->count();
-
-        // Per-session attendance data (2 queries for entire series)
-        $sessionIds = $sessions->pluck('id');
-
-        $preAbsentCounts = TrainingAttendance::whereIn('training_session_id', $sessionIds)
-            ->where('pre_absent', true)
-            ->groupBy('training_session_id')
-            ->selectRaw('training_session_id, count(*) as cnt')
-            ->pluck('cnt', 'training_session_id');
-
-        $attendedCounts = TrainingAttendance::whereIn('training_session_id', $sessionIds)
-            ->where('attended', true)
-            ->groupBy('training_session_id')
-            ->selectRaw('training_session_id, count(*) as cnt')
-            ->pluck('cnt', 'training_session_id');
-
-        return view('trainer.sessions.edit-series', compact(
-            'rep', 'last', 'sessions', 'futureSessions', 'isExpired',
-            'group', 'groups', 'allGroups', 'allTrainers', 'coTrainerIds', 'groupIds',
-            'exclusions', 'expectedCount', 'preAbsentCounts', 'attendedCounts',
-            'allResources', 'bookedResourceIds'
-        ));
+        return $over;
     }
-
-    public function updateSeries(Request $request, string $group)
-    {
-        $sessions = TrainingSession::where('recurrence_group_id', $group)
-            ->orderBy('date')->get();
-
-        if ($sessions->isEmpty()) abort(404);
-        $this->authorizeSeriesAccess($sessions->first());
-
-        $data = $request->validate([
-            'title'             => ['required', 'string', 'max:255'],
-            'start_time'        => ['required', 'date_format:H:i'],
-            'end_time'          => ['nullable', 'date_format:H:i', 'after:start_time'],
-            'location'          => ['required', 'string', 'max:255'],
-            'type'              => ['required', 'in:kondition,technik,wettkampf,ausdauer,krafttraining,physio,mentaltraining,sonstiges'],
-            'notes'             => ['nullable', 'string'],
-            'groups'            => ['nullable', 'array'],
-            'groups.*'          => ['exists:training_groups,id'],
-            'co_trainer_ids'    => ['nullable', 'array'],
-            'co_trainer_ids.*'  => ['exists:users,id'],
-            'max_participants'    => ['nullable', 'integer', 'min:1', 'max:999'],
-            'registration_open'  => ['nullable', 'boolean'],
-            'guest_group_id'     => ['nullable', 'exists:training_groups,id'],
-            'hall_resource_ids'  => ['nullable', 'array'],
-            'hall_resource_ids.*'=> ['exists:hall_resources,id'],
-        ]);
-
-        $groupIds     = $request->input('groups', []);
-        $coTrainerIds = $request->input('co_trainer_ids', []);
-        $seriesData   = array_intersect_key($data, array_flip([
-            'title', 'start_time', 'end_time', 'location', 'type', 'notes',
-            'max_participants', 'registration_open', 'guest_group_id',
-        ]));
-        // Checkbox not submitted when unchecked – default to false
-        $seriesData['registration_open'] = (bool) ($data['registration_open'] ?? false);
-        // Explicit null for cleared capacity
-        if (!array_key_exists('max_participants', $data) || $data['max_participants'] === null) {
-            $seriesData['max_participants'] = null;
-        }
-        if (!array_key_exists('guest_group_id', $data) || $data['guest_group_id'] === null) {
-            $seriesData['guest_group_id'] = null;
-        }
-
-        $syncLanes   = $request->boolean('manage_lanes');
-        $resourceIds = array_map('intval', $syncLanes ? ($request->input('hall_resource_ids', [])) : []);
-        $lanes       = app(\App\Services\SeriesHallBookings::class);
-
-        // Echte Konflikte (fremde Belegungen) melden statt still zu uebergehen
-        if ($syncLanes && $resourceIds && !$request->boolean('force_lanes')) {
-            $conflicts = $lanes->check($group, $resourceIds)['conflicts'];
-            if ($conflicts->isNotEmpty()) {
-                return back()->withInput()->withErrors([
-                    'hall_resource_ids' => 'Überschneidung mit: ' . $conflicts->map(fn($b) => $b->resource->name . ' ' . $b->formatted_time . ' „' . $b->label . '“')->implode(', ')
-                        . '. Bitte prüfen – oder „Trotzdem speichern“ ankreuzen.',
-                ]);
-            }
-        }
-
-        $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
-        $count = 0;
-        foreach ($futureSessions as $s) {
-            $s->update($seriesData);
-            $s->trainingGroups()->sync($groupIds);
-            $s->coTrainers()->sync($coTrainerIds);
-            $count++;
-        }
-
-        // Eine Belegung je Bahn fuer die ganze Serie (vorher: je Einheit eine -
-        // im Hallenplan lagen sie dann unsichtbar uebereinander)
-        $stats = $lanes->sync($group, $syncLanes ? $resourceIds : $lanes->bookingsOf($group)->pluck('hall_resource_id')->unique()->all(), auth()->id());
-        $hinweis = $stats['adopted'] ? " {$stats['adopted']} vorhandene Belegung(en) mit der Serie verbunden." : '';
-        $hinweis .= $stats['removed'] ? " {$stats['removed']} doppelte Belegung(en) entfernt." : '';
-
-        return redirect()->route('trainer.sessions.show', $futureSessions->first() ?? $sessions->last())
-            ->with('success', "{$count} kommende Einheiten der Serie aktualisiert.{$hinweis}");
-    }
-
-    public function generateSeason(string $group)
-    {
-        $sessions = TrainingSession::where('recurrence_group_id', $group)
-            ->with(['coTrainers', 'trainingGroups'])
-            ->orderBy('date')
-            ->get();
-
-        if ($sessions->isEmpty()) abort(404);
-        $this->authorizeSeriesAccess($sessions->first());
-
-        $rep       = $sessions->first();
-        $hasFuture = $sessions->some(fn($s) => $s->date->gte(today()));
-
-        // Suggest the season that follows the one the series ran in
-        $lastDate        = $sessions->last()->date;
-        $seriesSeason    = Season::forDate($lastDate);
-        $suggestedSeason = $seriesSeason ? Season::after($seriesSeason) : null;
-        $suggestedSeason = $suggestedSeason ?? Season::current();
-
-        // Compute suggested start date aligned to the series's original weekday
-        $seriesDayOfWeekIso = $sessions->first()->date->dayOfWeekIso; // 1=Mon…7=Sun
-        $suggestedStart = null;
-        if ($suggestedSeason?->start_date) {
-            $candidate = $suggestedSeason->start_date->copy();
-            for ($i = 0; $i < 7; $i++) {
-                if ($candidate->dayOfWeekIso === $seriesDayOfWeekIso) {
-                    $suggestedStart = $candidate;
-                    break;
-                }
-                $candidate->addDay();
-            }
-        }
-
-        return view('trainer.sessions.generate-season', compact(
-            'rep', 'sessions', 'group', 'hasFuture', 'suggestedSeason', 'seriesSeason',
-            'suggestedStart', 'seriesDayOfWeekIso'
-        ));
-    }
-
-    public function storeSeason(Request $request, string $group)
-    {
-        $existingSessions = TrainingSession::where('recurrence_group_id', $group)
-            ->with(['coTrainers', 'trainingGroups'])
-            ->orderBy('date')
-            ->get();
-
-        if ($existingSessions->isEmpty()) abort(404);
-        $this->authorizeSeriesAccess($existingSessions->first());
-
-        $data = $request->validate([
-            'start_date'      => ['required', 'date', 'after_or_equal:today'],
-            'end_date'        => ['required', 'date', 'after:start_date'],
-            'recurrence_type' => ['required', 'in:weekly,biweekly,monthly'],
-        ]);
-
-        $rep          = $existingSessions->first();
-        $groupIds     = $rep->trainingGroups->pluck('id')->toArray();
-        $coTrainerIds = $rep->coTrainers->pluck('id')->toArray();
-
-        // Guard: start_date must match the series's original weekday
-        $seriesDayOfWeekIso  = $existingSessions->first()->date->dayOfWeekIso;
-        $requestDayOfWeekIso = Carbon::parse($data['start_date'])->dayOfWeekIso;
-        if ($requestDayOfWeekIso !== $seriesDayOfWeekIso) {
-            $dayNames = [1=>'Montag',2=>'Dienstag',3=>'Mittwoch',4=>'Donnerstag',5=>'Freitag',6=>'Samstag',7=>'Sonntag'];
-            $expected = $dayNames[$seriesDayOfWeekIso] ?? "Wochentag {$seriesDayOfWeekIso}";
-            return back()->withInput()->withErrors([
-                'start_date' => "Das Startdatum muss ein {$expected} sein (Wochentag der bestehenden Serie). Andernfalls würde die Serie den Wochentag wechseln.",
-            ]);
-        }
-
-        $current = Carbon::parse($data['start_date']);
-        $until   = Carbon::parse($data['end_date']);
-
-        $newDates = $this->generateSeriesDates($current, $data['recurrence_type'], $until);
-
-        if (empty($newDates)) {
-            return back()->withInput()
-                ->with('warning', 'Alle Termine im gewaehlten Zeitraum liegen in den Ferien. Bitte anderen Zeitraum waehlen.');
-        }
-
-        $count        = 0;
-        $firstSession = null;
-        foreach ($newDates as $date) {
-            $session = TrainingSession::create([
-                'title'               => $rep->title,
-                'date'                => $date->format('Y-m-d'),
-                'start_time'          => $rep->start_time,
-                'end_time'            => $rep->end_time,
-                'location'            => $rep->location,
-                'type'                => $rep->type,
-                'notes'               => $rep->notes,
-                'recurrence_type'     => $data['recurrence_type'],
-                'recurrence_until'    => $until->format('Y-m-d'),
-                'recurrence_group_id' => $group,
-                'max_participants'    => $rep->max_participants,
-            ]);
-            $session->trainingGroups()->sync($groupIds);
-            $session->coTrainers()->sync($coTrainerIds);
-            if (!$firstSession) $firstSession = $session;
-            $count++;
-        }
-
-        // Serienbelegung haengt sonst an einem Termin der alten Saison
-        $lanes = app(\App\Services\SeriesHallBookings::class);
-        $lanes->sync($group, $lanes->bookingsOf($group)->pluck('hall_resource_id')->unique()->all(), auth()->id());
-
-        return redirect()->route('trainer.sessions.show', $firstSession)
-            ->with('success', "{$count} neue Einheiten fuer die Serie generiert.");
-    }
-
     private function authorizeSeriesAccess(TrainingSession $anySession): void
     {
         $this->authorizeSession($anySession);

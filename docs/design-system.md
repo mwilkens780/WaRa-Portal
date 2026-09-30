@@ -241,6 +241,7 @@ Vor dem Prüfen wird nichts gespeichert. Ersetzt ein Import sofort ohne Vorschau
 - **Kein `\"` in HTML-Attributen** (`onclick`, `@click`, `x-data`): HTML kennt das nicht, das
   Attribut endet dort. Innen einfache Anführungszeichen (`\'` im JS-String).
 - Keine doppelten Anführungszeichen in Kommentaren innerhalb von `x-data="…"`.
+- **Kein `@js(…)`/`@json(…)` in Attributen von `<x-…>`-Komponenten** (z. B. `@click` an `x-ui.button`) – dort wird die Direktive nicht übersetzt → JS-Fehler. Stattdessen `{{ \Illuminate\Support\Js::from($wert) }}`.
 - Alpine-Komponenten mit Logik gehören nach `resources/js` (`Alpine.data('name', …)`),
   kleine Zustände dürfen inline bleiben.
 - Deklarativ vor Skript: `data-confirm`, `x-ui.*`, `api()`, `$toast`, `$confirm`.

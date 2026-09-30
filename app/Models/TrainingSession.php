@@ -308,6 +308,20 @@ class TrainingSession extends Model
         return $this->status === 'cancelled';
     }
 
+    /** Wer zu diesem Termin gehoert: Gruppen, Einzel- und Gastzuweisungen, ohne staendige Absagen */
+    public function participants(): \Illuminate\Support\Collection
+    {
+        $this->loadMissing('trainingGroups');
+        $ids = $this->trainingGroups->flatMap(fn($g) => $g->swimmers()->where('users.active', true)->pluck('users.id'))
+            ->merge(TrainingSessionSwimmer::where('training_session_id', $this->id)->pluck('user_id'));
+        if ($this->recurrence_group_id) {
+            $ids = $ids->merge(TrainingSessionSwimmer::where('recurrence_group_id', $this->recurrence_group_id)->whereNull('training_session_id')->pluck('user_id'))
+                ->diff(SwimmerSeriesExclusion::where('recurrence_group_id', $this->recurrence_group_id)->pluck('user_id'));
+        }
+
+        return User::whereIn('id', $ids->unique())->where('active', true)->get();
+    }
+
     public function guestGroup(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(TrainingGroup::class, 'guest_group_id');

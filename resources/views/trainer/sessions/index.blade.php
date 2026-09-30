@@ -125,14 +125,14 @@
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2 bg-gray-50/60 border-t border-gray-100 text-sm">
                                 <span class="text-xs font-medium text-gray-600">Serie:</span>
                                 @if($s['is_expired'])
-                                    <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
+                                    <a href="{{ route('trainer.sessions.series.show', ['group' => $rep->recurrence_group_id, 'tab' => 'saison']) }}"
                                            class="inline-block text-sm bg-green-100 text-green-800 hover:bg-green-200 px-3 py-1.5 rounded-full font-semibold transition-colors">
                                             + Neue Saison
                                         </a>
                                 @endif
-                                <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
+                                <a href="{{ route('trainer.sessions.series.show', $rep->recurrence_group_id) }}"
                                        class="inline-block py-2 text-sm text-gray-700 hover:text-primary underline transition-colors">
-                                        Serie bearbeiten
+                                        Serie öffnen
                                     </a>
                                 <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
                                        class="inline-block py-2 text-sm text-red-700 hover:text-red-800 underline transition-colors">
@@ -258,11 +258,11 @@
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2 bg-gray-50/60 border-t border-gray-100 text-sm">
                                 <span class="text-xs font-medium text-gray-600">Serie:</span>
                                 @if($s['is_expired'])
-                                    <a href="{{ route('trainer.sessions.series.generate', $rep->recurrence_group_id) }}"
+                                    <a href="{{ route('trainer.sessions.series.show', ['group' => $rep->recurrence_group_id, 'tab' => 'saison']) }}"
                                        class="inline-block text-sm bg-green-100 text-green-800 hover:bg-green-200 px-3 py-1.5 rounded-full font-semibold transition-colors">+ Neue Saison</a>
                                 @endif
-                                <a href="{{ route('trainer.sessions.series.edit', $rep->recurrence_group_id) }}"
-                                   class="inline-block py-2 text-sm text-gray-700 hover:text-primary underline transition-colors">Serie bearbeiten</a>
+                                <a href="{{ route('trainer.sessions.series.show', $rep->recurrence_group_id) }}"
+                                   class="inline-block py-2 text-sm text-gray-700 hover:text-primary underline transition-colors">Serie öffnen</a>
                                 <a href="{{ route('trainer.sessions.series.delete', $rep->recurrence_group_id) }}"
                                    class="inline-block py-2 text-sm text-red-700 hover:text-red-800 underline transition-colors">Löschen…</a>
                             </div>

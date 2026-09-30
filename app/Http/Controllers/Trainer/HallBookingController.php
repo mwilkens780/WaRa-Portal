@@ -191,10 +191,10 @@ class HallBookingController extends Controller
         }
         unset($data['force']);
 
-        // Wochentag einer Serienbelegung: verschiebt Termine - das gehoert in "Serie bearbeiten"
+        // Wochentag einer Serienbelegung: verschiebt Termine - das gehoert in die Serie
         if ($booking->trainingSession?->recurrence_group_id && (int) $data['day_of_week'] !== (int) $booking->day_of_week) {
             return response()->json([
-                'message' => 'Diese Belegung gehört zu einer Trainingsserie. Den Wochentag bitte in der Serie ändern (Trainingseinheiten → Serie bearbeiten).',
+                'message' => 'Diese Belegung gehört zu einer Trainingsserie. Den Wochentag bitte in der Serie ändern (Trainingseinheiten → Serie öffnen).',
             ], 422);
         }
 

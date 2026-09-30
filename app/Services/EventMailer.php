@@ -342,6 +342,42 @@ class EventMailer
         ));
     }
 
+    // ── Training ─────────────────────────────────────────────────────────────
+
+    /** Termin faellt aus: an alle, die dazugehoeren, und deren Eltern (Warteschlange - kann viele treffen). */
+    public function trainingCancelled(TrainingSession $session): int
+    {
+        $queued = 0;
+        foreach ($this->withParents($session->participants()) as [$recipient, $swimmer]) {
+            $forParent = $recipient->id !== $swimmer->id;
+            $mail = new NotificationMail(
+                subjectText: 'Training fällt aus: ' . $session->title . ', ' . $session->date->isoFormat('dd DD.MM.'),
+                heading:     'Training fällt aus',
+                paragraphs:  array_values(array_filter([
+                    $forParent
+                        ? "das Training von {$swimmer->firstname} am {$session->date->isoFormat('dddd, D. MMMM')} fällt aus."
+                        : "dein Training am {$session->date->isoFormat('dddd, D. MMMM')} fällt aus.",
+                    $session->cancel_reason ? 'Grund: ' . $session->cancel_reason : null,
+                ])),
+                facts: array_filter([
+                    'Training' => $session->title,
+                    'Datum'    => $session->date->format('d.m.Y'),
+                    'Uhrzeit'  => substr($session->start_time, 0, 5) . ($session->end_time ? '–' . substr($session->end_time, 0, 5) : ''),
+                    'Ort'      => $session->location,
+                ]),
+                actionUrl:   $forParent && \Illuminate\Support\Facades\Route::has('parent.child.trainings')
+                    ? route('parent.child.trainings', ['childId' => $swimmer->id])
+                    : $this->linkFor($recipient, 'swimmer.sessions'),
+                actionLabel: 'Trainings ansehen',
+                greetingName: $recipient->firstname,
+            );
+            $log = $this->mailer->queue($recipient, 'training_changes', $mail, $mail->defaultSubject());
+            if ($log->status === 'pending') $queued++;
+        }
+
+        return $queued;
+    }
+
     // ── Empfängerkreise ──────────────────────────────────────────────────────
 
     /**

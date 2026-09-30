@@ -51,6 +51,21 @@ class TrainingSeriesBackfill
         return ['rows' => $rows, 'totals' => $totals, 'applied' => $apply];
     }
 
+    /**
+     * Serie zu einer recurrence_group_id - bei Bedarf aus den Einheiten anlegen
+     * (Serien, die nach der Uebernahme noch auf altem Weg entstanden sind).
+     */
+    public function ensure(string $id): ?TrainingSeries
+    {
+        if ($series = TrainingSeries::find($id)) return $series;
+        if (!TrainingSession::where('recurrence_group_id', $id)->exists()) return null;
+
+        $totals = array_fill_keys(['serien', 'abweichungen', 'belegungen', 'verbunden', 'entfernt'], 0);
+        DB::transaction(fn() => $this->one($id, auth()->id() ?? User::where('role', 'admin')->orderBy('id')->value('id'), $totals));
+
+        return TrainingSeries::find($id);
+    }
+
     private function one(string $id, ?int $userId, array &$totals): array
     {
         $sessions = TrainingSession::with(['trainingGroups', 'coTrainers'])

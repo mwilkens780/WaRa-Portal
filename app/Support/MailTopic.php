@@ -49,6 +49,14 @@ final class MailTopic
             'parent_label'       => 'Erinnerungen',
             'parent_description' => 'Erinnerung, wenn für eines deiner Kinder eine Rückmeldung noch aussteht.',
         ],
+        'training_changes' => [
+            'group'       => 'Training',
+            'label'       => 'Trainingsausfall',
+            'description' => 'Wenn ein Training, zu dem du gehörst, ausfällt.',
+            'roles'       => ['schwimmer', 'elternteil'],
+            'parent_label'       => 'Trainingsausfall',
+            'parent_description' => 'Wenn ein Training eines deiner Kinder ausfällt.',
+        ],
         'own_records' => [
             'group'       => 'Leistungen',
             'label'       => 'Eigene Rekorde und Bestzeiten',

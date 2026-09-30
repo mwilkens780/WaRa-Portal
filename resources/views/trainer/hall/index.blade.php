@@ -777,7 +777,7 @@ function hallApp() {
      class="flex items-center gap-2.5 px-4 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 mb-1">
     <span class="inline-block w-8 h-4 rounded flex-shrink-0"
           style="background-color:#F97316; background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.14) 0,rgba(0,0,0,0.14) 2px,transparent 0,transparent 50%); background-size:8px 8px;"></span>
-    <span>Schraffierte Belegungen gehören zu ausgelaufenen Trainingsserien (keine zukünftigen Termine). Bitte Serie bearbeiten &amp; Saison neu generieren.</span>
+    <span>Schraffierte Belegungen gehören zu ausgelaufenen Trainingsserien (keine zukünftigen Termine). Nächste Saison in der Serie (Reiter „Saison“) planen.</span>
 </div>
 
 {{-- ════════════════════════════════════════════════════════════════════════════

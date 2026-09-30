@@ -63,6 +63,8 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   `public/build-old`).
 - UI-Bausteine liegen unter `resources/views/components/ui/` (`x-ui.*`), Plan und
   Regeln in `docs/frontend-audit.md`.
+- **Kein `@js(…)` in Attributen von `<x-…>`-Komponenten** (wird nicht übersetzt →
+  JS-Fehler): `{{ \Illuminate\Support\Js::from($wert) }}` verwenden. Lint prüft das.
 - **Keine `<x-…>`-Tags in Kommentaren innerhalb von `<script>`**: Blade kompiliert
   sie trotzdem als Komponente → PHP-Syntaxfehler (Fehler 500).
 

@@ -311,10 +311,14 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
         Route::post('/training', [TrainingSessionController::class, 'store'])->name('sessions.store');
 
         // Trainingsserien (Gruppenrouten vor {session}-Wildcard)
-        Route::get('/training/serie/{group}/bearbeiten', [TrainingSessionController::class, 'editSeries'])->name('sessions.series.edit');
-        Route::put('/training/serie/{group}', [TrainingSessionController::class, 'updateSeries'])->name('sessions.series.update');
-        Route::get('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'generateSeason'])->name('sessions.series.generate');
-        Route::post('/training/serie/{group}/neue-saison', [TrainingSessionController::class, 'storeSeason'])->name('sessions.series.store-season');
+        // Eine Seite je Serie (Ueberblick, Termine, Teilnehmer, Saison) - alte Wege leiten dorthin
+        Route::get('/training/serie/{group}', [\App\Http\Controllers\Trainer\TrainingSeriesController::class, 'show'])->name('sessions.series.show');
+        Route::put('/training/serie/{group}', [\App\Http\Controllers\Trainer\TrainingSeriesController::class, 'update'])->name('sessions.series.update');
+        Route::post('/training/serie/{group}/neue-saison', [\App\Http\Controllers\Trainer\TrainingSeriesController::class, 'storeSeason'])->name('sessions.series.store-season');
+        Route::get('/training/serie/{group}/bearbeiten', fn(string $group) => redirect()->route('trainer.sessions.series.show', $group))->name('sessions.series.edit');
+        Route::get('/training/serie/{group}/neue-saison', fn(string $group) => redirect()->route('trainer.sessions.series.show', ['group' => $group, 'tab' => 'saison']))->name('sessions.series.generate');
+        Route::post('/training/{session}/ausfall', [\App\Http\Controllers\Trainer\TrainingSeriesController::class, 'cancelSession'])->name('sessions.cancel');
+        Route::delete('/training/{session}/ausfall', [\App\Http\Controllers\Trainer\TrainingSeriesController::class, 'reactivateSession'])->name('sessions.reactivate');
 
         Route::get('/training/{session}', [TrainingSessionController::class, 'show'])->name('sessions.show');
         Route::get('/training/{session}/bearbeiten', [TrainingSessionController::class, 'edit'])->name('sessions.edit');

@@ -13,7 +13,7 @@
 <div class="mt-2 max-w-3xl space-y-5"
      x-data="seriesDelete(@js($dates), '{{ $from->format('Y-m-d') }}')">
 
-    <a href="{{ route('trainer.sessions.series.edit', $group) }}"
+    <a href="{{ route('trainer.sessions.series.show', $group) }}"
        class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -123,7 +123,7 @@
                     class="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     :class="scope === 'all' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary-dark'"
                     x-text="scope === 'all' ? 'Gesamte Serie löschen' : 'Einheiten ab Datum löschen'"></button>
-            <a href="{{ route('trainer.sessions.series.edit', $group) }}" class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>
+            <a href="{{ route('trainer.sessions.series.show', $group) }}" class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>
         </div>
     </form>
 </div>

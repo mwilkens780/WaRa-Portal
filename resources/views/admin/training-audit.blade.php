@@ -7,7 +7,7 @@
     <x-ui.alert tone="info">
         Die Befunde sind nur lesend – sie zeigen, wo Trainingsserien und Hallenbelegungen nicht
         zusammenpassen. Doppelte Belegungen einer Serie werden beim nächsten Speichern der Serie
-        („Serie bearbeiten“) automatisch zusammengelegt. Geändert wird nur über „Übernahme ausführen“.
+        („Serie speichern“) automatisch zusammengelegt. Geändert wird nur über „Übernahme ausführen“.
     </x-ui.alert>
 
     <x-ui.card title="Übernahme in Trainingsserien" :meta="$pending ? $pending . ' Serien noch nicht übernommen' : 'Alle Serien übernommen'">
@@ -89,7 +89,7 @@
                                     @foreach($row as $spalte => $wert)
                                         <td class="px-4 py-2 text-gray-700 {{ $spalte === 'serie_id' ? 'font-mono text-xs' : '' }}">
                                             @if($spalte === 'serie_id')
-                                                <a href="{{ route('trainer.sessions.series.edit', $wert) }}" class="text-primary underline underline-offset-2 hover:no-underline">Serie öffnen</a>
+                                                <a href="{{ route('trainer.sessions.series.show', $wert) }}" class="text-primary underline underline-offset-2 hover:no-underline">Serie öffnen</a>
                                             @else
                                                 {{ $wert }}
                                             @endif

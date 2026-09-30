@@ -78,6 +78,18 @@ const RULES = {
                 .map((m) => ({ line: lineOf(s, m.index), hint: m[0] }));
         },
     },
+    'direktive-in-komponente': {
+        text: '@js/@json im Attribut einer <x-…>-Komponente wird nicht übersetzt (JS-Fehler) – {{ Js::from(…) }} verwenden',
+        check(s) {
+            const out = [];
+            for (const tag of s.matchAll(/<x-[\w.-]+\b(?:[^>"']|"[^"]*"|'[^']*')*>/g)) {
+                for (const m of tag[0].matchAll(/@(js|json)\(/g)) {
+                    out.push({ line: lineOf(s, tag.index + m.index), hint: tag[0].slice(0, 40) });
+                }
+            }
+            return out;
+        },
+    },
     'x-tag-in-skript': {
         text: '<x-…> in einem Kommentar innerhalb von <script> – Blade kompiliert es (Fehler 500)',
         check(s) {
