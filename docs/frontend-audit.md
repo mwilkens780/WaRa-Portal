@@ -455,7 +455,17 @@ auf Touch-Geräten (`.touch-exempt` als Ausnahme), scrollbare Flex-Zeilen
 stauchen nicht. Fehlerübersicht im Layout springt zum Feld. Knöpfe auf
 drei Varianten vereinheitlicht. Übrige Touch-Ziele sind überwiegend
 Textlinks (WCAG 2.2 AA verlangt 24 px, nicht 44).
-Nächstes: Phase 6 (Playwright + axe in CI).
+Phase 6 erledigt (`836394d`): GitHub Action „E2E (Browsertests)“ bei jedem
+Push und Pull Request – frische MySQL mit `E2eSeeder`, Playwright + axe,
+17 Tests in rund 2 Minuten. `pages.spec.js` prüft jede Menüseite aller vier
+Rollen auf Desktop und Mobil (Status, JS-Fehler, Überlauf, axe kritisch/ernst
+= 0); dazu Dialoge, Hallenplan-Speichern, Import-Assistent mit
+DSV-Zusammenführen und Eltern-Link. Die Tests liefen dabei erstmals über die
+Schwimmer- und Elternseiten und fanden dort noch Kontrastfehler (behoben).
+Der Lauf blockiert den Deploy nicht; bei Bedarf in den Branch-Regeln als
+Pflichtprüfung eintragen. Anleitung: CLAUDE.md, Abschnitt „Browsertests“.
+
+**Umbau abgeschlossen** (Phasen 0–6).
 
 | Phase | Inhalt | Ergebnis / Abnahme |
 |---|---|---|
