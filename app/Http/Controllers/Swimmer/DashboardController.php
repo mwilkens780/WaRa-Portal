@@ -131,7 +131,7 @@ class DashboardController extends Controller
         // Letzte Trainings - letzte 2 Wochen. Nicht nur bestaetigte: Eine Einheit,
         // die gerade zu Ende ist, hat noch keine erfasste Anwesenheit, das
         // Tagebuch soll aber sofort offen sein. Wer abgesagt hat, bleibt aussen vor.
-        $recent_sessions = TrainingSession::finished()
+        $recent_sessions = TrainingSession::finished()->takingPlace()
             ->whereDate('date', '>=', today()->subDays(13))
             ->tap($relevantSessions)
             ->whereDoesntHave('attendances', fn($q) => $q->where('user_id', $swimmer->id)->where('pre_absent', true))
@@ -542,6 +542,10 @@ class DashboardController extends Controller
 
     public function cancelSession(Request $request, TrainingSession $session)
     {
+        if ($session->isCancelled()) {
+            return back()->with('error', 'Dieses Training fällt aus.');
+        }
+
         // Bis zum Ende der Trainingszeit: Wer morgens merkt, dass es abends
         // nicht klappt, soll noch absagen koennen.
         if ($session->isOver()) {
@@ -574,6 +578,10 @@ class DashboardController extends Controller
 
     public function bookGuestSlot(TrainingSession $session)
     {
+        if ($session->isCancelled()) {
+            return back()->with('error', 'Dieses Training fällt aus.');
+        }
+
         $swimmer = auth()->user();
 
         // Verify the swimmer's group is the session's guest group

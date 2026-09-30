@@ -100,7 +100,7 @@ final class TrainingParticipation
         $serienIds  = TrainingSessionSwimmer::where('user_id', $swimmer->id)
             ->whereNotNull('recurrence_group_id')->pluck('recurrence_group_id');
 
-        $q = TrainingSession::query()->finished();
+        $q = TrainingSession::query()->finished()->takingPlace();
 
         // Ohne Gruppe und ohne Einteilung gibt es kein Angebot - und ohne diese
         // Bremse wuerde die leere Bedingung unten alle Einheiten einsammeln.

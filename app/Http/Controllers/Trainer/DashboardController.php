@@ -62,7 +62,8 @@ class DashboardController extends Controller
             ->orderBy('date')->limit(8)->get();
 
         // ── Chart-Daten: letzte 10 Einheiten Beteiligung ────────────────────
-        $chartSessions = $mySessionsQuery()
+        // Nur Termine, die stattgefunden haben - ein Ausfall ist keine Beteiligung von 0 %
+        $chartSessions = $mySessionsQuery()->finished()->takingPlace()
             ->withCount([
                 'attendances as present_count' => fn($q) => $q->where('attended', true),
                 'attendances as total_count',
@@ -83,7 +84,8 @@ class DashboardController extends Controller
         // Bezugsgroesse sind die Einheiten, die dieser Trainer betreut - nicht
         // alle Einheiten des Vereins. Sonst sieht jede Gruppe kuenstlich schlecht
         // aus, weil die Trainings der anderen Gruppen mitgezaehlt werden.
-        $sessions90 = TrainingSession::where('date', '>=', $since);
+        // Nur vergangene Termine, die stattgefunden haben - sonst druecken kommende und ausgefallene die Quote
+        $sessions90 = TrainingSession::where('date', '>=', $since)->finished()->takingPlace();
         if (!$isAdmin) {
             $sessions90->manageableBy($trainer);
         }

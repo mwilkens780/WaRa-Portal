@@ -39,6 +39,10 @@ class SessionPlanningController extends Controller
 
     public function punctualJoin(TrainingSession $session)
     {
+        if ($session->isCancelled()) {
+            return back()->with('error', 'Dieses Training fällt aus.');
+        }
+
         TrainingSessionSwimmer::firstOrCreate([
             'user_id'             => auth()->id(),
             'training_session_id' => $session->id,
@@ -49,6 +53,10 @@ class SessionPlanningController extends Controller
 
     public function register(TrainingSession $session)
     {
+        if ($session->isCancelled()) {
+            return back()->with('error', 'Dieses Training fällt aus.');
+        }
+
         if (!$session->registration_open) {
             return back()->with('error', 'Anmeldung ist nicht geöffnet.');
         }

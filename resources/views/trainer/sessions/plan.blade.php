@@ -3,6 +3,9 @@
 @section('page-title', 'Trainingsplan')
 
 @section('content')
+@if($session->isCancelled())
+    <x-ui.alert tone="warning" class="mt-2 mb-2"><span><strong>Dieser Termin fällt aus.</strong>@if($session->cancel_reason) {{ $session->cancel_reason }}@endif Er zählt nicht in die Trainingsbeteiligung.</span></x-ui.alert>
+@endif
 <div class="mt-2 space-y-4"
      x-data="planBuilder({{ json_encode($initialBlocks) }}, {{ $targetSeconds }})">
     {{-- Kein x-init="init()": Alpine ruft init() selbst auf, doppelt legte es bei neuen Plaenen zwei leere Bloecke an --}}

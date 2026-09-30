@@ -58,6 +58,10 @@ class TrainingController extends Controller
 
     public function cancelSession(Request $request, int $childId, TrainingSession $session)
     {
+        if ($session->isCancelled()) {
+            return back()->with('error', 'Dieses Training fällt aus.');
+        }
+
         $parent = auth()->user();
         $child  = $parent->children()->findOrFail($childId);
 
@@ -85,6 +89,10 @@ class TrainingController extends Controller
 
     public function register(int $childId, TrainingSession $session)
     {
+        if ($session->isCancelled()) {
+            return back()->with('error', 'Dieses Training fällt aus.');
+        }
+
         $parent = auth()->user();
         $child  = $parent->children()->findOrFail($childId);
 

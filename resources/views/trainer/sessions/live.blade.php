@@ -3,6 +3,9 @@
 @section('page-title', 'Live-Zeitnahme')
 
 @section('content')
+@if($session->isCancelled())
+    <x-ui.alert tone="warning" class="mt-2 mb-2"><span><strong>Dieser Termin fällt aus.</strong>@if($session->cancel_reason) {{ $session->cancel_reason }}@endif Er zählt nicht in die Trainingsbeteiligung.</span></x-ui.alert>
+@endif
 @if($blocks->isEmpty())
     <div class="max-w-xl mt-2 space-y-4">
         <a href="{{ route('trainer.sessions.show', $session) }}" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary transition-colors">

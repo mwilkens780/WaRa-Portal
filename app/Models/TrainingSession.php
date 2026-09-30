@@ -123,6 +123,16 @@ class TrainingSession extends Model
                 ->where('end_time', '<=', $jetzt)));
     }
 
+    /**
+     * Findet statt (nicht "faellt aus"). Fuer alles, was zaehlt oder erinnert:
+     * Beteiligung, Quoten, offene Tagebuecher. Anzeigen fuer Schwimmer und Eltern
+     * zeigen ausgefallene Termine dagegen weiter an - mit Kennzeichnung.
+     */
+    public function scopeTakingPlace(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        return $q->where('status', '!=', 'cancelled');
+    }
+
     /** Das Gegenstueck: alles, was noch aussteht oder gerade laeuft. */
     public function scopeUpcomingOrRunning(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
     {

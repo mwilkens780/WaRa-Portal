@@ -68,7 +68,7 @@
                             <p class="text-xs text-primary">{{ $session->date->isoFormat('ddd') }}</p>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
+                            <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                             <div class="flex flex-wrap items-center gap-1 mt-0.5">
                                 @foreach($session->trainingGroups as $tg)
                                     @php $tgc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
@@ -120,7 +120,7 @@
                     </div>
                     {{-- Info --}}
                     <div class="flex-1 min-w-0">
-                        <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}</p>
+                        <p class="font-medium text-sm text-gray-800 truncate">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                         <div class="flex flex-wrap items-center gap-1 mt-0.5">
                             @foreach($session->trainingGroups as $tg)
                                 @php $tgc = \App\Models\TrainingGroup::COLORS[$tg->color] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp

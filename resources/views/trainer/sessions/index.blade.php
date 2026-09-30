@@ -161,7 +161,9 @@
                                     <span class="w-9 shrink-0"></span>
                                     <div class="flex-1 min-w-0 text-sm">
                                         <span class="text-gray-700">{{ $session->date->isoFormat('dd, D. MMM YYYY') }}</span>
-                                        @if(!$session->trainingPlan)
+                                        @if($session->isCancelled())
+                                            <x-ui.badge tone="warning" class="ml-1.5">fällt aus</x-ui.badge>
+                                        @elseif(!$session->trainingPlan)
                                             <span class="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">kein Plan</span>
                                         @endif
                                         @if($session->has_missing_trainer)
@@ -280,7 +282,9 @@
                                     <span class="w-9 shrink-0"></span>
                                     <div class="flex-1 text-sm text-gray-700">
                                         {{ $session->date->isoFormat('dd, D. MMM YYYY') }}
-                                        @if(!$session->trainingPlan)
+                                        @if($session->isCancelled())
+                                            <x-ui.badge tone="warning" class="ml-1.5">fällt aus</x-ui.badge>
+                                        @elseif(!$session->trainingPlan)
                                             <span class="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">kein Plan</span>
                                         @endif
                                         @if($session->has_missing_trainer) @include('partials.no-trainer-badge') @endif
