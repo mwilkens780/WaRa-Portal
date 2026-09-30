@@ -65,6 +65,8 @@ jobs:
 
       - name: Test-Umgebung (.env)
         run: |
+          # Laufzeitordner sind nicht im Repo
+          mkdir -p storage/logs storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache
           cp .env.example .env
           sed -i \
             -e 's#^APP_ENV=.*#APP_ENV=testing#' \
