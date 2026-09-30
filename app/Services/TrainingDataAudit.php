@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\HallBooking;
 use App\Models\TrainingSession;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Nur lesende Pruefung: Trainingsserien und Hallenbelegungen.
@@ -177,10 +178,27 @@ class TrainingDataAudit
                 $verteilung = $byDay->sortByDesc(fn($g) => $g->count())->map(fn($g, $d) => (HallBooking::DAY_NAMES[$d] ?? $d) . ': ' . $g->count()
                     . ($g->count() === 1 ? ' (' . $g->first()->date->format('d.m.Y') . ')' : ' (' . $g->first()->date->format('d.m.') . '–' . $g->last()->date->format('d.m.Y') . ')'))
                     ->implode('; ');
+                // Termine abseits des urspruenglichen Wochentags (bis 30.08.2026 setzte die
+                // Saisonplanung den Saisonbeginn als Start - so wanderten Serien auf dessen Wochentag)
+                $orig    = $all->first()->date->dayOfWeekIso;
+                $moved   = $all->filter(fn($s) => $s->date->dayOfWeekIso !== $orig)->pluck('id');
+                $daten   = collect([
+                    'training_attendances' => 'Anwesenheiten', 'training_plans' => 'Pläne',
+                    'training_diaries' => 'Tagebucheinträge', 'swimming_times' => 'Zeiten',
+                    'training_session_registrations' => 'Anmeldungen',
+                ])->map(fn($label, $table) => ($n = DB::table($table)->whereIn('training_session_id', $moved)->count()) ? "$n $label" : null)
+                  ->filter()->implode(', ');
+                // Gibt es fuer dieselben Gruppen schon eine andere Serie am urspruenglichen Tag (z. B. aus dem Excel-Import)?
+                $gruppen = $all->last()->trainingGroups->pluck('id');
+                $ersatz  = $series->toBase()->except($id)->filter(fn($other) => $other->contains(fn($s) => $s->date->gte(today())
+                        && $s->date->dayOfWeekIso === $orig && $s->trainingGroups->pluck('id')->intersect($gruppen)->isNotEmpty()))
+                    ->map(fn($other) => $other->first()->title . ' (' . substr($other->last()->start_time, 0, 5) . ')')->implode(', ');
                 $rows[] = [
                     'serie'      => $all->first()->title,
+                    'gruppen'    => $gruppen->isEmpty() ? '–' : $all->last()->trainingGroups->pluck('name')->implode(', '),
                     'verteilung' => $verteilung,
-                    'einheiten'  => $all->count(),
+                    'daten_an_verschobenen' => $daten ?: 'keine',
+                    'andere_serie_am_urspruenglichen_tag' => $ersatz ?: '–',
                     'serie_id'   => $id,
                 ];
             }
