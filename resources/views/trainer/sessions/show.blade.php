@@ -49,26 +49,50 @@
                 @endif
             </div>
             <div class="flex gap-2 flex-shrink-0 flex-wrap">
-                <a href="{{ route('trainer.sessions.edit', $session) }}"
-                   class="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    Bearbeiten
-                </a>
-                <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
-                      data-confirm="Einheit löschen?" data-confirm-label="Löschen" data-confirm-danger>
-                    @csrf @method('DELETE')
-                    <button type="submit" class="px-3 py-2 border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors">
-                        Löschen
-                    </button>
-                </form>
-                @if($session->recurrence_group_id)
-                    {{-- Bestaetigungsseite: ab Datum oder ganze Serie, mit Folgenuebersicht --}}
-                    <a href="{{ route('trainer.sessions.series.delete', $session->recurrence_group_id) }}"
-                       class="px-3 py-2 border border-red-200 rounded-lg text-sm text-red-700 hover:bg-red-50 transition-colors">
-                        Serie löschen…
-                    </a>
+                <x-ui.button variant="secondary" size="sm" href="{{ route('trainer.sessions.edit', $session) }}">{{ $series ? 'Nur diesen Termin ändern' : 'Bearbeiten' }}</x-ui.button>
+                @if($series)
+                    <x-ui.button variant="secondary" size="sm" href="{{ route('trainer.sessions.series.show', $series->id) }}">Serie öffnen</x-ui.button>
                 @endif
+                @if($session->isCancelled())
+                    <form method="POST" action="{{ route('trainer.sessions.reactivate', $session) }}">
+                        @csrf @method('DELETE')
+                        <x-ui.button variant="secondary" size="sm" type="submit">Findet statt</x-ui.button>
+                    </form>
+                @elseif($session->date->gte(today()))
+                    <x-ui.button variant="secondary" size="sm" @click="$dispatch('open-dialog', 'cancel-session')">Fällt aus</x-ui.button>
+                @endif
+                {{-- Loeschen nur fuer Falsches - sonst "faellt aus" (Anwesenheit/Statistik bleiben stimmig) --}}
+                <form method="POST" action="{{ route('trainer.sessions.destroy', $session) }}"
+                      data-confirm="Termin löschen?" data-confirm-text="Nur für falsch angelegte Termine. Fällt das Training aus, besser „Fällt aus“ – dann sehen es alle." data-confirm-label="Löschen" data-confirm-danger>
+                    @csrf @method('DELETE')
+                    <x-ui.button variant="ghost" size="sm" type="submit" class="text-red-700">Löschen</x-ui.button>
+                </form>
             </div>
         </div>
+
+        @if($session->isCancelled())
+            <x-ui.alert tone="warning" class="mt-4">
+                <span><strong>Dieser Termin fällt aus.</strong>@if($session->cancel_reason) {{ $session->cancel_reason }}@endif
+                Schwimmer und Eltern sehen das im Portal.</span>
+            </x-ui.alert>
+        @endif
+
+        @if($series)
+            @php
+                $abwLabels = ['title' => 'Titel', 'type' => 'Art', 'start_time' => 'Beginn', 'end_time' => 'Ende', 'location' => 'Ort', 'notes' => 'Notiz',
+                              'max_participants' => 'Limit', 'registration_open' => 'Anmeldung', 'guest_group_id' => 'Gastgruppe', 'date' => 'Tag', 'groups' => 'Gruppen', 'trainers' => 'Trainer'];
+                $abw = collect($session->overridden_fields ?? [])->map(fn($f) => $abwLabels[$f] ?? $f);
+            @endphp
+            <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                <span>Teil der Serie
+                    <a href="{{ route('trainer.sessions.series.show', $series->id) }}" class="font-semibold text-primary underline underline-offset-2 hover:no-underline">{{ $series->title }}</a>
+                    – jeden {{ \App\Models\HallBooking::DAY_NAMES[$series->day_of_week] ?? '' }} {{ substr($series->start_time, 0, 5) }}@if($series->end_time)–{{ substr($series->end_time, 0, 5) }}@endif
+                </span>
+                @if($abw->isNotEmpty())
+                    <x-ui.badge tone="info">Nur hier anders: {{ $abw->implode(', ') }}</x-ui.badge>
+                @endif
+            </div>
+        @endif
 
         {{-- Missing trainer warning --}}
         @if($session->has_missing_trainer)
@@ -142,20 +166,6 @@
             </div>
         </div>
 
-        {{-- Wiederholungsgruppe --}}
-        @if($session->recurrence_group_id && $siblings->isNotEmpty())
-            <div class="mt-4 pt-4 border-t border-gray-100">
-                <p class="text-xs text-gray-500 mb-2">Weitere Einheiten dieser Wiederholungsgruppe</p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach($siblings as $sib)
-                        <a href="{{ route('trainer.sessions.show', $sib) }}"
-                           class="text-xs px-2.5 py-1 rounded-full border border-primary/30 text-primary hover:bg-primary/5 transition-colors">
-                            {{ $sib->date->format('d.m.Y') }}
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        @endif
     </div>
 
     {{-- Individuelle Schwimmer-Zuweisung ─────────────────────────────────── --}}
@@ -189,24 +199,6 @@
                     </button>
                 </form>
 
-                @if($session->recurrence_group_id)
-                {{-- Series --}}
-                <form method="POST" action="{{ route('trainer.sessions.series.swimmer.add', $session->recurrence_group_id) }}" class="flex items-end gap-2">
-                    @csrf
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Schwimmer (zur ganzen Serie)</label>
-                        <select aria-label="Schwimmer (zur ganzen Serie)" name="user_id" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="">Wählen...</option>
-                            @foreach($allSwimmersForAssign as $s)
-                                <option value="{{ $s->id }}">{{ $s->lastname }}, {{ $s->firstname }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button type="submit" class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 px-4 py-2 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
-                        Zur Serie
-                    </button>
-                </form>
-                @endif
             </div>
         </div>
 
@@ -228,20 +220,14 @@
         </div>
         @endif
 
-        {{-- Series assignments --}}
+        {{-- Zur ganzen Serie: verwaltet auf der Serienseite --}}
         @if($seriesIndividualSwimmers->isNotEmpty())
         <div class="mb-3">
-            <p class="text-xs text-gray-500 font-medium mb-2">Zur ganzen Serie:</p>
+            <p class="text-xs text-gray-600 font-medium mb-2">Über die Serie:
+                <a href="{{ route('trainer.sessions.series.show', ['group' => $session->recurrence_group_id, 'tab' => 'teilnehmer']) }}" class="text-primary underline">verwalten</a></p>
             <div class="flex flex-wrap gap-2">
                 @foreach($seriesIndividualSwimmers as $assign)
-                <div class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1 text-xs">
-                    <span class="text-indigo-600 font-semibold">≈</span>
-                    <span class="font-medium text-indigo-800">{{ $assign->user?->name }}</span>
-                    <form method="POST" action="{{ route('trainer.sessions.series.swimmer.remove', [$session->recurrence_group_id, $assign->user_id]) }}">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="text-indigo-600 hover:text-red-500 ml-1 font-bold" title="Entfernen">×</button>
-                    </form>
-                </div>
+                    <x-ui.badge tone="brand">{{ $assign->user?->name }}</x-ui.badge>
                 @endforeach
             </div>
         </div>
@@ -341,138 +327,72 @@
     </div>
     @endif
 
-    {{-- Bahnbelegung ──────────────────────────────────────────────────────── --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
-         x-data="laneBookingApp()">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold text-gray-700">Bahnbelegung</h2>
-            <button @click="showForm = !showForm" type="button"
-                    class="text-xs text-primary hover:underline font-medium" x-text="showForm ? 'Schließen' : 'Bahnen buchen'"></button>
-        </div>
-
-        {{-- Gebuchte Bahnen: bei Serien die der ganzen Serie --}}
-        @if($session->recurrence_group_id)
-            <p class="text-xs text-gray-600 mb-2">Gilt für die ganze Serie (jede Woche {{ $session->date->isoFormat('dddd') }}).</p>
-        @endif
-        @if($laneBookings->isNotEmpty())
-        <div class="flex flex-wrap gap-2 mb-3">
-            @foreach($laneBookings as $hb)
-            <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs">
-                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $hb->resource->color }}"></span>
-                <span class="font-medium text-gray-700">{{ $hb->resource->name }}</span>
-                <span class="text-gray-400">{{ $hb->formatted_time }}</span>
-                <form method="POST" action="{{ route('trainer.sessions.remove-lane', [$session, $hb]) }}">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="text-red-600 hover:text-red-800 ml-1" title="Entfernen">×</button>
-                </form>
-            </div>
-            @endforeach
-        </div>
-        @else
-        <p class="text-xs text-gray-400 mb-3">Noch keine Bahnen gebucht.</p>
-        @endif
-
-        {{-- Freie Bahnkapazitäten zum Trainingszeitpunkt --}}
-        @if(!$session->end_time)
-        <p class="text-xs text-gray-400 mb-4 flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Endzeit setzen, um freie Bahnkapazitäten zu prüfen.
-        </p>
-        @elseif($freeResources->isEmpty())
-        <div class="mb-4 flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-            Keine freien Bahnen zum Trainingszeitpunkt ({{ substr($session->start_time,0,5) }}–{{ substr($session->end_time,0,5) }}).
-        </div>
-        @else
-        <div class="mb-4">
-            <p class="text-xs font-medium text-green-700 mb-1.5 flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Freie Bahnen ({{ substr($session->start_time,0,5) }}–{{ substr($session->end_time,0,5) }}):
+    {{-- Bahnen ─────────────────────────────────────────────────────────── --}}
+    <x-ui.card title="Bahnen">
+        @if($series)
+            <p class="text-sm text-gray-700">
+                <span class="font-medium">Serie (Hallenplan):</span>
+                {{ $laneBookings->map(fn($hb) => $hb->resource?->name)->filter()->implode(', ') ?: 'keine' }}
+                – <a href="{{ route('trainer.sessions.series.show', $series->id) }}" class="text-primary underline">in der Serie ändern</a>
             </p>
-            <div class="flex flex-wrap gap-1.5">
-                @foreach($freeResources as $res)
-                <span class="inline-flex items-center gap-1.5 text-xs bg-green-50 border border-green-200 text-green-700 px-2.5 py-1 rounded-full font-medium">
-                    <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $res->color }}"></span>
-                    {{ $res->name }}
-                </span>
+        @elseif($laneBookings->isNotEmpty())
+            {{-- Alt: woechentliche Belegung an einem Einzeltermin --}}
+            <div class="flex flex-wrap gap-2">
+                @foreach($laneBookings as $hb)
+                    <form method="POST" action="{{ route('trainer.sessions.remove-lane', [$session, $hb]) }}" class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg pl-3 text-xs">
+                        @csrf @method('DELETE')
+                        <span class="font-medium text-gray-700">{{ $hb->resource->name }} (wöchentlich)</span>
+                        <x-ui.button variant="ghost" size="sm" type="submit" aria-label="{{ $hb->resource->name }} entfernen">Entfernen</x-ui.button>
+                    </form>
                 @endforeach
             </div>
-        </div>
         @endif
 
-        {{-- Booking form --}}
-        <div x-show="showForm" x-transition>
-            <p class="text-xs text-gray-500 mb-3">Verfügbarkeit prüfen und Bahnen für {{ $session->date->isoFormat('dddd') }}, {{ $session->start_time }}–{{ $session->end_time ?? '?' }} buchen:</p>
+        <form method="POST" action="{{ route('trainer.sessions.exception-lanes', $session) }}" class="mt-4 pt-4 border-t border-gray-100">
+            @csrf @method('PUT')
+            <fieldset>
+                <legend class="text-sm font-semibold text-gray-700">Zusätzlich nur für diesen Termin</legend>
+                <p class="text-xs text-gray-600 mt-1 mb-3">
+                    Z. B. ein Workshop. Steht im Termin und im Kalender, nicht im Hallenplan – dort entsteht kein Konflikt.
+                    Belegte Bahnen sind markiert; speichern geht trotzdem.
+                </p>
+                @if(!$session->end_time)
+                    <p class="text-xs text-gray-600 mb-3">Ohne Endzeit lässt sich nicht prüfen, ob eine Bahn frei ist.</p>
+                @endif
+                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach($allResources as $res)
+                        <label class="flex items-start gap-2 text-sm cursor-pointer p-2 rounded-lg border {{ isset($occupancy[$res->id]) ? 'border-amber-200 bg-amber-50' : 'border-gray-200' }} hover:bg-gray-50">
+                            <input type="checkbox" name="hall_resource_ids[]" value="{{ $res->id }}" @checked(in_array($res->id, $exceptionIds))
+                                   class="mt-0.5 w-4 h-4 rounded text-primary border-gray-300">
+                            <span class="flex-1">
+                                <span class="text-gray-800">{{ $res->name }}</span>
+                                @if(isset($occupancy[$res->id]))
+                                    <span class="block text-xs text-amber-800">belegt: {{ implode(', ', $occupancy[$res->id]) }}</span>
+                                @endif
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+            </fieldset>
+            <x-ui.button type="submit" variant="secondary" class="mt-3">Bahnen für diesen Termin speichern</x-ui.button>
+        </form>
+    </x-ui.card>
 
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
-                @foreach($allResources as $res)
-                <label class="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                       :class="isBooked({{ $res->id }}) ? 'border-primary bg-primary/5' : ''">
-                    <input type="checkbox" :value="{{ $res->id }}" x-model="selectedLanes"
-                           @change="conflicts = []"
-                           class="w-4 h-4 rounded text-primary border-gray-300">
-                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $res->color }}"></span>
-                    <span class="text-gray-700">{{ $res->name }}</span>
-                    <span x-show="isBooked({{ $res->id }})" class="ml-auto text-[10px] text-primary font-medium">gebucht</span>
-                </label>
-                @endforeach
-            </div>
-
-            {{-- Conflicts --}}
-            <div x-show="conflicts.length > 0" x-transition class="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
-                <p class="font-semibold text-red-700 mb-1">Belegungskonflikte:</p>
-                <ul class="space-y-0.5">
-                    <template x-for="c in conflicts" :key="c.resource">
-                        <li class="text-red-600 text-xs flex gap-2">
-                            <span class="font-mono bg-red-100 px-1.5 rounded" x-text="c.time"></span>
-                            <span x-text="c.resource + ': ' + c.label"></span>
-                        </li>
-                    </template>
-                </ul>
-            </div>
-
-            <div class="flex gap-2">
-                <button @click="checkAndBook(false)" :disabled="selectedLanes.length === 0 || saving"
-                        class="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
-                    <span x-text="saving ? 'Wird gebucht…' : 'Bahnen buchen'"></span>
-                </button>
-                <button x-show="conflicts.length > 0" @click="checkAndBook(true)"
-                        class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors">
-                    Trotzdem buchen
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    function laneBookingApp() {
-        return {
-            showForm: false,
-            selectedLanes: [],
-            conflicts: [],
-            saving: false,
-            bookedIds: @json($laneBookings->pluck('hall_resource_id')->toArray()),
-
-            isBooked(id) { return this.bookedIds.includes(id); },
-
-            async checkAndBook(force = false) {
-                if (!this.selectedLanes.length) return;
-                this.saving = true;
-                try {
-                    const r = await fetch('{{ route('trainer.sessions.book-lanes', $session) }}', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
-                        body: JSON.stringify({ hall_resource_ids: this.selectedLanes.map(Number), force }),
-                    });
-                    const d = await r.json();
-                    if (r.status === 409) { this.conflicts = d.conflicts ?? []; }
-                    else if (r.status === 422) { window.toast(d.error ?? 'Speichern fehlgeschlagen.', { type: 'error' }); }
-                    else if (r.ok) { window.location.reload(); }
-                } finally { this.saving = false; }
-            },
-        };
-    }
-    </script>
+    <x-ui.dialog name="cancel-session" title="Termin fällt aus">
+        <form id="cancel-form" method="POST" action="{{ route('trainer.sessions.cancel', $session) }}" class="space-y-4">
+            @csrf
+            <p class="text-sm text-gray-700">Der Termin am <strong>{{ $session->date->isoFormat('dddd, D. MMMM') }}</strong> bleibt stehen und wird als „fällt aus“ markiert.</p>
+            <x-ui.field label="Grund (optional)" name="cancel_reason" placeholder="z. B. Hallenschließung" />
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" name="notify" value="1" checked class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary">
+                <span class="text-sm text-gray-700">Per E-Mail benachrichtigen <span class="block text-xs text-gray-600">An alle, die „Trainingsausfall“ in ihrem Profil eingeschaltet haben (auch Eltern).</span></span>
+            </label>
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" @click="close()">Abbrechen</x-ui.button>
+            <x-ui.button type="submit" form="cancel-form">Fällt aus</x-ui.button>
+        </x-slot:footer>
+    </x-ui.dialog>
 
     {{-- Trainingsplan --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

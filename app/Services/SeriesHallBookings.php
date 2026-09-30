@@ -62,6 +62,34 @@ class SeriesHallBookings
     }
 
     /**
+     * Wer belegt welche Bahn zur Zeit DIESES Termins? Woechentliche Belegungen
+     * (ohne die eigene Serie) und Ausnahme-Bahnen anderer Termine am selben Tag.
+     * Fuer Ausnahme-Bahnen nur ein Hinweis - speichern geht trotzdem.
+     *
+     * @return array<int, string[]> hall_resource_id => Belegt-von-Texte
+     */
+    public function occupancy(TrainingSession $session): array
+    {
+        if (!$session->end_time) return [];
+        [$start, $end] = [substr($session->start_time, 0, 5), substr($session->end_time, 0, 5)];
+        $own = $session->recurrence_group_id ? $this->bookingsOf($session->recurrence_group_id)->pluck('id') : $session->hallBookings()->pluck('id');
+
+        $out = [];
+        HallBooking::with('trainingGroup:id,name')->where('day_of_week', $session->date->dayOfWeekIso)
+            ->where('start_time', '<', $end)->where('end_time', '>', $start)->whereNotIn('id', $own)->get()
+            ->each(function ($b) use (&$out) {
+                $out[$b->hall_resource_id][] = ($b->trainingGroup?->name ?? $b->label) . ' ' . substr($b->start_time, 0, 5) . '–' . substr($b->end_time, 0, 5);
+            });
+        TrainingSession::with('exceptionLanes:id')->whereDate('date', $session->date)->where('id', '!=', $session->id)
+            ->where('status', '!=', 'cancelled')->where('start_time', '<', $end)->where('end_time', '>', $start)->get()
+            ->each(function ($s) use (&$out) {
+                foreach ($s->exceptionLanes as $r) $out[$r->id][] = $s->title . ' (Ausnahme) ' . substr($s->start_time, 0, 5);
+            });
+
+        return $out;
+    }
+
+    /**
      * Gehoert eine (unverknuepfte) Belegung inhaltlich zu dieser Serie?
      * Ja, wenn ihre Gruppe eine Gruppe der Serie ist - oder, ohne Gruppe,
      * wenn die Bezeichnung einem Gruppennamen oder dem Serientitel entspricht.

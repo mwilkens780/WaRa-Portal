@@ -39,7 +39,7 @@
                             {{-- Session info --}}
                             <div class="flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                                    <p class="text-sm font-medium text-gray-800">{{ $session->title }}</p>
+                                    <p class="text-sm font-medium text-gray-800">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                                     <span class="text-xs px-1.5 py-0.5 rounded-full {{ $session->type_color }}">{{ $session->type_label }}</span>
                                     @if($isAbsent)
                                         <span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-semibold">Abgesagt</span>

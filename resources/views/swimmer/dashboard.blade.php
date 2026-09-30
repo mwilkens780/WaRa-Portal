@@ -352,7 +352,7 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
-                                <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
+                                <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                                 {{-- Bis zum Ende der Trainingszeit steht die heutige Einheit hier --}}
                                 @if($session->date->isToday())
                                     <span class="text-xs bg-primary text-white px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">heute</span>
@@ -601,7 +601,7 @@
                                 <p class="text-xs text-primary">{{ $session->date->isoFormat('ddd') }}</p>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
+                                <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                                 <p class="text-xs text-gray-500">{{ $session->trainer?->name ?? '–' }} · {{ $session->type_label }}</p>
                             </div>
                             {{-- Selbsteinschätzungs-Badge --}}

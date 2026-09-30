@@ -254,7 +254,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-sm font-medium text-gray-800">{{ $s->title }}</span>
+                        <span class="text-sm font-medium text-gray-800">{{ $s->title }}@if($s->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</span>
                         @if($s->start_time)
                             <span class="text-xs text-gray-400">{{ substr($s->start_time,0,5) }}@if($s->end_time) – {{ substr($s->end_time,0,5) }}@endif Uhr</span>
                         @endif
@@ -347,7 +347,7 @@
                             {{-- Session info --}}
                             <div class="flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                                    <p class="text-sm font-medium text-gray-800">{{ $session->title }}</p>
+                                    <p class="text-sm font-medium text-gray-800">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                                     <span class="text-xs px-1.5 py-0.5 rounded-full {{ $session->type_color }}">{{ $session->type_label }}</span>
                                     {{-- Die heutige Einheit steht bis zum Ende der Trainingszeit hier --}}
                                     @if($session->date->isToday())
@@ -555,7 +555,7 @@
                                             <span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Unentschuldigt gefehlt</span>
                                         @endif
                                     </div>
-                                    <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}</p>
+                                    <p class="text-sm font-medium text-gray-800 truncate">{{ $session->title }}@if($session->isCancelled()) <x-ui.badge tone="warning">fällt aus</x-ui.badge>@endif</p>
                                     <p class="text-xs text-gray-500 mt-0.5">
                                         {{ $session->start_time }}@if($session->end_time) – {{ $session->end_time }}@endif Uhr
                                         · {{ $session->location }}

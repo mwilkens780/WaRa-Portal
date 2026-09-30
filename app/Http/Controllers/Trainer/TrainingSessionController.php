@@ -269,12 +269,6 @@ class TrainingSessionController extends Controller
         $cancelledSwimmers  = $swimmers->filter(fn($s) =>  in_array($s->id, $preAbsentIds))->values();
         $preAbsentCount     = $cancelledSwimmers->count();
 
-        $siblings = $session->recurrence_group_id
-            ? TrainingSession::where('recurrence_group_id', $session->recurrence_group_id)
-                ->where('id', '!=', $session->id)
-                ->orderBy('date')->get()
-            : collect();
-
         $blockTimesMap = [];
         if ($session->trainingPlan) {
             $blockIds = $session->trainingPlan->blocks->pluck('id');
@@ -342,11 +336,17 @@ class TrainingSessionController extends Controller
         // All groups for guest group management
         $allGroups = TrainingGroup::where('active', true)->orderBy('name')->get();
 
+        // Serie (Quelle der regelmaessigen Werte) und Bahnen nur fuer diesen Termin
+        $series = $session->recurrence_group_id ? app(\App\Services\TrainingSeriesBackfill::class)->ensure($session->recurrence_group_id) : null;
+        $exceptionIds = $session->exceptionLanes()->pluck('hall_resources.id')->all();
+        $occupancy = app(\App\Services\SeriesHallBookings::class)->occupancy($session);
+
         return view('trainer.sessions.show', compact(
+            'series', 'exceptionIds', 'occupancy',
             'session', 'swimmers', 'attendedIds',
             'participationPct', 'presentCount', 'totalSwimmers',
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
-            'siblings', 'blockTimesMap', 'allResources', 'freeResources', 'laneBookings',
+            'blockTimesMap', 'allResources', 'freeResources', 'laneBookings',
             'individualSwimmers', 'seriesIndividualSwimmers', 'allSwimmersForAssign', 'sessionRegistrations',
             'guestBookings', 'expectedCount', 'isOverCapacity', 'allGroups'
         ));
@@ -873,7 +873,28 @@ class TrainingSessionController extends Controller
     /**
      * Remove a hall booking linked to this session.
      */
-    public function removeLane(Request $request, TrainingSession $session, \App\Models\HallBooking $booking): \Illuminate\Http\JsonResponse
+    /**
+     * Bahnen nur fuer diesen Termin (z. B. Workshop). Stehen nicht im Hallenplan
+     * und erzeugen dort keinen Konflikt; Ueberschneidungen sind nur ein Hinweis.
+     */
+    public function saveExceptionLanes(Request $request, TrainingSession $session)
+    {
+        $this->authorizeSession($session);
+        $data = $request->validate(['hall_resource_ids' => ['array'], 'hall_resource_ids.*' => ['integer', 'exists:hall_resources,id']]);
+        $ids = array_map('intval', $data['hall_resource_ids'] ?? []);
+
+        $session->exceptionLanes()->syncWithPivotValues($ids, ['created_by_id' => auth()->id()]);
+
+        $occupancy = app(\App\Services\SeriesHallBookings::class)->occupancy($session);
+        $overlaps = collect($ids)->filter(fn($id) => isset($occupancy[$id]))
+            ->map(fn($id) => \App\Models\HallResource::find($id)?->name . ': ' . implode(', ', $occupancy[$id]));
+
+        return back()->with($overlaps->isEmpty() ? 'success' : 'warning', $overlaps->isEmpty()
+            ? 'Bahnen für diesen Termin gespeichert.'
+            : 'Gespeichert – Überschneidung (nur Hinweis): ' . $overlaps->implode('; '));
+    }
+
+    public function removeLane(Request $request, TrainingSession $session, \App\Models\HallBooking $booking)
     {
         $this->authorizeSession($session);
         if ($session->recurrence_group_id) {

@@ -392,9 +392,9 @@ class CalendarController extends Controller
                 : null;
             $map[$key][] = [
                 'type'    => 'training',
-                'color'   => 'blue',
+                'color'   => $s->isCancelled() ? 'gray' : 'blue',
                 'time'    => $s->start_time ? substr($s->start_time, 0, 5) : null,
-                'title'   => $s->title,
+                'title'   => ($s->isCancelled() ? 'Fällt aus: ' : '') . $s->title,
                 'sub'     => $groups,
                 'trainer' => $s->trainer ? $s->trainer->firstname . ' ' . $s->trainer->lastname : null,
                 'url'     => match ($sessionDetailRoute) {

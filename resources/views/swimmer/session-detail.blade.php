@@ -4,6 +4,11 @@
 
 @section('content')
 <div class="mt-2 space-y-6 max-w-2xl">
+    @if($session->isCancelled())
+        <x-ui.alert tone="warning">
+            <strong>Dieses Training fällt aus.</strong>@if($session->cancel_reason) {{ $session->cancel_reason }}@endif
+        </x-ui.alert>
+    @endif
 
     {{-- Session-Info --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

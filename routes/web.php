@@ -359,6 +359,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
         // Trainingseinheit → Bahnbelegung
         Route::post('/training/{session}/bahnen', [TrainingSessionController::class, 'bookLanes'])->name('sessions.book-lanes');
         Route::delete('/training/{session}/bahnen/{booking}', [TrainingSessionController::class, 'removeLane'])->name('sessions.remove-lane');
+        Route::put('/training/{session}/ausnahme-bahnen', [TrainingSessionController::class, 'saveExceptionLanes'])->name('sessions.exception-lanes');
 
         // Individuelle Schwimmer-Zuweisung zu Einheit oder Serie
         Route::post('/training/{session}/schwimmer', [SessionSwimmerController::class, 'addToSession'])->name('sessions.swimmer.add');
