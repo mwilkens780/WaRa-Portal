@@ -10,7 +10,7 @@ class HallBooking extends Model
     protected $fillable = [
         'hall_resource_id', 'day_of_week', 'start_time', 'end_time',
         'label', 'type', 'training_group_id', 'trainer_id',
-        'training_session_id', 'notes', 'color', 'created_by_id',
+        'training_session_id', 'training_series_id', 'notes', 'color', 'created_by_id',
     ];
 
     protected function casts(): array
@@ -62,6 +62,11 @@ class HallBooking extends Model
     public function trainingSession(): BelongsTo
     {
         return $this->belongsTo(TrainingSession::class);
+    }
+
+    public function series(): BelongsTo
+    {
+        return $this->belongsTo(TrainingSeries::class, 'training_series_id');
     }
 
     public function createdBy(): BelongsTo

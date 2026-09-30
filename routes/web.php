@@ -453,8 +453,19 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'index'])->name('admin.corrections.course.index');
     Route::put('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'update'])->name('admin.corrections.course.update');
     // Nur lesend: Trainingsserien und Hallenbelegungen (App\Services\TrainingDataAudit)
-    Route::get('/admin/datenpruefung-training', fn(\App\Services\TrainingDataAudit $audit) => view('admin.training-audit', ['result' => $audit->run()]))
-        ->name('admin.training-audit');
+    Route::get('/admin/datenpruefung-training', fn(\Illuminate\Http\Request $request, \App\Services\TrainingDataAudit $audit, \App\Services\TrainingSeriesBackfill $backfill) => view('admin.training-audit', [
+        'result'   => $audit->run(),
+        'pending'  => \App\Models\TrainingSession::whereNotNull('recurrence_group_id')->distinct()->pluck('recurrence_group_id')
+                        ->diff(\App\Models\TrainingSeries::pluck('id'))->count(),
+        // Probelauf nur auf Anforderung - er rechnet alles durch und rollt zurueck
+        'preview'  => $request->boolean('vorschau') ? $backfill->run(false) : null,
+    ]))->name('admin.training-audit');
+    // Uebernahme in Trainingsserien (Schritt 3, docs/konzept-trainingsserien.md)
+    Route::post('/admin/datenpruefung-training/serien', function (\App\Services\TrainingSeriesBackfill $backfill) {
+        $t = $backfill->run(true)['totals'];
+        return redirect()->route('admin.training-audit')->with('success',
+            "{$t['serien']} Serien angelegt, {$t['belegungen']} Belegungen zugeordnet, {$t['verbunden']} verbunden, {$t['entfernt']} doppelte entfernt.");
+    })->name('admin.training-audit.backfill');
     Route::get('/admin/korrekturen/zeiten',      [\App\Http\Controllers\Admin\TimeCheckController::class, 'index'])->name('admin.corrections.times.index');
     Route::delete('/admin/korrekturen/zeiten',   [\App\Http\Controllers\Admin\TimeCheckController::class, 'destroy'])->name('admin.corrections.times.destroy');
 });

@@ -52,10 +52,26 @@ class SeriesHallBookings
             ->whereNotIn('id', $own)
             ->get();
 
+        // Gleiche Zeit allein reicht nicht - parallel trainieren oft mehrere Gruppen.
+        // Belegung einer anderen Gruppe ist ein echter Konflikt, keine Kopie.
         $adoptable = $overlapping->filter(fn($b) => $b->training_session_id === null
-            && substr($b->start_time, 0, 5) === $start && substr($b->end_time ?? '', 0, 5) === $end);
+            && substr($b->start_time, 0, 5) === $start && substr($b->end_time ?? '', 0, 5) === $end
+            && $this->belongsToSeries($b, $anchor));
 
         return ['conflicts' => $overlapping->diff($adoptable)->values(), 'adoptable' => $adoptable->values()];
+    }
+
+    /**
+     * Gehoert eine (unverknuepfte) Belegung inhaltlich zu dieser Serie?
+     * Ja, wenn ihre Gruppe eine Gruppe der Serie ist - oder, ohne Gruppe,
+     * wenn die Bezeichnung einem Gruppennamen oder dem Serientitel entspricht.
+     */
+    public function belongsToSeries(HallBooking $booking, TrainingSession $anchor): bool
+    {
+        $groups = $anchor->trainingGroups;
+        if ($booking->training_group_id) return $groups->contains('id', $booking->training_group_id);
+        $names = $groups->pluck('name')->push($anchor->title)->map(fn($n) => mb_strtolower(trim((string) $n)))->filter();
+        return $names->contains(mb_strtolower(trim((string) $booking->label)));
     }
 
     /**
@@ -77,6 +93,7 @@ class SeriesHallBookings
         $end   = $anchor->end_time ? substr($anchor->end_time, 0, 5) : null;
         $werte = [
             'training_session_id' => $anchor->id,
+            'training_series_id'  => \App\Models\TrainingSeries::whereKey($group)->value('id'),
             'day_of_week'         => $day,
             'start_time'          => $start,
             'end_time'            => $end,

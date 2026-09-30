@@ -31,6 +31,7 @@ class TrainingSession extends Model
         'recurrence_type', 'recurrence_until', 'recurrence_group_id',
         'team_plan_path', 'individual_plan_path',
         'max_participants', 'registration_open', 'guest_group_id',
+        'status', 'cancel_reason', 'cancelled_at', 'overridden_fields',
     ];
 
     protected function casts(): array
@@ -39,6 +40,8 @@ class TrainingSession extends Model
             'date'              => 'date',
             'recurrence_until'  => 'date',
             'registration_open' => 'boolean',
+            'cancelled_at'      => 'datetime',
+            'overridden_fields' => 'array',
         ];
     }
 
@@ -287,6 +290,22 @@ class TrainingSession extends Model
     public function hallBookings(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(HallBooking::class, 'training_session_id');
+    }
+
+    public function series(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(TrainingSeries::class, 'recurrence_group_id');
+    }
+
+    /** Ausnahme-Bahnen nur fuer diesen Termin (nicht im Hallenplan) */
+    public function exceptionLanes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(HallResource::class, 'training_session_lanes')->withTimestamps();
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
     }
 
     public function guestGroup(): \Illuminate\Database\Eloquent\Relations\BelongsTo
