@@ -67,12 +67,12 @@ Grundsätze:
 4. **Ausnahmen gehören zur Einheit** – z. B. Workshop auf Bahn 3 an einem Termin. Sie
    erscheinen in der Einheit und im Kalender, nicht im Hallenplan, und erzeugen dort keinen
    Konflikt. Beim Anlegen zeigt die Einheit Überschneidungen als Hinweis, speichern geht trotzdem.
+5. **Absagen statt Löschen:** Ein ausfallender Termin wird als „fällt aus“ markiert
+   (Schwimmer sehen es, Anwesenheit/Statistik bleiben stimmig), gelöscht wird nur Falsches.
 6. **Eine Serie je Saison.** Zur neuen Saison wird eine neue Serie angelegt (Vorschlag aus der
    alten: Zeit, Gruppen, Trainer, Bahnen), weil sich Zusammensetzung und Zeiten ändern.
 7. **Ferien:** Serien lassen Schulferien Schleswig-Holstein aus – einstellbar je Serie
    (Voreinstellung: auslassen).
-5. **Absagen statt Löschen:** Ein ausfallender Termin wird als „fällt aus“ markiert
-   (Schwimmer sehen es, Anwesenheit/Statistik bleiben stimmig), gelöscht wird nur Falsches.
 
 Die vorhandene `recurrence_group_id` wird zur ID der Serie – bestehende Verweise
 (ständige Absagen, Einzelzuweisungen je Serie) bleiben gültig.
