@@ -284,6 +284,15 @@ class TrainingSessionController extends Controller
 
         $allResources = \App\Models\HallResource::where('active', true)->orderBy('sort_order')->get();
 
+        // Bahnen: bei Serien die der ganzen Serie (haengen an einer Einheit der Serie)
+        $laneBookings = $session->recurrence_group_id
+            ? app(\App\Services\SeriesHallBookings::class)->bookingsOf($session->recurrence_group_id)->load('resource')
+                ->unique('hall_resource_id')->values()
+            : $session->hallBookings;
+        $ownBookingIds = $session->recurrence_group_id
+            ? app(\App\Services\SeriesHallBookings::class)->bookingsOf($session->recurrence_group_id)->pluck('id')
+            : $session->hallBookings->pluck('id');
+
         // Freie Bahnkapazitäten zum Zeitpunkt dieser Einheit
         $freeResources = collect();
         if ($session->end_time) {
@@ -293,8 +302,7 @@ class TrainingSessionController extends Controller
             $bookedIds  = \App\Models\HallBooking::where('day_of_week', $dayOfWeek)
                 ->where('start_time', '<', $endTime)
                 ->where('end_time',   '>', $startTime)
-                ->where(fn($q) => $q->whereNull('training_session_id')
-                                    ->orWhere('training_session_id', '!=', $session->id))
+                ->whereNotIn('id', $ownBookingIds)
                 ->pluck('hall_resource_id');
             $freeResources = $allResources->reject(fn($r) => $bookedIds->contains($r->id))->values();
         }
@@ -335,7 +343,7 @@ class TrainingSessionController extends Controller
             'session', 'swimmers', 'attendedIds',
             'participationPct', 'presentCount', 'totalSwimmers',
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
-            'siblings', 'blockTimesMap', 'allResources', 'freeResources',
+            'siblings', 'blockTimesMap', 'allResources', 'freeResources', 'laneBookings',
             'individualSwimmers', 'seriesIndividualSwimmers', 'allSwimmersForAssign', 'sessionRegistrations',
             'guestBookings', 'expectedCount', 'isOverCapacity', 'allGroups'
         ));
@@ -418,8 +426,14 @@ class TrainingSessionController extends Controller
 
         // ── Serie komplett aktualisieren ──────────────────────────────
         if ($editScope === 'series' && $session->recurrence_group_id) {
+            // Nur kommende Einheiten: Vergangene tragen Anwesenheiten und Zeiten und
+            // duerfen nicht nachtraeglich verschoben oder umbenannt werden.
             $allSessions = TrainingSession::where('recurrence_group_id', $session->recurrence_group_id)
+                ->where('date', '>=', today())
                 ->orderBy('date')->get();
+            if ($allSessions->isEmpty()) {
+                $allSessions = collect([$session]);
+            }
 
             $seriesData = array_intersect_key($data, array_flip([
                 'title', 'start_time', 'end_time', 'location', 'type', 'notes',
@@ -439,7 +453,7 @@ class TrainingSessionController extends Controller
 
                 foreach ($allSessions as $idx => $s) {
                     if (!isset($newDates[$idx])) {
-                        $s->hallBookings()->delete();
+                        app(\App\Services\SeriesHallBookings::class)->moveAwayFrom($s);
                         $s->delete();
                         continue;
                     }
@@ -449,11 +463,6 @@ class TrainingSessionController extends Controller
                     ]));
                     $s->trainingGroups()->sync($groupIds);
                     $s->coTrainers()->sync($coTrainerIds);
-                    $s->hallBookings()->update([
-                        'day_of_week' => $newDates[$idx]->dayOfWeekIso,
-                        'start_time'  => $seriesData['start_time'],
-                        'end_time'    => $seriesData['end_time'] ?? null,
-                    ]);
                 }
             } else {
                 // ── Wochentag unverändert: nur Metadaten aktualisieren ─
@@ -461,15 +470,15 @@ class TrainingSessionController extends Controller
                     $s->update($seriesData);
                     $s->trainingGroups()->sync($groupIds);
                     $s->coTrainers()->sync($coTrainerIds);
-                    $s->hallBookings()->update([
-                        'start_time' => $seriesData['start_time'],
-                        'end_time'   => $seriesData['end_time'] ?? null,
-                    ]);
                 });
             }
 
-            return redirect()->route('trainer.sessions.show', $session)
-                ->with('success', 'Alle Einheiten der Serie wurden aktualisiert.');
+            // Serienbelegung an neue Zeit/Wochentag anpassen (eine je Bahn)
+            $lanes = app(\App\Services\SeriesHallBookings::class);
+            $lanes->sync($session->recurrence_group_id, $lanes->bookingsOf($session->recurrence_group_id)->pluck('hall_resource_id')->unique()->all(), auth()->id());
+
+            return redirect()->route('trainer.sessions.show', $session->fresh() ?? $allSessions->first())
+                ->with('success', 'Alle kommenden Einheiten der Serie wurden aktualisiert. Vergangene bleiben unverändert.');
         }
 
         // ── Einzelne Instanz aktualisieren ────────────────────────────
@@ -482,8 +491,14 @@ class TrainingSessionController extends Controller
         $session->coTrainers()->sync($coTrainerIds);
 
         if ($timeChanged) {
-            // Bahnbuchungen löschen – sie gelten nur für den alten Zeitpunkt
-            $session->hallBookings()->delete();
+            if ($session->recurrence_group_id) {
+                // Einzeltermin verschoben: die Serienbelegung gilt weiter fuer die
+                // anderen Termine - an die naechste Einheit umhaengen statt loeschen
+                app(\App\Services\SeriesHallBookings::class)->moveAwayFrom($session);
+            } else {
+                // Bahnbuchungen löschen – sie gelten nur für den alten Zeitpunkt
+                $session->hallBookings()->delete();
+            }
         } else {
             $session->hallBookings()->update([
                 'start_time' => $data['start_time'],
@@ -498,6 +513,8 @@ class TrainingSessionController extends Controller
     public function destroy(TrainingSession $session)
     {
         $this->authorizeSession($session);
+        // Einzeltermin einer Serie: Serienbelegung an die naechste Einheit haengen
+        app(\App\Services\SeriesHallBookings::class)->moveAwayFrom($session);
         $session->hallBookings()->delete();
         $session->delete();
         return redirect()->route('trainer.sessions.index')
@@ -836,6 +853,23 @@ class TrainingSessionController extends Controller
             return response()->json(['error' => 'Die Trainingseinheit hat keine Endzeit. Bitte zuerst eine Endzeit setzen.'], 422);
         }
 
+        // Einheit einer Serie: Bahnen gelten fuer die ganze Serie (eine Belegung je
+        // Bahn). Belegungen derselben Serie sind kein Konflikt; eine vorhandene
+        // unverknuepfte Belegung zur selben Zeit wird uebernommen statt verdoppelt.
+        if ($session->recurrence_group_id) {
+            $lanes  = app(\App\Services\SeriesHallBookings::class);
+            $group  = $session->recurrence_group_id;
+            $wanted = $lanes->bookingsOf($group)->pluck('hall_resource_id')->merge($data['hall_resource_ids'])->map(fn($id) => (int) $id)->unique()->values()->all();
+            $check  = $lanes->check($group, $wanted);
+            if ($check['conflicts']->isNotEmpty() && !($data['force'] ?? false)) {
+                return response()->json([
+                    'conflicts' => $check['conflicts']->map(fn($b) => ['resource' => $b->resource->name, 'label' => $b->label, 'time' => $b->formatted_time]),
+                ], 409);
+            }
+            $stats = $lanes->sync($group, $wanted, auth()->id());
+            return response()->json(['success' => true, 'created' => $stats['created'], 'adopted' => $stats['adopted'], 'series' => true]);
+        }
+
         $dayOfWeek = $session->date->dayOfWeekIso; // 1=Mon … 7=Sun
         $startTime = substr($session->start_time, 0, 5);
         $endTime   = substr($session->end_time, 0, 5);
@@ -888,9 +922,18 @@ class TrainingSessionController extends Controller
     public function removeLane(Request $request, TrainingSession $session, \App\Models\HallBooking $booking): \Illuminate\Http\JsonResponse
     {
         $this->authorizeSession($session);
-        if ($booking->training_session_id !== $session->id) abort(403);
-        $booking->delete();
-        return response()->json(['success' => true]);
+        if ($session->recurrence_group_id) {
+            $lanes = app(\App\Services\SeriesHallBookings::class);
+            $ofSeries = $lanes->bookingsOf($session->recurrence_group_id);
+            abort_unless($ofSeries->contains('id', $booking->id), 403);
+            $lanes->sync($session->recurrence_group_id, $ofSeries->pluck('hall_resource_id')->reject(fn($id) => $id === $booking->hall_resource_id)->unique()->values()->all(), auth()->id());
+        } else {
+            if ($booking->training_session_id !== $session->id) abort(403);
+            $booking->delete();
+        }
+        return $request->expectsJson()
+            ? response()->json(['success' => true])
+            : back()->with('success', 'Bahn entfernt.');
     }
 
     // ── Helper ──────────────────────────────────────────────────────────────
@@ -924,7 +967,9 @@ class TrainingSessionController extends Controller
         $coTrainerIds   = $rep->coTrainers->pluck('id')->toArray();
         $groupIds       = $rep->trainingGroups->pluck('id')->toArray();
         $allResources   = \App\Models\HallResource::where('active', true)->orderBy('sort_order')->get();
-        $bookedResourceIds = $rep->hallBookings->pluck('hall_resource_id')->toArray();
+        // Bahnen der ganzen Serie - nicht nur der ersten (oft vergangenen) Einheit.
+        // Sonst waren die Haken leer und Speichern loeschte die Belegung.
+        $bookedResourceIds = app(\App\Services\SeriesHallBookings::class)->bookingsOf($group)->pluck('hall_resource_id')->unique()->values()->toArray();
 
         // Permanent series exclusions (swimmers who opted out of the whole series)
         $exclusions = \App\Models\SwimmerSeriesExclusion::where('recurrence_group_id', $group)
@@ -1005,7 +1050,19 @@ class TrainingSessionController extends Controller
         }
 
         $syncLanes   = $request->boolean('manage_lanes');
-        $resourceIds = $syncLanes ? ($request->input('hall_resource_ids', [])) : [];
+        $resourceIds = array_map('intval', $syncLanes ? ($request->input('hall_resource_ids', [])) : []);
+        $lanes       = app(\App\Services\SeriesHallBookings::class);
+
+        // Echte Konflikte (fremde Belegungen) melden statt still zu uebergehen
+        if ($syncLanes && $resourceIds && !$request->boolean('force_lanes')) {
+            $conflicts = $lanes->check($group, $resourceIds)['conflicts'];
+            if ($conflicts->isNotEmpty()) {
+                return back()->withInput()->withErrors([
+                    'hall_resource_ids' => 'Überschneidung mit: ' . $conflicts->map(fn($b) => $b->resource->name . ' ' . $b->formatted_time . ' „' . $b->label . '“')->implode(', ')
+                        . '. Bitte prüfen – oder „Trotzdem speichern“ ankreuzen.',
+                ]);
+            }
+        }
 
         $futureSessions = $sessions->filter(fn($s) => $s->date->gte(today()));
         $count = 0;
@@ -1013,37 +1070,17 @@ class TrainingSessionController extends Controller
             $s->update($seriesData);
             $s->trainingGroups()->sync($groupIds);
             $s->coTrainers()->sync($coTrainerIds);
-
-            if ($syncLanes) {
-                $s->hallBookings()->delete();
-                foreach ($resourceIds as $resourceId) {
-                    \App\Models\HallBooking::updateOrCreate(
-                        [
-                            'hall_resource_id'    => $resourceId,
-                            'day_of_week'         => $s->date->dayOfWeekIso,
-                            'training_session_id' => $s->id,
-                        ],
-                        [
-                            'start_time'    => $data['start_time'],
-                            'end_time'      => $data['end_time'] ?? null,
-                            'label'         => $data['title'],
-                            'type'          => 'training',
-                            'created_by_id' => auth()->id(),
-                        ]
-                    );
-                }
-            } else {
-                $s->hallBookings()->update([
-                    'start_time' => $data['start_time'],
-                    'end_time'   => $data['end_time'] ?? null,
-                    'label'      => $data['title'],
-                ]);
-            }
             $count++;
         }
 
-        return redirect()->route('trainer.sessions.show', $sessions->first())
-            ->with('success', "{$count} zukuenftige Einheiten der Serie aktualisiert.");
+        // Eine Belegung je Bahn fuer die ganze Serie (vorher: je Einheit eine -
+        // im Hallenplan lagen sie dann unsichtbar uebereinander)
+        $stats = $lanes->sync($group, $syncLanes ? $resourceIds : $lanes->bookingsOf($group)->pluck('hall_resource_id')->unique()->all(), auth()->id());
+        $hinweis = $stats['adopted'] ? " {$stats['adopted']} vorhandene Belegung(en) mit der Serie verbunden." : '';
+        $hinweis .= $stats['removed'] ? " {$stats['removed']} doppelte Belegung(en) entfernt." : '';
+
+        return redirect()->route('trainer.sessions.show', $futureSessions->first() ?? $sessions->last())
+            ->with('success', "{$count} kommende Einheiten der Serie aktualisiert.{$hinweis}");
     }
 
     public function generateSeason(string $group)
@@ -1147,6 +1184,10 @@ class TrainingSessionController extends Controller
             if (!$firstSession) $firstSession = $session;
             $count++;
         }
+
+        // Serienbelegung haengt sonst an einem Termin der alten Saison
+        $lanes = app(\App\Services\SeriesHallBookings::class);
+        $lanes->sync($group, $lanes->bookingsOf($group)->pluck('hall_resource_id')->unique()->all(), auth()->id());
 
         return redirect()->route('trainer.sessions.show', $firstSession)
             ->with('success', "{$count} neue Einheiten fuer die Serie generiert.");

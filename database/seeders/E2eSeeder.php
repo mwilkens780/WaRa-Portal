@@ -69,7 +69,8 @@ class E2eSeeder extends Seeder
 
         // Einheiten: vergangene, heutige Woche, eine Serie in der Zukunft
         $serie = (string) Str::uuid();
-        foreach ([-14, -7, -2, 2, 7, 14] as $i => $tage) {
+        // Vergangene Einzeltermine und eine echte Wochenserie (gleicher Wochentag)
+        foreach ([-14, -7, -2, 2, 9, 16] as $i => $tage) {
             $s = TrainingSession::create([
                 'title'      => $tage < 0 ? 'Techniktraining' : 'Frühtraining',
                 'date'       => now()->addDays($tage)->format('Y-m-d'),
@@ -85,9 +86,10 @@ class E2eSeeder extends Seeder
         }
 
         // Hallenplan
+        // Die Bahnen legt bereits eine Migration an - nur ergaenzen, falls sie fehlen
         $bahnen = [];
-        foreach (['Bahn 1' => '#3B82F6', 'Bahn 2' => '#10B981'] as $i => $farbe) {
-            $bahnen[] = HallResource::create(['name' => $i, 'type' => 'lane', 'color' => $farbe, 'sort_order' => count($bahnen), 'active' => true]);
+        foreach (['Bahn 1' => '#3B82F6', 'Bahn 2' => '#10B981'] as $name => $farbe) {
+            $bahnen[] = HallResource::firstOrCreate(['name' => $name], ['type' => 'lane', 'color' => $farbe, 'sort_order' => count($bahnen) + 1, 'active' => true]);
         }
         HallBooking::create([
             'hall_resource_id' => $bahnen[0]->id, 'day_of_week' => 1, 'start_time' => '17:00', 'end_time' => '18:30',

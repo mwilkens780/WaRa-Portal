@@ -239,9 +239,19 @@ function seriesEditForm() {
                 @if($allResources->isEmpty())
                     <p class="text-xs text-gray-400">Keine aktiven Hallensegmente konfiguriert.</p>
                 @else
-                    <p class="text-xs text-gray-400">
-                        Markierte Ressourcen werden für alle zukünftigen Einheiten dieser Serie gebucht und überschreiben bestehende Bahnbuchungen.
+                    <p class="text-xs text-gray-600">
+                        Markierte Bahnen werden für die Serie gebucht – eine wöchentliche Belegung je Bahn im Hallenplan.
+                        Gibt es zur selben Zeit schon eine passende Belegung ohne Serie, wird sie übernommen statt verdoppelt.
                     </p>
+                    @error('hall_resource_ids')
+                        <div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                            {{ $message }}
+                            <label class="mt-2 flex items-center gap-2 font-medium">
+                                <input type="checkbox" name="force_lanes" value="1" class="rounded border-gray-300">
+                                Trotzdem speichern
+                            </label>
+                        </div>
+                    @enderror
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         @foreach($allResources as $resource)
                             <label class="flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 select-none">

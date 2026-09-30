@@ -350,10 +350,13 @@
                     class="text-xs text-primary hover:underline font-medium" x-text="showForm ? 'Schließen' : 'Bahnen buchen'"></button>
         </div>
 
-        {{-- Existing bookings linked to this session --}}
-        @if($session->hallBookings->isNotEmpty())
+        {{-- Gebuchte Bahnen: bei Serien die der ganzen Serie --}}
+        @if($session->recurrence_group_id)
+            <p class="text-xs text-gray-600 mb-2">Gilt für die ganze Serie (jede Woche {{ $session->date->isoFormat('dddd') }}).</p>
+        @endif
+        @if($laneBookings->isNotEmpty())
         <div class="flex flex-wrap gap-2 mb-3">
-            @foreach($session->hallBookings as $hb)
+            @foreach($laneBookings as $hb)
             <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs">
                 <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $hb->resource->color }}"></span>
                 <span class="font-medium text-gray-700">{{ $hb->resource->name }}</span>
@@ -448,7 +451,7 @@
             selectedLanes: [],
             conflicts: [],
             saving: false,
-            bookedIds: @json($session->hallBookings->pluck('hall_resource_id')->toArray()),
+            bookedIds: @json($laneBookings->pluck('hall_resource_id')->toArray()),
 
             isBooked(id) { return this.bookedIds.includes(id); },
 

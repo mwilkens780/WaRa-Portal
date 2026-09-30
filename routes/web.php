@@ -452,6 +452,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Korrekturen (erreichbar ueber Einstellungen)
     Route::get('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'index'])->name('admin.corrections.course.index');
     Route::put('/admin/korrekturen/bahnlaengen', [\App\Http\Controllers\Admin\CourseCorrectionController::class, 'update'])->name('admin.corrections.course.update');
+    // Nur lesend: Trainingsserien und Hallenbelegungen (App\Services\TrainingDataAudit)
+    Route::get('/admin/datenpruefung-training', fn(\App\Services\TrainingDataAudit $audit) => view('admin.training-audit', ['result' => $audit->run()]))
+        ->name('admin.training-audit');
     Route::get('/admin/korrekturen/zeiten',      [\App\Http\Controllers\Admin\TimeCheckController::class, 'index'])->name('admin.corrections.times.index');
     Route::delete('/admin/korrekturen/zeiten',   [\App\Http\Controllers\Admin\TimeCheckController::class, 'destroy'])->name('admin.corrections.times.destroy');
 });

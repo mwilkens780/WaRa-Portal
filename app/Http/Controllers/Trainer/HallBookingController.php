@@ -191,11 +191,22 @@ class HallBookingController extends Controller
         }
         unset($data['force']);
 
+        // Wochentag einer Serienbelegung: verschiebt Termine - das gehoert in "Serie bearbeiten"
+        if ($booking->trainingSession?->recurrence_group_id && (int) $data['day_of_week'] !== (int) $booking->day_of_week) {
+            return response()->json([
+                'message' => 'Diese Belegung gehört zu einer Trainingsserie. Den Wochentag bitte in der Serie ändern (Trainingseinheiten → Serie bearbeiten).',
+            ], 422);
+        }
+
         $booking->update($data);
 
-        // Sync time to linked training session
-        if ($booking->training_session_id) {
-            \App\Models\TrainingSession::where('id', $booking->training_session_id)->update([
+        // Zeit an die verknuepfte Einheit weitergeben - bei einer Serie an alle
+        // kommenden Einheiten (vorher nur an die eine, an der die Belegung hing)
+        if ($linked = $booking->trainingSession) {
+            $query = $linked->recurrence_group_id
+                ? \App\Models\TrainingSession::where('recurrence_group_id', $linked->recurrence_group_id)->where('date', '>=', today())
+                : \App\Models\TrainingSession::where('id', $linked->id);
+            $query->update([
                 'start_time' => $data['start_time'],
                 'end_time'   => $data['end_time'],
             ]);

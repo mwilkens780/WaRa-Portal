@@ -82,6 +82,7 @@ class Navigation
             self::item('Import-Center', 'imports.index', 'upload', ['imports.*', 'trainer.dsv-import.*', 'admin.webclub-import.*'], !empty(ImportCatalog::for($user))),
             self::item('Crawler & Import-Log', 'admin.import-log.index', 'download', 'admin.import-log.*', $is('admin')),
             self::item('Korrekturen', 'admin.corrections.times.index', 'wrench', 'admin.corrections.*', $is('admin')),
+            self::item('Datenprüfung Training', 'admin.training-audit', 'shield', 'admin.training-audit', $is('admin')),
         ]];
 
         $sections[] = ['System', [
