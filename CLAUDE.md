@@ -124,6 +124,8 @@ Ausführlich in [docs/mail-und-zugang.md](docs/mail-und-zugang.md). Das Wichtigs
   greifen Opt-in-Prüfung, Wartungsmodus-Umleitung und Protokoll.
 - **Opt-in**: Außer Kontomails (`MailTopic::ACCOUNT`) geht nur raus, was im
   Profil eingeschaltet ist. Neue Themen gehören in `App\Support\MailTopic`.
+  Einzige Ausnahme: Themen mit `'default' => true` (Trainingsausfall) sind an,
+  bis sie abgewählt werden – neue Ausnahmen nur nach Rücksprache.
 - **Ereignis-Mails** bauen auf `App\Services\EventMailer` auf; dort liegt auch
   die Auswahl der Empfänger (inkl. Eltern und Gruppentrainer).
 - **Eine Vorlage für alle Ereignisse**: `App\Mail\NotificationMail` — keine

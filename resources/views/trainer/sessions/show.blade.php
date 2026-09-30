@@ -385,7 +385,7 @@
             <x-ui.field label="Grund (optional)" name="cancel_reason" placeholder="z. B. Hallenschließung" />
             <label class="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" name="notify" value="1" checked class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary">
-                <span class="text-sm text-gray-700">Per E-Mail benachrichtigen <span class="block text-xs text-gray-600">An alle, die „Trainingsausfall“ in ihrem Profil eingeschaltet haben (auch Eltern).</span></span>
+                <span class="text-sm text-gray-700">Per E-Mail benachrichtigen <span class="block text-xs text-gray-600">An Schwimmer und Eltern – außer wer „Trainingsausfall“ im Profil abgewählt hat.</span></span>
             </label>
         </form>
         <x-slot:footer>

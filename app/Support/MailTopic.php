@@ -10,7 +10,8 @@ use App\Models\User;
  * Grundregel ist Opt-in: Ohne eigene Einstellung bekommt niemand Mails ausser
  * denen zum eigenen Konto - die lassen sich nicht abbestellen, weil ohne sie
  * der Zugang nicht funktioniert (Willkommen, Passwort). Alles andere muss im
- * Profil einzeln eingeschaltet werden.
+ * Profil einzeln eingeschaltet werden - ausser Themen mit 'default' => true
+ * (bewusste Ausnahme, z. B. Trainingsausfall): an, bis jemand es abwaehlt.
  */
 final class MailTopic
 {
@@ -54,6 +55,9 @@ final class MailTopic
             'label'       => 'Trainingsausfall',
             'description' => 'Wenn ein Training, zu dem du gehörst, ausfällt.',
             'roles'       => ['schwimmer', 'elternteil'],
+            // Bewusste Ausnahme vom Opt-in (Entscheidung Martin, 30.09.2026): ein
+            // Ausfall betrifft jeden - abwaehlbar bleibt es trotzdem
+            'default'     => true,
             'parent_label'       => 'Trainingsausfall',
             'parent_description' => 'Wenn ein Training eines deiner Kinder ausfällt.',
         ],
@@ -159,8 +163,12 @@ final class MailTopic
         if (self::isMandatory($topic)) return true;
         if (!array_key_exists($topic, self::forRole($user->role))) return false;
 
-        $prefs = $user->mail_preferences ?? [];
+        return self::chosen($user->mail_preferences ?? [], $topic);
+    }
 
-        return (bool) ($prefs[$topic] ?? false);
+    /** Eigene Wahl - oder, solange keine getroffen ist, die Voreinstellung des Themas */
+    public static function chosen(array $prefs, string $topic): bool
+    {
+        return (bool) ($prefs[$topic] ?? (self::TOPICS[$topic]['default'] ?? false));
     }
 }

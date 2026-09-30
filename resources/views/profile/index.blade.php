@@ -171,7 +171,7 @@
                                     <input type="checkbox"
                                            name="topics[{{ $key }}]" value="1"
                                            class="mt-0.5 rounded text-primary"
-                                           @if($mandatory) checked disabled @elseif($mailPrefs[$key] ?? false) checked @endif>
+                                           @if($mandatory) checked disabled @elseif(\App\Support\MailTopic::chosen($mailPrefs, $key)) checked @endif>
                                     <span>
                                         <span class="block text-sm font-medium text-gray-800">
                                             {{ $topic['label'] }}
