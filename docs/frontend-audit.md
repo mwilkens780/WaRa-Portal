@@ -1,5 +1,9 @@
 # Frontend-Audit und Umbauplan
 
+> **Geltende Regeln stehen in [design-system.md](design-system.md).** Dieses Dokument
+> ist der Prüfbericht mit Umbauplan (abgeschlossen 30.09.2026); die Skizzen in
+> Kapitel 5 waren Entwürfe und sind dort verbindlich ausformuliert.
+
 Stand 28.09.2026. Bestandsaufnahme des Portal-Frontends als Grundlage für den
 Umbau zu einem einheitlichen UI-System. Noch keine Codeänderungen – dieses
 Dokument ist der Plan dafür.

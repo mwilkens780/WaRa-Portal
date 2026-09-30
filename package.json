@@ -4,7 +4,8 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "test:e2e": "playwright test"
+        "test:e2e": "playwright test",
+        "lint:ui": "node scripts/lint-ui.mjs"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.13.0",

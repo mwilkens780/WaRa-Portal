@@ -22,6 +22,30 @@ Laravel 11 Portal für SG Wasserratten Norderstedt e.V.
 
 Das `composer.lock` muss immer mit committet werden — der Server führt `composer install` (nicht `composer update`) aus.
 
+## UI-Regeln (verbindlich) – vor jeder Änderung an Views lesen
+
+Vollständig in **[docs/design-system.md](docs/design-system.md)**. Die Kurzfassung ist
+Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbild):
+
+- **Baustein vor Handarbeit:** `x-ui.button` (primary | secondary | danger),
+  `x-ui.field`, `x-ui.card`, `x-ui.dialog`, `x-ui.empty-state`, `x-ui.tabs`, `x-ui.menu`,
+  `x-ui.page-header`, `x-ui.alert`, `x-ui.badge`, Import-Bausteine. Musterseite `/admin/ui`.
+  Wer eine Seite anfasst, stellt die berührten Teile auf Bausteine um.
+- **Farben:** Knöpfe nur `primary` (Hauptaktion, eine je Bereich), weiß/secondary, `accent`
+  (nur Zerstörendes). Text mind. 4,5:1: Nebentext `text-gray-600`, nie `text-gray-200/300`
+  für Text, `gray-400/500` nicht auf `gray-100`. Statusfarben als Text ab Stufe 700.
+  Keine `opacity-*` auf Text, keine `text-…/70`.
+- **Größen:** Text mind. 12 px (`text-xs`), Touch-Ziele regelt `app.css` global
+  (`touch-exempt` nur wenn Größe Bedeutung hat).
+- **Pop-ups:** nie `alert/confirm/prompt` → `$confirm`, `data-confirm`, `$prompt`, `$toast`,
+  `x-ui.dialog`. Speichern per JS mit `api()`, ohne Neuladen.
+- **Formulare:** jedes Feld beschriftet, Fehler am Feld (Übersicht macht das Layout).
+- **Tabellen:** Muster aus design-system.md, Abschnitt 7 (`scope="col"`, `tabular-nums`,
+  mobil nicht quetschen, Auswahl-Checkboxen mit `aria-label`).
+- **Prüfen vor dem Commit:** `npm run lint:ui` (scheitert an neuen Verstößen) und – bei
+  neuen Seiten – Testdaten im `E2eSeeder` ergänzen, damit die Browsertests sie abdecken.
+  Nach einer Bereinigung: `npm run lint:ui -- --update` und die Ausgangsliste mit committen.
+
 ## Frontend-Build (Vite + Tailwind v3.4 + Alpine)
 
 - CSS/JS kommen aus `resources/css/app.css` und `resources/js/app.js`, gebaut mit

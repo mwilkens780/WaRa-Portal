@@ -1,0 +1,196 @@
+{
+  "resources/views/admin/competitions/_announcement_tab.blade.php": {
+    "neu-laden": 1
+  },
+  "resources/views/admin/competitions/index.blade.php": {
+    "text-zu-blass": 3
+  },
+  "resources/views/admin/competitions/show.blade.php": {
+    "text-zu-blass": 5,
+    "feld-ohne-beschriftung": 9,
+    "neu-laden": 1
+  },
+  "resources/views/admin/corrections/course.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/corrections/times.blade.php": {
+    "feld-ohne-beschriftung": 3
+  },
+  "resources/views/admin/dsgvo/show.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/import-log/index.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/records/_record_table.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 3
+  },
+  "resources/views/admin/records/_toplist_table.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 3
+  },
+  "resources/views/admin/records/index.blade.php": {
+    "feld-ohne-beschriftung": 7
+  },
+  "resources/views/admin/settings/index.blade.php": {
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/admin/training-groups/create.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/training-groups/edit.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/training-groups/import-csv.blade.php": {
+    "feld-ohne-beschriftung": 3
+  },
+  "resources/views/admin/training-groups/motto-weeks.blade.php": {
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/admin/training-groups/show.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/users/bulk-welcome.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/users/edit.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/users/index.blade.php": {
+    "text-zu-blass": 4,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/admin/wa_scoring/index.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/auth/login.blade.php": {
+    "neu-laden": 1
+  },
+  "resources/views/calendar/_legend.blade.php": {
+    "text-zu-blass": 1
+  },
+  "resources/views/calendar/index.blade.php": {
+    "text-zu-blass": 1,
+    "schrift-winzig": 5
+  },
+  "resources/views/competitions/auswertung-pdf.blade.php": {
+    "roh-html": 1
+  },
+  "resources/views/competitions/auswertung-print.blade.php": {
+    "roh-html": 1
+  },
+  "resources/views/components/ui/icon-button.blade.php": {
+    "text-transparent": 1
+  },
+  "resources/views/components/ui/rich-text-editor.blade.php": {
+    "roh-html": 1
+  },
+  "resources/views/components/ui/rich-text.blade.php": {
+    "roh-html": 2
+  },
+  "resources/views/layouts/app.blade.php": {
+    "native-dialoge": 2,
+    "text-transparent": 1,
+    "eigenes-overlay": 1
+  },
+  "resources/views/nutrition/show.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/parent/child-signups.blade.php": {
+    "text-zu-blass": 1
+  },
+  "resources/views/parent/child-trainings.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/swimmer/dashboard.blade.php": {
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/swimmer/group-goals.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/swimmer/motto/index.blade.php": {
+    "text-zu-blass": 2,
+    "text-transparent": 2,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/swimmer/my-competitions.blade.php": {
+    "text-zu-blass": 2
+  },
+  "resources/views/swimmer/my-goals.blade.php": {
+    "feld-ohne-beschriftung": 7,
+    "eigenes-overlay": 1
+  },
+  "resources/views/swimmer/my-times.blade.php": {
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/swimmer/my-trainings.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/swimmer/session-detail.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/teamdoctor/show.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/trainer/dashboard.blade.php": {
+    "text-transparent": 1
+  },
+  "resources/views/trainer/diary-overview.blade.php": {
+    "text-zu-blass": 3,
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/trainer/goals.blade.php": {
+    "schrift-winzig": 1,
+    "feld-ohne-beschriftung": 5
+  },
+  "resources/views/trainer/hall/import/preview.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/trainer/hall/index.blade.php": {
+    "eigenes-overlay": 1,
+    "roh-html": 5
+  },
+  "resources/views/trainer/motto/index.blade.php": {
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/trainer/sessions/create.blade.php": {
+    "roh-html": 2
+  },
+  "resources/views/trainer/sessions/delete-series.blade.php": {
+    "feld-ohne-beschriftung": 1
+  },
+  "resources/views/trainer/sessions/edit-series.blade.php": {
+    "roh-html": 1
+  },
+  "resources/views/trainer/sessions/edit.blade.php": {
+    "roh-html": 1
+  },
+  "resources/views/trainer/sessions/generate-season.blade.php": {
+    "feld-ohne-beschriftung": 2
+  },
+  "resources/views/trainer/sessions/index.blade.php": {
+    "text-zu-blass": 1
+  },
+  "resources/views/trainer/sessions/live.blade.php": {
+    "eigenes-overlay": 2,
+    "neu-laden": 1
+  },
+  "resources/views/trainer/sessions/show.blade.php": {
+    "text-zu-blass": 4,
+    "feld-ohne-beschriftung": 9,
+    "roh-html": 1,
+    "neu-laden": 1
+  },
+  "resources/views/trainer/users/index.blade.php": {
+    "text-zu-blass": 1,
+    "feld-ohne-beschriftung": 2
+  }
+}

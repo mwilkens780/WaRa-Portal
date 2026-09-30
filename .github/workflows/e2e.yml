@@ -15,6 +15,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Schnell (Sekunden): Regeln aus docs/design-system.md. Scheitert nur an NEUEN
+  # Verstoessen; Altlasten stehen in tests/ui-lint-baseline.json.
+  ui-lint:
+    name: UI-Regeln
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: UI-Regeln prüfen
+        run: node scripts/lint-ui.mjs
+
   e2e:
     name: Playwright + axe
     runs-on: ubuntu-latest
