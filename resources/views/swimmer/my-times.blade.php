@@ -22,15 +22,15 @@
         {{-- Zeitraum-Filter --}}
         <div class="flex gap-1 p-1 bg-gray-100 rounded-lg">
             <a href="{{ $timesUrl(['filter' => 'all', 'course' => $courseFilter]) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-700 hover:text-gray-900' }}">
                 Alle
             </a>
             <a href="{{ $timesUrl(['filter' => 'year', 'year' => $yearVal, 'course' => $courseFilter]) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'year' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'year' ? 'bg-white text-primary shadow-sm' : 'text-gray-700 hover:text-gray-900' }}">
                 Kalenderjahr
             </a>
             <a href="{{ $timesUrl(['filter' => 'season', 'season_id' => $seasonId, 'course' => $courseFilter]) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'season' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $filter === 'season' ? 'bg-white text-primary shadow-sm' : 'text-gray-700 hover:text-gray-900' }}">
                 Saison
             </a>
         </div>
@@ -38,15 +38,15 @@
         {{-- Bahnlängen-Filter --}}
         <div class="flex gap-1 p-1 bg-gray-100 rounded-lg">
             <a href="{{ $timesUrl(array_merge(request()->query(), ['course' => 'all'])) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-700 hover:text-gray-900' }}">
                 Lang + Kurz
             </a>
             <a href="{{ $timesUrl(array_merge(request()->query(), ['course' => 'LB'])) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'LB' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'LB' ? 'bg-white text-primary shadow-sm' : 'text-gray-700 hover:text-gray-900' }}">
                 Langbahn
             </a>
             <a href="{{ $timesUrl(array_merge(request()->query(), ['course' => 'KB'])) }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'KB' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ $courseFilter === 'KB' ? 'bg-white text-primary shadow-sm' : 'text-gray-700 hover:text-gray-900' }}">
                 Kurzbahn
             </a>
         </div>

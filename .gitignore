@@ -32,3 +32,9 @@ yarn-error.log
 /storage/app/bestenlisten-import
 /public/build
 /public/build-*
+
+# Browsertests (Phase 6)
+/tests/e2e/.auth/
+/playwright-report/
+/test-results/
+/e2e.out

@@ -1,0 +1,107 @@
+name: E2E (Browsertests)
+
+# Playwright + axe gegen eine frische Test-Datenbank (database/seeders/E2eSeeder).
+# Laeuft neben dem Deploy, blockiert ihn nicht: Ein roter Lauf zeigt einen
+# Fehler an, ein dringender Fix geht trotzdem raus (siehe docs/frontend-audit.md).
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright + axe
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wara_e2e
+        ports: [ '3306:3306' ]
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      E2E_BASE_URL: http://127.0.0.1:8766
+      E2E_ALLOW_WRITES: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, zip, gd, intl, bcmath, exif
+          coverage: none
+
+      - name: Composer-Cache
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: PHP-Abhängigkeiten
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Frontend bauen
+        run: |
+          npm ci
+          npm run build
+
+      - name: Test-Umgebung (.env)
+        run: |
+          cp .env.example .env
+          sed -i \
+            -e 's#^APP_ENV=.*#APP_ENV=testing#' \
+            -e 's#^APP_DEBUG=.*#APP_DEBUG=true#' \
+            -e 's#^APP_URL=.*#APP_URL=http://127.0.0.1:8766#' \
+            -e 's#^LOG_LEVEL=.*#LOG_LEVEL=debug#' \
+            -e 's#^DB_HOST=.*#DB_HOST=127.0.0.1#' \
+            -e 's#^DB_DATABASE=.*#DB_DATABASE=wara_e2e#' \
+            -e 's#^DB_USERNAME=.*#DB_USERNAME=root#' \
+            -e 's#^MAIL_MAILER=.*#MAIL_MAILER=log#' \
+            -e 's#^QUEUE_CONNECTION=.*#QUEUE_CONNECTION=sync#' \
+            .env
+          grep -q '^DB_PASSWORD=' .env && sed -i 's#^DB_PASSWORD=.*#DB_PASSWORD=root#' .env || echo 'DB_PASSWORD=root' >> .env
+          php artisan key:generate --force
+
+      - name: Datenbank anlegen und befüllen
+        run: php artisan migrate:fresh --seed --seeder=E2eSeeder --force
+
+      - name: Server starten
+        run: |
+          nohup php artisan serve --host=127.0.0.1 --port=8766 > storage/logs/serve.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8766/login > /dev/null && exit 0; sleep 1; done
+          echo "Server startet nicht"; cat storage/logs/serve.log; exit 1
+
+      - name: Chromium installieren
+        run: npx playwright install --with-deps chromium
+
+      - name: Browsertests
+        run: npx playwright test
+
+      - name: Bericht bei Fehlern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-bericht
+          path: |
+            playwright-report/
+            test-results/
+            storage/logs/
+          retention-days: 14

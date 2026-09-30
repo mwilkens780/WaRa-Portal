@@ -3,9 +3,12 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "test:e2e": "playwright test"
     },
     "devDependencies": {
+        "@axe-core/playwright": "^4.13.0",
+        "@playwright/test": "^1.63.0",
         "autoprefixer": "^10.4.21",
         "laravel-vite-plugin": "^3.2.0",
         "postcss": "^8.5.6",

@@ -243,7 +243,7 @@
                                 <div class="text-[10px] text-gray-400 mt-0.5">{{ $day['date']->format('d.m.') }}</div>
                                 @if($day['holiday'])
                                     <div x-show="categories.holiday"
-                                         class="text-[9px] text-green-700 font-semibold mt-0.5 leading-tight px-1 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
+                                         class="text-[10px] text-green-800 font-semibold mt-0.5 leading-tight px-1 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
                                 @elseif($day['vacSH'] || $day['vacHH'])
                                     <div class="text-[9px] mt-0.5 leading-tight px-1 truncate
                                         {{ $day['vacSH'] ? 'text-sky-700' : 'text-violet-600' }}"
@@ -312,7 +312,7 @@
                     </h3>
                     <div class="p-2 space-y-1.5">
                         @if($day['holiday'])
-                            <p x-show="categories.holiday" class="px-3 text-xs font-semibold text-green-700">{{ $day['holiday'] }}</p>
+                            <p x-show="categories.holiday" class="px-3 text-xs font-semibold text-green-800">{{ $day['holiday'] }}</p>
                         @endif
                         @if($day['vacSH'] || $day['vacHH'])
                             <p x-show="categories.vacSH || categories.vacHH" class="px-3 text-xs text-sky-700">
@@ -344,8 +344,9 @@
                             $cellBg  = $cellBgFn($day['isToday'], $day['holiday'], $day['vacSH'], $day['vacHH']);
                             if (!$cellBg && !$day['inMonth']) $cellBg = 'bg-gray-50/50';
                         @endphp
-                        <div class="min-h-[90px] p-1.5 border-r border-gray-50 last:border-r-0 {{ $cellBg }}
-                                    {{ !$day['inMonth'] && $cellBg && $cellBg !== 'bg-gray-50/50' ? 'opacity-70' : '' }}">
+                        {{-- Kein opacity mehr fuer Nachbarmonats-Tage: blendete auch Feiertags-
+                             und Ferientexte unter 4,5:1 ab. Die graue Tageszahl reicht als Hinweis. --}}
+                        <div class="min-h-[90px] p-1.5 border-r border-gray-50 last:border-r-0 {{ $cellBg }}">
                             <div class="flex items-center justify-between mb-0.5">
                                 <span class="text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full
                                     {{ $day['isToday'] ? 'bg-primary text-white' : ($day['inMonth'] ? ($isWknd ? 'text-blue-600' : 'text-gray-700') : 'text-gray-400') }}">
@@ -361,7 +362,7 @@
                             </div>
                             @if($day['holiday'])
                                 <div x-show="categories.holiday"
-                                     class="text-[10px] font-semibold text-green-700 leading-tight mb-0.5 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
+                                     class="text-[10px] font-semibold text-green-800 leading-tight mb-0.5 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
                             @elseif($day['vacSH'] && !$day['vacHH'])
                                 <div x-show="categories.vacSH"
                                      class="text-[9px] text-sky-700 leading-tight mb-0.5 truncate" title="SH: {{ $day['vacSH'] }}">Ferien SH</div>

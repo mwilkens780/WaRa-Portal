@@ -39,6 +39,25 @@ Das `composer.lock` muss immer mit committet werden — der Server führt `compo
   `public/build-old`).
 - UI-Bausteine liegen unter `resources/views/components/ui/` (`x-ui.*`), Plan und
   Regeln in `docs/frontend-audit.md`.
+- **Keine `<x-…>`-Tags in Kommentaren innerhalb von `<script>`**: Blade kompiliert
+  sie trotzdem als Komponente → PHP-Syntaxfehler (Fehler 500).
+
+## Browsertests (Playwright + axe)
+
+- GitHub Action `.github/workflows/e2e.yml` bei jedem Push/PR: frische MySQL,
+  `migrate:fresh --seed --seeder=E2eSeeder`, `php artisan serve`, `npx playwright test`.
+  Läuft neben dem Deploy und blockiert ihn nicht. Bei Fehlern: Artefakt „e2e-bericht“.
+- Tests unter `tests/e2e/`: `pages.spec.js` prüft **jede Menüseite jeder Rolle**
+  (Status, JS-Fehler, Überlauf, axe kritisch/ernst = 0), dazu Dialoge und Importe.
+  Neue Seiten im Menü sind automatisch abgedeckt.
+- Testkonten aus `database/seeders/E2eSeeder.php` (admin/trainer/schwimmer/eltern
+  `@e2e.test`, Passwort `E2e-Test-2026`). Neue Bereiche mit Testdaten dort ergänzen.
+- **Nur gegen eine Test-Datenbank**: Die Tests speichern und importieren. Sie
+  verweigern den Start ohne `E2E_ALLOW_WRITES=1` und außerhalb von localhost.
+- Lokal (Windows): eigene DB `wara_e2e`, Server mit `DB_DATABASE=wara_e2e php artisan
+  serve --port=8766`, dann `E2E_BASE_URL=http://127.0.0.1:8766 E2E_ALLOW_WRITES=1
+  E2E_LOCAL_ASSETS=1 npx playwright test`. `E2E_LOCAL_ASSETS=1` liefert `/build/assets`
+  von der Platte, weil der PHP-Server unter Windows Verbindungen abbricht.
 
 ## Entwicklungsumgebung (diese Cloud-Session)
 

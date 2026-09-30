@@ -123,7 +123,7 @@
                                 @endif
                             @else
                                 <td class="text-right tabular-nums px-5 py-2.5 font-mono text-gray-300">–</td>
-                                <td class="px-5 py-2.5 text-xs text-gray-300 italic" colspan="4">noch kein Rekord</td>
+                                <td class="px-5 py-2.5 text-xs text-gray-600 italic" colspan="4">noch kein Rekord</td>
                                 @if($isAdmin) <td></td> @endif
                             @endif
                             <td></td>

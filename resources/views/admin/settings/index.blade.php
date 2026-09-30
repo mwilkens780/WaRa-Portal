@@ -148,7 +148,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Testmail verschicken</label>
                     <div class="flex flex-wrap gap-2">
-                        <input type="email" name="test_recipient" required
+                        <input type="email" name="test_recipient" aria-label="Empfänger der Testmail" required
                                value="{{ $settings['mail_test_address'] ?: auth()->user()->email }}"
                                class="flex-1 min-w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
                         <button type="submit" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">

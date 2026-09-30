@@ -21,6 +21,7 @@ import Alpine from 'alpinejs';
 import focus from '@alpinejs/focus';
 import './ui/api';
 import './ui/scroll-lock';
+import './ui/scroll-regions';
 import uiDialog from './ui/dialog';
 import uiFileDrop from './ui/file-drop';
 import { registerConfirm } from './ui/confirm';
