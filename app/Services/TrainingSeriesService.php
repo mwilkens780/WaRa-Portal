@@ -121,16 +121,16 @@ class TrainingSeriesService
     public function createSessions(TrainingSeries $series, array $dates, array $groupIds, array $trainerIds): int
     {
         foreach ($dates as $date) {
-            $session = TrainingSession::create([
+            // Ohne Ort greift der Standard der Spalte (NOT NULL, "Stadtbad Norderstedt")
+            $session = TrainingSession::create(array_filter(['location' => $series->location]) + [
                 'title'               => $series->title,
                 'date'                => $date->toDateString(),
                 'start_time'          => $series->start_time,
                 'end_time'            => $series->end_time,
-                'location'            => $series->location,
                 'type'                => $series->type,
                 'notes'               => $series->notes,
                 'max_participants'    => $series->max_participants,
-                'registration_open'   => $series->registration_open,
+                'registration_open'   => (bool) $series->registration_open,
                 'guest_group_id'      => $series->guest_group_id,
                 'recurrence_type'     => $series->recurrence_type,
                 'recurrence_until'    => $series->valid_until?->toDateString(),

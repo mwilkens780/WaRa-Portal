@@ -2,11 +2,12 @@
 
 namespace App\Services\Import;
 
-use App\Models\Holiday;
 use App\Models\HallBooking;
 use App\Models\HallResource;
 use App\Models\Season;
-use App\Models\TrainingSession;
+use App\Models\TrainingSeries;
+use App\Services\SeriesHallBookings;
+use App\Services\TrainingSeriesService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -78,27 +79,31 @@ class HallPlanImportService
     /**
      * Fuehrt den Import aus.
      *
+     * Serien: Zeilen mit gleichem Wochentag, gleicher Zeit und gleichen Gruppen
+     * sind EIN Training auf mehreren Bahnen - also eine Serie mit mehreren
+     * Belegungen (vorher entstand je Bahn eine eigene Serie). Gibt es fuer die
+     * Gruppe in diesem Zeitfenster schon eine laufende Serie, haengt die Belegung
+     * daran statt eine zweite anzulegen. Jede Belegung ist sofort mit ihrer
+     * Serie verbunden (docs/konzept-trainingsserien.md, Entscheidung 9).
+     *
      * @param  list<array> $entries  bereits abgeglichen und analysiert
      * @param  bool        $dryRun   true = nur zaehlen, nichts schreiben
-     * @return array{bookings:int, sessions:int, skipped:int, details:list<string>}
+     * @return array{bookings:int, sessions:int, series:int, linked:int, skipped:int, details:list<string>}
      */
     public function import(array $entries, int $userId, bool $dryRun = false): array
     {
         $season = Season::current();
         if (!$season) {
-            return ['bookings' => 0, 'sessions' => 0, 'skipped' => count($entries),
+            return ['bookings' => 0, 'sessions' => 0, 'series' => 0, 'linked' => 0, 'skipped' => count($entries),
                     'details' => ['Keine aktuelle Saison gefunden – Import abgebrochen.']];
         }
 
         $from = $season->start_date->copy();
         $to   = $season->end_date->copy();
 
-        // Ferien einmal laden statt je Serie
-        $holidays  = Holiday::intersecting($from, $to);
-        $inHoliday = fn(Carbon $d) => $holidays->contains(fn($h) => $h->containsDate($d));
-
-        $bookings = $sessions = $skipped = 0;
+        $bookings = $sessions = $series = $linked = $skipped = 0;
         $details  = [];
+        $slots    = [];   // Serien-Zeitfenster: Tag|Beginn|Ende|Gruppen => Zeilen
 
         foreach ($entries as $entry) {
             if (!empty($entry['conflict'])) {
@@ -110,87 +115,117 @@ class HallPlanImportService
             }
             if (empty($entry['resource_id'])) { $skipped++; continue; }
 
-            if ($dryRun) {
-                $bookings++;
-                if (!empty($entry['session_ready'])) {
-                    $sessions += count($this->seriesDates($entry['day'], $from, $to, $inHoliday));
-                }
+            if (!empty($entry['session_ready'])) {
+                $groups = array_values(array_unique(array_map('intval', $entry['group_ids'] ?? [])));
+                sort($groups);
+                $slots[implode('|', [$entry['day'], $entry['start'], $entry['end'], implode(',', $groups)])][] = $entry;
                 continue;
             }
 
-            DB::transaction(function () use ($entry, $userId, $from, $to, $inHoliday, &$bookings, &$sessions) {
-                $groupId   = $entry['group_ids'][0]   ?? null;
-                $trainerId = $entry['trainer_ids'][0] ?? null;
+            // Belegung ohne Serie (Kurs, Schule, fremder Verein ...)
+            $bookings++;
+            if (!$dryRun) HallBooking::create($this->bookingValues($entry, $userId));
+        }
 
-                HallBooking::create([
-                    'hall_resource_id'  => $entry['resource_id'],
-                    'day_of_week'       => $entry['day'],
-                    'start_time'        => $entry['start'],
-                    'end_time'          => $entry['end'],
-                    'label'             => $entry['group_raw'] ?: $entry['category_label'],
-                    'type'              => $entry['booking_type'],
-                    'training_group_id' => $groupId,
-                    'trainer_id'        => $trainerId,
-                    'notes'             => 'Aus Hallenbelegungsplan importiert',
-                    'created_by_id'     => $userId,
+        foreach ($slots as $rows) {
+            $first    = $rows[0];
+            $groupIds = array_values(array_unique(array_merge(...array_map(fn($r) => $r['group_ids'] ?? [], $rows))));
+            $existing = $this->runningSeries((int) $first['day'], $first['start'], $first['end'], $groupIds, $from);
+            $bookings += count($rows);
+
+            if ($existing) {
+                $linked++;
+                if ($dryRun) continue;
+                DB::transaction(function () use ($rows, $existing, $userId) {
+                    $anchor = $this->lanes()->anchor($existing->id);
+                    foreach ($rows as $row) {
+                        HallBooking::create($this->bookingValues($row, $userId) + [
+                            'training_series_id' => $existing->id, 'training_session_id' => $anchor?->id,
+                        ]);
+                    }
+                });
+                continue;
+            }
+
+            $dates = $this->seriesService()->dates($this->firstOn((int) $first['day'], $from), $to, 'weekly', true);
+            $series++;
+            $sessions += count($dates);
+            if ($dryRun || !$dates) continue;
+
+            DB::transaction(function () use ($rows, $first, $groupIds, $dates, $from, $to, $season, $userId) {
+                $trainerIds = array_values(array_unique(array_merge(...array_map(fn($r) => $r['trainer_ids'] ?? [], $rows))));
+                $new = TrainingSeries::create([
+                    'id'              => (string) Str::uuid(),
+                    'season_id'       => $season->id,
+                    'title'           => $first['group_raw'] ?: $first['category_label'],
+                    'type'            => self::SESSION_TYPES[$first['category']] ?? 'technik',
+                    'day_of_week'     => $first['day'],
+                    'start_time'      => $first['start'],
+                    'end_time'        => $first['end'],
+                    'location'        => null,
+                    'recurrence_type' => 'weekly',
+                    'valid_from'      => $dates[0],
+                    'valid_until'     => $to,
+                    'skip_holidays'   => true,
+                    'notes'           => 'Aus Hallenbelegungsplan importiert',
+                    'created_by_id'   => $userId,
                 ]);
-                $bookings++;
+                $new->trainingGroups()->sync($groupIds);
+                $new->trainers()->sync($trainerIds);
+                $this->seriesService()->createSessions($new, $dates, $groupIds, $trainerIds);
 
-                if (empty($entry['session_ready'])) return;
-
-                $dates   = $this->seriesDates($entry['day'], $from, $to, $inHoliday);
-                $groupUuid = (string) Str::uuid();
-                $title   = $entry['group_raw'] ?: $entry['category_label'];
-
-                foreach ($dates as $date) {
-                    $session = new TrainingSession([
-                        'title'               => $title,
-                        'date'                => $date->format('Y-m-d'),
-                        'start_time'          => $entry['start'],
-                        'end_time'            => $entry['end'],
-                        'type'                => self::SESSION_TYPES[$entry['category']] ?? 'technik',
-                        'recurrence_type'     => 'weekly',
-                        'recurrence_group_id' => $groupUuid,
-                        'recurrence_until'    => $to->format('Y-m-d'),
-                        'notes'               => 'Aus Hallenbelegungsplan importiert',
+                $anchor = $this->lanes()->anchor($new->id);
+                foreach ($rows as $row) {
+                    HallBooking::create($this->bookingValues($row, $userId) + [
+                        'training_series_id' => $new->id, 'training_session_id' => $anchor?->id,
                     ]);
-
-                    $session->save();
-
-                    // Trainer haengen ausschliesslich am Pivot: die Spalte
-                    // trainer_id gibt es in training_sessions seit Juni 2026
-                    // nicht mehr (Migration 000026). Wurde sie hier gesetzt,
-                    // brach der Insert mit "Unknown column 'trainer_id'" ab.
-                    //
-                    // Alle Gruppen und alle Trainer der Zeile - bei "LG/WG" oder
-                    // zwei Trainern fehlte sonst die zweite Gruppe bzw. der zweite
-                    // Trainer hatte keinen Zugriff auf die Einheit.
-                    $session->trainingGroups()->sync(array_values(array_unique($entry['group_ids'] ?? [])));
-                    $session->coTrainers()->sync(array_values(array_unique($entry['trainer_ids'] ?? [])));
-                    $sessions++;
                 }
             });
         }
 
-        return compact('bookings', 'sessions', 'skipped', 'details');
+        return compact('bookings', 'sessions', 'series', 'linked', 'skipped', 'details');
     }
 
-    /**
-     * Wochentermine im Saisonzeitraum, Ferien ausgespart – wie bei manuell
-     * angelegten Serien.
-     *
-     * @return list<Carbon>
-     */
-    private function seriesDates(int $dayOfWeek, Carbon $from, Carbon $to, callable $inHoliday): array
+    /** Laufende Serie derselben Gruppe im selben Zeitfenster (z. B. schon von Hand angelegt) */
+    private function runningSeries(int $day, string $start, string $end, array $groupIds, Carbon $from): ?TrainingSeries
     {
-        $cursor = $from->copy();
-        while ($cursor->dayOfWeekIso !== $dayOfWeek) $cursor->addDay();
+        return TrainingSeries::where('day_of_week', $day)
+            ->where('start_time', $start)->where('end_time', $end)
+            ->where(fn($q) => $q->whereNull('valid_until')->orWhere('valid_until', '>=', $from))
+            ->whereHas('trainingGroups', fn($q) => $q->whereIn('training_groups.id', $groupIds))
+            ->first();
+    }
 
-        $dates = [];
-        while ($cursor->lte($to)) {
-            if (!$inHoliday($cursor)) $dates[] = $cursor->copy();
-            $cursor->addWeek();
-        }
-        return $dates;
+    private function bookingValues(array $entry, int $userId): array
+    {
+        return [
+            'hall_resource_id'  => $entry['resource_id'],
+            'day_of_week'       => $entry['day'],
+            'start_time'        => $entry['start'],
+            'end_time'          => $entry['end'],
+            'label'             => $entry['group_raw'] ?: $entry['category_label'],
+            'type'              => $entry['booking_type'],
+            'training_group_id' => $entry['group_ids'][0] ?? null,
+            'trainer_id'        => $entry['trainer_ids'][0] ?? null,
+            'notes'             => 'Aus Hallenbelegungsplan importiert',
+            'created_by_id'     => $userId,
+        ];
+    }
+
+    private function firstOn(int $dayOfWeek, Carbon $from): Carbon
+    {
+        $d = $from->copy();
+        while ($d->dayOfWeekIso !== $dayOfWeek) $d->addDay();
+        return $d;
+    }
+
+    private function seriesService(): TrainingSeriesService
+    {
+        return app(TrainingSeriesService::class);
+    }
+
+    private function lanes(): SeriesHallBookings
+    {
+        return app(SeriesHallBookings::class);
     }
 }

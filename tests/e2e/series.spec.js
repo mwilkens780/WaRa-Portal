@@ -29,7 +29,8 @@ test('Serie mit Bahn speichern ergibt genau eine Belegung im Hallenplan', async 
         await page.getByRole('checkbox', { name: /Bahn 2/ }).check();
         await page.getByRole('button', { name: 'Serie speichern' }).click();
         await page.waitForURL(/\/training\/serie\/[0-9a-f-]+$/);
-        await expect(page.getByText(/Serie gespeichert – gilt ab/)).toBeVisible();
+        // Nach dem Speichern steht die Bahn weiter drin (vorher: "nicht gespeichert")
+        await expect(page.getByRole('checkbox', { name: /Bahn 2/ })).toBeChecked();
     }
 
     await page.goto('/trainer/hall');
@@ -55,11 +56,14 @@ test('Termin fällt aus und findet wieder statt', async ({ page }, testInfo) => 
     await dialog.getByLabel('Grund (optional)').fill('Hallenschließung');
     await dialog.getByRole('button', { name: 'Fällt aus' }).click();
 
-    await expect(page.getByText(/fällt aus\./)).toBeVisible();
-    await page.getByRole('tab', { name: /Termine/ }).click();
+    // Nach dem Neuladen steht die Seite wieder auf "Termine".
+    // Bleibender Zustand statt Erfolgsmeldung (die verschwindet nach ein paar Sekunden)
+    const termineTab = page.getByRole('tab', { name: /Termine/ });
+    await expect(termineTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText('1 Termin(e) fallen aus')).toBeVisible();
     await expect(page.getByText('Hallenschließung')).toBeVisible();
 
     await page.getByRole('button', { name: 'Findet statt' }).first().click();
-    await expect(page.getByText(/findet wieder statt/)).toBeVisible();
+    await expect(page.getByText('1 Termin(e) fallen aus')).toHaveCount(0);
     expect(errors).toEqual([]);
 });

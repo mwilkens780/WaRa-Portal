@@ -130,8 +130,11 @@ class HallPlanImportController extends Controller
         Storage::disk('local')->delete($state['path']);
         session()->forget(self::SESSION_KEY);
 
-        $msg = sprintf('%d Belegungen und %d Trainingseinheiten angelegt.',
-            $result['bookings'], $result['sessions']);
+        $msg = sprintf('%d Belegungen und %d Serien mit %d Terminen angelegt.',
+            $result['bookings'], $result['series'], $result['sessions']);
+        if ($result['linked'] > 0) {
+            $msg .= sprintf(' %d an bestehende Serien gehängt.', $result['linked']);
+        }
         if ($result['skipped'] > 0) {
             $msg .= sprintf(' %d Zeilen übersprungen (bestehende Belegungen bleiben unangetastet).',
                 $result['skipped']);

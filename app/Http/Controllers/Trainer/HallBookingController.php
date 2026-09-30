@@ -148,9 +148,17 @@ class HallBookingController extends Controller
                 'color'               => $data['color'] ?? null,
                 'created_by_id'       => auth()->id(),
             ]);
-            $booking->load(['resource', 'trainingGroup', 'trainer', 'trainingSession']);
-            $created[] = $booking->toGridArray();
+            $created[] = $booking;
         }
+
+        // Mit einer Serie verknuepft: an die Serie haengen, Doppelte zusammenlegen
+        if (!empty($data['training_session_id'])
+            && ($group = \App\Models\TrainingSession::whereKey($data['training_session_id'])->value('recurrence_group_id'))) {
+            $this->attachToSeries($group, $data['hall_resource_ids']);
+            $created = HallBooking::where('training_series_id', $group)->whereIn('hall_resource_id', $data['hall_resource_ids'])->get()->all();
+        }
+
+        $created = array_map(fn($b) => $b->load(['resource', 'trainingGroup', 'trainer', 'trainingSession'])->toGridArray(), $created);
 
         return response()->json(['success' => true, 'bookings' => $created]);
     }
@@ -198,21 +206,25 @@ class HallBookingController extends Controller
             ], 422);
         }
 
+        $vorher = [substr($booking->start_time, 0, 5), substr($booking->end_time, 0, 5), $booking->training_session_id];
         $booking->update($data);
+        $booking->refresh();
+        $geaendert = $vorher !== [$data['start_time'], $data['end_time'], $booking->training_session_id];
 
-        // Zeit an die verknuepfte Einheit weitergeben - bei einer Serie an alle
-        // kommenden Einheiten (vorher nur an die eine, an der die Belegung hing)
-        if ($linked = $booking->trainingSession) {
-            $query = $linked->recurrence_group_id
-                ? \App\Models\TrainingSession::where('recurrence_group_id', $linked->recurrence_group_id)->where('date', '>=', today())
-                : \App\Models\TrainingSession::where('id', $linked->id);
-            $query->update([
-                'start_time' => $data['start_time'],
-                'end_time'   => $data['end_time'],
-            ]);
+        if (($group = $booking->trainingSession?->recurrence_group_id) && $geaendert) {
+            // Serienbelegung: Zeit gilt fuer die Serie ab heute (Termine mit eigener
+            // Zeit behalten sie), alle Bahnen der Serie ziehen mit, Doppelte fallen weg
+            $this->applySeriesTime($group, $data['start_time'], $data['end_time']);
+            $this->attachToSeries($group, [$booking->hall_resource_id]);
+        } elseif (!$group && ($linked = $booking->trainingSession)) {
+            $linked->update(['start_time' => $data['start_time'], 'end_time' => $data['end_time']]);
         }
 
-        // Aktueller Stand fuer den Plan - er wird ohne Neuladen aktualisiert
+        // Aktueller Stand fuer den Plan - er wird ohne Neuladen aktualisiert.
+        // Beim Zusammenlegen kann die bearbeitete Belegung selbst entfallen sein.
+        $booking = HallBooking::find($booking->id)
+            ?? HallBooking::where('training_series_id', $group ?? '')->where('hall_resource_id', $data['hall_resource_id'] ?? $booking->hall_resource_id)->first()
+            ?? $booking;
         $booking->load(['resource', 'trainingGroup', 'trainer', 'trainingSession']);
 
         return response()->json(['success' => true, 'booking' => $booking->toGridArray()]);
@@ -286,6 +298,27 @@ class HallBookingController extends Controller
 
     // ── Helper ────────────────────────────────────────────────────────────
 
+    /**
+     * Belegung(en) mit einer Serie verbunden: an die Serie haengen, je Bahn eine.
+     * Vorher entstand beim Verknuepfen eine zweite, unsichtbare Belegung.
+     */
+    private function attachToSeries(string $group, array $resourceIds): void
+    {
+        app(\App\Services\TrainingSeriesBackfill::class)->ensure($group);
+        $lanes = app(\App\Services\SeriesHallBookings::class);
+        $all = $lanes->bookingsOf($group)->pluck('hall_resource_id')->merge($resourceIds)->map(fn($id) => (int) $id)->unique()->values()->all();
+        $lanes->sync($group, $all, auth()->id());
+    }
+
+    /** Neue Zeit fuer Serie und kommende Termine ohne eigene Zeit */
+    private function applySeriesTime(string $group, string $start, string $end): void
+    {
+        \App\Models\TrainingSeries::whereKey($group)->update(['start_time' => $start, 'end_time' => $end]);
+        \App\Models\TrainingSession::where('recurrence_group_id', $group)->where('date', '>=', today())->get()
+            ->reject(fn($s) => array_intersect(['start_time', 'end_time'], $s->overridden_fields ?? []))
+            ->each(fn($s) => $s->update(['start_time' => $start, 'end_time' => $end]));
+    }
+
     private function conflictResponse($conflicts): JsonResponse
     {
         return response()->json([
@@ -297,17 +330,26 @@ class HallBookingController extends Controller
     private function findConflicts(
         array $resourceIds, int $day, string $start, string $end, ?int $excludeId = null
     ) {
-        return HallBooking::with(['resource', 'trainingGroup'])
+        return HallBooking::with(['resource', 'trainingGroup', 'trainingSession:id,recurrence_group_id', 'series:id,title'])
             ->whereIn('hall_resource_id', $resourceIds)
             ->where('day_of_week', $day)
             ->where(fn($q) => $q->where('start_time', '<', $end)->where('end_time', '>', $start))
             ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
             ->get()
-            ->map(fn($b) => [
-                'id'       => $b->id,
-                'resource' => $b->resource->name,
-                'label'    => $b->label,
-                'time'     => $b->formatted_time,
-            ]);
+            ->map(function ($b) {
+                // Belegung einer Serie: aufloesen auf Serienebene (oeffnen / ab Datum beenden)
+                $seriesId = $b->training_series_id ?? $b->trainingSession?->recurrence_group_id;
+                return [
+                    'id'       => $b->id,
+                    'resource' => $b->resource->name,
+                    'label'    => $b->label,
+                    'time'     => $b->formatted_time,
+                    'series'   => $seriesId ? [
+                        'title' => $b->series?->title ?? $b->label,
+                        'open'  => route('trainer.sessions.series.show', $seriesId),
+                        'end'   => route('trainer.sessions.series.delete', $seriesId),
+                    ] : null,
+                ];
+            });
     }
 }

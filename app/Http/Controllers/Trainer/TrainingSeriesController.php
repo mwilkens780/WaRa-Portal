@@ -142,7 +142,7 @@ class TrainingSeriesController extends Controller
         $session->update(['status' => 'cancelled', 'cancel_reason' => $data['cancel_reason'] ?? null, 'cancelled_at' => now()]);
         $sent = $request->boolean('notify') && $session->date->gte(today()) ? $mailer->trainingCancelled($session) : 0;
 
-        return back()->with('success', 'Termin am ' . $session->date->format('d.m.Y') . ' fällt aus.'
+        return back()->with('tab', 'termine')->with('success', 'Termin am ' . $session->date->format('d.m.Y') . ' fällt aus.'
             . ($sent ? " {$sent} Benachrichtigung(en) werden verschickt." : ''));
     }
 
@@ -151,7 +151,7 @@ class TrainingSeriesController extends Controller
         abort_unless($session->isManageableBy(auth()->user()), 403);
         $session->update(['status' => 'planned', 'cancel_reason' => null, 'cancelled_at' => null]);
 
-        return back()->with('success', 'Termin am ' . $session->date->format('d.m.Y') . ' findet wieder statt.');
+        return back()->with('tab', 'termine')->with('success', 'Termin am ' . $session->date->format('d.m.Y') . ' findet wieder statt.');
     }
 
     private function series(string $group, TrainingSeriesBackfill $backfill): TrainingSeries

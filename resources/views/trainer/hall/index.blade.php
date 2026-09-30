@@ -462,7 +462,7 @@ function hallApp() {
             if (this._recentDrag) return;  // suppress click fired after a drag
             this.editId = b.id; this.conflicts = []; this.sessionResults = [];
             this.formError = ''; this.sessionError = '';
-            this.linkedSession = b.training_session_id ? { id: b.training_session_id, title: b.session_title ?? ('Einheit #' + b.training_session_id) } : null;
+            this.linkedSession = b.training_session_id ? { id: b.training_session_id, title: b.session_title ?? ('Einheit #' + b.training_session_id), series: b.recurrence_group_id } : null;
             this.form = {
                 hall_resource_ids: [b.hall_resource_id],
                 day_of_week: b.day_of_week,
@@ -1208,14 +1208,23 @@ function hallApp() {
                     <template x-for="c in conflicts" :key="c.id">
                         <li class="flex flex-wrap items-center gap-2 bg-red-100/60 rounded-lg px-2 py-1.5">
                             <span class="font-mono text-[11px] bg-white border border-red-200 px-1.5 py-0.5 rounded text-red-700 flex-shrink-0" x-text="c.time"></span>
-                            <span class="flex-1 min-w-[8rem] text-red-800 text-xs truncate" x-text="c.resource + ': ' + c.label"></span>
-                            <button type="button"
+                            <span class="flex-1 min-w-[8rem] text-red-800 text-xs truncate" x-text="c.resource + ': ' + c.label + (c.series ? ' (Serie)' : '')"></span>
+                            {{-- Belegung einer Serie: nicht einzeln loeschen, sondern die Serie beenden oder aendern --}}
+                            <template x-if="c.series">
+                                <span class="flex flex-wrap gap-2">
+                                    <a :href="c.series.open" class="flex-shrink-0 text-xs px-2.5 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white rounded font-medium transition-colors"
+                                       :aria-label="'Serie ' + c.series.title + ' öffnen'">Serie öffnen</a>
+                                    <a :href="c.series.end" class="bg-accent hover:bg-accent-dark text-white flex-shrink-0 text-xs px-2.5 py-1.5 rounded font-medium transition-colors"
+                                       :aria-label="'Serie ' + c.series.title + ' ab Datum beenden'">Serie beenden …</a>
+                                </span>
+                            </template>
+                            <button type="button" x-show="!c.series"
                                     @click="const bk = bookings.find(b => b.id === c.id); await closeModal(true); if (bk) $nextTick(() => openEdit(bk))"
                                     :aria-label="'Überschneidende Belegung ' + c.label + ' bearbeiten'"
                                     class="flex-shrink-0 text-xs px-2.5 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white rounded font-medium transition-colors">
                                 Bearbeiten
                             </button>
-                            <button type="button"
+                            <button type="button" x-show="!c.series"
                                     @click="deleteBooking(c.id)"
                                     :aria-label="'Überschneidende Belegung ' + c.label + ' löschen'"
                                     class="bg-accent hover:bg-accent-dark text-white flex-shrink-0 text-xs px-2.5 py-1.5 rounded font-medium transition-colors">
@@ -1300,6 +1309,7 @@ function hallApp() {
                 <div x-show="linkedSession" class="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 mb-2 text-sm">
                     <x-ui.icon name="link" class="w-4 h-4 text-primary flex-shrink-0" />
                     <span class="flex-1 text-primary font-medium truncate" x-text="linkedSession?.title"></span>
+                    <a x-show="linkedSession?.series" :href="'/trainer/training/serie/' + linkedSession?.series" class="text-xs text-primary underline px-2 py-1">Serie öffnen</a>
                     <button @click="unlinkSession()" type="button" class="text-gray-600 hover:text-red-600 text-xs px-2 py-1">Verknüpfung lösen</button>
                 </div>
 

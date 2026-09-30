@@ -22,7 +22,8 @@
     <x-ui.import-summary :items="[
         ['label' => 'Einträge', 'count' => count($entries), 'tone' => 'neutral', 'hint' => 'Blatt: ' . $sheet],
         ['label' => 'neue Belegungen', 'count' => $preview['bookings'], 'tone' => 'success'],
-        ['label' => 'Trainingseinheiten', 'count' => $preview['sessions'], 'tone' => 'brand', 'hint' => 'aus den Serien'],
+        ['label' => 'neue Serien', 'count' => $preview['series'] ?? 0, 'tone' => 'brand', 'hint' => $preview['sessions'] . ' Termine; gleiche Zeit + Gruppe auf mehreren Bahnen = eine Serie'],
+        ['label' => 'an bestehende Serie', 'count' => $preview['linked'] ?? 0, 'tone' => 'neutral', 'hint' => 'Serie für Gruppe und Zeit gibt es schon'],
         ['label' => 'übersprungen', 'count' => $blocked->count(), 'tone' => 'warning', 'hint' => 'Überschneidung mit Bestehendem'],
     ]" />
 
