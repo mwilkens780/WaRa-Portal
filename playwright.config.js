@@ -11,7 +11,7 @@
  * In CI: .github/workflows/e2e.yml
  * Lokal ohne heruntergeladenen Browser: PW_CHROMIUM=<Pfad zu chrome.exe>
  */
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://127.0.0.1:8766';
 const launchOptions = process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {};
@@ -43,5 +43,13 @@ export default defineConfig({
     projects: [
         { name: 'desktop', use: { viewport: { width: 1280, height: 800 } } },
         { name: 'mobil', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
+        // Safari-Technik (WebKit) wie auf dem iPhone: Datumsfelder und Mindestbreiten
+        // rechnet WebKit anders als Chromium (Befund 01.10.2026). Nur Seiten- und
+        // Layoutpruefung. In CI immer, lokal mit E2E_WEBKIT=1 (unter Windows startet WebKit oft nicht).
+        ...(process.env.CI || process.env.E2E_WEBKIT ? [{
+            name: 'iphone',
+            testMatch: /(pages|layout)\.spec\.js/,
+            use: { ...devices['iPhone 13'], browserName: 'webkit', launchOptions: {} },
+        }] : []),
     ],
 });

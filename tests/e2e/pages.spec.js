@@ -6,7 +6,7 @@
  * damit automatisch abgedeckt.
  */
 import { test, expect } from './fixtures.js';
-import { authFile, ready, collectErrors, expectAccessible } from './helpers.js';
+import { authFile, ready, collectErrors, expectAccessible, layoutProblems } from './helpers.js';
 
 const ROLES = ['admin', 'trainer', 'schwimmer', 'eltern'];
 
@@ -33,7 +33,8 @@ for (const role of ROLES) {
                     const res = await page.goto(url);
                     expect.soft(res.status(), `HTTP-Status ${url}`).toBeLessThan(400);
                     await ready(page);
-                    expect.soft(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `waagerechtes Überlaufen ${url}`).toBe(true);
+                    // waagerechtes Scrollen (auch im Layout-Container), Ueberstehendes, Felder
+                    expect.soft(await layoutProblems(page), `Layout ${url}`).toEqual([]);
                     await expectAccessible(page, { soft: true });
                     expect.soft(errors, `JS-Fehler ${url}`).toEqual([]);
                 });

@@ -39,6 +39,40 @@
     }
 
     /*
+     * Grid-Spalten duerfen schmaler werden als ihr laengster Inhalt.
+     * Standard ist min-width:auto - ein abgeschnittener langer Name (truncate)
+     * oder ein Datumsfeld machte die ganze Spalte und damit die Seite breiter
+     * als den Handy-Bildschirm (Befund 01.10.2026: Dashboard, Benutzer bearbeiten).
+     */
+    :where(.grid) > * {
+        min-width: 0;
+    }
+
+    /*
+     * Datum und Uhrzeit: nur so breit wie der Inhalt, nie ueber die Spalte hinaus.
+     * Vorher volle Breite - auf dem Handy viel zu breit fuer "01.10.2026", und
+     * iOS gibt diesen Feldern eine feste Mindestbreite: nebeneinander ragten sie
+     * aus der Maske oder ueberlappten sich.
+     */
+    :where(input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]) {
+        min-width: 0;
+        max-width: 100%;
+    }
+    :where(input[type="date"], input[type="month"], input[type="week"]) { max-width: min(100%, 12rem); }
+    :where(input[type="time"]) { max-width: min(100%, 8.5rem); }
+    :where(input[type="datetime-local"]) { max-width: min(100%, 15rem); }
+    /* Zahlen (Teilnehmerlimit, Strecke, Plaetze ...) sind ebenso kurz */
+    :where(input[type="number"]) { max-width: min(100%, 10rem); }
+    /* iOS Safari: native Darstellung erzwingt die Mindestbreite - abschalten, Wert linksbuendig */
+    @supports (-webkit-touch-callout: none) {
+        :where(input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]) {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        ::-webkit-date-and-time-value { text-align: left; }
+    }
+
+    /*
      * Waagerecht scrollbare Zeilen (Reiter, Filter-Chips): Eintraege nicht
      * stauchen, sonst laufen Beschriftungen ineinander - die Zeile scrollt ja.
      */

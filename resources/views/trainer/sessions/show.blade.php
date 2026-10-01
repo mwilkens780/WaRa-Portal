@@ -8,7 +8,8 @@
     {{-- Session-Info --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+            {{-- Handy: Infos volle Breite, Knoepfe darunter (vorher quetschten die Knoepfe die Infos, Texte ueberlappten) --}}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 basis-full sm:basis-0 flex-1 break-words">
                 <div>
                     <p class="text-xs text-gray-500">Datum</p>
                     <p class="font-semibold text-gray-800">{{ $session->date->format('d.m.Y') }}</p>
@@ -16,9 +17,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Uhrzeit</p>
-                    <p class="font-semibold text-gray-800">{{ $session->start_time }}
-                        @if($session->end_time) – {{ $session->end_time }} @endif
-                    </p>
+                    <p class="font-semibold text-gray-800 tabular-nums">{{ substr($session->start_time, 0, 5) }}@if($session->end_time)–{{ substr($session->end_time, 0, 5) }}@endif</p>
                     @if($session->duration)<p class="text-xs text-gray-600">{{ $session->duration }}</p>@endif
                 </div>
                 <div>

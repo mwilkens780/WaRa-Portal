@@ -116,6 +116,17 @@ class E2eSeeder extends Seeder
             'type' => 'regional', 'course' => 'Kurzbahn', 'season_id' => $season->id,
         ]);
         $kommend->trainingGroups()->attach($group->id);
+        // Lange Namen wie in echt: bringen Ueberlaeufe auf dem Handy ans Licht
+        // (Befund 01.10.2026: abgeschnittener Name machte das Dashboard breiter als den Bildschirm)
+        $lang = Competition::create([
+            'name' => 'Internationale Deutsche Kurzbahnmeisterschaften der Masters und Offenen Klasse Wuppertal', 'location' => 'Schwimmoper Wuppertal',
+            'date' => now()->addDays(25)->format('Y-m-d'), 'type' => 'national', 'course' => 'Kurzbahn', 'season_id' => $season->id,
+        ]);
+        $lang->trainingGroups()->attach($group->id);
+        \App\Models\SwimmingTime::create([
+            'user_id' => $swimmer->id, 'training_session_id' => TrainingSession::where('title', 'Techniktraining')->value('id'),
+            'discipline' => 'F', 'distance' => 100, 'time_ms' => 75120,
+        ]);
 
         CalendarEvent::create([
             'title' => 'E2E-Sommerfest', 'start_date' => now()->addDays(5)->format('Y-m-d'), 'start_time' => '15:00',

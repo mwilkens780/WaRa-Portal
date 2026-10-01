@@ -87,6 +87,22 @@ Systemschrift (Tailwind-Standard, kein Webfont – schnell, gut lesbar auf allen
 - Waagerecht scrollbare Zeilen (Reiter, Chips): `flex overflow-x-auto` – Einträge
   stauchen nicht (globale Regel in `app.css`).
 
+**Handy-Regeln** (Befund 01.10.2026 auf dem iPhone – gelten für jede Seite):
+
+- Das Portal scrollt in einem Layout-Container, nicht im Dokument. „Seite scrollt
+  nach rechts“ heißt also: irgendein Inhalt ist breiter als der Bildschirm.
+- **Zeilen mit mehreren Knöpfen** (Kopf von Listen, Aktionen): `flex flex-wrap gap-2`
+  oder `x-ui.page-header` – nie eine starre `flex`-Zeile, die mit jedem Knopf wächst.
+- **Eigene Umschalter/Reiterleisten** (`w-fit`): `max-w-full overflow-x-auto` – oder `x-ui.tabs`.
+- **Infos neben Knöpfen**: Auf dem Handy untereinander (`basis-full sm:basis-0 flex-1`),
+  sonst quetschen die Knöpfe die Infos und Texte überlappen.
+- **Lange Namen** (Wettkämpfe, Orte): `truncate` nur mit `min-w-0` am Flex-Kind, oder
+  umbrechen lassen (`break-words`). Grid-Spalten sind global `min-width: 0` (`app.css`),
+  sonst macht ein langer Name die ganze Spalte breit.
+- **Datum, Uhrzeit, Zahlen** sind global nur so breit wie nötig (Datum 12rem, Uhrzeit
+  8,5rem, Zahl 10rem; iOS ohne native Mindestbreite) – nicht mit `w-full` „reparieren“.
+- Uhrzeiten ohne Sekunden: Modelle liefern `HH:MM` (Einheit, Serie), sonst `substr($t, 0, 5)`.
+
 ## 4. Touch und Fokus
 
 Global in `resources/css/app.css`, nichts einzeln zu tun:
@@ -263,7 +279,7 @@ Vor dem Prüfen wird nichts gespeichert. Ersetzt ein Import sofort ohne Vorschau
 | Prüfung | Was | Wo |
 |---|---|---|
 | `npm run lint:ui` | Regelverstöße im Quelltext (siehe unten) – **neue** Verstöße lassen den Lauf scheitern | GitHub Action „E2E“, Job „UI-Regeln“ |
-| `npx playwright test` | jede Menüseite jeder Rolle (Status, JS-Fehler, Überlauf, axe), Dialoge, Importe | GitHub Action „E2E“ |
+| `npx playwright test` | jede Menüseite jeder Rolle und wichtige Detailseiten (Status, JS-Fehler, axe, **Layout**: waagerechtes Scrollen auch im Layout-Container, Überstehendes, Felder über dem Rand/überlappend) – am Desktop, auf dem Handy (Chromium) und als **iPhone (WebKit)** | GitHub Action „E2E“ |
 
 `lint:ui` prüft u. a.: Knopffarben außerhalb der drei Varianten, native
 `alert/confirm/prompt`, `text-gray-200/300` als Textfarbe, halbtransparente
@@ -279,7 +295,8 @@ Bestehende Altlasten sind in `tests/ui-lint-baseline.json` erfasst und dürfen n
 - [ ] Textfarben aus Abschnitt 1, nichts unter 12 px, keine Deckkraft auf Text
 - [ ] Jedes Feld beschriftet, jeder Knopf benannt
 - [ ] Leer-, Lade- und Fehlerzustand bedacht
-- [ ] Am Handy (390 px) geprüft: kein waagerechtes Scrollen, nichts gequetscht
+- [ ] Am Handy (390 px) geprüft: kein waagerechtes Scrollen, nichts gequetscht (Handy-Regeln, Abschnitt 3)
+- [ ] Neue Detail-/Formularseite ohne Menüeintrag? In `tests/e2e/layout.spec.js` aufnehmen
 - [ ] Per Tastatur bedienbar, Dialoge schließen mit Escape
 - [ ] Neue Menüseite? Testdaten im `E2eSeeder` ergänzen, damit die Browsertests sie prüfen
 - [ ] `npm run lint:ui` und Browsertests grün

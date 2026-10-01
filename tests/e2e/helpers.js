@@ -37,6 +37,58 @@ export function collectErrors(page) {
 }
 
 /**
+ * Layout auf schmalen Bildschirmen (Befund 01.10.2026, iPhone):
+ *  - nichts scrollt waagerecht, das nicht dafuer gedacht ist. Nicht nur das
+ *    Dokument pruefen: Das Portal scrollt in einem Layout-Container - dort
+ *    lief der Inhalt nach rechts, waehrend die Seite selbst 390 px breit blieb;
+ *  - nichts ragt aus seiner Karte;
+ *  - Eingabefelder gehen nicht ueber den Rand und ueberlappen sich nicht.
+ * Gewollte Scrollbereiche (Tabellen, Hallenplan, Reiterleisten) sind ausgenommen:
+ * Klasse overflow-(x-)auto / overflow-(x-)scroll oder overflow im style-Attribut.
+ */
+export async function layoutProblems(page) {
+    return page.evaluate(() => {
+        const out = [];
+        const vw = document.documentElement.clientWidth;
+        const intended = (e) => /\boverflow-(x-)?(auto|scroll|hidden)\b/.test(e.className?.baseVal ?? e.className ?? '') || /overflow/.test(e.getAttribute('style') ?? '');
+        const clipped = (e, stop) => {
+            for (let p = e.parentElement; p && p !== stop; p = p.parentElement) {
+                if (['auto', 'scroll', 'hidden', 'clip'].includes(getComputedStyle(p).overflowX) && p !== document.body) return true;
+            }
+            return false;
+        };
+        const visible = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden' && !e.closest('.sr-only, thead'); };
+        const name = (e) => `${e.tagName.toLowerCase()}${e.type ? '[' + e.type + ']' : ''}${e.className && typeof e.className === 'string' ? '.' + e.className.split(/\s+/).slice(0, 3).join('.') : ''} „${(e.textContent || e.name || '').trim().slice(0, 30)}“`;
+
+        if (document.documentElement.scrollWidth > vw + 1) out.push(`Seite ${document.documentElement.scrollWidth}px breit statt ${vw}px`);
+        for (const e of document.querySelectorAll('body *')) {
+            const ox = getComputedStyle(e).overflowX;
+            if (['auto', 'scroll'].includes(ox) && !intended(e) && e.scrollWidth > e.clientWidth + 1) {
+                out.push(`scrollt waagerecht: ${name(e).slice(0, 60)} (${e.scrollWidth}px statt ${e.clientWidth}px)`);
+            }
+        }
+        for (const card of document.querySelectorAll('main .rounded-xl')) {
+            const cr = card.getBoundingClientRect();
+            for (const e of card.querySelectorAll('a, button, input, select, textarea, p, span, td, th, h2, h3')) {
+                if (!visible(e)) continue;
+                if (e.getBoundingClientRect().right > cr.right + 2 && !clipped(e, card)) { out.push(`ragt aus der Karte: ${name(e)}`); break; }
+            }
+        }
+        const fields = [...document.querySelectorAll('main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea')]
+            .filter((e) => visible(e) && !clipped(e, document.body));
+        for (const a of fields) {
+            const ra = a.getBoundingClientRect();
+            if (ra.right > vw + 1) out.push(`Feld über den Rand: ${name(a)}`);
+            for (const b of fields) {
+                const rb = b.getBoundingClientRect();
+                if (a !== b && ra.left < rb.left && ra.right > rb.left + 2 && ra.top < rb.bottom - 2 && rb.top < ra.bottom - 2) out.push(`Felder überlappen: ${name(a)} / ${name(b)}`);
+            }
+        }
+        return [...new Set(out)].slice(0, 8);
+    });
+}
+
+/**
  * axe: kritische und ernste Verstoesse gegen WCAG 2.1 AA muessen 0 sein.
  * Fehlermeldung je Regel: "regel (n Knoten): Beispiel".
  */

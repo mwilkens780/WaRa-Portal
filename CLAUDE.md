@@ -37,6 +37,11 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   Keine `opacity-*` auf Text, keine `text-…/70`.
 - **Größen:** Text mind. 12 px (`text-xs`), Touch-Ziele regelt `app.css` global
   (`touch-exempt` nur wenn Größe Bedeutung hat).
+- **Handy (390 px, iPhone):** Knopfzeilen `flex-wrap`, eigene Umschalter `max-w-full
+  overflow-x-auto`, Infos neben Knöpfen auf dem Handy untereinander, `truncate` nur mit
+  `min-w-0`. Datum/Uhrzeit/Zahl nicht auf volle Breite ziehen (global begrenzt).
+  Details: design-system.md, Abschnitt 3 „Handy-Regeln“. Browsertests prüfen das
+  auch als iPhone (WebKit); Detailseiten ohne Menüeintrag in `tests/e2e/layout.spec.js`.
 - **Pop-ups:** nie `alert/confirm/prompt` → `$confirm`, `data-confirm`, `$prompt`, `$toast`,
   `x-ui.dialog`. Speichern per JS mit `api()`, ohne Neuladen.
 - **Formulare:** jedes Feld beschriftet, Fehler am Feld (Übersicht macht das Layout).

@@ -39,6 +39,17 @@ class TrainingSeries extends Model
     /** Felder, die eine Einheit von der Serie erbt (und bewusst abweichen darf) */
     public const INHERITED = ['title', 'type', 'start_time', 'end_time', 'location', 'notes', 'max_participants', 'registration_open', 'guest_group_id'];
 
+    /** Uhrzeiten ohne Sekunden fuer die Anzeige (gespeichert als TIME) */
+    protected function startTime(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(fn($v) => $v === null ? null : substr($v, 0, 5));
+    }
+
+    protected function endTime(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(fn($v) => $v === null ? null : substr($v, 0, 5));
+    }
+
     public function sessions(): HasMany
     {
         return $this->hasMany(TrainingSession::class, 'recurrence_group_id')->orderBy('date');

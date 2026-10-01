@@ -105,8 +105,8 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8766/login > /dev/null && exit 0; sleep 1; done
           echo "Server startet nicht"; cat storage/logs/serve.log; exit 1
 
-      - name: Chromium installieren
-        run: npx playwright install --with-deps chromium
+      - name: Browser installieren (Chromium, WebKit)
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Browsertests
         run: npx playwright test

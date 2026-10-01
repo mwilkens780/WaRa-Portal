@@ -7,7 +7,7 @@
      class="space-y-4">
 
     {{-- Tab bar --}}
-    <div class="flex gap-1 bg-white rounded-xl shadow-sm border border-gray-100 p-1.5 w-fit">
+    <div class="flex gap-1 bg-white rounded-xl shadow-sm border border-gray-100 p-1.5 w-fit max-w-full overflow-x-auto">
         <button @click="tab='transactions'"
                 :class="tab==='transactions' ? 'bg-primary text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                 class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors">

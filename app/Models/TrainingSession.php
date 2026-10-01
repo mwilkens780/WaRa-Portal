@@ -45,6 +45,20 @@ class TrainingSession extends Model
         ];
     }
 
+    /**
+     * Uhrzeiten ohne Sekunden ("06:00", nicht "06:00:00") - ueberall, wo sie
+     * angezeigt werden. Gespeichert wird weiter als TIME.
+     */
+    protected function startTime(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(fn($v) => $v === null ? null : substr($v, 0, 5));
+    }
+
+    protected function endTime(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(fn($v) => $v === null ? null : substr($v, 0, 5));
+    }
+
     public function trainingGroups()
     {
         return $this->belongsToMany(TrainingGroup::class, 'training_session_group');
