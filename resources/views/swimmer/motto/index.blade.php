@@ -213,60 +213,49 @@
             <svg class="w-5 h-5 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </div>
         <div x-show="open" x-transition class="border-t border-gray-100">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-5 py-3">KW / Datum</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-5 py-3">Gruppe</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-5 py-3">Zuständig</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-5 py-3">Motto</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach($weeks as $week)
-                        @php
-                            $mondayCurrent = now()->startOfWeek(\Carbon\Carbon::MONDAY)->startOfDay();
-                            $isCurrentWeek = $week->week_start->eq($mondayCurrent);
-                            $isPast        = $week->week_start->lt($mondayCurrent);
-                            $isMe          = $week->user_id === auth()->id();
-                        @endphp
-                        <tr class="{{ $isCurrentWeek ? 'bg-blue-50/60 font-medium' : ($isMe ? 'bg-amber-50/40' : 'hover:bg-gray-50') }} transition-colors">
-                            <td class="px-5 py-2.5 whitespace-nowrap">
-                                <span class="font-semibold text-gray-700">KW {{ $week->week_start->weekOfYear }}</span>
-                                <span class="text-gray-400 text-xs ml-1">{{ $week->week_start->format('d.m.Y') }}</span>
-                                @if($isCurrentWeek)
-                                    <span class="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Jetzt</span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-2.5">
-                                @php $gc = \App\Models\TrainingGroup::COLORS[$week->group->color ?? 'blue'] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
-                                <span class="text-xs px-2 py-0.5 rounded-full {{ $gc['badge'] }}">{{ $week->group->name }}</span>
-                            </td>
-                            <td class="px-5 py-2.5 text-gray-600 text-xs">
-                                @if($week->user)
-                                    @if($isMe)
-                                        <span class="font-semibold text-amber-700">{{ $week->user->firstname }} {{ $week->user->lastname }}</span>
-                                        <span class="text-amber-700 ml-1 text-[10px]">Du</span>
-                                    @else
-                                        {{ $week->user->firstname }} {{ $week->user->lastname }}
-                                    @endif
+            <x-ui.table :card="false" caption="Motto der Woche – alle Wochen der Gruppe" stack
+                        :columns="['KW / Datum', 'Gruppe', 'Zuständig', 'Motto']">
+                @foreach($weeks as $week)
+                    @php
+                        $mondayCurrent = now()->startOfWeek(\Carbon\Carbon::MONDAY)->startOfDay();
+                        $isCurrentWeek = $week->week_start->eq($mondayCurrent);
+                        $isPast        = $week->week_start->lt($mondayCurrent);
+                        $isMe          = $week->user_id === auth()->id();
+                    @endphp
+                    <tr class="{{ $isCurrentWeek ? 'bg-blue-50/60 font-medium' : ($isMe ? 'bg-amber-50/40' : 'hover:bg-gray-50') }} transition-colors">
+                        <x-ui.td label="KW / Datum" class="whitespace-nowrap">
+                            <span class="font-semibold text-gray-700">KW {{ $week->week_start->weekOfYear }}</span>
+                            <span class="text-gray-600 text-xs ml-1 tabular-nums">{{ $week->week_start->format('d.m.Y') }}</span>
+                            @if($isCurrentWeek)
+                                <x-ui.badge tone="brand" class="ml-1">Jetzt</x-ui.badge>
+                            @endif
+                        </x-ui.td>
+                        <x-ui.td label="Gruppe">
+                            @php $gc = \App\Models\TrainingGroup::COLORS[$week->group->color ?? 'blue'] ?? \App\Models\TrainingGroup::COLORS['blue']; @endphp
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ $gc['badge'] }}">{{ $week->group->name }}</span>
+                        </x-ui.td>
+                        <x-ui.td label="Zuständig" muted class="text-xs">
+                            @if($week->user)
+                                @if($isMe)
+                                    <span class="font-semibold text-amber-800">{{ $week->user->firstname }} {{ $week->user->lastname }}</span>
+                                    <x-ui.badge tone="warning" class="ml-1">Du</x-ui.badge>
                                 @else
-                                    <span class="text-gray-300">–</span>
+                                    {{ $week->user->firstname }} {{ $week->user->lastname }}
                                 @endif
-                            </td>
-                            <td class="px-5 py-2.5 max-w-xs">
-                                @if($week->motto)
-                                    <p class="text-xs text-gray-600 line-clamp-1">"{{ $week->motto }}"</p>
-                                @else
-                                    <span class="text-xs text-gray-300 italic">{{ $isPast ? 'Nicht eingetragen' : 'Ausstehend' }}</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+                            @else
+                                –
+                            @endif
+                        </x-ui.td>
+                        <x-ui.td label="Motto" class="max-w-xs">
+                            @if($week->motto)
+                                <p class="text-xs text-gray-700 line-clamp-1">„{{ $week->motto }}“</p>
+                            @else
+                                <span class="text-xs text-gray-600 italic">{{ $isPast ? 'Nicht eingetragen' : 'Ausstehend' }}</span>
+                            @endif
+                        </x-ui.td>
+                    </tr>
+                @endforeach
+            </x-ui.table>
         </div>
     </div>
     @endif

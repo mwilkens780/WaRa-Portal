@@ -94,6 +94,30 @@
     <x-ui.card title="Dialog">
         <x-ui.button variant="secondary" @click="$dispatch('open-dialog', 'demo')">Dialog öffnen</x-ui.button>
     </x-ui.card>
+
+    @php
+        $demoRows = [
+            ['50 m', 'Ben Bahn', '0:24,53', 'Hamburg', '2025'],
+            ['100 m', 'Sina Schwimmer', '1:12,34', 'Norderstedt', '2026'],
+            ['200 m', 'Ben Bahn', '2:41,07', 'Kiel', '2024'],
+        ];
+    @endphp
+    <x-ui.table caption="Beispiel: Vereinsrekorde Freistil" title="Tabelle" meta="x-ui.table + x-ui.td, auf dem Handy als Karten (stack)" stack
+                :columns="['Strecke', 'Name', ['label' => 'Zeit', 'align' => 'right'], ['label' => 'Ort', 'hide' => 'md'], ['label' => 'Jahr', 'align' => 'right'], ['label' => 'Aktionen', 'sr' => true]]">
+        @foreach($demoRows as [$strecke, $name, $zeit, $ort, $jahr])
+            <tr class="hover:bg-gray-50">
+                <x-ui.td label="Strecke" strong>{{ $strecke }}</x-ui.td>
+                <x-ui.td label="Name">{{ $name }}</x-ui.td>
+                <x-ui.td label="Zeit" num class="font-mono">{{ $zeit }}</x-ui.td>
+                <x-ui.td label="Ort" hide="md" muted>{{ $ort }}</x-ui.td>
+                <x-ui.td label="Jahr" num muted>{{ $jahr }}</x-ui.td>
+                <x-ui.td align="right"><x-ui.button size="sm" variant="ghost">Bearbeiten</x-ui.button></x-ui.td>
+            </tr>
+        @endforeach
+    </x-ui.table>
+
+    <x-ui.table caption="Beispiel: leere Tabelle" title="Leere Tabelle" :columns="['Strecke', 'Zeit']" :empty="true"
+                empty-title="Noch keine Rekorde" empty-text="Sobald ein Rekord eingetragen ist, steht er hier." />
 </div>
 
 <x-ui.dialog name="demo" title="Beispiel-Dialog" description="Mobil als Bottom-Sheet, Fokus bleibt im Dialog." guard>

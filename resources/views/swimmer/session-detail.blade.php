@@ -144,25 +144,21 @@
                             @endif
                             {{-- Eigene Zeiten --}}
                             @if(($block->repetitions ?? 0) > 0 && !empty($myTimes))
-                                <div class="mt-2 overflow-x-auto">
-                                    <table class="text-xs">
-                                        <thead>
-                                            <tr class="bg-blue-50">
-                                                @for($i = 1; $i <= min($block->repetitions, 50); $i++)
-                                                    <th class="px-3 py-1.5 text-center text-gray-500 font-medium min-w-[64px]">{{ $i }}.</th>
-                                                @endfor
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                @for($i = 1; $i <= min($block->repetitions, 50); $i++)
-                                                    <td class="px-3 py-1.5 text-center font-mono font-semibold text-primary">
-                                                        {{ isset($myTimes[$i]) ? \App\Models\TrainingBlockTime::format($myTimes[$i]) : '–' }}
-                                                    </td>
-                                                @endfor
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                <div class="mt-2">
+                                    <x-ui.table :card="false" dense caption="Meine Zeiten je Wiederholung" class="w-auto">
+                                        <x-slot:head>
+                                            @for($i = 1; $i <= min($block->repetitions, 50); $i++)
+                                                <x-ui.th align="center" dense class="min-w-[64px]">{{ $i }}.</x-ui.th>
+                                            @endfor
+                                        </x-slot:head>
+                                        <tr>
+                                            @for($i = 1; $i <= min($block->repetitions, 50); $i++)
+                                                <x-ui.td align="center" dense class="font-mono font-semibold text-primary">
+                                                    {{ isset($myTimes[$i]) ? \App\Models\TrainingBlockTime::format($myTimes[$i]) : '–' }}
+                                                </x-ui.td>
+                                            @endfor
+                                        </tr>
+                                    </x-ui.table>
                                 </div>
                             @endif
                         </div>

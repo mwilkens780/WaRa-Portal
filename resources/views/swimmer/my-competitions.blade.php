@@ -358,18 +358,12 @@
             <div x-show="tab === 'results'" x-cloak class="p-5">
                 {{-- Feste Spaltenbreiten: alle Wettkaempfe stehen exakt untereinander.
                      Kennzeichen in eigener Spalte, sonst verschieben sie die Zeiten. --}}
-                <table class="w-full text-sm table-fixed">
-                    <colgroup>
-                        <col>                                   {{-- Strecke: Rest --}}
-                        <col class="w-24">                      {{-- Zeit --}}
-                        <col class="w-28">                      {{-- Kennzeichen --}}
-                        <col class="w-52 hidden sm:table-column"> {{-- Platzierung --}}
-                    </colgroup>
-                    <tbody class="divide-y divide-gray-50">
+                <x-ui.table :card="false" :caption="'Ergebnisse ' . $comp->name" stack class="sm:table-fixed"
+                            :columns="['Strecke', ['label' => 'Zeit', 'align' => 'right', 'class' => 'w-24'], ['label' => 'Kennzeichen', 'class' => 'w-28'], ['label' => 'Platzierung', 'hide' => 'sm', 'class' => 'w-52']]">
                         @foreach($comp->processedResults as $swim)
                             @php $conflicts = $swim->discrepancies ?? collect(); @endphp
                             <tr class="{{ $swim->is_dns ? 'opacity-60' : 'hover:bg-gray-50' }} {{ $conflicts->isNotEmpty() ? 'bg-red-50/60' : '' }}">
-                                <td class="py-2.5 pr-3 text-gray-700">
+                                <x-ui.td label="Strecke">
                                     {{ $swim->distance }} m {{ $swim->discipline_label }}
                                     @if($swim->is_final)
                                         <span class="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Finale</span>
@@ -395,15 +389,15 @@
                                             </div>
                                         </span>
                                     @endif
-                                </td>
-                                <td class="text-right tabular-nums py-2.5">
+                                </x-ui.td>
+                                <x-ui.td label="Zeit" num>
                                     @if(!$swim->is_dns)
                                         <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                     @elseif($swim->notes)
                                         <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
                                     @endif
-                                </td>
-                                <td class="py-2.5 pl-3 whitespace-nowrap">
+                                </x-ui.td>
+                                <x-ui.td label="Kennzeichen" class="whitespace-nowrap">
                                     @if(!$swim->is_dns)
                                         @if($swim->pb_badge)
                                             @php $pbColors = match($swim->pb_badge) { 'PB' => 'bg-green-100 text-green-700', 'JB' => 'bg-teal-100 text-teal-700', 'SB' => 'bg-cyan-100 text-cyan-700', default => 'bg-gray-100 text-gray-600' }; @endphp
@@ -413,22 +407,21 @@
                                             <span class="text-xs {{ $rec === 'VR' ? 'bg-primary text-white' : 'bg-amber-500 text-white' }} px-1.5 py-0.5 rounded-full font-bold">{{ $rec }}</span>
                                         @endforeach
                                     @endif
-                                </td>
-                                <td class="py-2.5 pl-3 text-gray-500 text-xs hidden sm:table-cell">
+                                </x-ui.td>
+                                <x-ui.td label="Platzierung" hide="sm" muted class="text-xs">
                                     @if(!empty($swim->placements) && !$swim->is_dns)
                                         @foreach($swim->placements as $p)
                                             <span class="{{ $p->placement <= 3 ? 'font-bold text-amber-700' : '' }}">
-                                                @if($p->age_group)<span class="text-gray-400 font-normal">{{ $p->age_group }}: </span>@endif
+                                                @if($p->age_group)<span class="font-normal">{{ $p->age_group }}: </span>@endif
                                                 Platz {{ $p->placement }}
                                             </span>{{ !$loop->last ? ' · ' : '' }}
                                         @endforeach
                                     @else –
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
+                </x-ui.table>
             </div>
             @endif
 

@@ -788,46 +788,28 @@
                 </form>
             </div>
 
-            @if($session->swimmingTimes->isNotEmpty())
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Schwimmer</th>
-                            <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Disziplin</th>
-                            <th class="text-left px-4 py-2.5 font-semibold text-gray-600">Distanz</th>
-                            <th class="text-right px-4 py-2.5 font-semibold text-gray-600">Zeit</th>
-                            <th class="px-2 py-2.5"></th>
-                            <th class="px-4 py-2.5"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach($session->swimmingTimes->sortBy('user.name') as $time)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-2.5 font-medium text-gray-800">{{ $time->user->name }}</td>
-                                <td class="px-4 py-2.5 text-gray-600">{{ $time->discipline_label }}</td>
-                                <td class="px-4 py-2.5 text-gray-600">{{ $time->distance }} m</td>
-                                <td class="text-right tabular-nums px-4 py-2.5 font-mono font-semibold text-primary">
-                                    {{ $time->formatted_time }}
-                                </td>
-                                <td class="px-2 py-2.5 w-12">
-                                    @if($time->is_personal_best)
-                                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-sans font-medium">PB</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-2.5 text-right">
-                                    <form method="POST" action="{{ route('trainer.times.destroy', $time) }}"
-                                          data-confirm="Zeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Löschen</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @else
-                <p class="text-sm text-gray-400 py-4 text-center">Noch keine Zeiten für diese Einheit eingetragen.</p>
-            @endif
+            <x-ui.table :card="false" caption="Zeiten dieser Einheit" stack
+                        :columns="['Schwimmer', 'Disziplin', 'Distanz', ['label' => 'Zeit', 'align' => 'right'], ['label' => 'Bestzeit', 'sr' => true], ['label' => 'Aktionen', 'sr' => true]]"
+                        :empty="$session->swimmingTimes->isEmpty()" empty-title="Noch keine Zeiten" empty-text="Für diese Einheit ist noch keine Zeit eingetragen." empty-icon="clock">
+                @foreach($session->swimmingTimes->sortBy('user.name') as $time)
+                    <tr class="hover:bg-gray-50">
+                        <x-ui.td label="Schwimmer" strong>{{ $time->user->name }}</x-ui.td>
+                        <x-ui.td label="Disziplin" muted>{{ $time->discipline_label }}</x-ui.td>
+                        <x-ui.td label="Distanz" muted>{{ $time->distance }} m</x-ui.td>
+                        <x-ui.td label="Zeit" num class="font-mono font-semibold text-primary">{{ $time->formatted_time }}</x-ui.td>
+                        <x-ui.td class="w-12">
+                            @if($time->is_personal_best)<x-ui.badge tone="success">PB</x-ui.badge>@endif
+                        </x-ui.td>
+                        <x-ui.td align="right">
+                            <form method="POST" action="{{ route('trainer.times.destroy', $time) }}"
+                                  data-confirm="Zeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
+                                @csrf @method('DELETE')
+                                <x-ui.button size="sm" variant="ghost" type="submit" class="text-red-700" aria-label="Zeit von {{ $time->user->name }} löschen">Löschen</x-ui.button>
+                            </form>
+                        </x-ui.td>
+                    </tr>
+                @endforeach
+            </x-ui.table>
         </div>
 
         {{-- Einschätzungen Tab --}}

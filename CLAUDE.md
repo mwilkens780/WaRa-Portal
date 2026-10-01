@@ -29,7 +29,7 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 
 - **Baustein vor Handarbeit:** `x-ui.button` (primary | secondary | danger),
   `x-ui.field`, `x-ui.card`, `x-ui.dialog`, `x-ui.empty-state`, `x-ui.tabs`, `x-ui.menu`,
-  `x-ui.page-header`, `x-ui.alert`, `x-ui.badge`, Import-Bausteine. Musterseite `/admin/ui`.
+  `x-ui.page-header`, `x-ui.alert`, `x-ui.badge`, `x-ui.table`, Import-Bausteine. Musterseite `/admin/ui`.
   Wer eine Seite anfasst, stellt die berührten Teile auf Bausteine um.
 - **Farben:** Knöpfe nur `primary` (Hauptaktion, eine je Bereich), weiß/secondary, `accent`
   (nur Zerstörendes). Text mind. 4,5:1: Nebentext `text-gray-600`, nie `text-gray-200/300`
@@ -40,7 +40,7 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 - **Pop-ups:** nie `alert/confirm/prompt` → `$confirm`, `data-confirm`, `$prompt`, `$toast`,
   `x-ui.dialog`. Speichern per JS mit `api()`, ohne Neuladen.
 - **Formulare:** jedes Feld beschriftet, Fehler am Feld (Übersicht macht das Layout).
-- **Tabellen:** Muster aus design-system.md, Abschnitt 7 (`scope="col"`, `tabular-nums`,
+- **Tabellen:** `x-ui.table` + `x-ui.td` (design-system.md, Abschnitt 7; `stack` fürs Handy,
   mobil nicht quetschen, Auswahl-Checkboxen mit `aria-label`).
 - **Prüfen vor dem Commit:** `npm run lint:ui` (scheitert an neuen Verstößen) und – bei
   neuen Seiten – Testdaten im `E2eSeeder` ergänzen, damit die Browsertests sie abdecken.

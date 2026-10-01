@@ -1,36 +1,72 @@
 {
   "resources/views/admin/competitions/_announcement_tab.blade.php": {
+    "tabelle-ohne-baustein": 1,
     "neu-laden": 1
   },
   "resources/views/admin/competitions/index.blade.php": {
-    "text-zu-blass": 3
+    "text-zu-blass": 3,
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/admin/competitions/result-import-preview.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/competitions/show.blade.php": {
     "text-zu-blass": 5,
     "feld-ohne-beschriftung": 9,
+    "tabelle-ohne-baustein": 11,
     "neu-laden": 1
+  },
+  "resources/views/admin/competitions/wc-import-preview.blade.php": {
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/admin/competitions/webclub-import.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/corrections/course.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/corrections/times.blade.php": {
-    "feld-ohne-beschriftung": 3
+    "feld-ohne-beschriftung": 3,
+    "tabelle-ohne-baustein": 3
+  },
+  "resources/views/admin/dsgvo/index.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/dsgvo/show.blade.php": {
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 2
   },
   "resources/views/admin/import-log/index.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/admin/logs/index.blade.php": {
+    "tabelle-ohne-baustein": 2
+  },
+  "resources/views/admin/mail-log/index.blade.php": {
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/admin/permissions/index.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/records/_record_table.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 3
+    "feld-ohne-beschriftung": 3,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/records/_toplist_table.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 3
+    "feld-ohne-beschriftung": 3,
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/admin/records/bestlist-import-preview.blade.php": {
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/admin/records/import-preview.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/records/index.blade.php": {
     "feld-ohne-beschriftung": 7
@@ -45,27 +81,35 @@
     "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/training-groups/import-csv.blade.php": {
-    "feld-ohne-beschriftung": 3
+    "feld-ohne-beschriftung": 3,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/training-groups/motto-weeks.blade.php": {
-    "feld-ohne-beschriftung": 2
+    "feld-ohne-beschriftung": 2,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/training-groups/show.blade.php": {
     "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/users/bulk-welcome.blade.php": {
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/users/edit.blade.php": {
     "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/users/index.blade.php": {
     "text-zu-blass": 4,
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/wa_scoring/index.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 2
+  },
+  "resources/views/admin/webclub-import/preview.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/auth/login.blade.php": {
     "neu-laden": 1
@@ -92,6 +136,9 @@
   "resources/views/components/ui/rich-text.blade.php": {
     "roh-html": 2
   },
+  "resources/views/components/ui/table.blade.php": {
+    "roh-html": 2
+  },
   "resources/views/layouts/app.blade.php": {
     "native-dialoge": 2,
     "text-transparent": 1,
@@ -114,7 +161,6 @@
     "feld-ohne-beschriftung": 1
   },
   "resources/views/swimmer/motto/index.blade.php": {
-    "text-zu-blass": 2,
     "text-transparent": 2,
     "feld-ohne-beschriftung": 1
   },
@@ -144,15 +190,21 @@
   },
   "resources/views/trainer/diary-overview.blade.php": {
     "text-zu-blass": 3,
-    "feld-ohne-beschriftung": 1
+    "feld-ohne-beschriftung": 1,
+    "tabelle-ohne-baustein": 1
+  },
+  "resources/views/trainer/dsv-import/preview.blade.php": {
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/trainer/goals.blade.php": {
     "schrift-winzig": 1,
-    "feld-ohne-beschriftung": 5
+    "feld-ohne-beschriftung": 5,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/trainer/hall/import/preview.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 2
+    "feld-ohne-beschriftung": 2,
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/trainer/hall/index.blade.php": {
     "eigenes-overlay": 1,
@@ -167,30 +219,26 @@
   "resources/views/trainer/sessions/delete-series.blade.php": {
     "feld-ohne-beschriftung": 1
   },
-  "resources/views/trainer/sessions/edit-series.blade.php": {
-    "roh-html": 1
-  },
   "resources/views/trainer/sessions/edit.blade.php": {
     "roh-html": 1
-  },
-  "resources/views/trainer/sessions/generate-season.blade.php": {
-    "feld-ohne-beschriftung": 2
   },
   "resources/views/trainer/sessions/index.blade.php": {
     "text-zu-blass": 1
   },
   "resources/views/trainer/sessions/live.blade.php": {
     "eigenes-overlay": 2,
+    "tabelle-ohne-baustein": 1,
     "neu-laden": 1
   },
   "resources/views/trainer/sessions/show.blade.php": {
     "text-zu-blass": 4,
     "feld-ohne-beschriftung": 9,
     "roh-html": 1,
-    "neu-laden": 1
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/trainer/users/index.blade.php": {
     "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 2
+    "feld-ohne-beschriftung": 2,
+    "tabelle-ohne-baustein": 1
   }
 }

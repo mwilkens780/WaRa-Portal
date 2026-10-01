@@ -84,55 +84,35 @@
 
     {{-- Bests per discipline --}}
     @if($bests->isEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-12 text-center text-gray-400">
-            Keine Zeiten im gewählten Zeitraum.
-        </div>
+        <x-ui.card><x-ui.empty-state icon="clock" title="Keine Zeiten im gewählten Zeitraum" /></x-ui.card>
     @else
         @foreach($bestsByDisc as $disc => $discBests)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="px-5 py-3 bg-gray-50 border-b border-gray-100">
-                    <h2 class="font-semibold text-gray-700 text-sm">{{ $discBests->first()->discipline_label }}</h2>
-                </div>
-                {{-- Feste Spaltenbreiten: alle Lagen stehen exakt untereinander --}}
-                <div class="overflow-x-auto">
-                <table class="w-full text-sm table-fixed min-w-[560px]">
-                    <colgroup>
-                        <col class="w-32">   {{-- Strecke + Bahn --}}
-                        <col class="w-28">   {{-- Zeit --}}
-                        <col class="w-28">   {{-- Datum --}}
-                        <col>                {{-- Quelle: Rest --}}
-                    </colgroup>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach($discBests as $best)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-5 py-3 text-gray-600 font-medium whitespace-nowrap">
-                                    {{ $best->distance }} m
-                                    @if($best->course_label === 'Kurzbahn')
-                                        <span class="ml-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">KB</span>
-                                    @elseif($best->course_label === 'Langbahn')
-                                        <span class="ml-1 text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-medium">LB</span>
-                                    @endif
-                                </td>
-                                <td class="text-right tabular-nums px-5 py-3">
-                                    <span class="font-mono font-bold text-primary">{{ $best->formatted }}</span>
-                                </td>
-                                <td class="px-5 py-3 text-gray-500 text-xs">
-                                    {{ $best->date?->format('d.m.Y') ?? '–' }}
-                                </td>
-                                {{-- Kein Quellen-Etikett mehr: Datum steht links daneben,
-                                     hier der Ort und die Veranstaltung. --}}
-                                <td class="px-5 py-3 text-xs text-gray-600">
-                                    <span class="text-gray-700">{{ $best->location ?: $best->label }}</span>
-                                    @if($best->location && $best->label && $best->label !== $best->location)
-                                        <span class="block text-[11px] text-gray-400 truncate" title="{{ $best->label }}">{{ $best->label }}</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-                </div>
-            </div>
+            {{-- Feste Spaltenbreiten: alle Lagen stehen exakt untereinander --}}
+            <x-ui.table :title="$discBests->first()->discipline_label" :caption="'Bestzeiten ' . $discBests->first()->discipline_label" stack class="md:table-fixed"
+                        :columns="[['label' => 'Strecke', 'class' => 'w-32'], ['label' => 'Zeit', 'align' => 'right', 'class' => 'w-28'], ['label' => 'Datum', 'class' => 'w-28'], 'Ort / Veranstaltung']">
+                @foreach($discBests as $best)
+                    <tr class="hover:bg-gray-50">
+                        <x-ui.td label="Strecke" strong class="whitespace-nowrap">
+                            {{ $best->distance }} m
+                            @if($best->course_label === 'Kurzbahn')
+                                <x-ui.badge tone="warning" class="ml-1">KB</x-ui.badge>
+                            @elseif($best->course_label === 'Langbahn')
+                                <x-ui.badge tone="info" class="ml-1">LB</x-ui.badge>
+                            @endif
+                        </x-ui.td>
+                        <x-ui.td label="Zeit" num class="font-mono font-bold text-primary">{{ $best->formatted }}</x-ui.td>
+                        <x-ui.td label="Datum" muted class="text-xs tabular-nums">{{ $best->date?->format('d.m.Y') ?? '–' }}</x-ui.td>
+                        {{-- Kein Quellen-Etikett mehr: Datum steht links daneben,
+                             hier der Ort und die Veranstaltung. --}}
+                        <x-ui.td label="Ort" class="text-xs">
+                            <span class="text-gray-700">{{ $best->location ?: $best->label }}</span>
+                            @if($best->location && $best->label && $best->label !== $best->location)
+                                <span class="block text-xs text-gray-600 truncate" title="{{ $best->label }}">{{ $best->label }}</span>
+                            @endif
+                        </x-ui.td>
+                    </tr>
+                @endforeach
+            </x-ui.table>
         @endforeach
     @endif
 </div>

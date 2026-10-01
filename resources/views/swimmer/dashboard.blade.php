@@ -470,119 +470,33 @@
                 </button>
             </div>
 
-            @php
-                $bestsTable = function($bests, $emptyText) {
-                    return $bests;
-                };
-            @endphp
-
-            {{-- Allzeit --}}
-            <div x-show="bestTab === 'alltime'">
-                @if($allBests->isEmpty())
-                    <p class="text-sm text-gray-400 px-5 py-6 text-center">Noch keine Zeiten erfasst.</p>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm table-fixed">
-                        <colgroup><col><col class="w-28"><col class="w-40"></colgroup>
-                            <thead class="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
-                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Bestzeit</th>
-                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Wann und wo</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                @foreach($allBests as $row)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
-                                        <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
-                                        {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
-                                             sagt weniger als wann und wo sie geschwommen wurde. --}}
-                                        <td class="px-5 py-2.5 text-right">
-                                            <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
-                                            @if($row->place)
-                                                <span class="block text-[11px] text-gray-400 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
-
-            {{-- Jahres-Bestzeiten --}}
-            <div x-show="bestTab === 'year'" x-cloak>
-                @if($yearBests->isEmpty())
-                    <p class="text-sm text-gray-400 px-5 py-6 text-center">Keine Zeiten in {{ now()->year }}.</p>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm table-fixed">
-                        <colgroup><col><col class="w-28"><col class="w-40"></colgroup>
-                            <thead class="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
-                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Bestzeit {{ now()->year }}</th>
-                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Wann und wo</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                @foreach($yearBests as $row)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
-                                        <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
-                                        {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
-                                             sagt weniger als wann und wo sie geschwommen wurde. --}}
-                                        <td class="px-5 py-2.5 text-right">
-                                            <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
-                                            @if($row->place)
-                                                <span class="block text-[11px] text-gray-400 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
-
-            {{-- Saison-Bestzeiten --}}
-            <div x-show="bestTab === 'season'" x-cloak>
-                @if($seasonBests->isEmpty())
-                    <p class="text-sm text-gray-400 px-5 py-6 text-center">Keine Zeiten in der aktuellen Saison.</p>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm table-fixed">
-                        <colgroup><col><col class="w-28"><col class="w-40"></colgroup>
-                            <thead class="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th class="text-left px-5 py-2 font-semibold text-gray-500 text-xs">Disziplin / Distanz</th>
-                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Saisonbest</th>
-                                    <th class="text-right px-5 py-2 font-semibold text-gray-500 text-xs">Wann und wo</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                @foreach($seasonBests as $row)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-5 py-2.5 text-gray-700">{{ $row->label }}</td>
-                                        <td class="px-5 py-2.5 text-right tabular-nums font-mono font-bold text-primary">{{ $row->formatted }}</td>
-                                        {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
-                                             sagt weniger als wann und wo sie geschwommen wurde. --}}
-                                        <td class="px-5 py-2.5 text-right">
-                                            <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
-                                            @if($row->place)
-                                                <span class="block text-[11px] text-gray-400 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
+            {{-- Allzeit, Jahr, Saison: dieselbe Tabelle --}}
+            @foreach([
+                'alltime' => [$allBests, 'Bestzeit', 'Noch keine Zeiten erfasst.'],
+                'year'    => [$yearBests, 'Bestzeit ' . now()->year, 'Keine Zeiten in ' . now()->year . '.'],
+                'season'  => [$seasonBests, 'Saisonbest', 'Keine Zeiten in der aktuellen Saison.'],
+            ] as $bestKey => [$bests, $bestLabel, $bestEmpty])
+                <div x-show="bestTab === '{{ $bestKey }}'" @if($bestKey !== 'alltime') x-cloak @endif>
+                    <x-ui.table :card="false" :caption="$bestLabel . ' je Strecke'" stack class="table-fixed"
+                                :columns="['Disziplin / Distanz', ['label' => $bestLabel, 'align' => 'right', 'class' => 'w-28'], ['label' => 'Wann und wo', 'align' => 'right', 'class' => 'w-40']]"
+                                :empty="$bests->isEmpty()" :empty-title="$bestEmpty" empty-icon="clock">
+                        @foreach($bests as $row)
+                            <tr class="hover:bg-gray-50">
+                                <x-ui.td label="Strecke">{{ $row->label }}</x-ui.td>
+                                <x-ui.td :label="$bestLabel" num class="font-mono font-bold text-primary">{{ $row->formatted }}</x-ui.td>
+                                {{-- Datum und Ort statt der Quelle: Woher eine Zeit stammt,
+                                     sagt weniger als wann und wo sie geschwommen wurde. --}}
+                                <x-ui.td label="Wann und wo" align="right">
+                                    <span class="text-xs text-gray-600 tabular-nums">{{ $row->date_label ?? '–' }}</span>
+                                    @if($row->place)
+                                        <span class="block text-xs text-gray-600 truncate" title="{{ $row->place }}">{{ $row->place }}</span>
+                                    @endif
+                                </x-ui.td>
+                            </tr>
+                        @endforeach
+                    </x-ui.table>
+                </div>
+            @endforeach
         </div>
         </x-collapsible-card>
 

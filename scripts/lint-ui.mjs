@@ -146,6 +146,13 @@ const RULES = {
             return [...s.matchAll(/\{!!\s*([^!]*?)\s*!!\}/g)].map((m) => ({ line: lineOf(s, m.index), hint: m[1].slice(0, 40) }));
         },
     },
+    'tabelle-ohne-baustein': {
+        text: 'Eigene <table> – x-ui.table / x-ui.td / x-ui.th benutzen (Druck-, PDF- und Mailvorlagen ausgenommen)',
+        check(s, f) {
+            if (/[\\/](components|emails)[\\/]|print|pdf/i.test(f)) return [];
+            return [...s.matchAll(/<table\b/g)].map((m) => ({ line: lineOf(s, m.index), hint: '<table>' }));
+        },
+    },
     'neu-laden': {
         text: 'window.location.reload() nach dem Speichern – Ergebnis in die Seite übernehmen + $toast',
         check(s) {

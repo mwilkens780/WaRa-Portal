@@ -175,20 +175,9 @@
 
     {{-- ── Termine ────────────────────────────────────────────────────────── --}}
     <div x-show="tab === 'termine'" x-cloak role="tabpanel" id="panel-termine" aria-labelledby="tab-termine">
-        <x-ui.card title="Alle Termine" :meta="$future->count() . ' kommend, ' . ($sessions->count() - $future->count()) . ' vergangen'" :padded="false">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <caption class="sr-only">Termine der Serie {{ $series->title }}</caption>
-                    <thead class="bg-gray-50 border-y border-gray-200">
-                        <tr>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Datum</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Zeit</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-                            <th scope="col" class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-600">Teilnahme</th>
-                            <th scope="col" class="px-4 py-2"><span class="sr-only">Aktionen</span></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
+        <x-ui.table title="Alle Termine" :meta="$future->count() . ' kommend, ' . ($sessions->count() - $future->count()) . ' vergangen'"
+                    caption="Termine der Serie {{ $series->title }}" stack
+                    :columns="['Datum', 'Zeit', 'Status', ['label' => 'Teilnahme', 'align' => 'right'], ['label' => 'Aktionen', 'sr' => true]]">
                         @foreach($sessions as $s)
                             @php
                                 $past = $s->date->lt(today());
@@ -196,10 +185,10 @@
                                            'max_participants' => 'Limit', 'registration_open' => 'Anmeldung', 'guest_group_id' => 'Gastgruppe', 'date' => 'Tag', 'groups' => 'Gruppen', 'trainers' => 'Trainer'];
                                 $abw = collect($s->overridden_fields ?? [])->map(fn($f) => $labels[$f] ?? $f);
                             @endphp
-                            <tr class="{{ $past ? 'text-gray-600' : 'text-gray-800' }}">
-                                <td class="px-4 py-2 whitespace-nowrap tabular-nums">{{ $s->date->isoFormat('dd, DD.MM.YYYY') }}</td>
-                                <td class="px-4 py-2 whitespace-nowrap tabular-nums">{{ substr($s->start_time, 0, 5) }}@if($s->end_time)–{{ substr($s->end_time, 0, 5) }}@endif</td>
-                                <td class="px-4 py-2">
+                            <tr>
+                                <x-ui.td label="Datum" :strong="!$past" :muted="$past" class="whitespace-nowrap tabular-nums">{{ $s->date->isoFormat('dd, DD.MM.YYYY') }}</x-ui.td>
+                                <x-ui.td label="Zeit" :muted="$past" class="whitespace-nowrap tabular-nums">{{ substr($s->start_time, 0, 5) }}@if($s->end_time)–{{ substr($s->end_time, 0, 5) }}@endif</x-ui.td>
+                                <x-ui.td label="Status">
                                     <div class="flex flex-wrap gap-1">
                                         @if($s->isCancelled())
                                             <x-ui.badge tone="warning">fällt aus</x-ui.badge>
@@ -214,16 +203,16 @@
                                         @endif
                                     </div>
                                     @if($s->cancel_reason)<p class="text-xs text-gray-600 mt-0.5">{{ $s->cancel_reason }}</p>@endif
-                                </td>
-                                <td class="px-4 py-2 text-right tabular-nums whitespace-nowrap">
+                                </x-ui.td>
+                                <x-ui.td label="Teilnahme" num :muted="$past">
                                     @if($past)
                                         {{ isset($attended[$s->id]) ? $attended[$s->id] . ' anwesend' : '–' }}
                                     @else
                                         {{ max(0, $expectedCount - ($preAbsent[$s->id] ?? 0)) }} erwartet
                                         @if($preAbsent[$s->id] ?? 0)<span class="text-xs text-gray-600">({{ $preAbsent[$s->id] }} Absagen)</span>@endif
                                     @endif
-                                </td>
-                                <td class="px-4 py-2">
+                                </x-ui.td>
+                                <x-ui.td align="right">
                                     <div class="flex items-center justify-end gap-2">
                                         <x-ui.button size="sm" variant="ghost" href="{{ route('trainer.sessions.show', $s) }}">Öffnen</x-ui.button>
                                         @if(!$past && !$s->isCancelled())
@@ -236,13 +225,10 @@
                                             </form>
                                         @endif
                                     </div>
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </x-ui.card>
+        </x-ui.table>
     </div>
 
     <x-ui.dialog name="cancel-session" title="Termin fällt aus">

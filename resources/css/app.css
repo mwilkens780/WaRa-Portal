@@ -76,6 +76,23 @@
     .rich-text blockquote { @apply border-l-4 border-gray-200 pl-3 text-gray-600; }
     .rich-text a { @apply text-primary underline; }
 
+    /*
+     * x-ui.table stack: auf dem Handy wird jede Zeile eine Karte, jede Zelle
+     * eine Zeile "Spaltenname … Wert" (Spaltenname aus data-label der Zelle).
+     * Der Tabellenkopf bleibt fuer Screenreader erhalten.
+     */
+    @media (max-width: 767px) {
+        .ui-table-stack thead { @apply sr-only; }
+        .ui-table-stack tbody tr { @apply block px-4 py-3; }
+        .ui-table-stack tbody td { @apply flex items-baseline justify-between gap-4 px-0 py-0.5 text-right; }
+        .ui-table-stack tbody td.hidden { display: none; }
+        .ui-table-stack tbody td[data-label]::before {
+            content: attr(data-label);
+            @apply font-sans text-xs font-semibold text-gray-600 text-left shrink-0;
+        }
+        .ui-table-stack tbody td:not([data-label]) { @apply justify-end; }
+    }
+
     /* Tiptap: Platzhalter im leeren Editor */
     .rich-text p.is-editor-empty:first-child::before {
         content: attr(data-placeholder);

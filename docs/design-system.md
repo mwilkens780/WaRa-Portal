@@ -150,38 +150,39 @@ Hinweis und Fehler selbst und holt `old()`-Werte:
 
 ## 7. Tabellen
 
-Noch kein eigener Baustein (geplant: `x-ui.table` mit Stapelansicht fürs Handy).
-Bis dahin dieses Muster:
+Jede Tabelle über **`x-ui.table`** mit Zellen **`x-ui.td`** (Kopfzellen bei Bedarf
+`x-ui.th`). Der Baustein bringt Karte, Scrollbereich, unsichtbare Beschriftung
+(`caption`), `scope="col"`, Leerzustand und die Stapelansicht fürs Handy mit.
+Beispiel auf der Musterseite `/admin/ui`. Der Lint-Wächter meldet neue `<table>`
+außerhalb des Bausteins (Druck-, PDF- und Mailvorlagen ausgenommen).
 
 ```blade
-<x-ui.card :padded="false">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <caption class="sr-only">Vereinsrekorde Freistil männlich</caption>
-            <thead class="bg-gray-50 border-b border-gray-200">
-                <tr>
-                    <th scope="col" class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Strecke</th>
-                    <th scope="col" class="px-4 py-2.5 text-right …">Zeit</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2.5 text-gray-700">50 m</td>
-                    <td class="px-4 py-2.5 text-right font-mono tabular-nums text-gray-900">0:24,53</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</x-ui.card>
+<x-ui.table caption="Vereinsrekorde Freistil männlich" title="Freistil" meta="12 Strecken" stack
+            :columns="['Strecke', ['label' => 'Zeit', 'align' => 'right'], ['label' => 'Ort', 'hide' => 'md'], ['label' => 'Aktionen', 'sr' => true]]"
+            :empty="$rekorde->isEmpty()" empty-title="Noch keine Rekorde">
+    @foreach($rekorde as $r)
+        <tr class="hover:bg-gray-50">
+            <x-ui.td label="Strecke" strong>{{ $r->distance }} m</x-ui.td>
+            <x-ui.td label="Zeit" num class="font-mono">{{ $r->formatted_time }}</x-ui.td>
+            <x-ui.td label="Ort" hide="md" muted>{{ $r->location }}</x-ui.td>
+            <x-ui.td align="right"><x-ui.button size="sm" variant="ghost" href="…">Bearbeiten</x-ui.button></x-ui.td>
+        </tr>
+    @endforeach
+</x-ui.table>
 ```
 
-- Kopfzellen mit `scope="col"`, Zahlen rechtsbündig mit `tabular-nums`.
+- **`stack`** für Listen, die auch auf dem Handy gelesen werden: unter 768 px wird
+  jede Zeile eine Karte, jede Zelle „Spaltenname … Wert“. Dafür braucht jede
+  Zelle `label="…"`; Zellen ohne Label (Aktionen) stehen rechts.
+- Ohne `stack`: unwichtige Spalten `hide="md"` (an Spalte **und** Zelle) – nicht quetschen.
+- Zahlen mit `num` (rechtsbündig, `tabular-nums`), Hauptspalte `strong`, Nebeninfo `muted`.
+- Leere Tabelle: `:empty="…"` mit `empty-title` statt einer leeren Zeile;
+  Einzelzellen „noch kein Rekord“ in `text-gray-600 italic`.
+- In einer bestehenden Karte `:card="false"`; eigene Kopfzeile (z. B. „Alle
+  auswählen“) über den Slot `head` mit `x-ui.th`.
 - Auswahl-Checkboxen je Zeile mit `aria-label` („Zeile 3 übernehmen: Name“),
   „Alle auswählen“ ebenso.
-- Mehr als vier Spalten auf dem Handy: unwichtige Spalten `hidden md:table-cell`
-  oder die Zeile als Karte darstellen – nicht quetschen.
-- Leere Tabelle: `x-ui.empty-state` statt leerer Zeile; Einzelzellen „noch kein
-  Rekord“ in `text-gray-600 italic`.
+- Blade-Falle: In Attributen von `<x-…>` kein `@js`; Spaltenlisten mit Logik vorher in `@php` bauen.
 - Scrollbare Bereiche ohne Link/Knopf werden automatisch per Tastatur erreichbar
   (`resources/js/ui/scroll-regions.js`).
 

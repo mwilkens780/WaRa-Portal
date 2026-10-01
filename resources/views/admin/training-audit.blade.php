@@ -35,33 +35,18 @@
 
     @if($preview)
         @php $t = $preview['totals']; @endphp
-        <x-ui.card id="uebernahme" title="Probelauf – nichts gespeichert" :meta="$t['serien'] . ' Serien, ' . $t['abweichungen'] . ' abweichende Einheiten, ' . $t['verbunden'] . ' Belegungen verbunden, ' . $t['entfernt'] . ' doppelte entfernt'" :padded="false">
-            @if($preview['rows'])
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <caption class="sr-only">Probelauf Übernahme in Trainingsserien</caption>
-                        <thead class="bg-gray-50 border-y border-gray-200">
-                            <tr>
-                                @foreach(array_keys($preview['rows'][0]) as $spalte)
-                                    <th scope="col" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">{{ str_replace('_', ' ', $spalte) }}</th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @foreach($preview['rows'] as $row)
-                                <tr>
-                                    @foreach($row as $wert)
-                                        <td class="px-4 py-2 text-gray-700 tabular-nums">{{ $wert }}</td>
-                                    @endforeach
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @else
-                <p class="px-5 py-3 text-sm text-gray-700">Keine neuen Serien.</p>
-            @endif
-        </x-ui.card>
+        <x-ui.table id="uebernahme" title="Probelauf – nichts gespeichert" caption="Probelauf Übernahme in Trainingsserien" stack
+                    :meta="$t['serien'] . ' Serien, ' . $t['abweichungen'] . ' abweichende Einheiten, ' . $t['verbunden'] . ' Belegungen verbunden, ' . $t['entfernt'] . ' doppelte entfernt'"
+                    :columns="collect(array_keys($preview['rows'][0] ?? []))->map(fn($k) => str_replace('_', ' ', $k))->all()"
+                    :empty="!$preview['rows']" empty-title="Keine neuen Serien" empty-icon="check-circle">
+            @foreach($preview['rows'] as $row)
+                <tr>
+                    @foreach($row as $spalte => $wert)
+                        <x-ui.td :label="str_replace('_', ' ', $spalte)" class="tabular-nums">{{ $wert }}</x-ui.td>
+                    @endforeach
+                </tr>
+            @endforeach
+        </x-ui.table>
     @endif
 
     @php $gesamt = collect($result)->sum(fn($b) => count($b['rows'])); @endphp
@@ -71,37 +56,26 @@
 
     @foreach($result as $key => $block)
         <x-ui.card :title="$block['title']" :meta="count($block['rows']) . ' Befund' . (count($block['rows']) === 1 ? '' : 'e')" :padded="false">
-            <p class="px-5 pt-3 text-sm text-gray-700">{{ $block['explain'] }}</p>
+            <p class="px-5 py-3 text-sm text-gray-700">{{ $block['explain'] }}</p>
             @if($block['rows'])
-                <div class="overflow-x-auto mt-3">
-                    <table class="w-full text-sm">
-                        <caption class="sr-only">{{ $block['title'] }}</caption>
-                        <thead class="bg-gray-50 border-y border-gray-200">
-                            <tr>
-                                @foreach(array_keys($block['rows'][0]) as $spalte)
-                                    <th scope="col" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">{{ str_replace('_', ' ', $spalte) }}</th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @foreach($block['rows'] as $row)
-                                <tr>
-                                    @foreach($row as $spalte => $wert)
-                                        <td class="px-4 py-2 text-gray-700 {{ $spalte === 'serie_id' ? 'font-mono text-xs' : '' }}">
-                                            @if($spalte === 'serie_id')
-                                                <a href="{{ route('trainer.sessions.series.show', $wert) }}" class="text-primary underline underline-offset-2 hover:no-underline">Serie öffnen</a>
-                                            @else
-                                                {{ $wert }}
-                                            @endif
-                                        </td>
-                                    @endforeach
-                                </tr>
+                <x-ui.table :card="false" :caption="$block['title']" stack
+                            :columns="collect(array_keys($block['rows'][0]))->map(fn($k) => $k === 'serie_id' ? ['label' => 'Serie öffnen', 'sr' => true] : str_replace('_', ' ', $k))->all()">
+                    @foreach($block['rows'] as $row)
+                        <tr>
+                            @foreach($row as $spalte => $wert)
+                                @if($spalte === 'serie_id')
+                                    <x-ui.td align="right">
+                                        <a href="{{ route('trainer.sessions.series.show', $wert) }}" class="text-primary underline underline-offset-2 hover:no-underline">Serie öffnen</a>
+                                    </x-ui.td>
+                                @else
+                                    <x-ui.td :label="str_replace('_', ' ', $spalte)">{{ $wert }}</x-ui.td>
+                                @endif
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
             @else
-                <p class="px-5 py-3 text-sm text-green-700">Keine Befunde.</p>
+                <p class="px-5 pb-3 text-sm text-green-700">Keine Befunde.</p>
             @endif
         </x-ui.card>
     @endforeach
