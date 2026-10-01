@@ -205,6 +205,7 @@
                                             {{ $upSession->date->isoFormat('ddd, DD.MM.YYYY') }}
                                             @if($upSession->start_time) · {{ substr($upSession->start_time, 0, 5) }} Uhr @endif
                                         </span>
+                                        @unless($upSession->isCancelled())
                                         <form method="POST" action="{{ route('swimmer.session.punctual.join', $upSession) }}">
                                             @csrf
                                             <button type="submit"
@@ -212,6 +213,7 @@
                                                 Beitreten
                                             </button>
                                         </form>
+                                        @endunless
                                     </div>
                                 @endforeach
                             </div>
@@ -277,6 +279,7 @@
                 </div>
                 <div class="flex-shrink-0 flex gap-2">
                     @if($g->booked)
+                        @unless($s->isCancelled())
                         <form method="POST" action="{{ route('swimmer.session.cancel-guest', $s) }}">
                             @csrf @method('DELETE')
                             <button type="submit"
@@ -284,7 +287,9 @@
                                 Stornieren
                             </button>
                         </form>
+                        @endunless
                     @else
+                        @unless($s->isCancelled())
                         <form method="POST" action="{{ route('swimmer.session.book-guest', $s) }}">
                             @csrf
                             <button type="submit"
@@ -292,6 +297,7 @@
                                 Platz buchen
                             </button>
                         </form>
+                        @endunless
                     @endif
                 </div>
             </div>
@@ -379,31 +385,37 @@
                             <div class="flex-shrink-0 flex flex-col items-end gap-1.5">
                                 @if($regOpen && !$isAbsent)
                                     @if($isRegistered)
+                                        @unless($session->isCancelled())
                                         <form method="POST" action="{{ route('swimmer.session.unregister', $session) }}">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-xs text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                                                 Abmelden
                                             </button>
                                         </form>
+                                        @endunless
                                     @elseif(!$noSpots)
+                                        @unless($session->isCancelled())
                                         <form method="POST" action="{{ route('swimmer.session.register', $session) }}">
                                             @csrf
                                             <button type="submit" class="bg-primary hover:bg-primary-dark text-white text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold">
                                                 Anmelden
                                             </button>
                                         </form>
+                                        @endunless
                                     @else
                                         <span class="text-xs text-gray-400 border border-gray-200 px-3 py-1.5 rounded-lg">Ausgebucht</span>
                                     @endif
                                 @endif
 
                                 @if($isAbsent)
+                                    @unless($session->isCancelled())
                                     <form method="POST" action="{{ route('swimmer.session.cancel', $session) }}">
                                         @csrf
                                         <button type="submit" class="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
                                             Zurücknehmen
                                         </button>
                                     </form>
+                                    @endunless
                                 @else
                                     <button type="button" @click="showNote = !showNote"
                                             class="text-xs text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
@@ -417,6 +429,7 @@
 
                         @if(!$isAbsent)
                             <div x-show="showNote" x-cloak class="mt-3 ml-[64px]">
+                                @unless($session->isCancelled())
                                 <form method="POST" action="{{ route('swimmer.session.cancel', $session) }}"
                                       class="flex items-center gap-2 flex-wrap">
                                     @csrf
@@ -427,6 +440,7 @@
                                         Absage bestätigen
                                     </button>
                                 </form>
+                                @endunless
                             </div>
                         @endif
                     </div>

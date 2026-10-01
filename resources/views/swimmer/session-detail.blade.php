@@ -60,6 +60,7 @@
                         @endif
                     </div>
                 </div>
+                @unless($session->isCancelled())
                 <form method="POST" action="{{ route('swimmer.session.cancel', $session) }}">
                     @csrf
                     <button type="submit"
@@ -67,8 +68,10 @@
                         Absage zurücknehmen
                     </button>
                 </form>
+                @endunless
             @else
                 <p class="text-sm text-gray-500 mb-3">Du bist für diese Einheit angemeldet. Falls du nicht teilnehmen kannst:</p>
+                @unless($session->isCancelled())
                 <form method="POST" action="{{ route('swimmer.session.cancel', $session) }}" class="flex items-center gap-2 flex-wrap">
                     @csrf
                     <input type="text" name="note" placeholder="Grund der Absage (optional)"
@@ -78,6 +81,7 @@
                         Absagen
                     </button>
                 </form>
+                @endunless
             @endif
         </div>
     @endif

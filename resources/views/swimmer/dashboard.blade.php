@@ -375,6 +375,7 @@
                         </div>
                     </a>
                     {{-- Absage/Rücknahme Button --}}
+                    @unless($session->isCancelled())
                     <form method="POST" action="{{ route('swimmer.session.cancel', $session) }}" class="flex-shrink-0"
                           x-data="{ open: false }">
                         @csrf
@@ -404,6 +405,7 @@
                             </div>
                         @endif
                     </form>
+                    @endunless
                 </div>
             @endforeach
         </div>

@@ -66,31 +66,37 @@
                             <div class="flex-shrink-0 flex flex-col items-end gap-1.5">
                                 @if($regOpen && !$isAbsent)
                                     @if($isRegistered)
+                                        @unless($session->isCancelled())
                                         <form method="POST" action="{{ route('parent.child.session.unregister', [$child->id, $session]) }}">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-xs text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                                                 Abmelden
                                             </button>
                                         </form>
+                                        @endunless
                                     @elseif(!$noSpots)
+                                        @unless($session->isCancelled())
                                         <form method="POST" action="{{ route('parent.child.session.register', [$child->id, $session]) }}">
                                             @csrf
                                             <button type="submit" class="bg-primary hover:bg-primary-dark text-white text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold">
                                                 Anmelden
                                             </button>
                                         </form>
+                                        @endunless
                                     @else
                                         <span class="text-xs text-gray-400 border border-gray-200 px-3 py-1.5 rounded-lg">Ausgebucht</span>
                                     @endif
                                 @endif
 
                                 @if($isAbsent)
+                                    @unless($session->isCancelled())
                                     <form method="POST" action="{{ route('parent.child.session.cancel', [$child->id, $session]) }}">
                                         @csrf
                                         <button type="submit" class="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
                                             Zurücknehmen
                                         </button>
                                     </form>
+                                    @endunless
                                 @else
                                     <button type="button" @click="showNote = !showNote"
                                             class="text-xs text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
@@ -101,6 +107,7 @@
 
                         @if(!$isAbsent)
                             <div x-show="showNote" x-cloak class="mt-3 ml-[64px]">
+                                @unless($session->isCancelled())
                                 <form method="POST" action="{{ route('parent.child.session.cancel', [$child->id, $session]) }}"
                                       class="flex items-center gap-2 flex-wrap">
                                     @csrf
@@ -111,6 +118,7 @@
                                         Absage bestätigen
                                     </button>
                                 </form>
+                                @endunless
                             </div>
                         @endif
                     </div>
