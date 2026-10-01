@@ -8,7 +8,8 @@
 @if($empty)
     <x-ui.empty-state :icon="$emptyIcon" :title="$emptyTitle" :text="$emptyText" />
 @else
-    <div class="overflow-x-auto">
+    {{-- relative: sr-only-Kopfzellen (absolut positioniert) bleiben im Scrollbereich statt die Seite zu verbreitern --}}
+    <div class="relative overflow-x-auto">
         <table {{ $tableAttributes->merge(['class' => 'w-full text-sm' . ($stack ? ' ui-table-stack' : '')]) }}>
             <caption class="sr-only">{{ $caption }}</caption>
             <thead class="bg-gray-50 border-b border-gray-200">

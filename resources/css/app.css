@@ -82,6 +82,8 @@
      * Der Tabellenkopf bleibt fuer Screenreader erhalten.
      */
     @media (max-width: 767px) {
+        /* block: die Containerbreite zaehlt, nicht die natuerliche Tabellenbreite */
+        .ui-table-stack, .ui-table-stack tbody { @apply block w-full; }
         .ui-table-stack thead { @apply sr-only; }
         .ui-table-stack tbody tr { @apply block px-4 py-3; }
         .ui-table-stack tbody td { @apply flex items-baseline justify-between gap-4 px-0 py-0.5 text-right; }
