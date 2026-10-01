@@ -32,7 +32,7 @@
     @endif
 
     @if($groups->isEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-12 text-center text-gray-400">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-12 text-center text-gray-600">
             Keine Trainingsgruppen zugewiesen.
         </div>
     @else
@@ -92,13 +92,13 @@
                      x-data="keep('goals-crit-{{ $group->id }}', true)">
                 <button type="button" @click="open = !open"
                         class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors">
-                    <svg class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0" :class="open ? 'rotate-90' : ''"
+                    <svg class="w-4 h-4 text-gray-600 transition-transform flex-shrink-0" :class="open ? 'rotate-90' : ''"
                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                     </svg>
                     <div class="flex-1 min-w-0">
                         <h2 class="font-semibold text-gray-800">Leistungskriterien</h2>
-                        <p class="text-xs text-gray-400 mt-0.5">
+                        <p class="text-xs text-gray-600 mt-0.5">
                             Entscheiden über Verbleib oder Wechsel der Gruppe · jede Saison neu zu erfüllen
                         </p>
                     </div>
@@ -128,14 +128,14 @@
                                            placeholder="z.B. 80 % Trainingsbeteiligung">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Zielwert <span class="font-normal text-gray-400">(optional)</span></label>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Zielwert <span class="font-normal text-gray-600">(optional)</span></label>
                                     <input aria-label="Zielwert (optional)" type="text" name="target_value" maxlength="255"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none"
                                            placeholder="z.B. 80 %">
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Beschreibung <span class="font-normal text-gray-400">(optional)</span></label>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Beschreibung <span class="font-normal text-gray-600">(optional)</span></label>
                                 <textarea aria-label="Beschreibung (optional)" name="description" rows="2" maxlength="1000"
                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none"></textarea>
                             </div>
@@ -148,7 +148,7 @@
                     @endunless
 
                     @if($groupCriteria->isEmpty())
-                        <p class="px-5 py-6 text-sm text-gray-400 text-center">
+                        <p class="px-5 py-6 text-sm text-gray-600 text-center">
                             {{ $isPast ? 'In dieser Saison galten für die Gruppe keine Leistungskriterien.' : 'Für diese Gruppe sind noch keine Leistungskriterien festgelegt.' }}
                         </p>
                     @endif
@@ -190,7 +190,7 @@
                         <div x-data="keep('goals-c-{{ $crit->id }}', false)">
                             <button type="button" @click="open = !open"
                                     class="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-gray-50 transition-colors">
-                                <svg class="w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0" :class="open ? 'rotate-90' : ''"
+                                <svg class="w-3.5 h-3.5 text-gray-600 transition-transform flex-shrink-0" :class="open ? 'rotate-90' : ''"
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                 </svg>
@@ -200,7 +200,7 @@
                                         <span class="ml-1.5 text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">Ziel: {{ $crit->target_value }}</span>
                                     @endif
                                 </div>
-                                <div class="flex items-center gap-1 flex-shrink-0 text-[11px] font-semibold">
+                                <div class="flex items-center gap-1 flex-shrink-0 text-xs font-semibold">
                                     <span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700" title="Erreicht">✓ {{ $cntYes }}</span>
                                     <span class="px-1.5 py-0.5 rounded bg-red-100 text-red-700" title="Nicht erreicht">✗ {{ $cntNo }}</span>
                                     <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700" title="Noch nicht bewertet">– {{ $cntOpen }}</span>
@@ -213,7 +213,7 @@
                                 <div class="flex items-start gap-3 mb-3">
                                     <p class="flex-1 text-xs text-gray-500">{{ $crit->description }}</p>
                                     @if(!$crit->active)
-                                        <span class="text-[10px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">inzwischen entfernt</span>
+                                        <span class="text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">inzwischen entfernt</span>
                                     @endif
                                     @unless($isPast)
                                     <button type="button" @click="edit = !edit"
@@ -223,7 +223,7 @@
                                     <form method="POST" action="{{ route('trainer.group-goals.destroy', $crit) }}"
                                           data-confirm="Leistungskriterium „{{ $crit->title }}“ entfernen?" data-confirm-text="Bewertungen vergangener Saisons bleiben erhalten." data-confirm-label="Entfernen" data-confirm-danger>
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-xs px-2.5 py-1 border border-gray-200 text-gray-400 rounded-lg hover:text-red-500 hover:border-red-200 transition-colors">
+                                        <button type="submit" class="text-xs px-2.5 py-1 border border-gray-200 text-gray-600 rounded-lg hover:text-red-500 hover:border-red-200 transition-colors">
                                             Entfernen
                                         </button>
                                     </form>
@@ -257,11 +257,11 @@
                                                 <div class="absolute bg-white rounded-full flex flex-col items-center justify-center"
                                                      style="width:52px;height:52px;top:16px;left:16px">
                                                     <span class="text-sm font-black text-gray-800 leading-none">{{ $pd['pct'] }}%</span>
-                                                    <span class="text-[9px] text-gray-400 leading-none mt-0.5">erreicht</span>
+                                                    <span class="text-xs text-gray-600 leading-none mt-0.5">erreicht</span>
                                                 </div>
                                             </div>
                                             <div>
-                                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{{ $viewLabel }}</p>
+                                                <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">{{ $viewLabel }}</p>
                                                 <div class="flex flex-col gap-1">
                                                     @foreach(['achieved' => 'Erreicht', 'missed' => 'Nicht erreicht', 'open' => 'Nicht bewertet'] as $st => $stLabel)
                                                         <button type="button"
@@ -279,7 +279,7 @@
                                     @endforeach
                                     <button type="button" x-show="filter.self || filter.trainer" x-cloak
                                             @click="filter.self = null; filter.trainer = null"
-                                            class="self-center text-xs text-gray-400 hover:text-gray-600 underline">
+                                            class="self-center text-xs text-gray-600 hover:text-gray-600 underline">
                                         Filter aufheben
                                     </button>
                                 </div>
@@ -292,20 +292,11 @@
                                         ->concat($leavers);
                                 @endphp
                                 @if($tableRows->isEmpty())
-                                    <p class="text-sm text-gray-400">Keine aktiven Schwimmer in dieser Gruppe.</p>
+                                    <p class="text-sm text-gray-600">Keine aktiven Schwimmer in dieser Gruppe.</p>
                                 @else
-                                <div class="overflow-x-auto rounded-lg border border-gray-100">
-                                    <table class="w-full text-xs">
-                                        <thead>
-                                            <tr class="bg-gray-50 text-gray-500 uppercase tracking-wide text-[10px]">
-                                                <th class="text-left px-3 py-2 font-semibold">Schwimmer</th>
-                                                <th class="text-left px-3 py-2 font-semibold">Eigenbewertung</th>
-                                                <th class="text-left px-3 py-2 font-semibold">Trainer</th>
-                                                <th class="text-left px-3 py-2 font-semibold">Trainer-Notiz</th>
-                                                <th class="px-3 py-2"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-gray-50">
+                                <div class="rounded-lg border border-gray-100">
+<x-ui.table :card="false" caption="Ziele" class="text-xs"
+            :columns="['Schwimmer', 'Eigenbewertung', 'Trainer', 'Trainer-Notiz', ['label' => 'Aktionen', 'sr' => true]]">
                                         @foreach($tableRows as $row)
                                             @php
                                                 $swimmer  = $row->user;
@@ -322,45 +313,45 @@
                                             @endphp
                                             @if($isLeaver && $loop->index === $swimmerCount)
                                                 <tr x-show="!filter.self && !filter.trainer" class="bg-gray-50">
-                                                    <td colspan="5" class="px-3 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                                    <x-ui.td muted class="text-xs font-semibold uppercase tracking-wide" colspan="5">
                                                         Während der Saison ausgeschieden
-                                                        <span class="normal-case font-normal tracking-normal text-gray-400">· zählen nicht zur Gruppengröße</span>
-                                                    </td>
+                                                        <span class="normal-case font-normal tracking-normal text-gray-600">· zählen nicht zur Gruppengröße</span>
+                                                    </x-ui.td>
                                                 </tr>
                                             @endif
                                             <tr class="hover:bg-gray-50/50 {{ $isLeaver ? 'opacity-70' : '' }}" x-show="{{ $rowShow }}">
-                                                <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
+                                                <x-ui.td class="font-medium text-gray-700 whitespace-nowrap">
                                                     {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
                                                     @if($isLeaver)
-                                                        <span class="ml-1 text-[10px] font-normal text-gray-400 italic">ausgeschieden am {{ $row->left_at->format('d.m.Y') }}</span>
+                                                        <span class="ml-1 text-xs font-normal text-gray-600 italic">ausgeschieden am {{ $row->left_at->format('d.m.Y') }}</span>
                                                     @elseif($note = $memberNote($swimmer))
-                                                        <span class="ml-1 text-[10px] font-normal text-gray-400 italic">{{ $note }}</span>
+                                                        <span class="ml-1 text-xs font-normal text-gray-600 italic">{{ $note }}</span>
                                                     @endif
-                                                </td>
-                                                <td class="px-3 py-2">
-                                                    <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $statusBadges[$seStatus] }}">{{ $statusLabels[$seStatus] }}</span>
+                                                </x-ui.td>
+                                                <x-ui.td>
+                                                    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {{ $statusBadges[$seStatus] }}">{{ $statusLabels[$seStatus] }}</span>
                                                     @if($se?->notes)
-                                                        <p class="text-gray-400 italic mt-0.5 max-w-[220px]" title="{{ $se->notes }}">{{ $se->notes }}</p>
+                                                        <p class="text-gray-600 italic mt-0.5 max-w-[220px]" title="{{ $se->notes }}">{{ $se->notes }}</p>
                                                     @endif
-                                                </td>
-                                                <td class="px-3 py-2">
-                                                    <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $statusBadges[$teStatus] }}">{{ $statusLabels[$teStatus] }}</span>
-                                                </td>
-                                                <td class="px-3 py-2 text-gray-500 max-w-[260px]">{{ $te?->notes }}</td>
-                                                <td class="px-3 py-2 text-right">
+                                                </x-ui.td>
+                                                <x-ui.td>
+                                                    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {{ $statusBadges[$teStatus] }}">{{ $statusLabels[$teStatus] }}</span>
+                                                </x-ui.td>
+                                                <x-ui.td muted class="max-w-[260px]">{{ $te?->notes }}</x-ui.td>
+                                                <x-ui.td align="right">
                                                     @if($activeSeason)
                                                     <button type="button"
                                                             @click="evaluating = evaluating === {{ $swimmer->id }} ? null : {{ $swimmer->id }}"
                                                             :class="evaluating === {{ $swimmer->id }} ? 'bg-primary/10 text-primary' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'"
-                                                            class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors whitespace-nowrap">
+                                                            class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap">
                                                         Bewerten
                                                     </button>
                                                     @endif
-                                                </td>
+                                                </x-ui.td>
                                             </tr>
                                             @if($activeSeason)
                                             <tr x-show="evaluating === {{ $swimmer->id }} && {{ $rowShow }}" x-cloak class="bg-primary/5">
-                                                <td colspan="5" class="px-3 py-3">
+                                                <x-ui.td colspan="5">
                                                     <form method="POST" action="{{ route('trainer.group-goals.evaluate', [$crit, $swimmer]) }}"
                                                           class="flex flex-wrap items-center gap-3">
                                                         @csrf
@@ -379,13 +370,12 @@
                                                                class="flex-1 min-w-[180px] px-2 py-1.5 border border-gray-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/40">
                                                         <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors">Speichern</button>
                                                     </form>
-                                                </td>
+                                                </x-ui.td>
                                             </tr>
                                             @endif
                                         @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
+                                        </x-ui.table>
+</div>
                                 @endif
                             </div>
                         </div>
@@ -403,13 +393,13 @@
                      x-data="keep('goals-pers-{{ $group->id }}', true)">
                 <button type="button" @click="open = !open"
                         class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors">
-                    <svg class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0" :class="open ? 'rotate-90' : ''"
+                    <svg class="w-4 h-4 text-gray-600 transition-transform flex-shrink-0" :class="open ? 'rotate-90' : ''"
                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                     </svg>
                     <div class="flex-1 min-w-0">
                         <h2 class="font-semibold text-gray-800">Persönliche Ziele</h2>
-                        <p class="text-xs text-gray-400 mt-0.5">Von den Sportlern selbst gesetzt</p>
+                        <p class="text-xs text-gray-600 mt-0.5">Von den Sportlern selbst gesetzt</p>
                     </div>
                     <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
                         {{ $pgAchieved }}/{{ $pgTotal }} erreicht
@@ -418,7 +408,7 @@
 
                 <div x-show="open" x-cloak class="border-t border-gray-100 divide-y divide-gray-100">
                     @if($swimmers->isEmpty())
-                        <p class="px-5 py-6 text-sm text-gray-400 text-center">Keine aktiven Schwimmer in dieser Gruppe.</p>
+                        <p class="px-5 py-6 text-sm text-gray-600 text-center">Keine aktiven Schwimmer in dieser Gruppe.</p>
                     @endif
 
                     @foreach($swimmers as $swimmer)
@@ -430,14 +420,14 @@
                         <div x-data="keep('goals-s-{{ $group->id }}-{{ $swimmer->id }}', false)">
                             <button type="button" @click="open = !open" @if($total === 0) disabled @endif
                                     class="w-full flex items-center gap-3 px-5 py-3 text-left transition-colors {{ $total ? 'hover:bg-gray-50' : 'cursor-default' }}">
-                                <svg class="w-3.5 h-3.5 transition-transform flex-shrink-0 {{ $total ? 'text-gray-400' : 'text-gray-200' }}" :class="open ? 'rotate-90' : ''"
+                                <svg class="w-3.5 h-3.5 transition-transform flex-shrink-0 {{ $total ? 'text-gray-600' : 'text-gray-200' }}" :class="open ? 'rotate-90' : ''"
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                 </svg>
-                                <span class="flex-1 text-sm font-medium {{ $total ? 'text-gray-800' : 'text-gray-400' }}">
+                                <span class="flex-1 text-sm font-medium {{ $total ? 'text-gray-800' : 'text-gray-600' }}">
                                     {{ $swimmer->lastname }}, {{ $swimmer->firstname }}
                                     @if($note = $memberNote($swimmer))
-                                        <span class="ml-1 text-[10px] font-normal text-gray-400 italic">{{ $note }}</span>
+                                        <span class="ml-1 text-xs font-normal text-gray-600 italic">{{ $note }}</span>
                                     @endif
                                 </span>
                                 @if($total > 0)
@@ -446,7 +436,7 @@
                                     </div>
                                     <span class="text-xs text-gray-500 font-medium w-10 text-right flex-shrink-0">{{ $achieved }}/{{ $total }}</span>
                                 @else
-                                    <span class="text-xs text-gray-400 flex-shrink-0">keine Ziele</span>
+                                    <span class="text-xs text-gray-600 flex-shrink-0">keine Ziele</span>
                                 @endif
                             </button>
 
@@ -468,12 +458,12 @@
 
                                             <div class="flex-1 min-w-0">
                                                 <div class="flex items-center gap-2 flex-wrap">
-                                                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded {{ $typeColors[$goal->type] ?? 'bg-gray-100 text-gray-600' }}">{{ $typeLabels[$goal->type] ?? $goal->type }}</span>
+                                                    <span class="text-xs font-semibold px-1.5 py-0.5 rounded {{ $typeColors[$goal->type] ?? 'bg-gray-100 text-gray-600' }}">{{ $typeLabels[$goal->type] ?? $goal->type }}</span>
                                                     <p class="text-sm {{ $goal->achieved ? 'font-bold text-green-700' : 'font-semibold text-gray-700' }}">{{ $goal->title }}</p>
                                                 </div>
 
                                                 @if($goal->type === 'time' && ($goal->discipline || $goal->distance))
-                                                    <p class="text-xs text-gray-400 mt-0.5">
+                                                    <p class="text-xs text-gray-600 mt-0.5">
                                                         @if($goal->distance){{ $goal->distance }} m @endif
                                                         @if($goal->discipline_label){{ $goal->discipline_label }}@endif
                                                         @if($goal->course) · {{ $goal->course }}@endif
@@ -492,7 +482,7 @@
                                                 @endif
 
                                                 @if($goal->notes)
-                                                    <p class="text-xs text-gray-400 mt-0.5 italic">{{ $goal->notes }}</p>
+                                                    <p class="text-xs text-gray-600 mt-0.5 italic">{{ $goal->notes }}</p>
                                                 @endif
 
                                                 @foreach($goal->comments->where('trainer_id', '!=', auth()->id()) as $comment)

@@ -73,20 +73,9 @@
     </div>
 
     {{-- Tabelle --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide">
-                    <th class="px-3 py-3 w-10"></th>
-                    <th class="px-3 py-3 text-left font-medium">Tag / Zeit</th>
-                    <th class="px-3 py-3 text-left font-medium">Ressource</th>
-                    <th class="px-3 py-3 text-left font-medium">Kategorie</th>
-                    <th class="px-3 py-3 text-left font-medium">Gruppe</th>
-                    <th class="px-3 py-3 text-left font-medium">Trainer</th>
-                    <th class="px-3 py-3 text-left font-medium">Serie</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+<x-ui.table :card="false" caption="Belegungen zur Übernahme"
+            :columns="[['label' => 'Aktionen', 'sr' => true, 'class' => 'w-10'], 'Tag / Zeit', 'Ressource', 'Kategorie', 'Gruppe', 'Trainer', 'Serie']">
                 @foreach($entries as $i => $e)
                     @php
                         $conflict = $e['conflict'] ?? null;
@@ -96,27 +85,27 @@
                     <tr class="{{ $conflict ? 'bg-amber-50/50' : 'hover:bg-gray-50' }}"
                         x-show="!onlyOpen || {{ $openRow ? 'true' : 'false' }}" x-cloak>
 
-                        <td class="px-3 py-2">
+                        <x-ui.td>
                             <input type="checkbox" name="selected[]" value="{{ $i }}" aria-label="Zeile {{ $i + 1 }} übernehmen"
                                    {{ $conflict ? 'disabled' : 'checked' }}
                                    class="rounded text-primary disabled:opacity-30">
-                        </td>
+                        </x-ui.td>
 
-                        <td class="px-3 py-2 whitespace-nowrap">
+                        <x-ui.td class="whitespace-nowrap">
                             <span class="text-gray-700">{{ $days[$e['day']] ?? $e['day'] }}</span>
-                            <span class="text-gray-400 text-xs block">{{ $e['start'] }}–{{ $e['end'] }}</span>
-                        </td>
+                            <span class="text-gray-600 text-xs block">{{ $e['start'] }}–{{ $e['end'] }}</span>
+                        </x-ui.td>
 
-                        <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ $e['resource'] }}</td>
+                        <x-ui.td muted class="whitespace-nowrap">{{ $e['resource'] }}</x-ui.td>
 
-                        <td class="px-3 py-2">
+                        <x-ui.td>
                             <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
                                 {{ $e['category_label'] }}
                             </span>
-                        </td>
+                        </x-ui.td>
 
                         {{-- Gruppe --}}
-                        <td class="px-3 py-2">
+                        <x-ui.td>
                             @if($e['group_ids'])
                                 <span class="text-gray-700">
                                     {{ $groups->whereIn('id', $e['group_ids'])->pluck('name')->join(', ') }}
@@ -132,10 +121,10 @@
                             @else
                                 <span class="text-gray-500 text-xs">{{ $e['group_raw'] }}</span>
                             @endif
-                        </td>
+                        </x-ui.td>
 
                         {{-- Trainer --}}
-                        <td class="px-3 py-2">
+                        <x-ui.td>
                             @if($e['trainer_ids'])
                                 <span class="text-gray-700">
                                     {{ $trainers->whereIn('id', $e['trainer_ids'])->pluck('firstname')->join(', ') }}
@@ -151,12 +140,12 @@
                                     @endforeach
                                 </select>
                             @else
-                                <span class="text-gray-400 text-xs">{{ implode(', ', $e['trainers_raw']) }}</span>
+                                <span class="text-gray-600 text-xs">{{ implode(', ', $e['trainers_raw']) }}</span>
                             @endif
-                        </td>
+                        </x-ui.td>
 
                         {{-- Serie / Konflikt --}}
-                        <td class="px-3 py-2 text-xs whitespace-nowrap">
+                        <x-ui.td class="text-xs whitespace-nowrap">
                             @if($conflict)
                                 <span class="text-amber-700" title="{{ $conflict['label'] ?? '' }}">
                                     belegt{{ isset($conflict['time']) ? ' ('.$conflict['time'].')' : '' }}
@@ -164,16 +153,15 @@
                             @elseif($e['session_ready'])
                                 <span class="text-blue-700">Serie</span>
                             @elseif($e['needs_session'])
-                                <span class="text-gray-400">nur Belegung</span>
+                                <span class="text-gray-600">nur Belegung</span>
                             @else
-                                <span class="text-gray-300">–</span>
+                                <span class="text-gray-600">–</span>
                             @endif
-                        </td>
+                        </x-ui.td>
                     </tr>
                 @endforeach
-            </tbody>
-        </table>
-    </div>
+            </x-ui.table>
+</div>
 
     <x-ui.import-bar :cancel="route('trainer.hall.import.index')" count="input[name='selected[]']:checked"
                      singular="Eintrag" plural="Einträge" />

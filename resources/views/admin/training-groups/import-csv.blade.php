@@ -27,20 +27,8 @@
                     Alle gefundenen auswählen
                 </label>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Status</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">CSV-Name</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Jg.</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">DSV-Id</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Aktiv</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Datenbank-Benutzer</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 min-w-[160px]">Aktion</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Schwimmer zur Übernahme"
+            :columns="['Status', 'CSV-Name', 'Jg.', 'DSV-Id', 'Aktiv', 'Datenbank-Benutzer', ['label' => 'Aktion', 'class' => 'min-w-[160px]']]">
                         @foreach($rows as $i => $row)
                         @php
                             $statusColor = match($row['status']) {
@@ -57,29 +45,29 @@
                         <tr class="{{ $row['status'] === 'matched' ? 'hover:bg-gray-50' : ($row['status'] === 'ambiguous' ? 'bg-amber-50/30' : 'bg-red-50/30') }}"
                             @if($row['status'] === 'matched') data-matched @endif>
                             {{-- Status --}}
-                            <td class="px-4 py-2">
+                            <x-ui.td>
                                 <span class="text-xs px-2 py-0.5 rounded-full font-medium {{ $statusColor }}">{{ $statusLabel }}</span>
                                 @if($row['in_group'])
-                                    <span class="text-xs text-gray-400 ml-1">bereits in Gruppe</span>
+                                    <span class="text-xs text-gray-600 ml-1">bereits in Gruppe</span>
                                 @endif
-                            </td>
+                            </x-ui.td>
                             {{-- CSV Name --}}
-                            <td class="px-4 py-2 font-medium text-gray-800">{{ $row['csv_name'] }}</td>
+                            <x-ui.td class="font-medium text-gray-800">{{ $row['csv_name'] }}</x-ui.td>
                             {{-- Jg. --}}
-                            <td class="px-4 py-2 text-gray-500">{{ $row['csv_year'] ?: '–' }}</td>
+                            <x-ui.td muted>{{ $row['csv_year'] ?: '–' }}</x-ui.td>
                             {{-- DSV-Id --}}
-                            <td class="px-4 py-2 text-gray-500 font-mono text-xs">{{ $row['csv_dsv_id'] ?: '–' }}</td>
+                            <x-ui.td muted class="font-mono text-xs">{{ $row['csv_dsv_id'] ?: '–' }}</x-ui.td>
                             {{-- Aktiv --}}
-                            <td class="px-4 py-2">
+                            <x-ui.td>
                                 <span class="text-xs px-1.5 py-0.5 rounded {{ $row['csv_active'] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
                                     {{ $row['csv_active'] ? 'Ja' : 'Nein' }}
                                 </span>
-                            </td>
+                            </x-ui.td>
                             {{-- DB User --}}
-                            <td class="px-4 py-2 text-gray-600">
+                            <x-ui.td muted>
                                 @if($row['user_name'])
                                     {{ $row['user_name'] }}
-                                    @if($row['user_year']) <span class="text-gray-400 text-xs">({{ $row['user_year'] }})</span> @endif
+                                    @if($row['user_year']) <span class="text-gray-600 text-xs">({{ $row['user_year'] }})</span> @endif
                                     <input type="hidden" name="rows[{{ $i }}][user_id]" value="{{ $row['user_id'] }}">
                                 @elseif($row['status'] === 'unmatched')
                                     {{-- Neu anlegen: Felder --}}
@@ -97,9 +85,9 @@
                                 @else
                                     <span class="text-xs text-amber-700">Mehrere Treffer</span>
                                 @endif
-                            </td>
+                            </x-ui.td>
                             {{-- Aktion --}}
-                            <td class="px-4 py-2">
+                            <x-ui.td>
                                 @if($row['status'] === 'matched')
                                     <label class="flex items-center gap-2 text-xs cursor-pointer">
                                         <input type="radio" name="rows[{{ $i }}][action]" value="include" checked
@@ -108,13 +96,13 @@
                                     </label>
                                     <label class="flex items-center gap-2 text-xs cursor-pointer mt-1">
                                         <input type="radio" name="rows[{{ $i }}][action]" value="skip"
-                                               class="text-gray-400 border-gray-300">
+                                               class="text-gray-600 border-gray-300">
                                         <span class="text-gray-500">Überspringen</span>
                                     </label>
                                 @elseif($row['status'] === 'unmatched')
                                     <label class="flex items-center gap-2 text-xs cursor-pointer">
                                         <input type="radio" name="rows[{{ $i }}][action]" value="skip" checked
-                                               class="text-gray-400 border-gray-300"
+                                               class="text-gray-600 border-gray-300"
                                                onchange="document.getElementById('create-fields-{{ $i }}').classList.add('hidden')">
                                         <span class="text-gray-500">Überspringen</span>
                                     </label>
@@ -127,16 +115,14 @@
                                 @else
                                     <label class="flex items-center gap-2 text-xs cursor-pointer">
                                         <input type="radio" name="rows[{{ $i }}][action]" value="skip" checked
-                                               class="text-gray-400 border-gray-300">
+                                               class="text-gray-600 border-gray-300">
                                         <span class="text-gray-500">Überspringen</span>
                                     </label>
                                 @endif
-                            </td>
+                            </x-ui.td>
                         </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
 
         {{-- Zu entfernende Mitglieder --}}
@@ -158,7 +144,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-800">{{ $entry['name'] }}</p>
                         @if($entry['year'])
-                            <p class="text-xs text-gray-400">Jg. {{ $entry['year'] }}</p>
+                            <p class="text-xs text-gray-600">Jg. {{ $entry['year'] }}</p>
                         @endif
                     </div>
                 </div>

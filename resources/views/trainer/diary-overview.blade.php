@@ -35,14 +35,14 @@
     </div>
 
     @if(!$userId)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-16 text-center text-gray-400">
-            <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-16 text-center text-gray-600">
+            <svg class="w-10 h-10 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
             </svg>
             Sportler auswählen um die Einschätzungen zu sehen.
         </div>
     @elseif($entries->isEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-12 text-center text-gray-400">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-12 text-center text-gray-600">
             Keine Einschätzungen gefunden.
         </div>
     @else
@@ -76,37 +76,27 @@
 
         {{-- Einträge --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide">
-                        <th class="px-4 py-3 text-left font-medium">Datum</th>
-                        <th class="px-4 py-3 text-left font-medium">Einheit</th>
-                        <th class="px-4 py-3 text-center font-medium">Selbst</th>
-                        <th class="px-4 py-3 text-center font-medium">Trainer</th>
-                        <th class="px-4 py-3 text-left font-medium">Abweichung</th>
-                        <th class="px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Einschätzungen"
+            :columns="['Datum', 'Einheit', ['label' => 'Selbst', 'align' => 'center'], ['label' => 'Trainer', 'align' => 'center'], 'Abweichung', ['label' => 'Aktionen', 'sr' => true]]">
                     @foreach($entries as $entry)
                         @php $dev = $entry->deviation_level; @endphp
                         <tr class="hover:bg-gray-50 {{ $dev === 'major' ? 'bg-red-50/30' : '' }}">
-                            <td class="px-4 py-3 text-gray-500 whitespace-nowrap">
+                            <x-ui.td muted class="whitespace-nowrap">
                                 {{ $entry->session?->date?->format('d.m.Y') ?? '–' }}
-                            </td>
-                            <td class="px-4 py-3 text-gray-800 font-medium">
+                            </x-ui.td>
+                            <x-ui.td class="text-gray-800 font-medium">
                                 {{ $entry->session?->title ?? '–' }}
-                            </td>
-                            <td class="px-4 py-3 text-center">
+                            </x-ui.td>
+                            <x-ui.td align="center">
                                 @if($entry->self_score !== null)
                                     <span class="text-base font-bold {{ \App\Models\TrainingDiary::scoreColor($entry->self_score) }}">
                                         {{ $entry->self_score }}
                                     </span>
                                 @else
-                                    <span class="text-gray-300">–</span>
+                                    <span class="text-gray-600">–</span>
                                 @endif
-                            </td>
-                            <td class="px-4 py-3 text-center" x-data="{ editing: false }">
+                            </x-ui.td>
+                            <x-ui.td align="center" x-data="{ editing: false }">
                                 @if($entry->trainer_score !== null)
                                     <template x-if="!editing">
                                         <button @click="editing = true"
@@ -117,7 +107,7 @@
                                 @else
                                     <template x-if="!editing">
                                         <button @click="editing = true"
-                                                class="text-gray-300 hover:text-primary text-sm font-medium">+ Vergeben</button>
+                                                class="text-gray-600 hover:text-primary text-sm font-medium">+ Vergeben</button>
                                     </template>
                                 @endif
                                 <template x-if="editing">
@@ -138,8 +128,8 @@
                                         </button>
                                     </form>
                                 </template>
-                            </td>
-                            <td class="px-4 py-3">
+                            </x-ui.td>
+                            <x-ui.td>
                                 @if($dev === 'match')
                                     <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
@@ -155,19 +145,18 @@
                                         {{ $entry->deviation }} Pkt. Abw.
                                     </span>
                                 @else
-                                    <span class="text-xs text-gray-300">Noch kein Score</span>
+                                    <span class="text-xs text-gray-600">Noch kein Score</span>
                                 @endif
-                            </td>
-                            <td class="px-4 py-3 text-right">
+                            </x-ui.td>
+                            <x-ui.td align="right">
                                 @if($entry->training_session_id)
                                     <a href="{{ route('trainer.sessions.show', $entry->training_session_id) }}"
-                                       class="text-xs text-gray-400 hover:text-primary transition-colors">Einheit →</a>
+                                       class="text-xs text-gray-600 hover:text-primary transition-colors">Einheit →</a>
                                 @endif
-                            </td>
+                            </x-ui.td>
                         </tr>
                     @endforeach
-                </tbody>
-            </table>
+                </x-ui.table>
         </div>
     @endif
 </div>

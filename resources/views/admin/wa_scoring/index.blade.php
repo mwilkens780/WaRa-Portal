@@ -75,22 +75,18 @@
                 <div class="px-6 py-3 bg-gray-50 border-b border-gray-100">
                     <h3 class="text-sm font-semibold text-gray-700">{{ $gLabel }}</h3>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-100">
-                            <tr>
-                                <th class="px-4 py-2.5 text-left font-semibold">Disziplin</th>
+                <x-ui.table :card="false" caption="WA-Basiszeiten">
+<x-slot:head>
+                                <x-ui.th>Disziplin</x-ui.th>
                                 @foreach([50,100,200,400,800,1500] as $d)
-                                    <th class="px-3 py-2.5 text-center font-semibold">{{ $d }}m</th>
+                                    <x-ui.th align="center">{{ $d }}m</x-ui.th>
                                 @endforeach
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
+                            </x-slot:head>
                             @foreach($disciplineLabels as $dCode => $dLabel)
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $dLabel }}</td>
+                                    <x-ui.td class="font-medium text-gray-700 whitespace-nowrap">{{ $dLabel }}</x-ui.td>
                                     @foreach([50,100,200,400,800,1500] as $dist)
-                                        <td class="px-3 py-2 text-center">
+                                        <x-ui.td align="center">
                                             @if(in_array($dist, $distancesByDisc[$dCode] ?? []))
                                                 @php $key = "{$gCode}_{$dCode}_{$dist}"; $entry = $entries[$key] ?? null; @endphp
                                                 <input type="text"
@@ -101,13 +97,11 @@
                                             @else
                                                 <span class="text-gray-600">–</span>
                                             @endif
-                                        </td>
+                                        </x-ui.td>
                                     @endforeach
                                 </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
             @endforeach
 
             <div class="px-6 py-4 border-t border-gray-100 flex justify-end">

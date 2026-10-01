@@ -13,9 +13,9 @@
             Zurück zur Einheit
         </a>
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-8 text-center">
-            <svg class="w-10 h-10 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="w-10 h-10 mx-auto text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <p class="text-sm font-semibold text-gray-700">Keine Serie mit Zeitnahme</p>
-            <p class="text-xs text-gray-400 mt-1.5 max-w-sm mx-auto">
+            <p class="text-xs text-gray-600 mt-1.5 max-w-sm mx-auto">
                 Setze im Trainingsplan bei den Serien, bei denen Zeiten genommen werden sollen, den Haken „Zeitnahme".
             </p>
             <a href="{{ route('trainer.sessions.plan.builder', $session) }}"
@@ -44,7 +44,7 @@ window._ltSessionId = {{ $session->id }};
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                 gespeichert
             </span>
-            <span x-show="saveState === 'saving'" x-cloak class="text-gray-400">speichert…</span>
+            <span x-show="saveState === 'saving'" x-cloak class="text-gray-600">speichert…</span>
             <span x-show="saveState === 'error'" x-cloak class="flex items-center gap-1 text-amber-700 font-medium">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                 <span x-text="pending.length + ' offen'"></span>
@@ -102,7 +102,7 @@ window._ltSessionId = {{ $session->id }};
                 <p class="font-mono font-bold tabular-nums leading-none text-gray-900"
                    style="font-size:clamp(2.6rem,15vw,4rem)"
                    x-text="display"></p>
-                <p class="text-xs text-gray-400 mt-1.5" x-text="activeBlock ? (activeBlock.label || '') + ' · ' + activeBlock.display + ' × ' + (activeBlock.distance || '?') + ' m' : ''"></p>
+                <p class="text-xs text-gray-600 mt-1.5" x-text="activeBlock ? (activeBlock.label || '') + ' · ' + activeBlock.display + ' × ' + (activeBlock.distance || '?') + ' m' : ''"></p>
             </div>
 
             {{-- Serien-Fortschritt (erscheint nach dem ersten Start) --}}
@@ -169,10 +169,10 @@ window._ltSessionId = {{ $session->id }};
                 </button>
             </div>
 
-            <p x-show="voiceSupported && listening" x-cloak class="text-xs text-center text-gray-400 mt-2">
+            <p x-show="voiceSupported && listening" x-cloak class="text-xs text-center text-gray-600 mt-2">
                 Sag Name und Zeit, z.&nbsp;B. „Anna 32 45" oder „Lukas eine Minute 12 30".
             </p>
-            <p x-show="!voiceSupported" x-cloak class="text-xs text-center text-gray-400 mt-2">
+            <p x-show="!voiceSupported" x-cloak class="text-xs text-center text-gray-600 mt-2">
                 Dieser Browser unterstützt keine Spracherkennung – nutze die Tipp-Eingabe unten.
             </p>
 
@@ -187,13 +187,13 @@ window._ltSessionId = {{ $session->id }};
             <button type="button" @click="waveOpen = !waveOpen"
                     class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
                 <span class="flex items-center gap-2">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     Wellen-Zeitnahme
                     <span x-show="hasWaves" x-cloak
                           class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium"
                           x-text="waveLanes + ' Bahnen · ' + (waveGapCs / 100).toFixed(1).replace('.', ',') + ' s'"></span>
                 </span>
-                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="waveOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                <svg class="w-4 h-4 text-gray-600 transition-transform" :class="waveOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
 
             <div x-show="waveOpen" x-cloak class="px-4 pb-4 border-t border-gray-100 space-y-4 pt-3">
@@ -210,7 +210,7 @@ window._ltSessionId = {{ $session->id }};
                                     x-text="n === 1 ? 'Aus' : n"></button>
                         </template>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1.5">„Aus" = alle einzeln, keine Wellen-Korrektur</p>
+                    <p class="text-xs text-gray-600 mt-1.5">„Aus" = alle einzeln, keine Wellen-Korrektur</p>
                 </div>
 
                 {{-- Wellenabstand --}}
@@ -232,10 +232,10 @@ window._ltSessionId = {{ $session->id }};
                 <div class="flex items-center gap-2">
                     <button type="button" @click="openOrderModal()"
                             class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                         Reihenfolge bearbeiten
                     </button>
-                    <span x-show="waveSaveState === 'saving'" x-cloak class="text-xs text-gray-400">speichert…</span>
+                    <span x-show="waveSaveState === 'saving'" x-cloak class="text-xs text-gray-600">speichert…</span>
                     <span x-show="waveSaveState === 'saved'" x-cloak class="text-xs text-green-700">gespeichert</span>
                     <span x-show="waveSaveState === 'error'" x-cloak class="text-xs text-red-600">Fehler</span>
                 </div>
@@ -249,7 +249,7 @@ window._ltSessionId = {{ $session->id }};
                     Antippen trägt <span class="text-primary" x-text="running || elapsedCs > 0 ? display : 'die Zeit'"></span> ein
                 </p>
                 <button type="button" @click="showAll = !showAll"
-                        class="text-xs text-gray-400 hover:text-primary transition-colors"
+                        class="text-xs text-gray-600 hover:text-primary transition-colors"
                         x-text="showAll ? 'nur Anwesende' : 'alle anzeigen'"></button>
             </div>
 
@@ -260,18 +260,18 @@ window._ltSessionId = {{ $session->id }};
                         <button type="button" @click="tapAthlete(a)"
                                 class="text-left px-3 py-3 rounded-xl border transition-colors active:scale-[.98]"
                                 :class="nextRep(a.id) === null
-                                    ? 'bg-gray-50 border-gray-200 text-gray-400'
+                                    ? 'bg-gray-50 border-gray-200 text-gray-600'
                                     : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
                             <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
                             <span class="block text-xs mt-0.5"
-                                  :class="nextRep(a.id) === null ? 'text-green-700 font-medium' : 'text-gray-400'"
+                                  :class="nextRep(a.id) === null ? 'text-green-700 font-medium' : 'text-gray-600'"
                                   x-text="nextRep(a.id) === null
                                     ? 'komplett'
                                     : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
                         </button>
                     </template>
                 </div>
-                <p x-show="activeAthletes.length === 0" x-cloak class="text-sm text-gray-400 text-center py-4">
+                <p x-show="activeAthletes.length === 0" x-cloak class="text-sm text-gray-600 text-center py-4">
                     Keine Sportler – über „alle anzeigen" einblenden.
                 </p>
             </div>
@@ -283,7 +283,7 @@ window._ltSessionId = {{ $session->id }};
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-xs font-bold text-blue-600" x-text="'Welle ' + (g.wave + 1)"></span>
                             <span x-show="g.offsetCs > 0" x-cloak
-                                  class="text-xs text-gray-400"
+                                  class="text-xs text-gray-600"
                                   x-text="'(−' + fmt(g.offsetCs) + ' s Offset)'"></span>
                             <div class="flex-1 h-px bg-blue-100"></div>
                         </div>
@@ -292,11 +292,11 @@ window._ltSessionId = {{ $session->id }};
                                 <button type="button" @click="tapAthlete(a)"
                                         class="text-left px-3 py-3 rounded-xl border transition-colors active:scale-[.98]"
                                         :class="nextRep(a.id) === null
-                                            ? 'bg-gray-50 border-gray-200 text-gray-400'
+                                            ? 'bg-gray-50 border-gray-200 text-gray-600'
                                             : 'bg-white border-gray-200 hover:border-primary text-gray-800'">
                                     <span class="block text-sm font-semibold truncate" x-text="a.short"></span>
                                     <span class="block text-xs mt-0.5"
-                                          :class="nextRep(a.id) === null ? 'text-green-700 font-medium' : 'text-gray-400'"
+                                          :class="nextRep(a.id) === null ? 'text-green-700 font-medium' : 'text-gray-600'"
                                           x-text="nextRep(a.id) === null
                                             ? 'komplett'
                                             : (countFor(a.id) + '/' + (activeBlock ? activeBlock.reps : 0) + ' · nächste: ' + nextRep(a.id) + '.')"></span>
@@ -305,7 +305,7 @@ window._ltSessionId = {{ $session->id }};
                         </div>
                     </div>
                 </template>
-                <p x-show="waveGroups.length === 0" x-cloak class="text-sm text-gray-400 text-center py-4">
+                <p x-show="waveGroups.length === 0" x-cloak class="text-sm text-gray-600 text-center py-4">
                     Keine Sportler.
                 </p>
             </div>
@@ -315,36 +315,32 @@ window._ltSessionId = {{ $session->id }};
     {{-- ===================== TABELLE ===================== --}}
     <div x-show="mode === 'table'" x-cloak class="space-y-3">
         <div class="flex items-center justify-between px-1">
-            <p class="text-xs text-gray-400">Zelle antippen zum Ändern · Name antippen für die ganze Zeile</p>
+            <p class="text-xs text-gray-600">Zelle antippen zum Ändern · Name antippen für die ganze Zeile</p>
             <button type="button" @click="showAll = !showAll"
-                    class="text-xs text-gray-400 hover:text-primary transition-colors"
+                    class="text-xs text-gray-600 hover:text-primary transition-colors"
                     x-text="showAll ? 'nur Anwesende' : 'alle anzeigen'"></button>
         </div>
 
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="text-xs w-full min-w-max">
-                    <thead>
-                        <tr class="bg-blue-50 border-b border-blue-100">
-                            <th class="px-3 py-2 text-left text-gray-600 font-semibold sticky left-0 bg-blue-50 min-w-[104px] z-10">Sportler</th>
+            <x-ui.table :card="false" caption="Live-Zeiten" class="text-xs min-w-max">
+<x-slot:head>
+                            <x-ui.th class="sticky left-0 min-w-[104px] z-10">Sportler</x-ui.th>
                             <template x-for="i in (activeBlock ? activeBlock.reps : 0)" :key="i">
-                                <th class="px-1 py-2 text-center text-gray-500 font-medium min-w-[76px]" x-text="i + '.'"></th>
+                                <x-ui.th align="center" class="min-w-[76px]" x-text="i + '.'"></x-ui.th>
                             </template>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+                        </x-slot:head>
                         <template x-for="a in activeAthletes" :key="a.id">
                             <tr>
-                                <td class="px-3 py-1.5 sticky left-0 bg-white z-10 min-w-[104px]">
+                                <x-ui.td class="sticky left-0 bg-white z-10 min-w-[104px]">
                                     <button type="button" @click="openRow(a)" :aria-label="'Alle Zeiten von ' + a.name + ' bearbeiten'"
                                             class="font-medium text-gray-700 hover:text-primary truncate max-w-[96px] block text-left transition-colors"
                                             x-text="a.short"></button>
                                     <span x-show="hasWaves" x-cloak
-                                          class="text-[10px] text-blue-600"
+                                          class="text-xs text-blue-600"
                                           x-text="'W' + (waveOf(a.id) + 1)"></span>
-                                </td>
+                                </x-ui.td>
                                 <template x-for="i in (activeBlock ? activeBlock.reps : 0)" :key="i">
-                                    <td class="px-1 py-1">
+                                    <x-ui.td>
                                         <input type="text" inputmode="decimal"
                                                class="w-full text-center px-1 py-2 border rounded font-mono text-xs outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
                                                :class="getCs(a.id, i) !== null ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'"
@@ -354,15 +350,13 @@ window._ltSessionId = {{ $session->id }};
                                                @focus="$event.target.select()"
                                                @change="setCell(a.id, i, $event.target.value); $event.target.value = fmt(getCs(a.id, i))"
                                                @keydown.enter.prevent="$event.target.blur()">
-                                    </td>
+                                    </x-ui.td>
                                 </template>
                             </tr>
                         </template>
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
-        <p class="text-xs text-gray-400 px-1">Format <span class="font-mono">m:ss,zz</span> · leer = nicht mitgeschwommen</p>
+        <p class="text-xs text-gray-600 px-1">Format <span class="font-mono">m:ss,zz</span> · leer = nicht mitgeschwommen</p>
     </div>
 
     {{-- ===================== ZEILEN-EDITOR ===================== --}}
@@ -376,7 +370,7 @@ window._ltSessionId = {{ $session->id }};
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
                 <div class="min-w-0">
                     <h2 id="live-row-title" class="text-base font-semibold text-gray-800 truncate" x-text="rowAthlete ? rowAthlete.name : ''"></h2>
-                    <p class="text-xs text-gray-400" x-text="activeBlock ? (activeBlock.label || activeBlock.display + '×' + (activeBlock.distance || '?') + 'm') : ''"></p>
+                    <p class="text-xs text-gray-600" x-text="activeBlock ? (activeBlock.label || activeBlock.display + '×' + (activeBlock.distance || '?') + 'm') : ''"></p>
                 </div>
                 <button type="button" @click="rowAthlete = null" aria-label="Schließen" class="p-2.5 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -389,7 +383,7 @@ window._ltSessionId = {{ $session->id }};
                 <div class="space-y-2">
                 <template x-for="i in (activeBlock ? activeBlock.reps : 0)" :key="i">
                     <div class="flex items-center gap-3">
-                        <span class="w-8 text-sm text-gray-400 font-medium flex-shrink-0" x-text="i + '.'"></span>
+                        <span class="w-8 text-sm text-gray-600 font-medium flex-shrink-0" x-text="i + '.'"></span>
                         <input type="text" inputmode="decimal"
                                :data-rowrep="i"
                                :aria-label="'Zeit ' + i + '. Wiederholung'"
@@ -428,7 +422,7 @@ window._ltSessionId = {{ $session->id }};
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <div>
                     <h2 id="live-order-title" class="font-semibold text-gray-800 text-base">Reihenfolge</h2>
-                    <p class="text-xs text-gray-400 mt-0.5"
+                    <p class="text-xs text-gray-600 mt-0.5"
                        x-text="waveLanes > 1 ? 'Ziehen oder Pfeile zum Umsortieren · ' + waveLanes + ' pro Welle' : 'Ziehen oder Pfeile zum Umsortieren'"></p>
                 </div>
                 <button type="button" @click="orderModalOpen = false" aria-label="Schließen" class="p-2.5 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
@@ -733,7 +727,7 @@ function liveTiming() {
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${path}"/></svg>
                     </button>`;
                 item.innerHTML = `
-                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0 drag-handle cursor-grab active:cursor-grabbing" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg class="w-4 h-4 text-gray-600 flex-shrink-0 drag-handle cursor-grab active:cursor-grabbing" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M8 6h2v2H8zm0 4h2v2H8zm0 4h2v2H8zm6-8h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2z"/>
                     </svg>
                     <span class="flex-1 text-sm font-medium text-gray-700 truncate athlete-name"></span>

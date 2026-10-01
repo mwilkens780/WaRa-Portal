@@ -47,7 +47,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center gap-3">
                 <h2 class="text-sm font-semibold text-gray-800">Empfänger</h2>
-                <span class="text-xs text-gray-400">{{ $candidates->count() }} aktive Mitglieder mit E-Mail-Adresse</span>
+                <span class="text-xs text-gray-600">{{ $candidates->count() }} aktive Mitglieder mit E-Mail-Adresse</span>
                 <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer ml-auto">
                     <input type="checkbox" x-model="onlyNeverLoggedIn" class="rounded text-primary">
                     Nur solche, die sich noch nie angemeldet haben ({{ $neverSet->count() }})
@@ -59,19 +59,8 @@
                 <button type="button" class="text-xs text-gray-500 hover:text-primary" @click="chosen = {}">Auswahl leeren</button>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm table-fixed min-w-[760px]">
-                    <colgroup><col class="w-10"><col class="w-64"><col><col class="w-32"><col class="w-40"></colgroup>
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            <th class="px-4 py-3"></th>
-                            <th class="text-left px-4 py-3">Name</th>
-                            <th class="text-left px-4 py-3">E-Mail</th>
-                            <th class="text-left px-4 py-3">Rolle</th>
-                            <th class="text-left px-4 py-3">Stand</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Empfänger der Willkommensmail" class="table-fixed min-w-[760px]"
+            :columns="[['label' => 'Aktionen', 'sr' => true, 'class' => 'w-10'], ['label' => 'Name', 'class' => 'w-64'], 'E-Mail', ['label' => 'Rolle', 'class' => 'w-32'], ['label' => 'Stand', 'class' => 'w-40']]">
                         @foreach($candidates as $candidate)
                             @php
                                 $nieGesetzt = !$candidate->hasLoggedIn();
@@ -80,30 +69,28 @@
                             <tr class="hover:bg-gray-50"
                                 x-show="!onlyNeverLoggedIn || {{ $nieGesetzt ? 'true' : 'false' }}"
                                 :class="chosen['u{{ $candidate->id }}'] ? 'bg-blue-50/40' : ''">
-                                <td class="px-4 py-2">
+                                <x-ui.td>
                                     <input type="checkbox" name="users[]" value="{{ $candidate->id }}"
                                            aria-label="{{ $candidate->firstname }} {{ $candidate->lastname }} einladen"
                                            x-model="chosen['u{{ $candidate->id }}']" class="rounded text-primary"
                                            {{ $maintenance ? 'disabled' : '' }}>
-                                </td>
-                                <td class="px-4 py-2 text-gray-800 truncate">{{ $candidate->lastname }}, {{ $candidate->firstname }}</td>
-                                <td class="px-4 py-2 text-gray-500 text-xs truncate">{{ $candidate->email }}</td>
-                                <td class="px-4 py-2 text-gray-500 text-xs">{{ \App\Models\User::ROLE_LABELS[$candidate->role] ?? $candidate->role }}</td>
-                                <td class="px-4 py-2 text-xs">
+                                </x-ui.td>
+                                <x-ui.td class="text-gray-800 truncate">{{ $candidate->lastname }}, {{ $candidate->firstname }}</x-ui.td>
+                                <x-ui.td muted class="text-xs truncate">{{ $candidate->email }}</x-ui.td>
+                                <x-ui.td muted class="text-xs">{{ \App\Models\User::ROLE_LABELS[$candidate->role] ?? $candidate->role }}</x-ui.td>
+                                <x-ui.td class="text-xs">
                                     @if($nieGesetzt)
                                         <span class="text-amber-700">noch nie angemeldet</span>
                                     @else
                                         <span class="text-green-700">zuletzt {{ $candidate->last_login_at->deBerlin('d.m.Y') }}</span>
                                     @endif
                                     @if($schonMal)
-                                        <span class="block text-gray-400">schon eingeladen</span>
+                                        <span class="block text-gray-600">schon eingeladen</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
 
             <div class="px-5 py-4 border-t border-gray-100 flex items-center gap-4">
                 <button type="submit" :disabled="count() === 0 || {{ $maintenance ? 'true' : 'false' }}"

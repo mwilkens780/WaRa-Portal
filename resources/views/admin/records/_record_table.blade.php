@@ -34,7 +34,7 @@
 @endphp
 
 @if(empty($sections))
-    <p class="text-sm text-gray-400 text-center px-5 py-10">
+    <p class="text-sm text-gray-600 text-center px-5 py-10">
         Noch keine {{ $label }} hinterlegt.
     </p>
 @else
@@ -54,64 +54,47 @@
                  sonst wuerde der Name auf grossen Bildschirmen riesig. Die
                  Spaltenbreiten geben zugleich die Mindestbreite der Tabelle vor,
                  ein zusaetzliches min-w waere nur irrefuehrend. --}}
-            <table class="w-full text-sm table-fixed">
-                <colgroup>
-                    <col class="w-20">      {{-- Strecke --}}
-                    <col class="w-24">      {{-- Bahn --}}
-                    <col class="w-28">      {{-- Zeit --}}
-                    <col class="w-64">      {{-- Name --}}
-                    <col class="w-28">      {{-- Datum --}}
-                    <col class="w-48">      {{-- Ort --}}
-                    <col class="w-24">      {{-- System --}}
-                    @if($isAdmin) <col class="w-40"> @endif
-                    <col>                   {{-- Fuellspalte --}}
-                </colgroup>
-                <thead>
-                    <tr class="border-b border-gray-50">
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Strecke</th>
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Bahn</th>
-                        <th class="px-5 py-2 text-right text-xs text-gray-400 font-medium">Zeit</th>
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Name</th>
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Datum</th>
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">Ort</th>
-                        <th class="px-5 py-2 text-left text-xs text-gray-400 font-medium">System</th>
-                        @if($isAdmin) <th class="px-3 py-2"></th> @endif
-                        <th></th>
-                    </tr>
-                </thead>
-                {{-- openRow haelt fest, welche Zeile gerade bearbeitet wird -
-                     Knopf und Formular stehen in verschiedenen <tr>, brauchen
-                     also einen gemeinsamen Alpine-Zustand. --}}
-                <tbody class="divide-y divide-gray-50" x-data="{ openRow: null }">
+            <x-ui.table :card="false" caption="Rekorde" x-data="{ openRow: null }" class="table-fixed">
+<x-slot:head>
+                        <x-ui.th class="w-20">Strecke</x-ui.th>
+                        <x-ui.th class="w-24">Bahn</x-ui.th>
+                        <x-ui.th align="right" class="w-28">Zeit</x-ui.th>
+                        <x-ui.th class="w-64">Name</x-ui.th>
+                        <x-ui.th class="w-28">Datum</x-ui.th>
+                        <x-ui.th class="w-48">Ort</x-ui.th>
+                        <x-ui.th class="w-24">System</x-ui.th>
+                        @if($isAdmin) <x-ui.th sr class="w-40">Aktionen</x-ui.th> @endif
+                        <x-ui.th sr>Aktionen</x-ui.th>
+                    </x-slot:head>
                     @foreach($section['rows'] as [$course, $distance, $record])
                         <tr class="record-row hover:bg-gray-50"
                             data-course="{{ $course }}"
                             x-show="activeCourse === '{{ $course }}'">
-                            <td class="px-5 py-2.5 font-medium text-gray-800">{{ $distance }} m</td>
-                            <td class="px-5 py-2.5 text-xs text-gray-500">{{ $course }}</td>
+                            <x-ui.td class="font-medium text-gray-800">{{ $distance }} m</x-ui.td>
+                            <x-ui.td muted class="text-xs">{{ $course }}</x-ui.td>
                             @if($record)
-                                <td class="text-right tabular-nums px-5 py-2.5 font-mono font-bold text-primary">{{ $record->formatted_time }}</td>
-                                <td class="px-5 py-2.5 text-gray-700 truncate" title="{{ $record->swimmer_name }}">
+                                <x-ui.td align="right" class="tabular-nums font-mono font-bold text-primary">{{ $record->formatted_time }}</x-ui.td>
+                                <x-ui.td class="text-gray-700 truncate" title="{{ $record->swimmer_name }}">
                                     {{ $record->swimmer_name }}
                                     @if($record->user)
                                         <span class="text-xs text-green-700 ml-1">✓</span>
                                     @endif
-                                </td>
-                                <td class="px-5 py-2.5 text-gray-500 text-xs">
+                                </x-ui.td>
+                                <x-ui.td muted class="text-xs">
                                     {{ $record->set_date?->format('d.m.Y') ?? $record->set_year ?? '–' }}
-                                </td>
-                                <td class="px-5 py-2.5 text-gray-400 text-xs truncate" title="{{ $record->location }}">
+                                </x-ui.td>
+                                <x-ui.td muted class="text-xs truncate" title="{{ $record->location }}">
                                     {{ $record->location ?? '–' }}
-                                </td>
-                                <td class="px-5 py-2.5">
+                                </x-ui.td>
+                                <x-ui.td>
                                     @if($record->competitionResult)
                                         <span class="text-xs text-green-700 font-medium">Im Portal</span>
                                     @else
-                                        <span class="text-xs text-gray-400">Extern</span>
+                                        <span class="text-xs text-gray-600">Extern</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                                 @if($isAdmin)
-                                <td class="px-3 py-2.5 text-right whitespace-nowrap">
+                                <x-ui.td align="right" class="whitespace-nowrap">
                                     <button type="button" @click="openRow = openRow === {{ $record->id }} ? null : {{ $record->id }}"
                                             class="text-xs text-gray-500 hover:text-primary">Bearbeiten</button>
                                     <form method="POST" class="inline" action="{{ route('admin.records.destroy', $record) }}"
@@ -119,62 +102,61 @@
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-600 hover:text-red-800 text-xs ml-1">Löschen</button>
                                     </form>
-                                </td>
+                                </x-ui.td>
                                 @endif
                             @else
-                                <td class="text-right tabular-nums px-5 py-2.5 font-mono text-gray-300">–</td>
-                                <td class="px-5 py-2.5 text-xs text-gray-600 italic" colspan="4">noch kein Rekord</td>
-                                @if($isAdmin) <td></td> @endif
+                                <x-ui.td align="right" muted class="tabular-nums font-mono">–</x-ui.td>
+                                <x-ui.td muted class="text-xs italic" colspan="4">noch kein Rekord</x-ui.td>
+                                @if($isAdmin) <x-ui.td></x-ui.td> @endif
                             @endif
-                            <td></td>
+                            <x-ui.td></x-ui.td>
                         </tr>
 
                         @if($isAdmin && $record)
                         {{-- Bearbeiten: Korrektur von Name, Zeit, Datum und Ort.
                              Strecke, Bahn und Geschlecht bleiben fest. --}}
                         <tr x-show="openRow === {{ $record->id }} && activeCourse === '{{ $course }}'" x-cloak class="bg-blue-50/40">
-                            <td colspan="{{ $isAdmin ? 9 : 8 }}" class="px-5 py-3">
+                            <x-ui.td colspan="{{ $isAdmin ? 9 : 8 }}">
                                 <form method="POST" action="{{ route('admin.records.update', $record) }}"
                                       class="flex flex-wrap items-end gap-3">
                                     @csrf @method('PUT')
                                     <div>
-                                        <label class="block text-[10px] text-gray-500 mb-1">Name</label>
+                                        <label class="block text-xs text-gray-500 mb-1">Name</label>
                                         <input aria-label="Name" type="text" name="swimmer_name" value="{{ $record->swimmer_name }}" required
                                                class="px-2 py-1.5 border border-gray-300 rounded text-xs w-48 outline-none focus:ring-1 focus:ring-primary/40">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] text-gray-500 mb-1">Zeit (Min : Sek , 1/100)</label>
+                                        <label class="block text-xs text-gray-500 mb-1">Zeit (Min : Sek , 1/100)</label>
                                         @php
                                             $ms = $record->time_ms;
                                             $mm = intdiv($ms, 60000); $ss = intdiv($ms % 60000, 1000); $cs = intdiv($ms % 1000, 10);
                                         @endphp
                                         <div class="flex items-center gap-1">
                                             <input type="number" name="time_minutes" value="{{ $mm }}" min="0" class="w-14 px-2 py-1.5 border border-gray-300 rounded text-xs text-center">
-                                            <span class="text-gray-400">:</span>
+                                            <span class="text-gray-600">:</span>
                                             <input type="number" name="time_seconds" value="{{ $ss }}" min="0" max="59" required class="w-14 px-2 py-1.5 border border-gray-300 rounded text-xs text-center">
-                                            <span class="text-gray-400">,</span>
+                                            <span class="text-gray-600">,</span>
                                             <input type="number" name="time_cs" value="{{ $cs }}" min="0" max="99" required class="w-14 px-2 py-1.5 border border-gray-300 rounded text-xs text-center">
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] text-gray-500 mb-1">Datum</label>
+                                        <label class="block text-xs text-gray-500 mb-1">Datum</label>
                                         <input aria-label="Datum" type="date" name="set_date" value="{{ $record->set_date?->format('Y-m-d') }}"
                                                class="px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
                                     </div>
                                     <div class="flex-1 min-w-[160px]">
-                                        <label class="block text-[10px] text-gray-500 mb-1">Veranstaltung / Ort</label>
+                                        <label class="block text-xs text-gray-500 mb-1">Veranstaltung / Ort</label>
                                         <input aria-label="Veranstaltung / Ort" type="text" name="location" value="{{ $record->location }}"
                                                class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-primary/40">
                                     </div>
                                     <button type="submit" class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors">Speichern</button>
                                     <button type="button" @click="openRow = null" class="px-2.5 py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs">Abbrechen</button>
                                 </form>
-                            </td>
+                            </x-ui.td>
                         </tr>
                         @endif
                     @endforeach
-                </tbody>
-            </table>
+                </x-ui.table>
             </div>
         </div>
     @endforeach

@@ -81,7 +81,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-5 border-b border-gray-100">
             <h2 class="font-semibold text-gray-800">Definition</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Wer läuft im Zyklus mit? Änderungen wirken beim nächsten Verteilen.</p>
+            <p class="text-xs text-gray-600 mt-0.5">Wer läuft im Zyklus mit? Änderungen wirken beim nächsten Verteilen.</p>
         </div>
         <form method="POST" action="{{ route('admin.training-groups.motto-settings', $trainingGroup) }}" class="p-5 space-y-4">
             @csrf @method('PUT')
@@ -98,7 +98,7 @@
                             </option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">
+                    <p class="text-xs text-gray-600 mt-1">
                         Für Gruppen, die zusammen trainieren: die Mitglieder beider Gruppen teilen sich einen Zyklus.
                         Die Partnergruppe führt dann keinen eigenen.
                     </p>
@@ -111,7 +111,7 @@
                                {{ $trainingGroup->motto_include_trainers ? 'checked' : '' }}>
                         Trainer machen mit und übernehmen je eine Woche
                     </label>
-                    <p class="text-xs text-gray-400 mt-1">
+                    <p class="text-xs text-gray-600 mt-1">
                         Ohne Haken sind nur die Sportlerinnen und Sportler an der Reihe.
                     </p>
                 </div>
@@ -136,7 +136,7 @@
         <div class="p-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
             <div>
                 <h2 class="font-semibold text-gray-800">Reihenfolge</h2>
-                <p class="text-xs text-gray-400 mt-0.5">
+                <p class="text-xs text-gray-600 mt-0.5">
                     In dieser Reihenfolge werden die Wochen verteilt. <span x-text="people.length"></span> Beteiligte.
                 </p>
             </div>
@@ -151,10 +151,10 @@
                 <template x-for="(person, i) in people" :key="person.id">
                     <li class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
                         <input type="hidden" name="order[]" :value="person.id">
-                        <span class="w-6 text-xs text-gray-400 tabular-nums" x-text="(i + 1) + '.'"></span>
+                        <span class="w-6 text-xs text-gray-600 tabular-nums" x-text="(i + 1) + '.'"></span>
                         <span class="text-sm text-gray-800" x-text="person.name"></span>
                         <span x-show="person.trainer"
-                              class="text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">Trainer</span>
+                              class="text-xs font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">Trainer</span>
                         <span class="ml-auto flex items-center gap-1">
                             <button type="button" @click="move(i, -1)" :disabled="i === 0"
                                     class="px-2 py-1 border border-gray-200 rounded text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -184,23 +184,23 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex flex-wrap gap-6 text-sm">
             <div>
-                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Saison</p>
+                <p class="text-xs text-gray-600 font-medium uppercase tracking-wide">Saison</p>
                 <p class="font-semibold text-gray-800 mt-0.5">{{ $season ? $season->name : '–' }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Wochen gesamt</p>
+                <p class="text-xs text-gray-600 font-medium uppercase tracking-wide">Wochen gesamt</p>
                 <p class="font-semibold text-gray-800 mt-0.5">{{ $weeks->count() }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Mottos eingetragen</p>
+                <p class="text-xs text-gray-600 font-medium uppercase tracking-wide">Mottos eingetragen</p>
                 <p class="font-semibold text-green-700 mt-0.5">{{ $weeks->whereNotNull('motto')->count() }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Noch ausstehend</p>
+                <p class="text-xs text-gray-600 font-medium uppercase tracking-wide">Noch ausstehend</p>
                 <p class="font-semibold text-amber-700 mt-0.5">{{ $weeks->filter(fn($w) => !$w->motto && $w->week_start->gte($monday))->count() }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Beteiligte</p>
+                <p class="text-xs text-gray-600 font-medium uppercase tracking-wide">Beteiligte</p>
                 <p class="font-semibold text-gray-800 mt-0.5">{{ $allMembers->count() }}</p>
             </div>
         </div>
@@ -210,9 +210,9 @@
     @if($weeks->isEmpty())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
             <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <p class="text-sm text-gray-400 font-medium">Noch keine Wochen generiert.</p>
+            <p class="text-sm text-gray-600 font-medium">Noch keine Wochen generiert.</p>
             @if($season)
-                <p class="text-xs text-gray-400 mt-1">Klicke auf „Wochen generieren", um die Saison-Wochen anzulegen.</p>
+                <p class="text-xs text-gray-600 mt-1">Klicke auf „Wochen generieren", um die Saison-Wochen anzulegen.</p>
             @endif
         </div>
     @else
@@ -221,24 +221,12 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100">
                 <h2 class="font-semibold text-gray-800">Wochenplan</h2>
-                <p class="text-xs text-gray-400 mt-0.5">
+                <p class="text-xs text-gray-600 mt-0.5">
                     Personen direkt in die passende Woche setzen und Mottos anpassen. Ferienwochen sind übersprungen.
                 </p>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm table-fixed min-w-[820px]">
-                    <colgroup>
-                        <col class="w-32"><col class="w-64"><col><col class="w-28">
-                    </colgroup>
-                    <thead>
-                        <tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            <th class="text-left px-5 py-3">Woche</th>
-                            <th class="text-left px-5 py-3">Zuständig</th>
-                            <th class="text-left px-5 py-3">Motto</th>
-                            <th class="text-left px-5 py-3">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Motto-Wochen" class="table-fixed min-w-[820px]"
+            :columns="[['label' => 'Woche', 'class' => 'w-32'], ['label' => 'Zuständig', 'class' => 'w-64'], 'Motto', ['label' => 'Status', 'class' => 'w-28']]">
                         @foreach($weeks as $week)
                         @php
                             $isCurrentWeek = $week->week_start->eq($monday);
@@ -254,11 +242,11 @@
                             $assignedMissing = $week->user && !$allMembers->contains('id', $week->user_id);
                         @endphp
                         <tr class="{{ $isCurrentWeek ? 'bg-blue-50/40' : 'hover:bg-gray-50' }} transition-colors">
-                            <td class="px-5 py-2.5 whitespace-nowrap">
+                            <x-ui.td class="whitespace-nowrap">
                                 <p class="font-medium text-gray-800">{{ $week->week_start->format('d.m.Y') }}</p>
-                                <p class="text-xs text-gray-400">KW {{ $week->week_start->weekOfYear }}</p>
-                            </td>
-                            <td class="px-5 py-2">
+                                <p class="text-xs text-gray-600">KW {{ $week->week_start->weekOfYear }}</p>
+                            </x-ui.td>
+                            <x-ui.td>
                                 <select name="assign[{{ $week->id }}]"
                                         class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
                                     <option value="">– niemand –</option>
@@ -273,21 +261,19 @@
                                         </option>
                                     @endif
                                 </select>
-                            </td>
-                            <td class="px-5 py-2">
+                            </x-ui.td>
+                            <x-ui.td>
                                 <input type="text" name="motto[{{ $week->id }}]" maxlength="500"
                                        value="{{ $week->motto }}"
                                        placeholder="{{ $week->generated_motto ? 'KI-Vorschlag: ' . \Illuminate\Support\Str::limit($week->generated_motto, 60) : 'noch kein Motto' }}"
                                        class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/30">
-                            </td>
-                            <td class="px-5 py-2.5">
+                            </x-ui.td>
+                            <x-ui.td>
                                 <span class="text-xs font-medium px-2.5 py-1 rounded-full {{ $statusCls }}">{{ $statusLabel }}</span>
-                            </td>
+                            </x-ui.td>
                         </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
             <div class="p-5 border-t border-gray-100">
                 <button type="submit"
                         class="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">

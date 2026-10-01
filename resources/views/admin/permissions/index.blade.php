@@ -34,35 +34,29 @@
             <div class="px-5 py-3 bg-gray-50 border-b border-gray-100">
                 <h3 class="text-sm font-semibold text-gray-700">{{ $sectionLabel }}</h3>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-100">
-                            <th class="text-left px-5 py-2.5 font-medium text-gray-600 w-48">Bereich</th>
+            <x-ui.table :card="false" caption="Menürechte je Rolle">
+<x-slot:head>
+                            <x-ui.th class="w-48">Bereich</x-ui.th>
                             @foreach($editableRoles as $role)
-                                <th class="px-4 py-2.5 font-medium text-gray-600 text-center">{{ $roleLabels[$role] }}</th>
+                                <x-ui.th align="center">{{ $roleLabels[$role] }}</x-ui.th>
                             @endforeach
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+                        </x-slot:head>
                         @foreach($sectionItems as $key => $item)
                         <tr class="hover:bg-gray-50/50">
-                            <td class="px-5 py-3 text-gray-800 font-medium">{{ $item['label'] }}</td>
+                            <x-ui.td class="text-gray-800 font-medium">{{ $item['label'] }}</x-ui.td>
                             @foreach($editableRoles as $role)
-                            <td class="px-4 py-3 text-center">
+                            <x-ui.td align="center">
                                 <input type="checkbox"
                                        aria-label="{{ $roleLabels[$role] }}: {{ $item['label'] }}"
                                        name="permissions[{{ $role }}][{{ $key }}]"
                                        value="1"
                                        {{ ($matrix[$role][$key] ?? false) ? 'checked' : '' }}
                                        class="w-4 h-4 rounded text-primary border-gray-300 focus:ring-blue-500 cursor-pointer">
-                            </td>
+                            </x-ui.td>
                             @endforeach
                         </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
         @endif
         @endforeach

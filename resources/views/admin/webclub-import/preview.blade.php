@@ -27,19 +27,8 @@
                 <h2 class="text-base font-semibold text-gray-900">{{ count($rows) }} Datensätze</h2>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-xs uppercase text-gray-600 tracking-wide">
-                        <tr>
-                            <th class="px-4 py-2.5 text-left font-semibold w-28">Aktion</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Name</th>
-                            <th class="px-4 py-2.5 text-left font-semibold w-44">Rolle</th>
-                            <th class="px-4 py-2.5 text-left font-semibold hidden md:table-cell">DSV-ID</th>
-                            <th class="px-4 py-2.5 text-left font-semibold hidden lg:table-cell">E-Mail</th>
-                            <th class="px-4 py-2.5 text-left font-semibold hidden xl:table-cell">Hinweis</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
+            <x-ui.table :card="false" caption="WebClub-Daten zur Übernahme"
+            :columns="[['label' => 'Aktion', 'class' => 'w-28'], 'Name', ['label' => 'Rolle', 'class' => 'w-44'], ['label' => 'DSV-ID', 'hide' => 'md'], ['label' => 'E-Mail', 'hide' => 'lg'], 'Hinweis']">
                         @foreach($rows as $index => $row)
                             @php
                                 $isUnassigned  = ($row['action'] === 'skip' && isset($row['reason']));
@@ -53,7 +42,7 @@
                             <tr class="{{ $trClass }}">
 
                                 {{-- Aktion badge (reflects original parse, not final) --}}
-                                <td class="px-4 py-2.5">
+                                <x-ui.td>
                                     @if($row['action'] === 'new')
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">Neu</span>
                                     @elseif($row['action'] === 'update')
@@ -61,13 +50,13 @@
                                     @else
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">Ohne Rolle</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
 
                                 {{-- Name --}}
-                                <td class="px-4 py-2.5 font-medium text-gray-900">{{ $row['name'] }}</td>
+                                <x-ui.td class="font-medium text-gray-900">{{ $row['name'] }}</x-ui.td>
 
                                 {{-- Unified role select: empty = skip, value = import --}}
-                                <td class="px-4 py-2.5">
+                                <x-ui.td>
                                     <select name="roles[{{ $index }}]" aria-label="Rolle für {{ $row['name'] }}"
                                             class="w-full px-2 py-1 border rounded text-xs focus:ring-2 focus:ring-blue-500 outline-none
                                                    {{ $isUnassigned ? 'border-amber-400 bg-amber-50' : 'border-gray-300' }}">
@@ -79,15 +68,15 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                </td>
+                                </x-ui.td>
 
                                 {{-- DSV-ID --}}
-                                <td class="px-4 py-2.5 text-gray-500 font-mono text-xs hidden md:table-cell">
+                                <x-ui.td hide="md" muted class="font-mono text-xs">
                                     {{ $row['dsv_id'] ?: '–' }}
-                                </td>
+                                </x-ui.td>
 
                                 {{-- E-Mail --}}
-                                <td class="px-4 py-2.5 text-xs hidden lg:table-cell">
+                                <x-ui.td hide="lg" class="text-xs">
                                     @if(isset($row['email']) && $row['email'])
                                         @if(str_contains($row['email'], '@mitglied.wasserratten.intern'))
                                             <span class="text-amber-700" title="Platzhalter-E-Mail">{{ $row['email'] }}</span>
@@ -95,21 +84,21 @@
                                             <span class="text-gray-500">{{ $row['email'] }}</span>
                                         @endif
                                     @else
-                                        <span class="text-gray-400">–</span>
+                                        <span class="text-gray-600">–</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
 
                                 {{-- Hinweis --}}
-                                <td class="px-4 py-2.5 text-xs hidden xl:table-cell">
+                                <x-ui.td class="text-xs hidden xl:table-cell">
                                     @if($row['action'] === 'update')
                                         <span class="text-blue-600">Update User #{{ $row['user_id'] }}</span>
                                         @if($row['existing_name'] ?? null)
                                             <span class="text-gray-500">({{ $row['existing_name'] }})</span>
                                         @endif
                                         @if(($row['matched_by'] ?? null) === 'dsv_id')
-                                            <span class="text-gray-400">· via DSV-ID</span>
+                                            <span class="text-gray-600">· via DSV-ID</span>
                                         @elseif(($row['matched_by'] ?? null) === 'name_birthdate')
-                                            <span class="text-gray-400">· via Name+Geb.</span>
+                                            <span class="text-gray-600">· via Name+Geb.</span>
                                         @endif
                                     @elseif($isUnassigned && ($row['user_id'] ?? null))
                                         {{-- Skip-Zeile, aber Zuordnung zu bestehendem User gefunden --}}
@@ -122,16 +111,14 @@
                                         @elseif(($row['matched_by'] ?? null) === 'name_birthdate')
                                             <span class="text-orange-700">via Name+Geb.</span>
                                         @endif
-                                        <br><span class="text-gray-400">→ Rollenzuweisung aktualisiert bestehenden User, legt keinen neuen an</span>
+                                        <br><span class="text-gray-600">→ Rollenzuweisung aktualisiert bestehenden User, legt keinen neuen an</span>
                                     @elseif($isUnassigned)
-                                        <span class="text-gray-400">{{ $row['reason'] ?? '' }}</span>
+                                        <span class="text-gray-600">{{ $row['reason'] ?? '' }}</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
 
         <x-ui.import-bar :cancel="route('admin.webclub-import.index')" count="select[name^='roles'] option:checked:not([value=''])"

@@ -12,14 +12,14 @@
                 <div>
                     <p class="text-xs text-gray-500">Datum</p>
                     <p class="font-semibold text-gray-800">{{ $session->date->format('d.m.Y') }}</p>
-                    <p class="text-xs text-gray-400">{{ $session->date->isoFormat('dddd') }}</p>
+                    <p class="text-xs text-gray-600">{{ $session->date->isoFormat('dddd') }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Uhrzeit</p>
                     <p class="font-semibold text-gray-800">{{ $session->start_time }}
                         @if($session->end_time) – {{ $session->end_time }} @endif
                     </p>
-                    @if($session->duration)<p class="text-xs text-gray-400">{{ $session->duration }}</p>@endif
+                    @if($session->duration)<p class="text-xs text-gray-600">{{ $session->duration }}</p>@endif
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Ort</p>
@@ -29,7 +29,7 @@
                     <p class="text-xs text-gray-500">Typ</p>
                     <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full {{ $session->type_color }}">{{ $session->type_label }}</span>
                     @if($session->coTrainers->isNotEmpty())
-                    <p class="text-xs text-gray-400 mt-1">{{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') }}</p>
+                    <p class="text-xs text-gray-600 mt-1">{{ $session->coTrainers->map(fn($t) => $t->firstname.' '.$t->lastname)->join(', ') }}</p>
                     @endif
                 </div>
                 @if($session->trainingGroups->isNotEmpty())
@@ -125,12 +125,12 @@
         </div>
         @elseif($session->max_participants)
         <div class="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-2">
-            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3.5 h-3.5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
             </svg>
             Teilnehmerzahl: <span class="font-semibold text-gray-700">{{ $expectedCount }} / {{ $session->max_participants }}</span>
             @if($preAbsentCount > 0)
-                <span class="text-gray-400">(–{{ $preAbsentCount }} Absagen)</span>
+                <span class="text-gray-600">(–{{ $preAbsentCount }} Absagen)</span>
             @endif
         </div>
         @endif
@@ -159,7 +159,7 @@
             <div>
                 <p class="text-xs text-gray-500">Beteiligung</p>
                 <p class="text-xl font-bold text-primary">{{ $participationPct }} %</p>
-                <p class="text-xs text-gray-400">{{ $presentCount }} / {{ $totalSwimmers }} Schwimmer</p>
+                <p class="text-xs text-gray-600">{{ $presentCount }} / {{ $totalSwimmers }} Schwimmer</p>
             </div>
             <div class="flex-1 bg-gray-100 rounded-full h-3 max-w-xs">
                 <div class="bg-primary h-3 rounded-full" style="width: {{ $participationPct }}%"></div>
@@ -173,7 +173,7 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-sm font-semibold text-gray-700">Individuelle Schwimmer-Zuweisung</h2>
-                <p class="text-xs text-gray-400 mt-0.5">Schwimmer unabhängig von ihrer Gruppe zuweisen</p>
+                <p class="text-xs text-gray-600 mt-0.5">Schwimmer unabhängig von ihrer Gruppe zuweisen</p>
             </div>
             <button @click="showAssignForm = !showAssignForm" type="button"
                     class="text-sm text-primary hover:underline font-medium py-2" :aria-expanded="showAssignForm ? 'true' : 'false'" x-text="showAssignForm ? 'Schließen' : '+ Schwimmer zuweisen'">+ Schwimmer zuweisen</button>
@@ -234,7 +234,7 @@
         @endif
 
         @if($individualSwimmers->isEmpty() && $seriesIndividualSwimmers->isEmpty())
-            <p class="text-xs text-gray-400">Keine individuellen Zuweisungen.</p>
+            <p class="text-xs text-gray-600">Keine individuellen Zuweisungen.</p>
         @endif
 
         {{-- Registrations --}}
@@ -248,9 +248,9 @@
                     <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">geschlossen</span>
                 @endif
                 @if($session->max_participants)
-                    <span class="text-xs text-gray-400">{{ $sessionRegistrations->count() }}/{{ $session->max_participants }} Plätze</span>
+                    <span class="text-xs text-gray-600">{{ $sessionRegistrations->count() }}/{{ $session->max_participants }} Plätze</span>
                 @else
-                    <span class="text-xs text-gray-400">{{ $sessionRegistrations->count() }} angemeldet</span>
+                    <span class="text-xs text-gray-600">{{ $sessionRegistrations->count() }} angemeldet</span>
                 @endif
             </div>
             @if($sessionRegistrations->isNotEmpty())
@@ -258,12 +258,12 @@
                 @foreach($sessionRegistrations as $reg)
                 <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
                     {{ $reg->user?->name }}
-                    <span class="text-green-700 text-[10px]">{{ $reg->registered_at->deBerlin('d.m. H:i') }}</span>
+                    <span class="text-green-700 text-xs">{{ $reg->registered_at->deBerlin('d.m. H:i') }}</span>
                 </span>
                 @endforeach
             </div>
             @else
-                <p class="text-xs text-gray-400">Noch keine Anmeldungen.</p>
+                <p class="text-xs text-gray-600">Noch keine Anmeldungen.</p>
             @endif
         </div>
         @endif
@@ -299,10 +299,10 @@
                     </span>
                 @endif
             @else
-                <span class="text-xs text-gray-400">(kein Teilnehmerlimit gesetzt – Gastfunktion inaktiv)</span>
+                <span class="text-xs text-gray-600">(kein Teilnehmerlimit gesetzt – Gastfunktion inaktiv)</span>
             @endif
         </div>
-        <p class="text-xs text-gray-400 mb-3">
+        <p class="text-xs text-gray-600 mb-3">
             Mitglieder der Gastgruppe werden per E-Mail benachrichtigt, wenn durch Absagen Plätze frei werden.
         </p>
         @endif
@@ -322,7 +322,7 @@
             </div>
         </div>
         @else
-        <p class="text-xs text-gray-400">Noch keine Gastbuchungen.</p>
+        <p class="text-xs text-gray-600">Noch keine Gastbuchungen.</p>
         @endif
     </div>
     @endif
@@ -455,7 +455,7 @@
                             <span class="text-xs text-gray-500">Gesamtdistanz: <span class="font-bold text-primary">{{ number_format($planTotalMeters) }} m</span></span>
                         @endif
                         @if($allMaterials->isNotEmpty())
-                            @if($planTotalMeters > 0)<span class="text-gray-300">·</span>@endif
+                            @if($planTotalMeters > 0)<span class="text-gray-600">·</span>@endif
                             @foreach($allMaterials as $mat)
                                 <span class="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">{{ $mat }}</span>
                             @endforeach
@@ -474,10 +474,10 @@
                     <div class="border border-gray-100 rounded-xl overflow-hidden mb-3">
                         {{-- Block-Header --}}
                         <div class="bg-gray-50 px-4 py-2.5 flex flex-wrap items-center gap-2">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Block {{ $loop->iteration }}</span>
+                            <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">Block {{ $loop->iteration }}</span>
                             @if($block->label)
                                 <span class="text-sm font-semibold text-gray-700">{{ $block->label }}</span>
-                                <span class="text-gray-300">·</span>
+                                <span class="text-gray-600">·</span>
                             @endif
                             @if($block->total_repetitions && $block->distance)
                                 <span class="text-sm font-mono font-bold text-gray-800">{{ $block->repetitions_display }} × {{ $block->distance }} m</span>
@@ -519,13 +519,13 @@
                     </div>
                 @endforeach
             @else
-                <p class="text-sm text-gray-400">Keine Blöcke definiert.
+                <p class="text-sm text-gray-600">Keine Blöcke definiert.
                     <a href="{{ route('trainer.sessions.plan.builder', $session) }}" class="text-primary underline underline-offset-2 hover:no-underline">Blöcke hinzufügen</a>
                 </p>
             @endif
         @else
             <div class="py-4 text-center">
-                <p class="text-sm text-gray-400">Noch kein Trainingsplan erstellt.</p>
+                <p class="text-sm text-gray-600">Noch kein Trainingsplan erstellt.</p>
             </div>
         @endif
     </div>
@@ -559,7 +559,7 @@
         {{-- Anwesenheit Tab --}}
         <div x-show="activeTab === 'attendance'" class="p-5">
             @if($swimmers->isEmpty())
-                <p class="text-sm text-gray-400 py-4 text-center">
+                <p class="text-sm text-gray-600 py-4 text-center">
                     {{ $session->trainingGroups->isNotEmpty() ? 'Dieser Einheit sind keine Schwimmer über die zugewiesene Gruppe zugeordnet.' : 'Noch keine Schwimmer im System.' }}
                 </p>
             @else
@@ -591,7 +591,7 @@
                                     <div class="min-w-0">
                                         <span class="text-sm font-medium text-gray-800">{{ $swimmer->name }}</span>
                                         @if($swimmer->birth_date)
-                                            <span class="text-xs text-gray-400 ml-1">({{ $swimmer->age }} J.)</span>
+                                            <span class="text-xs text-gray-600 ml-1">({{ $swimmer->age }} J.)</span>
                                         @endif
                                     </div>
                                 </label>
@@ -608,7 +608,7 @@
                             </div>
                         </div>
                     @empty
-                        <p class="text-xs text-gray-400 py-2">Alle Schwimmer haben vorab abgesagt.</p>
+                        <p class="text-xs text-gray-600 py-2">Alle Schwimmer haben vorab abgesagt.</p>
                     @endforelse
                 </div>
 
@@ -618,7 +618,7 @@
                     <div class="flex items-center gap-2 mb-3">
                         <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Abgemeldet</span>
                         <span class="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">{{ $cancelledSwimmers->count() }}</span>
-                        <span class="text-xs text-gray-400">– vorab abgesagt, Anwesenheit trotzdem erfassbar</span>
+                        <span class="text-xs text-gray-600">– vorab abgesagt, Anwesenheit trotzdem erfassbar</span>
                     </div>
                     @foreach($cancelledSwimmers as $swimmer)
                         @php
@@ -639,7 +639,7 @@
                                     <div class="min-w-0">
                                         <span class="text-sm font-medium text-gray-700">{{ $swimmer->name }}</span>
                                         @if($swimmer->birth_date)
-                                            <span class="text-xs text-gray-400 ml-1">({{ $swimmer->age }} J.)</span>
+                                            <span class="text-xs text-gray-600 ml-1">({{ $swimmer->age }} J.)</span>
                                         @endif
                                         @if($att?->pre_absent_note)
                                             <span class="block text-xs text-red-600 mt-0.5">{{ $att->pre_absent_note }}</span>
@@ -688,31 +688,28 @@
                                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Block {{ $blockNum }}</span>
                                 @if($block->label)
                                     <span class="text-sm font-semibold text-gray-700">{{ $block->label }}</span>
-                                    <span class="text-gray-300">·</span>
+                                    <span class="text-gray-600">·</span>
                                 @endif
                                 @if($block->distance)
                                     <span class="text-sm font-mono font-bold text-gray-800">{{ $block->repetitions_display }} × {{ $block->distance }} m</span>
                                 @endif
                             </div>
-                            <div class="overflow-x-auto rounded-lg border border-gray-100">
-                                <table class="text-xs w-full min-w-max">
-                                    <thead>
-                                        <tr class="bg-blue-50 border-b border-blue-100">
-                                            <th class="px-3 py-2 text-left text-gray-600 font-semibold sticky left-0 bg-blue-50 min-w-[110px]">Schwimmer</th>
+                            <div class="rounded-lg border border-gray-100">
+<x-ui.table :card="false" caption="Zeiten je Block" class="text-xs min-w-max">
+<x-slot:head>
+                                            <x-ui.th class="sticky left-0 min-w-[110px]">Schwimmer</x-ui.th>
                                             @for($i = 1; $i <= min($totalReps, 50); $i++)
-                                                <th class="px-1 py-2 text-center text-gray-500 font-medium min-w-[74px]">{{ $i }}.</th>
+                                                <x-ui.th align="center" class="min-w-[74px]">{{ $i }}.</x-ui.th>
                                             @endfor
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-50">
+                                        </x-slot:head>
                                         @foreach($swimmers as $sw)
                                             <tr class="hover:bg-gray-50">
-                                                <td class="px-3 py-1.5 font-medium text-gray-700 sticky left-0 bg-white min-w-[110px] truncate max-w-[130px]">
+                                                <x-ui.td class="font-medium text-gray-700 sticky left-0 bg-white min-w-[110px] truncate max-w-[130px]">
                                                     {{ $sw->firstname }} {{ substr($sw->lastname ?? '', 0, 1) }}.
-                                                </td>
+                                                </x-ui.td>
                                                 @for($i = 1; $i <= min($totalReps, 50); $i++)
                                                     @php $existingCs = $blockTimeRow[$sw->id][$i] ?? null; @endphp
-                                                    <td class="px-1 py-1">
+                                                    <x-ui.td>
                                                         <input type="text"
                                                                class="block-time-input w-full text-center px-1 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-300 outline-none font-mono text-xs transition-colors"
                                                                placeholder="–"
@@ -721,14 +718,13 @@
                                                                data-user="{{ $sw->id }}"
                                                                data-rep="{{ $i }}"
                                                                data-session="{{ $session->id }}">
-                                                    </td>
+                                                    </x-ui.td>
                                                 @endfor
                                             </tr>
                                         @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1">Format: <span class="font-mono">m:ss,zz</span> (z.B. <span class="font-mono">1:23,45</span>) · Leer lassen = nicht mitgeschwommen</p>
+                                    </x-ui.table>
+</div>
+                            <p class="text-xs text-gray-600 mt-1">Format: <span class="font-mono">m:ss,zz</span> (z.B. <span class="font-mono">1:23,45</span>) · Leer lassen = nicht mitgeschwommen</p>
                         </div>
                     @endif
                 @endforeach
@@ -772,10 +768,10 @@
                             <div class="flex gap-1 items-center">
                                 <input type="number" name="time_minutes" min="0" value="0" placeholder="0"
                                        class="w-14 px-2 py-2 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
-                                <span class="text-gray-400 font-semibold">:</span>
+                                <span class="text-gray-600 font-semibold">:</span>
                                 <input type="number" name="time_seconds" min="0" max="59" required value="0"
                                        class="w-14 px-2 py-2 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
-                                <span class="text-gray-400 font-semibold">,</span>
+                                <span class="text-gray-600 font-semibold">,</span>
                                 <input type="number" name="time_centiseconds" min="0" max="99" required value="0"
                                        class="w-14 px-2 py-2 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
@@ -839,19 +835,19 @@
                             <div class="flex items-center gap-4">
                                 {{-- Selbsteinschätzung --}}
                                 <div class="text-center">
-                                    <p class="text-xs text-gray-400 mb-0.5">Selbst</p>
+                                    <p class="text-xs text-gray-600 mb-0.5">Selbst</p>
                                     <span class="text-xl font-bold {{ \App\Models\TrainingDiary::scoreColor($entry->self_score) }}">
                                         {{ $entry->self_score ?? '–' }}
                                     </span>
                                 </div>
-                                <span class="text-gray-300 text-xl">↔</span>
+                                <span class="text-gray-600 text-xl">↔</span>
                                 {{-- Trainereinschätzung --}}
                                 <div class="text-center" x-data="{ editing: false, score: {{ $entry->trainer_score ?? 'null' }} }">
-                                    <p class="text-xs text-gray-400 mb-0.5">Trainer</p>
+                                    <p class="text-xs text-gray-600 mb-0.5">Trainer</p>
                                     <template x-if="!editing">
                                         <button @click="editing = true"
                                                 class="text-xl font-bold hover:opacity-70 transition"
-                                                :class="score !== null ? '{{ \App\Models\TrainingDiary::scoreColor($entry->trainer_score) }}' : 'text-gray-300'">
+                                                :class="score !== null ? '{{ \App\Models\TrainingDiary::scoreColor($entry->trainer_score) }}' : 'text-gray-600'">
                                             <span x-text="score !== null ? score : '+'"></span>
                                         </button>
                                     </template>
@@ -880,7 +876,7 @@
                         </div>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-400 py-4 text-center">Noch keine Einschätzungen für diese Einheit.</p>
+                    <p class="text-sm text-gray-600 py-4 text-center">Noch keine Einschätzungen für diese Einheit.</p>
                 @endforelse
             </div>
             @if($session->diaries->whereNotNull('self_score')->isNotEmpty())

@@ -62,65 +62,59 @@
 
             {{-- Preview table --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th class="px-4 py-3 text-left w-8">
+                <x-ui.table :card="false" caption="WebClub-Wettkämpfe">
+<x-slot:head>
+                                <x-ui.th class="w-8">
                                     <input type="checkbox" checked aria-label="Alle Termine auswählen"
                                            x-model="allSelected"
                                            @change="$el.closest('form').querySelectorAll('input[type=checkbox][name$=\'[selected]\']').forEach(cb => cb.checked = allSelected)"
                                            class="rounded border-gray-300 text-accent focus:ring-accent cursor-pointer">
-                                </th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-600">Datum</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-600">Veranstaltungsname</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-600 hidden md:table-cell">Meldeschluss</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-600 hidden lg:table-cell">Ort</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-600 hidden lg:table-cell">Typ</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
+                                </x-ui.th>
+                                <x-ui.th>Datum</x-ui.th>
+                                <x-ui.th>Veranstaltungsname</x-ui.th>
+                                <x-ui.th hide="md">Meldeschluss</x-ui.th>
+                                <x-ui.th hide="lg">Ort</x-ui.th>
+                                <x-ui.th hide="lg">Typ</x-ui.th>
+                            </x-slot:head>
                             @foreach($rows as $i => $row)
                                 <tr class="{{ $row['exists'] ? 'bg-amber-50' : 'hover:bg-gray-50' }} transition-colors">
-                                    <td class="px-4 py-3">
+                                    <x-ui.td>
                                         <input type="checkbox" name="rows[{{ $i }}][selected]" value="1" aria-label="{{ $row['name'] }} übernehmen"
                                                {{ $row['exists'] ? '' : 'checked' }}
                                                class="rounded border-gray-300 text-accent focus:ring-accent cursor-pointer">
-                                    </td>
-                                    <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                    </x-ui.td>
+                                    <x-ui.td class="text-gray-700 whitespace-nowrap">
                                         {{ $row['date_disp'] }}
                                         <input type="hidden" name="rows[{{ $i }}][date]" value="{{ $row['date'] }}">
                                         <input type="hidden" name="rows[{{ $i }}][date_end]" value="{{ $row['date_end'] ?? '' }}">
-                                    </td>
-                                    <td class="px-4 py-3">
+                                    </x-ui.td>
+                                    <x-ui.td>
                                         <span class="{{ $row['exists'] ? 'text-amber-700' : 'text-gray-800' }} font-medium">{{ $row['name'] }}</span>
                                         @if($row['exists'])
                                             <span class="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">Vorhanden</span>
                                         @endif
                                         <input type="hidden" name="rows[{{ $i }}][name]" value="{{ $row['name'] }}">
-                                    </td>
-                                    <td class="px-4 py-3 text-gray-500 hidden md:table-cell whitespace-nowrap">
+                                    </x-ui.td>
+                                    <x-ui.td hide="md" muted class="whitespace-nowrap">
                                         {{ $row['melde_disp'] }}
                                         <input type="hidden" name="rows[{{ $i }}][meldeschluss]" value="{{ $row['meldeschluss'] ?? '' }}">
-                                    </td>
-                                    <td class="px-4 py-3 hidden lg:table-cell">
+                                    </x-ui.td>
+                                    <x-ui.td hide="lg">
                                         <input type="text" name="rows[{{ $i }}][location]" aria-label="Ort: {{ $row['name'] }}" value="{{ $row['location'] }}"
                                                placeholder="Ort"
                                                class="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent">
-                                    </td>
-                                    <td class="px-4 py-3 hidden lg:table-cell">
+                                    </x-ui.td>
+                                    <x-ui.td hide="lg">
                                         <select name="rows[{{ $i }}][type]" aria-label="Typ: {{ $row['name'] }}"
                                                 class="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent">
                                             @foreach(\App\Models\Competition::TYPE_LABELS as $val => $label)
                                                 <option value="{{ $val }}" @selected($row['type'] === $val)>{{ $label }}</option>
                                             @endforeach
                                         </select>
-                                    </td>
+                                    </x-ui.td>
                                 </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
             </div>
 
             <x-ui.import-bar :cancel="route('admin.competitions.webclub-import.form')" count="input[name$='[selected]']:checked"

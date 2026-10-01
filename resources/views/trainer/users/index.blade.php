@@ -54,20 +54,8 @@
     @endunless
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b border-gray-100">
-                <tr>
-                    <th class="text-left px-4 py-3 font-semibold text-gray-600">Name</th>
-                    <th class="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">E-Mail</th>
-                    <th class="text-left px-4 py-3 font-semibold text-gray-600">Rolle</th>
-                    <th class="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Gruppen</th>
-                    <th class="text-left px-4 py-3 font-semibold text-gray-600">Mitglied</th>
-                    <th class="text-left px-4 py-3 font-semibold text-gray-600">Portal</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
+        <x-ui.table :card="false" caption="Schwimmer"
+            :columns="['Name', ['label' => 'E-Mail', 'hide' => 'md'], 'Rolle', ['label' => 'Gruppen', 'hide' => 'lg'], 'Mitglied', 'Portal', ['label' => 'Aktionen', 'sr' => true]]">
                 @forelse($users as $user)
                 @php
                     $imBereich = $meineIds->contains($user->id);
@@ -76,36 +64,36 @@
                     $bearbeitbar = $darfEditieren || (int) $user->created_by === $meineId;
                 @endphp
                 <tr class="hover:bg-gray-50/50">
-                    <td class="px-4 py-3 font-medium text-gray-800">
+                    <x-ui.td class="font-medium text-gray-800">
                         @if($imBereich)
                             <a href="{{ route('users-lite.show', $user) }}" class="hover:text-primary">{{ $user->name }}</a>
                         @else
                             {{ $user->name }}
-                            <span class="ml-1 text-[11px] text-gray-400">nicht in deiner Gruppe</span>
+                            <span class="ml-1 text-xs text-gray-600">nicht in deiner Gruppe</span>
                         @endif
-                    </td>
-                    <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ $user->email ?? '–' }}</td>
-                    <td class="px-4 py-3">
+                    </x-ui.td>
+                    <x-ui.td hide="md" muted>{{ $user->email ?? '–' }}</x-ui.td>
+                    <x-ui.td>
                         <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ $user->role_label }}</span>
-                    </td>
-                    <td class="px-4 py-3 hidden lg:table-cell">
+                    </x-ui.td>
+                    <x-ui.td hide="lg">
                         @forelse($user->trainingGroups as $gruppe)
-                            <span class="text-[11px] text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{{ $gruppe->name }}</span>
+                            <span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{{ $gruppe->name }}</span>
                         @empty
-                            <span class="text-gray-300 text-xs">–</span>
+                            <span class="text-gray-600 text-xs">–</span>
                         @endforelse
-                    </td>
-                    <td class="px-4 py-3">
+                    </x-ui.td>
+                    <x-ui.td>
                         @if($user->active)
                             <span class="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Aktiv</span>
                         @else
                             <span class="text-xs font-semibold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Ehemalig</span>
                         @endif
-                    </td>
-                    <td class="px-4 py-3">
+                    </x-ui.td>
+                    <x-ui.td>
                         <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $portal['tone'] }}">{{ $portal['label'] }}</span>
-                    </td>
-                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                    </x-ui.td>
+                    <x-ui.td align="right" class="whitespace-nowrap">
                         @if($imBereich)
                             <a href="{{ route('users-lite.show', $user) }}"
                                class="text-blue-600 hover:text-blue-800 font-medium text-xs">Karteikarte</a>
@@ -126,23 +114,21 @@
                                 <button type="submit" class="text-xs font-medium text-primary hover:text-primary-dark">Zuordnen</button>
                             </form>
                         @endif
-                    </td>
+                    </x-ui.td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                    <x-ui.td align="center" muted colspan="7">
                         @if(!$vereinsweit && !$darfEditieren && request()->filled('search'))
                             Niemand in deinen Gruppen gefunden – mit „vereinsweit suchen" findest du auch
                             Mitglieder außerhalb.
                         @else
                             Keine Benutzer gefunden.
                         @endif
-                    </td>
+                    </x-ui.td>
                 </tr>
                 @endforelse
-            </tbody>
-        </table>
-        </div>
+            </x-ui.table>
         @if($users->hasPages())
         <div class="px-4 py-3 border-t border-gray-100">{{ $users->links() }}</div>
         @endif

@@ -24,39 +24,35 @@
         @csrf
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="px-3 py-2.5 text-left">
+            <x-ui.table :card="false" caption="Rekorde zur Übernahme">
+<x-slot:head>
+                            <x-ui.th>
                                 <input type="checkbox" id="selectAll" class="rounded" aria-label="Alle Zeilen auswählen"
                                        {{-- Vorher \" im Attribut: HTML kennt das nicht, der Handler brach ab --}}
                                        onclick="document.querySelectorAll('input[type=checkbox][name$=\'[include]\']').forEach(cb => cb.checked = this.checked)">
-                            </th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Disziplin</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Distanz</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Geschl.</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Altersklasse</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Bahn</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Zeit</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide min-w-[160px]">Name</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Datum / Jahr</th>
-                            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Ort</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+                            </x-ui.th>
+                            <x-ui.th>Disziplin</x-ui.th>
+                            <x-ui.th>Distanz</x-ui.th>
+                            <x-ui.th>Geschl.</x-ui.th>
+                            <x-ui.th>Altersklasse</x-ui.th>
+                            <x-ui.th>Bahn</x-ui.th>
+                            <x-ui.th>Zeit</x-ui.th>
+                            <x-ui.th class="min-w-[160px]">Name</x-ui.th>
+                            <x-ui.th>Datum / Jahr</x-ui.th>
+                            <x-ui.th>Ort</x-ui.th>
+                        </x-slot:head>
                         @foreach($rows as $i => $row)
                             @php
                                 $hasIssue = !$row['discipline'] || !$row['distance'] || !$row['gender'] || $row['time_ms'] <= 0;
                             @endphp
                             <tr class="{{ $hasIssue ? 'bg-red-50/40' : 'hover:bg-gray-50' }}">
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <input type="checkbox" name="rows[{{ $i }}][include]" value="1"
                                            aria-label="Zeile {{ $i + 1 }} übernehmen{{ $row['swimmer_name'] ? ': ' . $row['swimmer_name'] : '' }}"
                                            {{ !$hasIssue ? 'checked' : '' }} class="rounded">
-                                </td>
+                                </x-ui.td>
                                 {{-- Discipline --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <select name="rows[{{ $i }}][discipline]" aria-label="Disziplin, Zeile {{ $i + 1 }}"
                                             class="px-2 py-1 border {{ !$row['discipline'] ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
                                         <option value="">– wählen –</option>
@@ -64,9 +60,9 @@
                                             <option value="{{ $val }}" {{ $row['discipline'] === $val ? 'selected' : '' }}>{{ $label }}</option>
                                         @endforeach
                                     </select>
-                                </td>
+                                </x-ui.td>
                                 {{-- Distance --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <select name="rows[{{ $i }}][distance]" aria-label="Distanz, Zeile {{ $i + 1 }}"
                                             class="px-2 py-1 border {{ !$row['distance'] ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
                                         <option value="">– wählen –</option>
@@ -74,46 +70,46 @@
                                             <option value="{{ $d }}" {{ (int)$row['distance'] === $d ? 'selected' : '' }}>{{ $d }} m</option>
                                         @endforeach
                                     </select>
-                                </td>
+                                </x-ui.td>
                                 {{-- Gender --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <select name="rows[{{ $i }}][gender]" aria-label="Geschlecht, Zeile {{ $i + 1 }}"
                                             class="px-2 py-1 border {{ !$row['gender'] ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
                                         <option value="">–</option>
                                         <option value="M" {{ $row['gender'] === 'M' ? 'selected' : '' }}>M</option>
                                         <option value="F" {{ $row['gender'] === 'F' ? 'selected' : '' }}>W</option>
                                     </select>
-                                </td>
+                                </x-ui.td>
                                 {{-- Age group --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <input type="text" name="rows[{{ $i }}][age_group]" aria-label="Altersklasse, Zeile {{ $i + 1 }}"
                                            value="{{ $row['age_group'] ?? '' }}"
                                            placeholder="Offen"
                                            class="w-20 px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                                </td>
+                                </x-ui.td>
                                 {{-- Course --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <select name="rows[{{ $i }}][course]" aria-label="Bahn, Zeile {{ $i + 1 }}"
                                             class="px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
                                         <option value="Langbahn" {{ ($row['course'] ?? 'Langbahn') === 'Langbahn' ? 'selected' : '' }}>Langbahn</option>
                                         <option value="Kurzbahn" {{ ($row['course'] ?? 'Langbahn') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn</option>
                                     </select>
-                                </td>
+                                </x-ui.td>
                                 {{-- Time (hidden ms + displayed string) --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <input type="hidden" name="rows[{{ $i }}][time_ms]" value="{{ $row['time_ms'] }}">
                                     <span class="font-mono {{ $row['time_ms'] <= 0 ? 'text-red-600' : 'text-primary font-semibold' }}">
                                         {{ $row['time_ms'] > 0 ? \App\Models\SwimmingTime::formatMs($row['time_ms']) : '–' }}
                                     </span>
-                                </td>
+                                </x-ui.td>
                                 {{-- Swimmer name --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <input type="text" name="rows[{{ $i }}][swimmer_name]" aria-label="Name, Zeile {{ $i + 1 }}"
                                            value="{{ $row['swimmer_name'] }}"
                                            class="w-full min-w-[140px] px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                                </td>
+                                </x-ui.td>
                                 {{-- Date --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <input type="hidden" name="rows[{{ $i }}][birth_year]" value="{{ $row['birth_year'] ?? '' }}">
                                     @if(empty($row['set_date']) && !empty($row['set_year']))
                                         {{-- Liste nennt nur das Jahr --}}
@@ -125,19 +121,17 @@
                                                value="{{ $row['set_date'] ?? '' }}"
                                                class="px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
                                     @endif
-                                </td>
+                                </x-ui.td>
                                 {{-- Location --}}
-                                <td class="px-3 py-2">
+                                <x-ui.td>
                                     <input type="text" name="rows[{{ $i }}][location]" aria-label="Ort, Zeile {{ $i + 1 }}"
                                            value="{{ $row['location'] ?? '' }}"
                                            placeholder="Ort / Wettkampf"
                                            class="w-32 px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
 
         <x-ui.import-bar :cancel="route('admin.records.index')" count="input[name$='[include]']:checked"

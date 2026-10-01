@@ -1336,22 +1336,19 @@
                 @if($qualificationSwimmers->isEmpty())
                     <p class="text-sm text-gray-600 text-center py-6">Keine Schwimmer aus zugeordneten Trainingsgruppen oder Einzelzuweisungen gefunden.</p>
                 @else
-                <div class="overflow-x-auto rounded-xl border border-gray-200">
-                    <table class="text-sm w-full">
-                        <thead class="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
-                            <tr>
-                                <th class="px-4 py-2.5 text-left font-semibold sticky left-0 bg-gray-50">Schwimmer</th>
-                                <th class="px-3 py-2.5 text-center font-semibold">Jg.</th>
+                <div class="rounded-xl border border-gray-200">
+<x-ui.table :card="false" caption="Pflichtzeiten bearbeiten">
+<x-slot:head>
+                                <x-ui.th class="sticky left-0">Schwimmer</x-ui.th>
+                                <x-ui.th align="center">Jg.</x-ui.th>
                                 @foreach($qualifyingEvents->unique(fn($e) => $e->discipline . '_' . $e->distance) as $qev)
-                                <th class="px-3 py-2.5 text-center font-semibold min-w-[100px]">
+                                <x-ui.th align="center" class="min-w-[100px]">
                                     {{ $qev->distance_label }}m {{ $qev->discipline_label }}<br>
                                     <span class="text-gray-600 font-normal">PZ {{ $qev->formatted_qualifying_time }}</span>
-                                </th>
+                                </x-ui.th>
                                 @endforeach
-                                <th class="px-3 py-2.5 text-left font-semibold">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
+                                <x-ui.th>Status</x-ui.th>
+                            </x-slot:head>
                             @foreach($qualificationSwimmers as $qs)
                             @php
                                 $isAssigned   = $signupRequest->responses->contains('user_id', $qs->id);
@@ -1361,15 +1358,15 @@
                                     : null;
                             @endphp
                             <tr class="hover:bg-gray-50 {{ $isAssigned ? 'bg-green-50/30' : '' }}">
-                                <td class="px-4 py-2.5 sticky left-0 bg-inherit">
+                                <x-ui.td class="sticky left-0 bg-inherit">
                                     <span class="font-medium text-gray-800">{{ $qs->lastname }}, {{ $qs->firstname }}</span>
                                     @if($qs->gender)
                                         <span class="text-xs text-gray-600 ml-1">{{ $qs->gender === 'M' ? '♂' : '♀' }}</span>
                                     @endif
-                                </td>
-                                <td class="px-3 py-2.5 text-center text-xs text-gray-500">
+                                </x-ui.td>
+                                <x-ui.td align="center" muted class="text-xs">
                                     {{ $qs->birth_date?->year ?? '–' }}
-                                </td>
+                                </x-ui.td>
                                 @foreach($qualifyingEvents->unique(fn($e) => $e->discipline . '_' . $e->distance) as $qev)
                                 @php
                                     $rKey    = "{$qs->id}_{$qev->discipline}_{$qev->distance}";
@@ -1384,7 +1381,7 @@
                                               ($qev->age_max === null || $swimmerAge <= $qev->age_max));
                                     if ($qualOk && $genderOk && $ageOk) $qualifiesAny = true;
                                 @endphp
-                                <td class="px-3 py-2.5 text-center text-xs">
+                                <x-ui.td align="center" class="text-xs">
                                     @if(!$genderOk || !$ageOk)
                                         <span class="text-gray-600">–</span>
                                     @elseif($bestMs !== null)
@@ -1395,9 +1392,9 @@
                                     @else
                                         <span class="text-gray-600">keine</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                                 @endforeach
-                                <td class="px-3 py-2.5">
+                                <x-ui.td>
                                     @if($isAssigned)
                                         <span class="text-xs text-green-700 font-medium bg-green-100 px-2 py-0.5 rounded-full">Zugewiesen</span>
                                     @elseif($qualifiesAny)
@@ -1412,12 +1409,11 @@
                                     @else
                                         <span class="text-xs text-gray-600">Keine PZ</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
+</div>
                 @endif
             </div>
         </div>

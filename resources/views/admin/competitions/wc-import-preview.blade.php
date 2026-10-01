@@ -57,34 +57,27 @@
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
                 <div>
                     <h3 class="font-semibold text-gray-800">Athleten ({{ $totalIndiv }})</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">
+                    <p class="text-xs text-gray-600 mt-0.5">
                         Automatisch erkannt über Namensabgleich mit Portal-Schwimmern
                     </p>
                 </div>
                 <div class="text-right">
                     <p class="text-sm font-semibold text-gray-700">{{ $matched }}/{{ $totalIndiv }} erkannt</p>
                     @if($relayEntries->count() > 0)
-                        <p class="text-xs text-gray-400">+ {{ $relayEntries->count() }} Staffel{{ $relayEntries->count() !== 1 ? 'n' : '' }}</p>
+                        <p class="text-xs text-gray-600">+ {{ $relayEntries->count() }} Staffel{{ $relayEntries->count() !== 1 ? 'n' : '' }}</p>
                     @endif
                 </div>
             </div>
 
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50/50 border-b border-gray-100">
-                    <tr>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 w-56">Athlet in Datei</th>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Ergebnisse</th>
-                        <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 w-64">Portal-Zuordnung</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Wettkämpfe zur Übernahme"
+            :columns="[['label' => 'Athlet in Datei', 'class' => 'w-56'], 'Ergebnisse', ['label' => 'Portal-Zuordnung', 'class' => 'w-64']]">
 
                     {{-- Individual athletes --}}
                     @foreach($club['athletes'] as $ai => $athlete)
                         @if($athlete['is_relay'] ?? false)
                             {{-- Staffel --}}
                             <tr class="bg-purple-50/40">
-                                <td class="px-5 py-3">
+                                <x-ui.td>
                                     <div class="flex items-center gap-2">
                                         <span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">Staffel</span>
                                         <span class="font-medium text-gray-700 text-sm">{{ $athlete['firstname'] }}</span>
@@ -92,50 +85,50 @@
                                     @if(!empty($athlete['relay_members']))
                                         <div class="mt-1 space-y-0.5">
                                             @foreach($athlete['relay_members'] as $m)
-                                                <p class="text-xs text-gray-400">
+                                                <p class="text-xs text-gray-600">
                                                     {{ $m['leg'] }}. {{ $m['firstname'] }} {{ $m['lastname'] }}
                                                     @if($m['birthyear']) ({{ $m['birthyear'] }}) @endif
                                                 </p>
                                             @endforeach
                                         </div>
                                     @endif
-                                </td>
-                                <td class="px-5 py-3">
+                                </x-ui.td>
+                                <x-ui.td>
                                     @foreach($athlete['results'] as $r)
                                         <p class="text-xs text-gray-500">
                                             {{ $r['distance'] }} m {{ $r['discipline'] }}
                                             <span class="font-mono text-purple-600 font-medium">{{ $r['swimtime'] }}</span>
-                                            @if($r['place'] ?? null) <span class="text-gray-400">Pl.&nbsp;{{ $r['place'] }}</span> @endif
+                                            @if($r['place'] ?? null) <span class="text-gray-600">Pl.&nbsp;{{ $r['place'] }}</span> @endif
                                         </p>
                                     @endforeach
-                                </td>
-                                <td class="px-5 py-3">
+                                </x-ui.td>
+                                <x-ui.td>
                                     <p class="text-xs text-purple-600 font-medium">Staffelergebnis – wird importiert</p>
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @else
                             {{-- Individual --}}
                             <tr class="hover:bg-gray-50/50">
-                                <td class="px-5 py-3">
+                                <x-ui.td>
                                     <p class="font-medium text-gray-800 text-sm">
                                         {{ $athlete['firstname'] }}
                                         <span class="font-semibold">{{ $athlete['lastname'] }}</span>
                                     </p>
                                     @if($athlete['birthdate'])
-                                        <p class="text-xs text-gray-400 mt-0.5">
+                                        <p class="text-xs text-gray-600 mt-0.5">
                                             Jg. {{ $athlete['birthdate'] }}
                                             @if($athlete['gender'] === 'F') · w @elseif($athlete['gender'] === 'M') · m @endif
                                         </p>
                                     @endif
-                                </td>
-                                <td class="px-5 py-3">
+                                </x-ui.td>
+                                <x-ui.td>
                                     <div class="space-y-0.5">
                                         @foreach($athlete['results'] as $r)
                                             <p class="text-xs text-gray-600">
                                                 {{ $r['distance'] }} m {{ $r['discipline'] }}
-                                                @if($r['round_type']) <span class="text-gray-400">{{ ['V'=>'VL','F'=>'Fin','E'=>'Ent','Z'=>'ZL'][$r['round_type']] ?? $r['round_type'] }}</span> @endif
+                                                @if($r['round_type']) <span class="text-gray-600">{{ ['V'=>'VL','F'=>'Fin','E'=>'Ent','Z'=>'ZL'][$r['round_type']] ?? $r['round_type'] }}</span> @endif
                                                 <span class="font-mono text-primary font-medium">{{ $r['swimtime'] }}</span>
-                                                @if($r['place'] ?? null) <span class="text-gray-400">Pl.&nbsp;{{ $r['place'] }}</span> @endif
+                                                @if($r['place'] ?? null) <span class="text-gray-600">Pl.&nbsp;{{ $r['place'] }}</span> @endif
                                                 {{-- PBZ/SBZ/SR badges --}}
                                                 @if(!empty($r['rek']))
                                                     @php $rek = $r['rek']; @endphp
@@ -148,14 +141,14 @@
                                                     @elseif(str_contains($rek, 'LR'))
                                                         <span class="ml-1 px-1 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">LR</span>
                                                     @else
-                                                        <span class="ml-1 text-xs text-gray-400">{{ $rek }}</span>
+                                                        <span class="ml-1 text-xs text-gray-600">{{ $rek }}</span>
                                                     @endif
                                                 @endif
                                             </p>
                                         @endforeach
                                     </div>
-                                </td>
-                                <td class="px-5 py-3">
+                                </x-ui.td>
+                                <x-ui.td>
                                     @if($athlete['matched_user_id'])
                                         <div class="flex items-center gap-2">
                                             <span class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
@@ -184,12 +177,11 @@
                                         </div>
                                         <p class="text-xs text-amber-700 mt-0.5 ml-4">Nicht erkannt – manuell zuordnen</p>
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endif
                     @endforeach
-                </tbody>
-            </table>
+                </x-ui.table>
         </div>
         @endforeach
 
