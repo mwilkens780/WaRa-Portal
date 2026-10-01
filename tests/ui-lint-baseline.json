@@ -1,19 +1,13 @@
 {
   "resources/views/admin/competitions/_announcement_tab.blade.php": {
-    "tabelle-ohne-baustein": 1,
     "neu-laden": 1
-  },
-  "resources/views/admin/competitions/index.blade.php": {
-    "text-zu-blass": 3,
-    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/competitions/result-import-preview.blade.php": {
     "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/competitions/show.blade.php": {
-    "text-zu-blass": 5,
     "feld-ohne-beschriftung": 9,
-    "tabelle-ohne-baustein": 11,
+    "tabelle-ohne-baustein": 1,
     "neu-laden": 1
   },
   "resources/views/admin/competitions/wc-import-preview.blade.php": {
@@ -31,23 +25,11 @@
     "feld-ohne-beschriftung": 3,
     "tabelle-ohne-baustein": 3
   },
-  "resources/views/admin/dsgvo/index.blade.php": {
-    "tabelle-ohne-baustein": 1
-  },
   "resources/views/admin/dsgvo/show.blade.php": {
-    "feld-ohne-beschriftung": 1,
-    "tabelle-ohne-baustein": 2
+    "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/import-log/index.blade.php": {
-    "text-zu-blass": 1,
-    "feld-ohne-beschriftung": 1,
-    "tabelle-ohne-baustein": 1
-  },
-  "resources/views/admin/logs/index.blade.php": {
-    "tabelle-ohne-baustein": 2
-  },
-  "resources/views/admin/mail-log/index.blade.php": {
-    "tabelle-ohne-baustein": 1
+    "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/permissions/index.blade.php": {
     "tabelle-ohne-baustein": 1
@@ -60,9 +42,6 @@
   "resources/views/admin/records/_toplist_table.blade.php": {
     "text-zu-blass": 1,
     "feld-ohne-beschriftung": 3,
-    "tabelle-ohne-baustein": 1
-  },
-  "resources/views/admin/records/bestlist-import-preview.blade.php": {
     "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/records/import-preview.blade.php": {
@@ -99,14 +78,11 @@
     "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/users/index.blade.php": {
-    "text-zu-blass": 4,
-    "feld-ohne-beschriftung": 1,
-    "tabelle-ohne-baustein": 1
+    "feld-ohne-beschriftung": 1
   },
   "resources/views/admin/wa_scoring/index.blade.php": {
-    "text-zu-blass": 1,
     "feld-ohne-beschriftung": 1,
-    "tabelle-ohne-baustein": 2
+    "tabelle-ohne-baustein": 1
   },
   "resources/views/admin/webclub-import/preview.blade.php": {
     "tabelle-ohne-baustein": 1

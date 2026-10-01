@@ -21,10 +21,10 @@
                 </div>
                 <p class="text-sm text-gray-500">{{ $competition->location }}</p>
                 @if($competition->organizer)
-                    <p class="text-xs text-gray-400">Veranstalter: {{ $competition->organizer }}</p>
+                    <p class="text-xs text-gray-600">Veranstalter: {{ $competition->organizer }}</p>
                 @endif
                 @if($competition->course)
-                    <p class="text-xs text-gray-400">Bahnlänge: {{ $competition->course_label }}</p>
+                    <p class="text-xs text-gray-600">Bahnlänge: {{ $competition->course_label }}</p>
                 @else
                     {{-- Ohne Bahnlaenge zaehlen die Ergebnisse weder fuer Rekorde noch fuer Bestenlisten --}}
                     <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block">
@@ -249,7 +249,7 @@
         {{-- Tab: Wettkampffolge --}}
         <div x-show="activeTab === 'wettkampf'" x-cloak>
             @if($competition->events->isEmpty())
-                <p class="text-sm text-gray-400 text-center px-5 py-8">
+                <p class="text-sm text-gray-600 text-center px-5 py-8">
                     Noch keine Wettkampffolge hinterlegt. Lade eine DSV7-Definitionsdatei (*-Wk.DSV7) im Import-Tab hoch.
                 </p>
             @else
@@ -285,7 +285,7 @@
                                                 {{ $baseWk->distance_label }} m {{ $baseWk->discipline_label }}
                                                 @if($baseWk->relay_legs) <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium ml-1">Staffel</span> @endif
                                                 @if($baseWk->gender !== 'X')
-                                                    <span class="text-gray-400 font-normal">· {{ $baseWk->gender === 'M' ? 'Männlich' : 'Weiblich' }}</span>
+                                                    <span class="text-gray-600 font-normal">· {{ $baseWk->gender === 'M' ? 'Männlich' : 'Weiblich' }}</span>
                                                 @endif
                                             </span>
                                         </div>
@@ -295,7 +295,7 @@
                                                 <span class="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 bg-gray-50">
                                                     {{ $wertung->age_group ?: 'Offene Klasse' }}
                                                     @if($wertung->gender !== $baseWk->gender)
-                                                        <span class="text-gray-400">· {{ $wertung->gender === 'M' ? 'M' : 'W' }}</span>
+                                                        <span class="text-gray-600">· {{ $wertung->gender === 'M' ? 'M' : 'W' }}</span>
                                                     @endif
                                                 </span>
                                             @endforeach
@@ -308,7 +308,7 @@
                                                     PZ {{ $baseWk->formatted_qualifying_time }}
                                                 </span>
                                             @else
-                                                <span class="text-xs text-gray-400">keine PZ</span>
+                                                <span class="text-xs text-gray-600">keine PZ</span>
                                             @endif
                                             <button type="button"
                                                     @click="editPZ['{{ $pzKey }}'] = !editPZ['{{ $pzKey }}']"
@@ -332,10 +332,10 @@
                                                 <div class="flex items-center gap-1">
                                                     <input type="number" name="time_minutes" min="0" max="99" value="{{ $pzMin }}"
                                                            class="w-14 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
-                                                    <span class="text-gray-400 font-bold">:</span>
+                                                    <span class="text-gray-600 font-bold">:</span>
                                                     <input type="number" name="time_seconds" min="0" max="59" value="{{ $pzSec }}"
                                                            class="w-14 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
-                                                    <span class="text-gray-400 font-bold">,</span>
+                                                    <span class="text-gray-600 font-bold">,</span>
                                                     <input type="number" name="time_centiseconds" min="0" max="99" value="{{ $pzCs }}"
                                                            class="w-14 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
                                                 </div>
@@ -376,44 +376,33 @@
                 $pflichtEvts = $competition->events->filter(fn($e) => $e->qualifying_time_ms > 0);
                 $pBySession  = $pflichtEvts->groupBy('session_number');
             @endphp
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">WK</th>
-                            <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Disziplin</th>
-                            <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Wertung</th>
-                            <th class="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Pflichtzeit</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Pflichtzeiten" stack
+            :columns="['WK', 'Disziplin', 'Wertung', ['label' => 'Pflichtzeit', 'align' => 'right']]">
                         @foreach($pBySession as $sessionNum => $sEvts)
                             @php $firstEvt = $competition->events->where('session_number', $sessionNum)->first(); @endphp
                             <tr class="bg-gray-50/60">
-                                <td colspan="4" class="px-5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <x-ui.td muted class="text-xs font-semibold uppercase tracking-wide" colspan="4">
                                     {{ $firstEvt->session_name ?: ('Abschnitt ' . $sessionNum) }}
                                     @if($firstEvt->session_date) · {{ $firstEvt->session_date->format('d.m.Y') }} @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                             @foreach($sEvts->groupBy('event_number') as $eventNum => $wertungen)
                                 @foreach($wertungen as $ev)
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-5 py-2.5 font-bold text-primary text-xs w-12">{{ $eventNum }}</td>
-                                        <td class="px-5 py-2.5 text-gray-700">
+                                        <x-ui.td label="WK" class="font-bold text-primary text-xs w-12">{{ $eventNum }}</x-ui.td>
+                                        <x-ui.td label="Disziplin" class="text-gray-700">
                                             {{ $ev->distance_label }} m {{ $ev->discipline_label }}
                                             @if($ev->gender !== 'X')
-                                                <span class="text-gray-400">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
+                                                <span class="text-gray-600">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
                                             @endif
-                                        </td>
-                                        <td class="px-5 py-2.5 text-gray-600">{{ $ev->age_group ?: 'Offene Klasse' }}</td>
-                                        <td class="text-right tabular-nums px-5 py-2.5 font-mono font-semibold text-gray-800">{{ $ev->formatted_qualifying_time }}</td>
+                                        </x-ui.td>
+                                        <x-ui.td label="Wertung" muted>{{ $ev->age_group ?: 'Offene Klasse' }}</x-ui.td>
+                                        <x-ui.td label="Pflichtzeit" align="right" class="tabular-nums font-mono font-semibold text-gray-800">{{ $ev->formatted_qualifying_time }}</x-ui.td>
                                     </tr>
                                 @endforeach
                             @endforeach
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
         @endif
 
@@ -429,39 +418,28 @@
                 <div class="px-5 py-6 text-center">
                     <p class="text-sm text-gray-500 mb-1">Einheitliches Meldegeld je Start</p>
                     <p class="text-2xl font-bold text-gray-800">{{ number_format($uniqueFees->first(), 2, ',', '.') }} €</p>
-                    <p class="text-xs text-gray-400 mt-2">Gilt für alle {{ $meldegeldEvts->unique('event_number')->count() }} Wettkämpfe</p>
+                    <p class="text-xs text-gray-600 mt-2">Gilt für alle {{ $meldegeldEvts->unique('event_number')->count() }} Wettkämpfe</p>
                 </div>
             @else
                 {{-- Unterschiedliche Meldegelder je Wertung --}}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">WK</th>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Disziplin</th>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Wertung</th>
-                                <th class="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Meldegeld</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
+                <x-ui.table :card="false" caption="Meldegelder je Wertung" stack
+            :columns="['WK', 'Disziplin', 'Wertung', ['label' => 'Meldegeld', 'align' => 'right']]">
                             @foreach($meldegeldEvts->groupBy('event_number') as $eventNum => $wertungen)
                                 @foreach($wertungen as $ev)
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-5 py-2.5 font-bold text-primary text-xs w-12">{{ $eventNum }}</td>
-                                        <td class="px-5 py-2.5 text-gray-700">
+                                        <x-ui.td label="WK" class="font-bold text-primary text-xs w-12">{{ $eventNum }}</x-ui.td>
+                                        <x-ui.td label="Disziplin" class="text-gray-700">
                                             {{ $ev->distance_label }} m {{ $ev->discipline_label }}
                                             @if($ev->gender !== 'X')
-                                                <span class="text-gray-400">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
+                                                <span class="text-gray-600">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
                                             @endif
-                                        </td>
-                                        <td class="px-5 py-2.5 text-gray-600">{{ $ev->age_group ?: 'Offene Klasse' }}</td>
-                                        <td class="px-5 py-2.5 text-right font-semibold text-gray-800">{{ number_format($ev->meldegeld, 2, ',', '.') }} €</td>
+                                        </x-ui.td>
+                                        <x-ui.td label="Wertung" muted>{{ $ev->age_group ?: 'Offene Klasse' }}</x-ui.td>
+                                        <x-ui.td label="Meldegeld" align="right" class="font-semibold text-gray-800">{{ number_format($ev->meldegeld, 2, ',', '.') }} €</x-ui.td>
                                     </tr>
                                 @endforeach
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
             @endif
         </div>
         @endif
@@ -508,14 +486,14 @@
                             <div class="flex gap-1 items-center">
                                 <input type="number" name="time_minutes" min="0" placeholder="Min" value="0"
                                        class="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
-                                <span class="text-gray-400">:</span>
+                                <span class="text-gray-600">:</span>
                                 <input type="number" name="time_seconds" min="0" max="59" placeholder="Sek" required value="0"
                                        class="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
-                                <span class="text-gray-400">,</span>
+                                <span class="text-gray-600">,</span>
                                 <input type="number" name="time_centiseconds" min="0" max="99" placeholder="1/100" required value="0"
                                        class="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
-                            <p class="text-xs text-gray-400 mt-1">Min : Sek , 1/100-Sek</p>
+                            <p class="text-xs text-gray-600 mt-1">Min : Sek , 1/100-Sek</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Platzierung</label>
@@ -554,7 +532,7 @@
 
             {{-- Ergebnistabelle --}}
             @if($results->isEmpty())
-                <p class="text-sm text-gray-400 px-5 py-8 text-center">Noch keine Ergebnisse eingetragen.</p>
+                <p class="text-sm text-gray-600 px-5 py-8 text-center">Noch keine Ergebnisse eingetragen.</p>
             @else
                 {{-- Toggle: Strecke / Sportler --}}
                 <div class="flex items-center gap-2 px-5 py-3 border-b border-gray-100">
@@ -586,46 +564,37 @@
                                 </p>
                             </div>
                             {{-- Feste Spaltenbreiten: alle Strecken stehen exakt untereinander --}}
-                            <div class="overflow-x-auto">
-                            <table class="w-full text-sm table-fixed min-w-[720px]">
-                                <colgroup>
-                                    <col class="w-12">   {{-- Rang --}}
-                                    <col>                {{-- Name: Rest --}}
-                                    <col class="w-28">   {{-- Zeit --}}
-                                    <col class="w-40">   {{-- Platzierungen --}}
-                                    <col class="w-56">   {{-- Kennzeichen --}}
-                                    @if(auth()->user()->role === 'admin') <col class="w-20"> @endif
-                                </colgroup>
-                                <tbody class="divide-y divide-gray-50">
+                            <x-ui.table :card="false" caption="Ergebnisse je Strecke" stack class="table-fixed min-w-[720px]"
+            :columns="[]">
                                     @foreach($group as $swim)
                                         @php if (!$swim->is_dns) $rank++; @endphp
                                         <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
-                                            <td class="px-5 py-2.5 text-gray-400 text-xs">
+                                            <x-ui.td muted class="text-xs">
                                                 {{ !$swim->is_dns ? $rank . '.' : '–' }}
-                                            </td>
-                                            <td class="px-5 py-2.5 font-medium text-gray-800 truncate" title="{{ $swim->user?->name }}">{{ $swim->user?->name }}</td>
-                                            <td class="text-right tabular-nums px-5 py-2.5">
+                                            </x-ui.td>
+                                            <x-ui.td class="font-medium text-gray-800 truncate" title="{{ $swim->user?->name }}">{{ $swim->user?->name }}</x-ui.td>
+                                            <x-ui.td align="right" class="tabular-nums">
                                                 @if(!$swim->is_dns)
                                                     <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                                 @elseif($swim->notes)
                                                     <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
                                                 @else
-                                                    <span class="text-gray-400 text-xs">NT</span>
+                                                    <span class="text-gray-600 text-xs">NT</span>
                                                 @endif
-                                            </td>
-                                            <td class="px-5 py-2.5">
+                                            </x-ui.td>
+                                            <x-ui.td>
                                                 @if(!empty($swim->placements))
                                                     <div class="flex flex-col gap-0.5">
                                                         @foreach($swim->placements as $p)
                                                             <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-700 font-semibold' : 'text-gray-500' }}">
-                                                                @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
+                                                                @if($p->age_group)<span class="text-gray-600">{{ $p->age_group }}:</span> @endif
                                                                 Platz {{ $p->placement }}
                                                             </span>
                                                         @endforeach
                                                     </div>
                                                 @endif
-                                            </td>
-                                            <td class="px-5 py-2.5">
+                                            </x-ui.td>
+                                            <x-ui.td>
                                                 <div class="flex gap-1 flex-wrap">
                                                     @if($swim->is_final)
                                                         <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Finale</span>
@@ -643,26 +612,24 @@
                                                         @php $wc_codes = ['PBZ' => 'Persönliche Bestzeit', 'SBZ' => 'Saison-Bestzeit', 'VR' => 'Vereinsrekord', 'LR' => 'Landesrekord']; @endphp
                                                         @foreach($wc_codes as $wc_code => $wc_title)
                                                             @if(str_contains($swim->webclub_rek, $wc_code))
-                                                                <span class="text-xs border border-gray-300 text-gray-400 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
+                                                                <span class="text-xs border border-gray-300 text-gray-600 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
                                                             @endif
                                                         @endforeach
                                                     @endif
                                                 </div>
-                                            </td>
+                                            </x-ui.td>
                                             @if(auth()->user()->role === 'admin')
-                                            <td class="px-5 py-2.5 text-right">
+                                            <x-ui.td align="right">
                                                 <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
                                                       data-confirm="Ergebnis löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Löschen</button>
                                                 </form>
-                                            </td>
+                                            </x-ui.td>
                                             @endif
                                         </tr>
                                     @endforeach
-                                </tbody>
-                            </table>
-                            </div>
+                                </x-ui.table>
                         </div>
                     @endforeach
                 </div>
@@ -687,7 +654,7 @@
                                 <p class="text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                     {{ $user?->name ?? '–' }}
                                     @if($user?->birth_year ?? $user?->birth_date?->year)
-                                        <span class="font-normal text-gray-400 normal-case">· Jg.&nbsp;{{ $user->birth_year ?? $user->birth_date?->year }}</span>
+                                        <span class="font-normal text-gray-600 normal-case">· Jg.&nbsp;{{ $user->birth_year ?? $user->birth_date?->year }}</span>
                                     @endif
                                 </p>
                                 <div class="flex gap-1">
@@ -700,44 +667,35 @@
                                 </div>
                             </div>
                             {{-- Feste Spaltenbreiten: alle Sportler stehen exakt untereinander --}}
-                            <div class="overflow-x-auto">
-                            <table class="w-full text-sm table-fixed min-w-[760px]">
-                                <colgroup>
-                                    <col class="w-40">   {{-- Strecke --}}
-                                    <col class="w-28">   {{-- Zeit --}}
-                                    <col class="w-40">   {{-- Platzierungen --}}
-                                    <col>                {{-- Kennzeichen: Rest --}}
-                                    <col class="w-44">   {{-- Wertungen --}}
-                                    @if(auth()->user()->role === 'admin') <col class="w-20"> @endif
-                                </colgroup>
-                                <tbody class="divide-y divide-gray-50">
+                            <x-ui.table :card="false" caption="Ergebnisse je Sportler" stack class="table-fixed min-w-[760px]"
+            :columns="[]">
                                     @foreach($swimsSorted as $swim)
                                         <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-60' : '' }}">
-                                            <td class="px-5 py-2.5 text-gray-700 font-medium">
+                                            <x-ui.td class="text-gray-700 font-medium">
                                                 {{ $swim->distance }} m {{ $swim->discipline_label }}
-                                            </td>
-                                            <td class="text-right tabular-nums px-5 py-2.5">
+                                            </x-ui.td>
+                                            <x-ui.td align="right" class="tabular-nums">
                                                 @if(!$swim->is_dns)
                                                     <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                                 @elseif($swim->notes)
                                                     <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold tracking-wide">{{ $swim->notes }}</span>
                                                 @else
-                                                    <span class="text-gray-400 text-xs">NT</span>
+                                                    <span class="text-gray-600 text-xs">NT</span>
                                                 @endif
-                                            </td>
-                                            <td class="px-5 py-2.5">
+                                            </x-ui.td>
+                                            <x-ui.td>
                                                 @if(!empty($swim->placements))
                                                     <div class="flex flex-col gap-0.5">
                                                         @foreach($swim->placements as $p)
                                                             <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-700 font-semibold' : 'text-gray-500' }}">
-                                                                @if($p->age_group)<span class="text-gray-400">{{ $p->age_group }}:</span> @endif
+                                                                @if($p->age_group)<span class="text-gray-600">{{ $p->age_group }}:</span> @endif
                                                                 Platz {{ $p->placement }}
                                                             </span>
                                                         @endforeach
                                                     </div>
                                                 @endif
-                                            </td>
-                                            <td class="px-5 py-2.5">
+                                            </x-ui.td>
+                                            <x-ui.td>
                                                 <div class="flex gap-1 flex-wrap">
                                                     @if($swim->is_final)
                                                         <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Finale</span>
@@ -755,37 +713,35 @@
                                                         @php $wc_codes = ['PBZ' => 'Persönliche Bestzeit', 'SBZ' => 'Saison-Bestzeit', 'VR' => 'Vereinsrekord', 'LR' => 'Landesrekord']; @endphp
                                                         @foreach($wc_codes as $wc_code => $wc_title)
                                                             @if(str_contains($swim->webclub_rek, $wc_code))
-                                                                <span class="text-xs border border-gray-300 text-gray-400 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
+                                                                <span class="text-xs border border-gray-300 text-gray-600 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
                                                             @endif
                                                         @endforeach
                                                     @endif
                                                 </div>
-                                            </td>
+                                            </x-ui.td>
                                             @if(!empty($swim->wertungen))
-                                                <td class="px-5 py-2.5">
+                                                <x-ui.td>
                                                     <div class="flex flex-wrap gap-0.5">
                                                         @foreach($swim->wertungen as $w)
                                                             <span class="px-1 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{{ $w }}</span>
                                                         @endforeach
                                                     </div>
-                                                </td>
+                                                </x-ui.td>
                                             @else
-                                                <td></td>
+                                                <x-ui.td></x-ui.td>
                                             @endif
                                             @if(auth()->user()->role === 'admin')
-                                            <td class="px-5 py-2.5 text-right">
+                                            <x-ui.td align="right">
                                                 <form method="POST" action="{{ route('admin.competitions.result.destroy', $swim->id) }}"
                                                       data-confirm="Ergebnis löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Löschen</button>
                                                 </form>
-                                            </td>
+                                            </x-ui.td>
                                             @endif
                                         </tr>
                                     @endforeach
-                                </tbody>
-                            </table>
-                            </div>
+                                </x-ui.table>
                         </div>
                     @endforeach
                 </div>
@@ -795,47 +751,38 @@
         {{-- Tab: Auswertung --}}
         <div x-show="activeTab === 'auswertung'" x-cloak>
             @if($results->isEmpty())
-                <p class="text-sm text-gray-400 px-5 py-8 text-center">Noch keine Ergebnisse vorhanden.</p>
+                <p class="text-sm text-gray-600 px-5 py-8 text-center">Noch keine Ergebnisse vorhanden.</p>
             @else
                 {{-- Ergebnistabelle Auswertung --}}
-                <div class="overflow-x-auto border-b border-gray-100">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Disziplin</th>
-                                <th class="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Zeit</th>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Platzierung(en)</th>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Auszeichnungen</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
+                <div class="border-b border-gray-100">
+<x-ui.table :card="false" caption="Auswertung" stack
+            :columns="['Schwimmer', 'Disziplin', ['label' => 'Zeit', 'align' => 'right'], 'Platzierung(en)', 'Auszeichnungen']">
                             @foreach($results->flatten(1)->sortBy(fn($s) => $s->is_dns ? PHP_INT_MAX : $s->time_ms) as $swim)
                                 <tr class="hover:bg-gray-50 {{ $swim->is_dns ? 'opacity-50' : '' }}">
-                                    <td class="px-5 py-2.5 font-medium text-gray-800">{{ $swim->user?->name }}</td>
-                                    <td class="px-5 py-2.5 text-gray-700">{{ $swim->distance }}m {{ $swim->discipline_label }}</td>
-                                    <td class="px-5 py-2.5 text-right">
+                                    <x-ui.td label="Schwimmer" class="font-medium text-gray-800">{{ $swim->user?->name }}</x-ui.td>
+                                    <x-ui.td label="Disziplin" class="text-gray-700">{{ $swim->distance }}m {{ $swim->discipline_label }}</x-ui.td>
+                                    <x-ui.td label="Zeit" align="right">
                                         @if(!$swim->is_dns)
                                             <span class="font-mono font-semibold text-primary">{{ $swim->formatted_time }}</span>
                                         @elseif($swim->notes)
                                             <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold">{{ $swim->notes }}</span>
                                         @endif
-                                    </td>
-                                    <td class="px-5 py-2.5">
+                                    </x-ui.td>
+                                    <x-ui.td label="Platzierung(en)">
                                         @if(!empty($swim->placements))
                                             <div class="flex flex-col gap-0.5">
                                                 @foreach($swim->placements as $p)
                                                     <span class="text-xs {{ $p->placement <= 3 ? 'text-amber-700 font-semibold' : 'text-gray-600' }}">
-                                                        @if($p->age_group)<span class="text-gray-400 font-normal">{{ $p->age_group }}:</span> @endif
+                                                        @if($p->age_group)<span class="text-gray-600 font-normal">{{ $p->age_group }}:</span> @endif
                                                         Platz {{ $p->placement }}
                                                     </span>
                                                 @endforeach
                                             </div>
                                         @else
-                                            <span class="text-gray-400">–</span>
+                                            <span class="text-gray-600">–</span>
                                         @endif
-                                    </td>
-                                    <td class="px-5 py-2.5">
+                                    </x-ui.td>
+                                    <x-ui.td label="Auszeichnungen">
                                         <div class="flex gap-1 flex-wrap">
                                             @if($swim->is_final)
                                                 <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Finale</span>
@@ -853,17 +800,16 @@
                                                 @php $wc_codes = ['PBZ' => 'Persönliche Bestzeit', 'SBZ' => 'Saison-Bestzeit', 'VR' => 'Vereinsrekord', 'LR' => 'Landesrekord']; @endphp
                                                 @foreach($wc_codes as $wc_code => $wc_title)
                                                     @if(str_contains($swim->webclub_rek, $wc_code))
-                                                        <span class="text-xs border border-gray-300 text-gray-400 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
+                                                        <span class="text-xs border border-gray-300 text-gray-600 px-2 py-0.5 rounded-full" title="{{ $wc_title }} (WebClub)">WC:{{ $wc_code }}</span>
                                                     @endif
                                                 @endforeach
                                             @endif
                                         </div>
-                                    </td>
+                                    </x-ui.td>
                                 </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
+</div>
 
                 {{-- KI-Auswertungstext mit WYSIWYG-Editor --}}
                 <div class="p-5" x-data="auswertungEditor()">
@@ -1073,25 +1019,22 @@
                         @endif
                     @endif
                 </div>
-                <div class="overflow-x-auto rounded-lg border border-gray-200">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <div class="rounded-lg border border-gray-200">
+<x-ui.table :card="false" caption="Rückmeldungen der Schwimmer">
+<x-slot:head>
+                                <x-ui.th>Schwimmer</x-ui.th>
+                                <x-ui.th>Status</x-ui.th>
                                 @if($signupRequest->bus_available)
-                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bus</th>
+                                    <x-ui.th>Bus</x-ui.th>
                                 @endif
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Antwort am</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Erinnert</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
+                                <x-ui.th>Antwort am</x-ui.th>
+                                <x-ui.th>Notiz</x-ui.th>
+                                <x-ui.th>Erinnert</x-ui.th>
+                            </x-slot:head>
                             @foreach($responses as $response)
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-2.5 font-medium text-gray-800">{{ $response->user?->name }}</td>
-                                    <td class="px-4 py-2.5">
+                                    <x-ui.td class="font-medium text-gray-800">{{ $response->user?->name }}</x-ui.td>
+                                    <x-ui.td>
                                         @if($response->isAttending())
                                             <span class="inline-flex items-center gap-1 text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">Zusage</span>
                                         @elseif($response->isNotAttending())
@@ -1099,26 +1042,25 @@
                                         @else
                                             <span class="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">Ausstehend</span>
                                         @endif
-                                    </td>
+                                    </x-ui.td>
                                     @if($signupRequest->bus_available)
-                                        <td class="px-4 py-2.5">
+                                        <x-ui.td>
                                             @if($response->bus_booked)
                                                 <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Gebucht</span>
                                             @elseif($response->isAttending())
-                                                <span class="text-xs text-gray-400">–</span>
+                                                <span class="text-xs text-gray-600">–</span>
                                             @else
-                                                <span class="text-xs text-gray-300">–</span>
+                                                <span class="text-xs text-gray-600">–</span>
                                             @endif
-                                        </td>
+                                        </x-ui.td>
                                     @endif
-                                    <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $response->responded_at?->deBerlin('d.m.Y H:i') ?? '–' }}</td>
-                                    <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
-                                    <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $response->reminder_sent_at?->deBerlin('d.m. H:i') ?? '–' }}</td>
+                                    <x-ui.td muted class="text-xs">{{ $response->responded_at?->deBerlin('d.m.Y H:i') ?? '–' }}</x-ui.td>
+                                    <x-ui.td muted class="text-xs">{{ $response->note ?? '–' }}</x-ui.td>
+                                    <x-ui.td muted class="text-xs">{{ $response->reminder_sent_at?->deBerlin('d.m. H:i') ?? '–' }}</x-ui.td>
                                 </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
+</div>
 
             @else
                 {{-- Geschlossen --}}
@@ -1135,7 +1077,7 @@
                         </p>
                         {{-- Vermerk: wer/warum, Antwortstand beim Schliessen --}}
                         @if($signupRequest->close_note)
-                            <p class="text-xs text-gray-400 mt-0.5">{{ $signupRequest->close_note }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">{{ $signupRequest->close_note }}</p>
                         @endif
                     </div>
                 </div>
@@ -1166,23 +1108,20 @@
                     </div>
                 @endif
 
-                <div class="overflow-x-auto rounded-lg border border-gray-200">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Schwimmer</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <div class="rounded-lg border border-gray-200">
+<x-ui.table :card="false" caption="Anmeldungen">
+<x-slot:head>
+                                <x-ui.th>Schwimmer</x-ui.th>
+                                <x-ui.th>Status</x-ui.th>
                                 @if($signupRequest->bus_available)
-                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bus</th>
+                                    <x-ui.th>Bus</x-ui.th>
                                 @endif
-                                <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notiz</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
+                                <x-ui.th>Notiz</x-ui.th>
+                            </x-slot:head>
                             @foreach($responses as $response)
                                 <tr class="hover:bg-gray-50 {{ $response->isNotAttending() ? 'opacity-60' : '' }}">
-                                    <td class="px-4 py-2.5 font-medium text-gray-800">{{ $response->user?->name }}</td>
-                                    <td class="px-4 py-2.5">
+                                    <x-ui.td class="font-medium text-gray-800">{{ $response->user?->name }}</x-ui.td>
+                                    <x-ui.td>
                                         @if($response->isAttending())
                                             <span class="text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">Zusage</span>
                                         @elseif($response->isNotAttending())
@@ -1190,22 +1129,21 @@
                                         @else
                                             <span class="text-xs font-semibold bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">Keine Antwort</span>
                                         @endif
-                                    </td>
+                                    </x-ui.td>
                                     @if($signupRequest->bus_available)
-                                        <td class="px-4 py-2.5">
+                                        <x-ui.td>
                                             @if($response->bus_booked)
                                                 <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Gebucht</span>
                                             @else
-                                                <span class="text-xs text-gray-300">–</span>
+                                                <span class="text-xs text-gray-600">–</span>
                                             @endif
-                                        </td>
+                                        </x-ui.td>
                                     @endif
-                                    <td class="px-4 py-2.5 text-gray-600 text-xs">{{ $response->note ?? '–' }}</td>
+                                    <x-ui.td muted class="text-xs">{{ $response->note ?? '–' }}</x-ui.td>
                                 </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
+</div>
             @endif
         </div>
 
@@ -1226,13 +1164,13 @@
                     <dl class="space-y-2 text-sm">
                         @if($competition->venue_details['name'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-24 shrink-0">Halle</dt>
+                            <dt class="text-gray-600 w-24 shrink-0">Halle</dt>
                             <dd class="text-gray-700 font-medium">{{ $competition->venue_details['name'] }}</dd>
                         </div>
                         @endif
                         @if(($competition->venue_details['street'] ?? null) || ($competition->venue_details['city'] ?? null))
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-24 shrink-0">Adresse</dt>
+                            <dt class="text-gray-600 w-24 shrink-0">Adresse</dt>
                             <dd class="text-gray-700">
                                 @if($competition->venue_details['street'] ?? null){{ $competition->venue_details['street'] }}<br>@endif
                                 {{ ($competition->venue_details['postal_code'] ?? '') }} {{ ($competition->venue_details['city'] ?? '') }}
@@ -1241,7 +1179,7 @@
                         @endif
                         @if($competition->venue_details['zeitnahme'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-24 shrink-0">Zeitnahme</dt>
+                            <dt class="text-gray-600 w-24 shrink-0">Zeitnahme</dt>
                             <dd class="text-gray-600">{{ $competition->venue_details['zeitnahme'] }}</dd>
                         </div>
                         @endif
@@ -1259,43 +1197,43 @@
                     <dl class="space-y-2 text-sm">
                         @if($competition->contact_info['veranstalter'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-28 shrink-0">Veranstalter</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">Veranstalter</dt>
                             <dd class="text-gray-700 font-medium">{{ $competition->contact_info['veranstalter'] }}</dd>
                         </div>
                         @endif
                         @if($competition->contact_info['name'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-28 shrink-0">Ausrichter</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">Ausrichter</dt>
                             <dd class="text-gray-700">{{ $competition->contact_info['name'] }}</dd>
                         </div>
                         @endif
                         @if($competition->contact_info['email'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-28 shrink-0">E-Mail</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">E-Mail</dt>
                             <dd><a href="mailto:{{ $competition->contact_info['email'] }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $competition->contact_info['email'] }}</a></dd>
                         </div>
                         @endif
                         @if($competition->contact_info['melde_name'] ?? null)
                         <div class="flex gap-2 pt-2 border-t border-gray-200 mt-0.5">
-                            <dt class="text-gray-400 w-28 shrink-0">Melde-Kontakt</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">Melde-Kontakt</dt>
                             <dd class="text-gray-700">{{ $competition->contact_info['melde_name'] }}</dd>
                         </div>
                         @endif
                         @if($competition->contact_info['melde_email'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-28 shrink-0">Melde-Mail</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">Melde-Mail</dt>
                             <dd><a href="mailto:{{ $competition->contact_info['melde_email'] }}" class="text-primary underline underline-offset-2 hover:no-underline">{{ $competition->contact_info['melde_email'] }}</a></dd>
                         </div>
                         @endif
                         @if($competition->contact_info['melde_phone'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-28 shrink-0">Melde-Tel.</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">Melde-Tel.</dt>
                             <dd class="text-gray-600">{{ $competition->contact_info['melde_phone'] }}</dd>
                         </div>
                         @endif
                         @if($competition->contact_info['meldeschluss_time'] ?? null)
                         <div class="flex gap-2">
-                            <dt class="text-gray-400 w-28 shrink-0">Meldeschluss</dt>
+                            <dt class="text-gray-600 w-28 shrink-0">Meldeschluss</dt>
                             <dd class="text-gray-700">
                                 @if($competition->meldeschluss){{ $competition->meldeschluss->format('d.m.Y') }} @endif
                                 {{ $competition->contact_info['meldeschluss_time'] }} Uhr
@@ -1359,32 +1297,21 @@
             @if($qualifyingEvents->isNotEmpty())
             <div>
                 <h3 class="font-semibold text-gray-800 mb-3 text-sm">Pflichtzeiten dieser Veranstaltung</h3>
-                <div class="overflow-x-auto rounded-xl border border-gray-200">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200">
-                            <tr>
-                                <th class="px-4 py-2.5 text-left">WK</th>
-                                <th class="px-4 py-2.5 text-left">Strecke</th>
-                                <th class="px-4 py-2.5 text-left">Geschlecht</th>
-                                <th class="px-4 py-2.5 text-left">Wertung</th>
-                                <th class="px-4 py-2.5 text-right">Pflichtzeit</th>
-                                <th class="px-4 py-2.5 text-left">Meldeschluss PZ</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
+                <div class="rounded-xl border border-gray-200">
+<x-ui.table :card="false" caption="Pflichtzeiten dieser Veranstaltung" stack
+            :columns="['WK', 'Strecke', 'Geschlecht', 'Wertung', ['label' => 'Pflichtzeit', 'align' => 'right'], 'Meldeschluss PZ']">
                             @foreach($qualifyingEvents as $qev)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->event_number }}</td>
-                                <td class="px-4 py-2 font-medium text-gray-800">{{ $qev->distance_label }} m {{ $qev->discipline_label }}</td>
-                                <td class="px-4 py-2 text-gray-600">{{ $qev->gender_label }}</td>
-                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->age_group ?: '–' }}</td>
-                                <td class="text-right tabular-nums px-4 py-2 font-mono font-semibold text-blue-700">{{ $qev->formatted_qualifying_time }}</td>
-                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $qev->qualifying_deadline?->format('d.m.Y') ?? '–' }}</td>
+                                <x-ui.td label="WK" muted class="text-xs">{{ $qev->event_number }}</x-ui.td>
+                                <x-ui.td label="Strecke" class="font-medium text-gray-800">{{ $qev->distance_label }} m {{ $qev->discipline_label }}</x-ui.td>
+                                <x-ui.td label="Geschlecht" muted>{{ $qev->gender_label }}</x-ui.td>
+                                <x-ui.td label="Wertung" muted class="text-xs">{{ $qev->age_group ?: '–' }}</x-ui.td>
+                                <x-ui.td label="Pflichtzeit" align="right" class="tabular-nums font-mono font-semibold text-blue-700">{{ $qev->formatted_qualifying_time }}</x-ui.td>
+                                <x-ui.td label="Meldeschluss PZ" muted class="text-xs">{{ $qev->qualifying_deadline?->format('d.m.Y') ?? '–' }}</x-ui.td>
                             </tr>
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        </x-ui.table>
+</div>
             </div>
             @endif
 
@@ -1407,7 +1334,7 @@
                 </div>
 
                 @if($qualificationSwimmers->isEmpty())
-                    <p class="text-sm text-gray-400 text-center py-6">Keine Schwimmer aus zugeordneten Trainingsgruppen oder Einzelzuweisungen gefunden.</p>
+                    <p class="text-sm text-gray-600 text-center py-6">Keine Schwimmer aus zugeordneten Trainingsgruppen oder Einzelzuweisungen gefunden.</p>
                 @else
                 <div class="overflow-x-auto rounded-xl border border-gray-200">
                     <table class="text-sm w-full">
@@ -1418,7 +1345,7 @@
                                 @foreach($qualifyingEvents->unique(fn($e) => $e->discipline . '_' . $e->distance) as $qev)
                                 <th class="px-3 py-2.5 text-center font-semibold min-w-[100px]">
                                     {{ $qev->distance_label }}m {{ $qev->discipline_label }}<br>
-                                    <span class="text-gray-400 font-normal">PZ {{ $qev->formatted_qualifying_time }}</span>
+                                    <span class="text-gray-600 font-normal">PZ {{ $qev->formatted_qualifying_time }}</span>
                                 </th>
                                 @endforeach
                                 <th class="px-3 py-2.5 text-left font-semibold">Status</th>
@@ -1437,7 +1364,7 @@
                                 <td class="px-4 py-2.5 sticky left-0 bg-inherit">
                                     <span class="font-medium text-gray-800">{{ $qs->lastname }}, {{ $qs->firstname }}</span>
                                     @if($qs->gender)
-                                        <span class="text-xs text-gray-400 ml-1">{{ $qs->gender === 'M' ? '♂' : '♀' }}</span>
+                                        <span class="text-xs text-gray-600 ml-1">{{ $qs->gender === 'M' ? '♂' : '♀' }}</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2.5 text-center text-xs text-gray-500">
@@ -1459,14 +1386,14 @@
                                 @endphp
                                 <td class="px-3 py-2.5 text-center text-xs">
                                     @if(!$genderOk || !$ageOk)
-                                        <span class="text-gray-300">–</span>
+                                        <span class="text-gray-600">–</span>
                                     @elseif($bestMs !== null)
                                         <span class="font-mono {{ $qualOk ? 'text-green-700 font-semibold' : 'text-red-600' }}">
                                             {{ \App\Models\SwimmingTime::formatMs($bestMs) }}
                                         </span>
                                         <span class="{{ $qualOk ? 'text-green-700' : 'text-red-600' }} ml-0.5">{{ $qualOk ? '✓' : '✗' }}</span>
                                     @else
-                                        <span class="text-gray-300">keine</span>
+                                        <span class="text-gray-600">keine</span>
                                     @endif
                                 </td>
                                 @endforeach
@@ -1483,7 +1410,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="text-xs text-gray-400">Keine PZ</span>
+                                        <span class="text-xs text-gray-600">Keine PZ</span>
                                     @endif
                                 </td>
                             </tr>
@@ -1583,7 +1510,7 @@
                                                 <span class="text-sm font-mono text-gray-500">{{ $entry->entry_time_formatted }}</span>
                                             @endif
                                             @if($entry->competitionEvent)
-                                                <span class="text-xs text-gray-400 ml-auto">WK {{ $entry->competitionEvent->event_number }}</span>
+                                                <span class="text-xs text-gray-600 ml-auto">WK {{ $entry->competitionEvent->event_number }}</span>
                                             @endif
                                         </div>
                                     @endforeach
@@ -1596,11 +1523,11 @@
                         <svg class="mx-auto w-10 h-10 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
-                        <p class="text-sm text-gray-400">Die Meldeliste steht zur Verfügung, sobald die Anmeldeabfrage geschlossen wurde.</p>
+                        <p class="text-sm text-gray-600">Die Meldeliste steht zur Verfügung, sobald die Anmeldeabfrage geschlossen wurde.</p>
                         @if($signupRequest?->isActive())
-                            <p class="text-xs text-gray-400 mt-1">Gehe zu „Anmeldungen" und schließe die Abfrage.</p>
+                            <p class="text-xs text-gray-600 mt-1">Gehe zu „Anmeldungen" und schließe die Abfrage.</p>
                         @elseif(!$signupRequest)
-                            <p class="text-xs text-gray-400 mt-1">Starte zunächst eine Anmeldeabfrage im Tab „Anmeldungen".</p>
+                            <p class="text-xs text-gray-600 mt-1">Starte zunächst eine Anmeldeabfrage im Tab „Anmeldungen".</p>
                         @endif
                     </div>
                 @endif
@@ -1636,7 +1563,7 @@
                 </div>
 
                 @if($attending->isEmpty())
-                    <p class="text-sm text-gray-400 text-center py-6">Keine Zusagen vorhanden.</p>
+                    <p class="text-sm text-gray-600 text-center py-6">Keine Zusagen vorhanden.</p>
                 @elseif($events->isEmpty())
                     <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
                         Noch keine Wettkampffolge importiert. Lade eine <strong>*-Wk.DSV7</strong>-Datei im Tab „Import" hoch, um Strecken anzuzeigen.
@@ -1661,14 +1588,14 @@
                                             <span class="text-xs text-gray-500">Jg. {{ $user->birth_year ?? $user->birth_date?->year }}</span>
                                         @endif
                                         @if($user->dsv_id)
-                                            <span class="text-xs font-mono text-gray-400">{{ $user->dsv_id }}</span>
+                                            <span class="text-xs font-mono text-gray-600">{{ $user->dsv_id }}</span>
                                         @endif
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
                                             {{ $userEntries->count() }} Meldung(en)
                                         </span>
-                                        <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-4 h-4 text-gray-600 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                         </svg>
                                     </div>
@@ -1738,7 +1665,7 @@
                                                 <div class="flex-1 min-w-0">
                                                     <span class="text-sm font-medium text-gray-800">WK {{ $event->event_number }} · {{ $event->distance_label }}m {{ $event->discipline_label }}</span>
                                                     @if($event->age_group)
-                                                        <span class="text-xs text-gray-400 ml-1">{{ $event->age_group }}</span>
+                                                        <span class="text-xs text-gray-600 ml-1">{{ $event->age_group }}</span>
                                                     @endif
                                                 </div>
 
@@ -1751,13 +1678,13 @@
                                                         <div class="text-xs font-mono {{ $qualOk ? 'text-green-700' : 'text-orange-700' }}">
                                                             {{ \App\Models\SwimmingTime::formatMs($qualBestMs) }}
                                                         </div>
-                                                        <div class="text-xs text-gray-400">Vorschlag</div>
+                                                        <div class="text-xs text-gray-600">Vorschlag</div>
                                                     @elseif(!$entered && $allBestMs)
-                                                        <div class="text-xs font-mono text-gray-400">{{ \App\Models\SwimmingTime::formatMs($allBestMs) }}</div>
-                                                        <div class="text-xs text-gray-300">Best ges.</div>
+                                                        <div class="text-xs font-mono text-gray-600">{{ \App\Models\SwimmingTime::formatMs($allBestMs) }}</div>
+                                                        <div class="text-xs text-gray-600">Best ges.</div>
                                                     @endif
                                                     @if($event->qualifying_time_ms)
-                                                        <div class="text-xs text-gray-400">PZ: {{ $event->formatted_qualifying_time }}</div>
+                                                        <div class="text-xs text-gray-600">PZ: {{ $event->formatted_qualifying_time }}</div>
                                                     @endif
                                                 </div>
 
@@ -1781,13 +1708,13 @@
                     {{-- Nicht-Zusagen --}}
                     @php $notAttending = $signupRequest->responses->where('status', 'not_attending'); @endphp
                     @if($notAttending->isNotEmpty())
-                        <details class="text-sm text-gray-400 mt-4">
+                        <details class="text-sm text-gray-600 mt-4">
                             <summary class="cursor-pointer hover:text-gray-600 select-none">
                                 {{ $notAttending->count() }} Absage(n) anzeigen
                             </summary>
                             <ul class="mt-2 space-y-0.5 pl-4">
                                 @foreach($notAttending->sortBy(fn($r) => $r->user?->lastname) as $r)
-                                    <li>{{ $r->user?->name }}@if($r->note) <span class="text-gray-400">– {{ $r->note }}</span>@endif</li>
+                                    <li>{{ $r->user?->name }}@if($r->note) <span class="text-gray-600">– {{ $r->note }}</span>@endif</li>
                                 @endforeach
                             </ul>
                         </details>
@@ -1896,7 +1823,7 @@
                             <p class="text-xs text-gray-500">{{ $hd['venue_plz'] ?? '' }} {{ $hd['venue_city'] ?? '' }}</p>
                         @endif
                         @if($hd['venue_phone'] ?? null)
-                            <p class="text-xs text-gray-400 mt-1">{{ $hd['venue_phone'] }}</p>
+                            <p class="text-xs text-gray-600 mt-1">{{ $hd['venue_phone'] }}</p>
                         @endif
                     </div>
                     @endif
@@ -1912,10 +1839,10 @@
                             <p class="text-xs text-gray-500">{{ $hd['ausrichter_street'] }}, {{ $hd['ausrichter_plz'] ?? '' }} {{ $hd['ausrichter_city'] ?? '' }}</p>
                         @endif
                         @if($hd['ausrichter_phone'] ?? null)
-                            <p class="text-xs text-gray-400 mt-0.5">{{ $hd['ausrichter_phone'] }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">{{ $hd['ausrichter_phone'] }}</p>
                         @endif
                         @if($hd['ausrichter_email'] ?? null)
-                            <p class="text-xs text-gray-400">{{ $hd['ausrichter_email'] }}</p>
+                            <p class="text-xs text-gray-600">{{ $hd['ausrichter_email'] }}</p>
                         @endif
                     </div>
                     @endif
@@ -1938,7 +1865,7 @@
                             @endif
                             <p class="text-xs text-gray-500">{{ $hd['melde_email'] }}</p>
                             @if($hd['melde_phone'] ?? null)
-                                <p class="text-xs text-gray-400">{{ $hd['melde_phone'] }}</p>
+                                <p class="text-xs text-gray-600">{{ $hd['melde_phone'] }}</p>
                             @endif
                         </div>
                         @endif
@@ -1952,7 +1879,7 @@
                         @endif
                         <p class="text-xs font-mono text-gray-600">{{ $hd['bank_iban'] }}</p>
                         @if($hd['bank_bic'] ?? null)
-                            <p class="text-xs font-mono text-gray-400">BIC: {{ $hd['bank_bic'] }}</p>
+                            <p class="text-xs font-mono text-gray-600">BIC: {{ $hd['bank_bic'] }}</p>
                         @endif
                     </div>
                     @endif
@@ -2031,7 +1958,7 @@
                     <div class="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-gray-100">
                         <div>
                             <h3 class="font-semibold text-gray-800" x-text="parsed.competition?.name ?? 'Geparste Ausschreibung'"></h3>
-                            <p class="text-xs text-gray-400 mt-0.5"
+                            <p class="text-xs text-gray-600 mt-0.5"
                                x-text="'Geparst: ' + (parsed._meta?.parsed_at ? new Date(parsed._meta.parsed_at).toLocaleString('de-DE') : '–')"></p>
                         </div>
                         <button @click="save()"
@@ -2136,32 +2063,21 @@
                             <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
                                 <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fristen & Termine</h4>
                             </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm">
-                                    <thead class="bg-gray-50 border-b border-gray-100">
-                                        <tr>
-                                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Datum</th>
-                                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Uhrzeit</th>
-                                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Art</th>
-                                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Beschreibung</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-50">
+                            <x-ui.table :card="false" caption="Fristen und Termine"
+            :columns="['Datum', 'Uhrzeit', 'Art', 'Beschreibung']">
                                         <template x-for="(dl, i) in parsed.deadlines" :key="i">
                                             <tr :class="dl.type === 'meldeschluss_einzel' ? 'bg-amber-50' : 'hover:bg-gray-50'">
-                                                <td class="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap" x-text="fmtDate(dl.date)"></td>
-                                                <td class="px-4 py-2.5 text-gray-600 whitespace-nowrap" x-text="dl.time ?? '–'"></td>
-                                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <x-ui.td class="font-medium text-gray-800 whitespace-nowrap" x-text="fmtDate(dl.date)"></x-ui.td>
+                                                <x-ui.td muted class="whitespace-nowrap" x-text="dl.time ?? '–'"></x-ui.td>
+                                                <x-ui.td class="whitespace-nowrap">
                                                     <span :class="dl.type === 'meldeschluss_einzel' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'"
                                                           class="text-xs px-2 py-0.5 rounded-full font-medium"
                                                           x-text="deadlineLabels[dl.type] ?? dl.type"></span>
-                                                </td>
-                                                <td class="px-4 py-2.5 text-gray-600 text-xs" x-text="dl.description ?? ''"></td>
+                                                </x-ui.td>
+                                                <x-ui.td muted class="text-xs" x-text="dl.description ?? ''"></x-ui.td>
                                             </tr>
                                         </template>
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </x-ui.table>
                         </div>
                     </template>
 
@@ -2186,7 +2102,7 @@
                                             <span class="font-medium text-gray-800" x-text="c.role + ': '"></span>
                                             <span x-text="c.name"></span>
                                             <template x-if="c.email">
-                                                <span class="text-gray-400 font-mono text-xs" x-text="' (' + c.email + ')'"></span>
+                                                <span class="text-gray-600 font-mono text-xs" x-text="' (' + c.email + ')'"></span>
                                             </template>
                                         </div>
                                     </template>
@@ -2233,7 +2149,7 @@
                                         <div class="flex-1 min-w-48">
                                             <p class="text-sm text-gray-700" x-text="c.description"></p>
                                             <template x-if="c.waiver_condition">
-                                                <p class="text-xs text-gray-400 mt-0.5" x-text="'Erlass: ' + c.waiver_condition"></p>
+                                                <p class="text-xs text-gray-600 mt-0.5" x-text="'Erlass: ' + c.waiver_condition"></p>
                                             </template>
                                         </div>
                                         <div class="text-right shrink-0">
@@ -2313,32 +2229,24 @@
                                     <div>
                                         <p class="text-xs font-semibold text-gray-500 mb-2"
                                            x-text="gender === 'M' ? 'Männlich' : 'Weiblich'"></p>
-                                        <div class="overflow-x-auto">
-                                            <table class="text-xs border-collapse">
-                                                <thead>
-                                                    <tr class="bg-gray-50">
-                                                        <th class="px-2 py-1.5 text-left font-semibold text-gray-500 border border-gray-100 sticky left-0 bg-gray-50">Strecke</th>
+                                        <x-ui.table :card="false" caption="Qualifikationszeiten" class="text-xs border-collapse">
+<x-slot:head>
+                                                        <x-ui.th class="border border-gray-100 sticky left-0">Strecke</x-ui.th>
                                                         <template x-for="year in Object.keys(yearGroups)" :key="year">
-                                                            <th class="px-2 py-1.5 text-center font-semibold text-gray-500 border border-gray-100" x-text="year"></th>
+                                                            <x-ui.th align="center" class="border border-gray-100" x-text="year"></x-ui.th>
                                                         </template>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
+                                                    </x-slot:head>
                                                     <template x-for="key in ['50F','100F','200F','400F','800F','1500F','50B','100B','200B','50R','100R','200R','50S','100S','200S','200L','400L']" :key="key">
                                                         <template x-if="Object.values(yearGroups).some(y => y[key])">
                                                             <tr class="hover:bg-gray-50">
-                                                                <td class="px-2 py-1.5 font-medium text-gray-700 border border-gray-100 sticky left-0 bg-white whitespace-nowrap"
-                                                                    x-text="key.replace('F','m Fr.').replace('B','m Br.').replace('R','m Rü.').replace('S','m Sch.').replace('L','m La.')"></td>
+                                                                <x-ui.td class="font-medium text-gray-700 border border-gray-100 sticky left-0 bg-white whitespace-nowrap" x-text="key.replace('F','m Fr.').replace('B','m Br.').replace('R','m Rü.').replace('S','m Sch.').replace('L','m La.')"></x-ui.td>
                                                                 <template x-for="year in Object.keys(yearGroups)" :key="year">
-                                                                    <td class="px-2 py-1.5 text-center text-gray-700 border border-gray-100 font-mono whitespace-nowrap"
-                                                                        x-text="yearGroups[year][key] ?? '–'"></td>
+                                                                    <x-ui.td align="center" class="text-gray-700 border border-gray-100 font-mono whitespace-nowrap" x-text="yearGroups[year][key] ?? '–'"></x-ui.td>
                                                                 </template>
                                                             </tr>
                                                         </template>
                                                     </template>
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                </x-ui.table>
                                     </div>
                                 </template>
                             </div>
@@ -2353,7 +2261,7 @@
                     <svg class="mx-auto w-10 h-10 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    <p class="text-sm text-gray-400">Noch keine Ausschreibung importiert.<br>PDF oben hochladen, um Fristen, Stätte und Regeln automatisch zu extrahieren.</p>
+                    <p class="text-sm text-gray-600">Noch keine Ausschreibung importiert.<br>PDF oben hochladen, um Fristen, Stätte und Regeln automatisch zu extrahieren.</p>
                 </div>
             </template>
 
@@ -2384,17 +2292,17 @@
                     </div>
 
                     @if($catDocs->isEmpty())
-                        <p class="text-xs text-gray-400 px-4 py-3">Noch keine {{ $catLabel }}-Datei hochgeladen.</p>
+                        <p class="text-xs text-gray-600 px-4 py-3">Noch keine {{ $catLabel }}-Datei hochgeladen.</p>
                     @else
                         <ul class="divide-y divide-gray-50">
                             @foreach($catDocs as $doc)
                             <li class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                                <svg class="w-5 h-5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-medium text-gray-800 truncate">{{ $doc->original_name }}</p>
-                                    <p class="text-xs text-gray-400">
+                                    <p class="text-xs text-gray-600">
                                         {{ $doc->file_size_formatted }}
                                         · {{ $doc->created_at->deBerlin('d.m.Y H:i') }}
                                         @if($doc->createdBy) · {{ $doc->createdBy->name }} @endif

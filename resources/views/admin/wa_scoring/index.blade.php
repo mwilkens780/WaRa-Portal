@@ -99,7 +99,7 @@
                                                        placeholder="–"
                                                        class="w-20 text-center px-2 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-blue-400 font-mono {{ $entry ? 'bg-green-50 border-green-300' : '' }}">
                                             @else
-                                                <span class="text-gray-300">–</span>
+                                                <span class="text-gray-600">–</span>
                                             @endif
                                         </td>
                                     @endforeach
@@ -124,36 +124,24 @@
             <div class="px-6 py-4 border-b border-gray-100">
                 <h2 class="text-base font-semibold text-gray-800">Gespeicherte Einträge WA {{ $year }} / {{ $poolLength }}m</h2>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-100">
-                        <tr>
-                            <th class="px-4 py-2.5 text-left font-semibold">Geschlecht</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Disziplin</th>
-                            <th class="px-4 py-2.5 text-right font-semibold">Distanz</th>
-                            <th class="px-4 py-2.5 text-right font-semibold">Basiszeit</th>
-                            <th class="px-4 py-2.5"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="WA-Punktetabelle"
+            :columns="['Geschlecht', 'Disziplin', ['label' => 'Distanz', 'align' => 'right'], ['label' => 'Basiszeit', 'align' => 'right'], ['label' => 'Aktionen', 'sr' => true]]">
                         @foreach($entries as $entry)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-2 text-gray-700">{{ $entry->gender === 'M' ? 'Männer' : 'Frauen' }}</td>
-                                <td class="px-4 py-2 text-gray-700">{{ $disciplines[$entry->discipline] ?? $entry->discipline }}</td>
-                                <td class="px-4 py-2 text-right text-gray-700">{{ $entry->distance_m }} m</td>
-                                <td class="px-4 py-2 text-right font-mono text-gray-900">{{ $entry->formatted_base_time }}</td>
-                                <td class="px-4 py-2 text-right">
+                                <x-ui.td class="text-gray-700">{{ $entry->gender === 'M' ? 'Männer' : 'Frauen' }}</x-ui.td>
+                                <x-ui.td class="text-gray-700">{{ $disciplines[$entry->discipline] ?? $entry->discipline }}</x-ui.td>
+                                <x-ui.td align="right" class="text-gray-700">{{ $entry->distance_m }} m</x-ui.td>
+                                <x-ui.td align="right" class="font-mono text-gray-900">{{ $entry->formatted_base_time }}</x-ui.td>
+                                <x-ui.td align="right">
                                     <form method="POST" action="{{ route('admin.wa-scoring.destroy', $entry) }}"
                                           data-confirm="Basiszeit löschen?" data-confirm-label="Löschen" data-confirm-danger>
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-600 hover:text-red-700 text-xs">Löschen</button>
                                     </form>
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
         </div>
     @endif
 

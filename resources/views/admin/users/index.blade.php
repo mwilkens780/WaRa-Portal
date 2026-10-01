@@ -75,21 +75,8 @@
 
     {{-- Tabelle --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Name</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">E-Mail</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Rollen</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Geburtstag</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Mitglied</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Portal</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Passwort</th>
-                        <th class="px-5 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
+        <x-ui.table :card="false" caption="Benutzer" stack
+            :columns="['Name', ['label' => 'E-Mail', 'hide' => 'md'], 'Rollen', ['label' => 'Geburtstag', 'hide' => 'lg'], 'Mitglied', 'Portal', ['label' => 'Passwort', 'hide' => 'lg'], ['label' => 'Aktionen', 'sr' => true]]">
                     @forelse($users as $user)
                         @php
                             $roleColors = [
@@ -102,7 +89,7 @@
                             ];
                         @endphp
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-5 py-3">
+                            <x-ui.td label="Name">
                                 <div class="flex items-center gap-3">
                                     <div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs flex-shrink-0">
                                         {{ substr($user->firstname ?: $user->name, 0, 1) }}
@@ -111,19 +98,19 @@
                                         <span class="font-semibold text-gray-800">{{ $user->lastname }}</span>
                                         <span class="text-gray-600">, {{ $user->firstname }}</span>
                                         @if($user->membership_number)
-                                            <span class="ml-1.5 text-[10px] text-gray-400">{{ $user->membership_number }}</span>
+                                            <span class="ml-1.5 text-xs text-gray-600">{{ $user->membership_number }}</span>
                                         @endif
                                     </div>
                                 </div>
-                            </td>
-                            <td class="px-5 py-3 hidden md:table-cell">
+                            </x-ui.td>
+                            <x-ui.td label="E-Mail" hide="md">
                                 @if($user->email)
                                     <span class="text-gray-500 text-xs">{{ $user->email }}</span>
                                 @else
-                                    <span class="text-gray-300 text-xs">–</span>
+                                    <span class="text-gray-600 text-xs">–</span>
                                 @endif
-                            </td>
-                            <td class="px-5 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Rollen">
                                 <div class="flex flex-wrap gap-1">
                                     {{-- Portal-Zugang --}}
                                     @if($user->role)
@@ -138,34 +125,34 @@
                                         </span>
                                     @endforeach
                                 </div>
-                            </td>
-                            <td class="px-5 py-3 text-gray-500 text-xs hidden lg:table-cell">
+                            </x-ui.td>
+                            <x-ui.td label="Geburtstag" hide="lg" muted class="text-xs">
                                 {{ $user->birth_date ? $user->birth_date->format('d.m.Y') . ' (' . $user->age . ' J.)' : '–' }}
-                            </td>
-                            <td class="px-5 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Mitglied">
                                 @if($user->active)
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Aktives Mitglied</span>
                                 @else
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Ehemaliges Mitglied</span>
                                 @endif
-                            </td>
-                            <td class="px-5 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Portal">
                                 @php($portal = $user->portalStatus())
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $portal['tone'] }}">{{ $portal['label'] }}</span>
                                 @if($user->isPortalActivated())
-                                    <span class="block text-[11px] text-gray-400 mt-0.5">seit {{ $user->portal_activated_at->deBerlin('d.m.Y') }}</span>
+                                    <span class="block text-xs text-gray-600 mt-0.5">seit {{ $user->portal_activated_at->deBerlin('d.m.Y') }}</span>
                                 @endif
-                            </td>
-                            <td class="px-5 py-3 hidden lg:table-cell">
+                            </x-ui.td>
+                            <x-ui.td label="Passwort" hide="lg">
                                 @if($user->hasInitialPassword())
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Initialpasswort</span>
                                 @elseif($user->role)
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Geändert</span>
                                 @else
-                                    <span class="text-gray-300 text-xs">–</span>
+                                    <span class="text-gray-600 text-xs">–</span>
                                 @endif
-                            </td>
-                            <td class="px-5 py-3">
+                            </x-ui.td>
+                            <x-ui.td>
                                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1 justify-end">
                                     <a href="{{ route('admin.users.edit', $user) }}" class="text-primary hover:text-primary-dark font-medium text-xs">Bearbeiten</a>
                                     @if($user->email && $user->active && $user->portal_active)
@@ -199,19 +186,17 @@
                                         </form>
                                     @endif
                                 </div>
-                            </td>
+                            </x-ui.td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="px-5 py-8 text-center text-gray-400">Keine Benutzer gefunden.</td></tr>
+                        <tr><x-ui.td align="center" muted colspan="8">Keine Benutzer gefunden.</x-ui.td></tr>
                     @endforelse
-                </tbody>
-            </table>
-        </div>
+                </x-ui.table>
         {{-- Pagination --}}
         @if($users->hasPages())
             <div class="flex items-center justify-center gap-1 text-sm py-3 border-t border-gray-100">
                 @if($users->onFirstPage())
-                    <span class="px-3 py-1.5 rounded-lg text-gray-300 border border-gray-100">‹</span>
+                    <span class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-100">‹</span>
                 @else
                     <a href="{{ $users->previousPageUrl() }}" class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">‹</a>
                 @endif
@@ -225,7 +210,7 @@
                 @if($users->hasMorePages())
                     <a href="{{ $users->nextPageUrl() }}" class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">›</a>
                 @else
-                    <span class="px-3 py-1.5 rounded-lg text-gray-300 border border-gray-100">›</span>
+                    <span class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-100">›</span>
                 @endif
             </div>
         @endif

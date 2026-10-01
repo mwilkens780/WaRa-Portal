@@ -64,25 +64,14 @@
             </button>
             @if(array_filter($filters ?? []))
                 <a href="{{ route('admin.competitions.index') }}"
-                   class="text-sm text-gray-400 hover:text-gray-600 py-2">Zurücksetzen</a>
+                   class="text-sm text-gray-600 hover:text-gray-600 py-2">Zurücksetzen</a>
             @endif
         </div>
     </form>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Wettkampf</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Ort</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Datum</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600 hidden lg:table-cell">Typ</th>
-                        <th class="text-left px-5 py-3 font-semibold text-gray-600">Teilnehmer / Meldungen</th>
-                        <th class="px-5 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
+        <x-ui.table :card="false" caption="Wettkämpfe" stack
+            :columns="['Wettkampf', ['label' => 'Ort', 'hide' => 'md'], 'Datum', ['label' => 'Typ', 'hide' => 'lg'], 'Teilnehmer / Meldungen', ['label' => 'Aktionen', 'sr' => true]]">
                     @forelse($competitions as $comp)
                         @php
                             $typeColors = [
@@ -99,21 +88,21 @@
                             $isPast = $comp->date->isPast();
                         @endphp
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-5 py-3">
+                            <x-ui.td label="Wettkampf">
                                 <a href="{{ route('admin.competitions.show', $comp) }}"
                                    class="font-medium text-primary hover:underline">{{ $comp->name }}</a>
                                 @if(!$isPast)
                                     <span class="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">bevorstehend</span>
                                 @endif
-                            </td>
-                            <td class="px-5 py-3 text-gray-500 hidden md:table-cell">{{ $comp->location }}</td>
-                            <td class="px-5 py-3 text-gray-600">{{ $comp->date_range }}</td>
-                            <td class="px-5 py-3 hidden lg:table-cell">
+                            </x-ui.td>
+                            <x-ui.td label="Ort" hide="md" muted>{{ $comp->location }}</x-ui.td>
+                            <x-ui.td label="Datum" muted>{{ $comp->date_range }}</x-ui.td>
+                            <x-ui.td label="Typ" hide="lg">
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$comp->type] ?? 'bg-gray-100 text-gray-600' }}">
                                     {{ $comp->type_label }}
                                 </span>
-                            </td>
-                            <td class="px-5 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Teilnehmer / Meldungen">
                                 <div class="flex flex-wrap gap-1.5">
                                     @if($comp->participants_count > 0)
                                         <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium"
@@ -130,11 +119,11 @@
                                         </span>
                                     @endif
                                     @if($comp->participants_count == 0 && $comp->entries_count == 0)
-                                        <span class="text-xs text-gray-300">–</span>
+                                        <span class="text-xs text-gray-600">–</span>
                                     @endif
                                 </div>
-                            </td>
-                            <td class="px-5 py-3">
+                            </x-ui.td>
+                            <x-ui.td>
                                 <div class="flex items-center gap-3 justify-end">
                                     <a href="{{ route('admin.competitions.show', $comp) }}"
                                        class="text-primary hover:text-primary-dark text-xs font-medium">Details</a>
@@ -148,20 +137,18 @@
                                         </form>
                                     @endif
                                 </div>
-                            </td>
+                            </x-ui.td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">Keine Wettkämpfe gefunden.</td></tr>
+                        <tr><x-ui.td align="center" muted colspan="6">Keine Wettkämpfe gefunden.</x-ui.td></tr>
                     @endforelse
-                </tbody>
-            </table>
-        </div>
+                </x-ui.table>
         @if($competitions->hasPages())
             <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between gap-4 text-sm">
-                <span class="text-gray-400">{{ $competitions->total() }} Einträge</span>
+                <span class="text-gray-600">{{ $competitions->total() }} Einträge</span>
                 <div class="flex items-center gap-1">
                     @if($competitions->onFirstPage())
-                        <span class="px-3 py-1.5 rounded-lg text-gray-300 border border-gray-100">‹</span>
+                        <span class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-100">‹</span>
                     @else
                         <a href="{{ $competitions->previousPageUrl() }}" class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">‹</a>
                     @endif
@@ -177,7 +164,7 @@
                     @if($competitions->hasMorePages())
                         <a href="{{ $competitions->nextPageUrl() }}" class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">›</a>
                     @else
-                        <span class="px-3 py-1.5 rounded-lg text-gray-300 border border-gray-100">›</span>
+                        <span class="px-3 py-1.5 rounded-lg text-gray-600 border border-gray-100">›</span>
                     @endif
                 </div>
             </div>

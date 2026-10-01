@@ -109,7 +109,7 @@
                     <dl class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
                         @foreach($userData['profil'] as $key => $value)
                         @if($value !== null && $value !== '')
-                        <dt class="text-gray-400 font-medium">{{ $key }}</dt>
+                        <dt class="text-gray-600 font-medium">{{ $key }}</dt>
                         <dd class="text-gray-700 break-all">{{ is_bool($value) ? ($value ? 'ja' : 'nein') : $value }}</dd>
                         @endif
                         @endforeach
@@ -134,29 +134,19 @@
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">
                         Trainingsanwesenheit ({{ count($userData['trainings_anwesenheit']) }} Einträge)
                     </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="text-left px-2 py-1 text-gray-500">Datum</th>
-                                    <th class="text-left px-2 py-1 text-gray-500">Einheit</th>
-                                    <th class="text-left px-2 py-1 text-gray-500">Anwesend</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
+                    <x-ui.table :card="false" caption="Gespeicherte Daten" stack class="text-xs"
+            :columns="['Datum', 'Einheit', 'Anwesend']">
                                 @foreach(array_slice($userData['trainings_anwesenheit'], 0, 50) as $a)
                                 <tr>
-                                    <td class="px-2 py-1 text-gray-500">{{ isset($a['session']) ? \Carbon\Carbon::parse($a['session']['date'])->format('d.m.Y') : '—' }}</td>
-                                    <td class="px-2 py-1 text-gray-700">{{ $a['session']['title'] ?? '—' }}</td>
-                                    <td class="px-2 py-1">{{ $a['attended'] ? '✓' : '✗' }}</td>
+                                    <x-ui.td label="Datum" muted>{{ isset($a['session']) ? \Carbon\Carbon::parse($a['session']['date'])->format('d.m.Y') : '—' }}</x-ui.td>
+                                    <x-ui.td label="Einheit" class="text-gray-700">{{ $a['session']['title'] ?? '—' }}</x-ui.td>
+                                    <x-ui.td label="Anwesend">{{ $a['attended'] ? '✓' : '✗' }}</x-ui.td>
                                 </tr>
                                 @endforeach
                                 @if(count($userData['trainings_anwesenheit']) > 50)
-                                    <tr><td colspan="3" class="px-2 py-1 text-gray-400 italic">… {{ count($userData['trainings_anwesenheit']) - 50 }} weitere Einträge nicht angezeigt</td></tr>
+                                    <tr><x-ui.td muted class="italic" colspan="3">… {{ count($userData['trainings_anwesenheit']) - 50 }} weitere Einträge nicht angezeigt</x-ui.td></tr>
                                 @endif
-                            </tbody>
-                        </table>
-                    </div>
+                            </x-ui.table>
                 </div>
                 @endif
 
@@ -166,29 +156,19 @@
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">
                         Wettkampfergebnisse ({{ count($userData['wettkampf_ergebnisse']) }} Einträge)
                     </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="text-left px-2 py-1 text-gray-500">Wettkampf</th>
-                                    <th class="text-left px-2 py-1 text-gray-500">Disziplin</th>
-                                    <th class="text-left px-2 py-1 text-gray-500">Zeit</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
+                    <x-ui.table :card="false" caption="Protokoll" stack class="text-xs"
+            :columns="['Wettkampf', 'Disziplin', 'Zeit']">
                                 @foreach(array_slice($userData['wettkampf_ergebnisse'], 0, 50) as $r)
                                 <tr>
-                                    <td class="px-2 py-1 text-gray-500">{{ $r['competition']['name'] ?? '—' }}</td>
-                                    <td class="px-2 py-1 text-gray-700">{{ $r['discipline'] ?? '' }} {{ $r['distance'] ?? '' }}m</td>
-                                    <td class="px-2 py-1 text-right font-mono tabular-nums">{{ $r['time_ms'] ? \App\Models\SwimmingTime::formatMs($r['time_ms']) : '—' }}</td>
+                                    <x-ui.td label="Wettkampf" muted>{{ $r['competition']['name'] ?? '—' }}</x-ui.td>
+                                    <x-ui.td label="Disziplin" class="text-gray-700">{{ $r['discipline'] ?? '' }} {{ $r['distance'] ?? '' }}m</x-ui.td>
+                                    <x-ui.td label="Zeit" align="right" class="font-mono tabular-nums">{{ $r['time_ms'] ? \App\Models\SwimmingTime::formatMs($r['time_ms']) : '—' }}</x-ui.td>
                                 </tr>
                                 @endforeach
                                 @if(count($userData['wettkampf_ergebnisse']) > 50)
-                                    <tr><td colspan="3" class="px-2 py-1 text-gray-400 italic">… {{ count($userData['wettkampf_ergebnisse']) - 50 }} weitere Einträge nicht angezeigt</td></tr>
+                                    <tr><x-ui.td muted class="italic" colspan="3">… {{ count($userData['wettkampf_ergebnisse']) - 50 }} weitere Einträge nicht angezeigt</x-ui.td></tr>
                                 @endif
-                            </tbody>
-                        </table>
-                    </div>
+                            </x-ui.table>
                 </div>
                 @endif
 
@@ -206,7 +186,7 @@
 
             </div>
             @else
-            <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-600">
                 @if($dsgvoRequest->user_id)
                     Nutzer konnte nicht gefunden werden (evtl. bereits anonymisiert).
                 @else

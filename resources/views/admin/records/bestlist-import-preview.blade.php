@@ -59,25 +59,21 @@
                     <div class="bg-gray-50 px-5 py-1.5 text-xs font-semibold text-gray-600">
                         {{ $dist }} m {{ $discLabels[$disc] ?? $disc }} · {{ $rows->count() }} Zeiten
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm table-fixed min-w-[520px]">
-                            <colgroup><col><col class="w-24"><col class="w-28"><col class="w-20"></colgroup>
-                            <tbody class="divide-y divide-gray-50">
+                    <x-ui.table :card="false" caption="Vorschau Bestenliste" class="table-fixed min-w-[520px]"
+            :columns="[]">
                                 @foreach($rows->sortBy('time_ms') as $e)
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-5 py-1.5 text-gray-800 truncate">{{ $e['swimmer_name'] }}</td>
-                                        <td class="px-5 py-1.5 text-xs {{ $e['birth_year'] ? 'text-gray-500' : 'text-amber-700' }}">
+                                        <x-ui.td class="text-gray-800 truncate">{{ $e['swimmer_name'] }}</x-ui.td>
+                                        <x-ui.td class="text-xs {{ $e['birth_year'] ? 'text-gray-500' : 'text-amber-700' }}">
                                             {{ $e['birth_year'] ?? 'Jahrgang fehlt' }}
-                                        </td>
-                                        <td class="px-5 py-1.5 text-right tabular-nums font-mono text-gray-700">
+                                        </x-ui.td>
+                                        <x-ui.td align="right" class="tabular-nums font-mono text-gray-700">
                                             {{ \App\Models\SwimmingTime::formatMs($e['time_ms']) }}
-                                        </td>
-                                        <td class="px-5 py-1.5 text-xs text-gray-500">{{ $e['set_year'] ?? '–' }}</td>
+                                        </x-ui.td>
+                                        <x-ui.td muted class="text-xs">{{ $e['set_year'] ?? '–' }}</x-ui.td>
                                     </tr>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                            </x-ui.table>
                 </div>
             @endforeach
         </div>

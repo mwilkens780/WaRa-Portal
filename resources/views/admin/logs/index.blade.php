@@ -78,37 +78,27 @@
         </form>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-xs uppercase text-gray-500 tracking-wide border-b border-gray-100">
-                        <tr>
-                            <th class="px-4 py-2.5 text-left font-semibold">Zeitpunkt</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Benutzer</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Aktion</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Objekt</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Änderungen</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Fehlerprotokoll"
+            :columns="['Zeitpunkt', 'Benutzer', 'Aktion', 'Objekt', 'Änderungen']">
                         @forelse($transactions as $tx)
                             <tr class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
-                                <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
+                                <x-ui.td muted class="text-xs whitespace-nowrap">
                                     {{ $tx->created_at->deBerlin('d.m.Y H:i:s') }}
-                                </td>
-                                <td class="px-4 py-2.5 text-gray-700 text-xs">{{ $tx->user_name }}</td>
-                                <td class="px-4 py-2.5">
+                                </x-ui.td>
+                                <x-ui.td class="text-gray-700 text-xs">{{ $tx->user_name }}</x-ui.td>
+                                <x-ui.td>
                                     <span class="px-2 py-0.5 rounded text-xs font-semibold {{ $tx->action_color }}">
                                         {{ $tx->action_label }}
                                     </span>
-                                </td>
-                                <td class="px-4 py-2.5 text-xs">
+                                </x-ui.td>
+                                <x-ui.td class="text-xs">
                                     <span class="font-medium text-gray-700">{{ $tx->model_type }}</span>
-                                    <span class="text-gray-400"> #{{ $tx->model_id }}</span>
+                                    <span class="text-gray-600"> #{{ $tx->model_id }}</span>
                                     @if($tx->model_label)
                                         <br><span class="text-gray-500">{{ $tx->model_label }}</span>
                                     @endif
-                                </td>
-                                <td class="px-4 py-2.5 text-xs max-w-xs">
+                                </x-ui.td>
+                                <x-ui.td class="text-xs max-w-xs">
                                     @if($tx->changes)
                                         <button @click="open=!open" class="text-blue-600 hover:text-blue-800 underline text-xs">
                                             <span x-text="open ? 'Ausblenden' : 'Details'">Details</span>
@@ -121,7 +111,7 @@
                                                         @if(isset($tx->changes['before'][$field]))
                                                             @php $bv = $tx->changes['before'][$field]; $bv = is_array($bv) ? json_encode($bv) : (string) $bv; @endphp
                                                             <span class="line-through text-red-600">{{ Str::limit($bv, 40) }}</span>
-                                                            <span class="text-gray-400">→</span>
+                                                            <span class="text-gray-600">→</span>
                                                         @endif
                                                         @php $nv = is_array($newVal) ? json_encode($newVal) : (string) $newVal; @endphp
                                                         <span class="text-green-700">{{ Str::limit($nv, 60) }}</span>
@@ -130,16 +120,14 @@
                                             @endif
                                         </div>
                                     @else
-                                        <span class="text-gray-400">–</span>
+                                        <span class="text-gray-600">–</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Keine Einträge gefunden.</td></tr>
+                            <tr><x-ui.td align="center" muted colspan="5">Keine Einträge gefunden.</x-ui.td></tr>
                         @endforelse
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
             @if($transactions->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">{{ $transactions->links() }}</div>
             @endif
@@ -155,7 +143,7 @@
             <button type="submit" class="px-4 py-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
                 Löschen
             </button>
-            <span class="text-xs text-gray-400">Datum leer lassen = alle Einträge löschen</span>
+            <span class="text-xs text-gray-600">Datum leer lassen = alle Einträge löschen</span>
         </form>
     </div>
 
@@ -192,29 +180,20 @@
         </form>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-xs uppercase text-gray-500 tracking-wide border-b border-gray-100">
-                        <tr>
-                            <th class="px-4 py-2.5 text-left font-semibold">Zeitpunkt</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Level</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Meldung</th>
-                            <th class="px-4 py-2.5 text-left font-semibold">Kontext</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Protokolleinträge"
+            :columns="['Zeitpunkt', 'Level', 'Meldung', 'Kontext']">
                         @forelse($traces as $trace)
                             <tr class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
-                                <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
+                                <x-ui.td muted class="text-xs whitespace-nowrap">
                                     {{ $trace->created_at->deBerlin('d.m.Y H:i:s') }}
-                                </td>
-                                <td class="px-4 py-2.5">
+                                </x-ui.td>
+                                <x-ui.td>
                                     <span class="px-2 py-0.5 rounded text-xs font-semibold {{ $trace->level_color }}">
                                         {{ $trace->level_label }}
                                     </span>
-                                </td>
-                                <td class="px-4 py-2.5 text-gray-700 text-xs max-w-sm">{{ $trace->message }}</td>
-                                <td class="px-4 py-2.5 text-xs">
+                                </x-ui.td>
+                                <x-ui.td class="text-gray-700 text-xs max-w-sm">{{ $trace->message }}</x-ui.td>
+                                <x-ui.td class="text-xs">
                                     @if($trace->context)
                                         <button @click="open=!open" class="text-blue-600 hover:text-blue-800 underline text-xs">
                                             <span x-text="open ? 'Ausblenden' : 'Details'">Details</span>
@@ -229,16 +208,14 @@
                                             @endforeach
                                         </div>
                                     @else
-                                        <span class="text-gray-400">–</span>
+                                        <span class="text-gray-600">–</span>
                                     @endif
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Keine Trace-Einträge gefunden.</td></tr>
+                            <tr><x-ui.td align="center" muted colspan="4">Keine Trace-Einträge gefunden.</x-ui.td></tr>
                         @endforelse
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
             @if($traces->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">{{ $traces->links() }}</div>
             @endif
@@ -254,7 +231,7 @@
             <button type="submit" class="px-4 py-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
                 Löschen
             </button>
-            <span class="text-xs text-gray-400">Datum leer lassen = alle Einträge löschen</span>
+            <span class="text-xs text-gray-600">Datum leer lassen = alle Einträge löschen</span>
         </form>
     </div>
 

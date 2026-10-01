@@ -26,56 +26,45 @@
     @endif
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b border-gray-100">
-                <tr>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Anfragender</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Art</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Eingegangen</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Frist</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                    <th class="px-5 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
+        <x-ui.table :card="false" caption="DSGVO-Übersicht" stack
+            :columns="['Anfragender', 'Art', ['label' => 'Eingegangen', 'hide' => 'md'], ['label' => 'Frist', 'hide' => 'lg'], 'Status', ['label' => 'Aktionen', 'sr' => true]]">
                 @forelse($requests as $req)
                 <tr class="hover:bg-gray-50 transition-colors {{ $req->isOverdue() ? 'bg-red-50/30' : '' }}">
-                    <td class="px-5 py-3">
+                    <x-ui.td label="Anfragender">
                         <p class="font-medium text-gray-800">{{ $req->requester_name }}</p>
                         @if($req->user)
-                            <p class="text-xs text-gray-400">Portal-Nutzer: {{ $req->user->name }}</p>
+                            <p class="text-xs text-gray-600">Portal-Nutzer: {{ $req->user->name }}</p>
                         @endif
                         @if($req->requester_email)
-                            <p class="text-xs text-gray-400">{{ $req->requester_email }}</p>
+                            <p class="text-xs text-gray-600">{{ $req->requester_email }}</p>
                         @endif
-                    </td>
-                    <td class="px-5 py-3 text-gray-700">{{ $req->typeLabel() }}</td>
-                    <td class="px-5 py-3 text-gray-500 hidden md:table-cell">{{ $req->created_at->format('d.m.Y') }}</td>
-                    <td class="px-5 py-3 hidden lg:table-cell">
+                    </x-ui.td>
+                    <x-ui.td label="Art" class="text-gray-700">{{ $req->typeLabel() }}</x-ui.td>
+                    <x-ui.td label="Eingegangen" hide="md" muted>{{ $req->created_at->format('d.m.Y') }}</x-ui.td>
+                    <x-ui.td label="Frist" hide="lg">
                         <span class="{{ $req->isOverdue() ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
                             {{ $req->deadline()->format('d.m.Y') }}
                             @if($req->isOverdue()) ⚠️ @endif
                         </span>
-                    </td>
-                    <td class="px-5 py-3">
+                    </x-ui.td>
+                    <x-ui.td label="Status">
                         <span class="text-xs font-medium px-2 py-1 rounded-full {{ $req->statusColor() }}">
                             {{ $req->statusLabel() }}
                         </span>
-                    </td>
-                    <td class="px-5 py-3 text-right">
+                    </x-ui.td>
+                    <x-ui.td align="right">
                         <a href="{{ route('admin.dsgvo.show', $req) }}"
                            class="text-primary hover:text-primary-dark text-xs font-medium">Öffnen →</a>
-                    </td>
+                    </x-ui.td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-5 py-10 text-center text-gray-400 text-sm">
+                    <x-ui.td align="center" muted class="text-sm" colspan="6">
                         Keine DSGVO-Anfragen vorhanden.
-                    </td>
+                    </x-ui.td>
                 </tr>
                 @endforelse
-            </tbody>
-        </table>
+            </x-ui.table>
     </div>
 
     {{ $requests->links() }}

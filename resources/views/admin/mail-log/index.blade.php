@@ -19,7 +19,7 @@
         <div class="flex flex-wrap gap-6 text-sm">
             @foreach(\App\Models\MailMessage::STATUS_LABELS as $key => $label)
                 <div>
-                    <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">{{ $label }}</p>
+                    <p class="text-xs text-gray-600 font-medium uppercase tracking-wide">{{ $label }}</p>
                     <p class="font-semibold text-gray-800 mt-0.5">{{ $counts[$key] ?? 0 }}</p>
                 </div>
             @endforeach
@@ -62,63 +62,47 @@
     {{-- Liste --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         @if($messages->isEmpty())
-            <p class="px-5 py-12 text-center text-sm text-gray-400">Keine Einträge.</p>
+            <p class="px-5 py-12 text-center text-sm text-gray-600">Keine Einträge.</p>
         @else
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm table-fixed min-w-[900px]">
-                <colgroup>
-                    <col class="w-36"><col class="w-56"><col class="w-40"><col><col class="w-28"><col class="w-24">
-                </colgroup>
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <th class="text-left px-4 py-3">Zeitpunkt</th>
-                        <th class="text-left px-4 py-3">Empfänger</th>
-                        <th class="text-left px-4 py-3">Thema</th>
-                        <th class="text-left px-4 py-3">Betreff / Hinweis</th>
-                        <th class="text-left px-4 py-3">Status</th>
-                        <th class="px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
+        <x-ui.table :card="false" caption="Mailprotokoll" stack class="table-fixed min-w-[900px]"
+            :columns="[['label' => 'Zeitpunkt', 'class' => 'w-36'], ['label' => 'Empfänger', 'class' => 'w-56'], ['label' => 'Thema', 'class' => 'w-40'], 'Betreff / Hinweis', ['label' => 'Status', 'class' => 'w-28'], ['label' => 'Aktionen', 'sr' => true, 'class' => 'w-24']]">
                     @foreach($messages as $message)
                         <tr class="hover:bg-gray-50 align-top">
-                            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+                            <x-ui.td label="Zeitpunkt" muted class="whitespace-nowrap">
                                 {{ ($message->sent_at ?? $message->created_at)?->deBerlin('d.m.Y H:i') }}
-                            </td>
-                            <td class="px-4 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Empfänger">
                                 <p class="text-gray-800 truncate" title="{{ $message->recipient_email }}">
                                     {{ $message->recipient_name ?? $message->recipient_email }}
                                 </p>
-                                <p class="text-xs text-gray-400 truncate">{{ $message->recipient_email }}</p>
+                                <p class="text-xs text-gray-600 truncate">{{ $message->recipient_email }}</p>
                                 @if($message->wasRedirected())
                                     <p class="text-xs text-amber-700 mt-0.5">umgeleitet an {{ $message->sent_to }}</p>
                                 @endif
-                            </td>
-                            <td class="px-4 py-3 text-gray-600 text-xs">{{ $message->topicLabel() }}</td>
-                            <td class="px-4 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Thema" muted class="text-xs">{{ $message->topicLabel() }}</x-ui.td>
+                            <x-ui.td label="Betreff / Hinweis">
                                 <p class="text-gray-700 truncate" title="{{ $message->subject }}">{{ $message->subject }}</p>
                                 @if($message->error)
                                     <p class="text-xs text-red-600 mt-0.5">{{ \Illuminate\Support\Str::limit($message->error, 140) }}</p>
                                 @endif
-                            </td>
-                            <td class="px-4 py-3">
+                            </x-ui.td>
+                            <x-ui.td label="Status">
                                 <span class="text-xs font-medium px-2.5 py-1 rounded-full {{ $message->statusBadge() }}">
                                     {{ $message->statusLabel() }}
                                 </span>
-                            </td>
-                            <td class="px-4 py-3 text-right">
+                            </x-ui.td>
+                            <x-ui.td align="right">
                                 @if($message->status === 'failed' && $message->mailable)
                                     <form method="POST" action="{{ route('admin.mail-log.retry', $message) }}">
                                         @csrf
                                         <button type="submit" class="text-xs text-primary hover:underline">erneut senden</button>
                                     </form>
                                 @endif
-                            </td>
+                            </x-ui.td>
                         </tr>
                     @endforeach
-                </tbody>
-            </table>
-        </div>
+                </x-ui.table>
         <div class="px-5 py-4 border-t border-gray-100">{{ $messages->links() }}</div>
         @endif
     </div>

@@ -59,23 +59,23 @@
                             <div class="flex items-center gap-2">
                                 <p class="text-sm font-bold text-gray-800">{{ $info['label'] }}</p>
                                 @if($cfgEnabled)
-                                    <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Aktiv</span>
+                                    <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Aktiv</span>
                                 @else
-                                    <span class="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-medium">Inaktiv</span>
+                                    <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-medium">Inaktiv</span>
                                 @endif
                             </div>
-                            <p class="text-[10px] text-gray-400 mt-0.5">{{ $info['schedule'] }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">{{ $info['schedule'] }}</p>
                         </div>
                         @if($last)
                             @if($lastStatus === 'success')
-                                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt OK</span>
+                                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt OK</span>
                             @elseif($lastStatus === 'error')
-                                <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt Fehler</span>
+                                <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Zuletzt Fehler</span>
                             @else
-                                <span class="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Übersprungen</span>
+                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Übersprungen</span>
                             @endif
                         @else
-                            <span class="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Nie gelaufen</span>
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Nie gelaufen</span>
                         @endif
                     </div>
 
@@ -85,7 +85,7 @@
                             <span class="font-medium text-gray-700">Letzter Eintrag:</span>
                             {{ $last->imported_at?->format('d.m.Y H:i') ?? '–' }}
                             @if($last->message)
-                                <br><span class="text-gray-400 italic">{{ Str::limit($last->message, 120) }}</span>
+                                <br><span class="text-gray-600 italic">{{ Str::limit($last->message, 120) }}</span>
                             @endif
                         </div>
                     @endif
@@ -93,7 +93,7 @@
                     {{-- Statistik --}}
                     <div class="flex gap-3 text-xs">
                         <span class="text-green-700 font-semibold">{{ number_format($info['count_success']) }} importiert</span>
-                        <span class="text-gray-400">{{ number_format($info['count_skipped']) }} übersprungen</span>
+                        <span class="text-gray-600">{{ number_format($info['count_skipped']) }} übersprungen</span>
                         @if($info['count_errors'] > 0)
                             <span class="text-red-600 font-semibold">{{ $info['count_errors'] }} Fehler</span>
                         @endif
@@ -101,25 +101,25 @@
 
                     {{-- Index-URL --}}
                     @if($info['url'])
-                        <a href="{{ $info['url'] }}" target="_blank" class="text-[10px] text-primary hover:underline truncate">
+                        <a href="{{ $info['url'] }}" target="_blank" class="text-xs text-primary hover:underline truncate">
                             {{ $info['url'] }}
                         </a>
                     @endif
 
                     {{-- Hinweis --}}
                     @if(!empty($info['note']))
-                        <p class="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">{{ $info['note'] }}</p>
+                        <p class="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">{{ $info['note'] }}</p>
                     @endif
 
                     {{-- WebClub: GitHub-Actions-Hinweis --}}
                     @if(!empty($info['is_webclub']))
                         @php $wcToken = \App\Models\Setting::getCached('crawler.webclub.import_token', ''); @endphp
                         @if(!$wcToken)
-                            <p class="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+                            <p class="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
                                 Import-Token fehlt – bitte in der Konfig eintragen und als GitHub Secret <code class="font-mono">WEBCLUB_IMPORT_TOKEN</code> hinterlegen.
                             </p>
                         @else
-                            <p class="text-[10px] text-green-700 bg-green-50 rounded px-2 py-1">
+                            <p class="text-xs text-green-700 bg-green-50 rounded px-2 py-1">
                                 Import-Token konfiguriert · Daten kommen via GitHub Actions
                             </p>
                         @endif
@@ -175,7 +175,7 @@
 
                         <div class="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
                             <p class="text-xs font-medium text-blue-800">Zeitplan &amp; Zugangsdaten werden via GitHub Secrets verwaltet</p>
-                            <p class="text-[10px] text-blue-600 mt-1">
+                            <p class="text-xs text-blue-600 mt-1">
                                 Secrets: <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_BASE_URL</code>
                                 <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_USERNAME</code>
                                 <code class="bg-blue-100 px-0.5 rounded">WEBCLUB_PASSWORD</code>
@@ -187,7 +187,7 @@
                         <div x-data="{ tok: '{{ \App\Models\Setting::getCached('crawler.webclub.import_token', '') }}' }">
                             <label class="text-xs font-medium text-gray-700 block mb-1">
                                 Import-Token
-                                <span class="text-[10px] font-normal text-gray-400">→ identisch als GitHub Secret WEBCLUB_IMPORT_TOKEN eintragen</span>
+                                <span class="text-xs font-normal text-gray-600">→ identisch als GitHub Secret WEBCLUB_IMPORT_TOKEN eintragen</span>
                             </label>
                             <div class="flex gap-2">
                                 <input type="text" name="import_token" x-model="tok"
@@ -259,7 +259,7 @@
                                 <input aria-label="Rückschau (Jahre)" type="number" name="lookback_years" min="0" max="25"
                                        value="{{ $info['cfg_lookback_years'] ?? 1 }}"
                                        class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500">
-                                <p class="text-[10px] text-gray-400 mt-1 leading-snug">
+                                <p class="text-xs text-gray-600 mt-1 leading-snug">
                                     0 = nur laufendes Jahr, 1 = zusätzlich das Vorjahr.
                                     Jeder Lauf lädt auch bereits importierte Wettkämpfe erneut,
                                     damit gelöschte Ergebnisse zurückkommen — ein hoher Wert
@@ -277,7 +277,7 @@
                                                    {{ in_array($state['id'], $info['cfg_state_ids']) ? 'checked' : '' }}
                                                    class="w-3.5 h-3.5 rounded text-primary border-gray-300">
                                             <span class="text-xs text-gray-700">{{ $state['name'] }}</span>
-                                            <span class="text-[10px] text-gray-400">{{ $state['short'] }}</span>
+                                            <span class="text-xs text-gray-600">{{ $state['short'] }}</span>
                                         </label>
                                     @endforeach
                                 </div>
@@ -346,29 +346,18 @@
                 <svg class="mx-auto w-10 h-10 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
-                <p class="text-sm text-gray-400">Keine Import-Einträge gefunden.</p>
-                <p class="text-xs text-gray-300 mt-1">Wenn noch nie Einträge vorhanden waren, haben die Crawler noch nicht gelaufen oder der Cron ist nicht aktiv.</p>
+                <p class="text-sm text-gray-600">Keine Import-Einträge gefunden.</p>
+                <p class="text-xs text-gray-600 mt-1">Wenn noch nie Einträge vorhanden waren, haben die Crawler noch nicht gelaufen oder der Cron ist nicht aktiv.</p>
             </div>
         @else
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Zeitpunkt</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Quelle</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Datei / ID</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Wettkampf</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Meldung</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
+            <x-ui.table :card="false" caption="Importprotokoll" stack
+            :columns="['Zeitpunkt', 'Status', 'Quelle', 'Datei / ID', 'Wettkampf', 'Meldung']">
                         @foreach($logs as $log)
                             <tr class="hover:bg-gray-50 {{ $log->isError() ? 'bg-red-50/40' : '' }}">
-                                <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
+                                <x-ui.td label="Zeitpunkt" muted class="text-xs whitespace-nowrap">
                                     {{ $log->imported_at?->format('d.m.Y H:i') ?? '–' }}
-                                </td>
-                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                </x-ui.td>
+                                <x-ui.td label="Status" class="whitespace-nowrap">
                                     @if($log->isSuccess())
                                         <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Erfolg</span>
                                     @elseif($log->isSkipped())
@@ -376,11 +365,11 @@
                                     @else
                                         <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Fehler</span>
                                     @endif
-                                </td>
-                                <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">
+                                </x-ui.td>
+                                <x-ui.td label="Quelle" muted class="text-xs whitespace-nowrap">
                                     {{ ['shsv' => 'SHSV', 'nsv' => 'NSV', 'dsvdata' => 'DSV-Daten', 'dsv' => 'DSV National', 'webclub_batch' => 'WebClub-Batch', 'manual' => 'Manuell'][$log->source] ?? $log->source }}
-                                </td>
-                                <td class="px-4 py-2.5 text-xs max-w-[200px]">
+                                </x-ui.td>
+                                <x-ui.td label="Datei / ID" class="text-xs max-w-[200px]">
                                     @if($log->source_url)
                                         <a href="{{ $log->source_url }}" target="_blank" class="text-primary hover:underline font-mono break-all">
                                             {{ $log->filename ?? basename($log->source_url) }}
@@ -388,24 +377,22 @@
                                     @else
                                         <span class="text-gray-500 font-mono">{{ $log->filename ?? '–' }}</span>
                                     @endif
-                                </td>
-                                <td class="px-4 py-2.5 text-xs">
+                                </x-ui.td>
+                                <x-ui.td label="Wettkampf" class="text-xs">
                                     @if($log->competition)
                                         <a href="{{ route('admin.competitions.show', $log->competition) }}" class="text-primary underline underline-offset-2 hover:no-underline">
                                             {{ $log->competition->name }}
                                         </a>
                                     @else
-                                        <span class="text-gray-400">–</span>
+                                        <span class="text-gray-600">–</span>
                                     @endif
-                                </td>
-                                <td class="px-4 py-2.5 text-xs text-gray-500 max-w-xs whitespace-pre-wrap break-words">
+                                </x-ui.td>
+                                <x-ui.td label="Meldung" muted class="text-xs max-w-xs whitespace-pre-wrap break-words">
                                     {{ $log->message ?? '' }}
-                                </td>
+                                </x-ui.td>
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </x-ui.table>
 
             <div class="px-4 py-3 border-t border-gray-100">
                 {{ $logs->links() }}
