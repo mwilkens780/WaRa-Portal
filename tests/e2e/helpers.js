@@ -68,6 +68,9 @@ export async function layoutProblems(page) {
             }
         }
         for (const card of document.querySelectorAll('main .rounded-xl')) {
+            // Gewollt scrollende Flaechen (z. B. Umschalter mit overflow-x-auto) - Inhalt ragt nicht, er scrollt.
+            // overflow-hidden dagegen schneidet ab: das bleibt ein Befund.
+            if (['auto', 'scroll'].includes(getComputedStyle(card).overflowX)) continue;
             const cr = card.getBoundingClientRect();
             for (const e of card.querySelectorAll('a, button, input, select, textarea, p, span, td, th, h2, h3')) {
                 if (!visible(e)) continue;

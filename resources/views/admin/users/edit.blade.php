@@ -35,7 +35,7 @@
 
     {{-- Zugang: Willkommensmail und Passwort --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
+        <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
             <div>
                 <p class="text-sm font-semibold text-gray-800">Willkommensmail verschicken</p>
                 <p class="text-xs text-gray-500 mt-0.5">
@@ -73,7 +73,7 @@
             </p>
         @endif
 
-        <div class="px-5 py-4 flex items-center justify-between gap-4">
+        <div class="px-5 py-4 flex flex-wrap items-center justify-between gap-4">
             <div>
                 <p class="text-sm font-semibold text-gray-800">Neues Initialpasswort generieren</p>
                 <p class="text-xs text-gray-500 mt-0.5">

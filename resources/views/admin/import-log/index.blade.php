@@ -54,7 +54,7 @@
                 <div class="p-4 flex flex-col gap-3 flex-1">
 
                     {{-- Header --}}
-                    <div class="flex items-start justify-between gap-2">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
                         <div>
                             <div class="flex items-center gap-2">
                                 <p class="text-sm font-bold text-gray-800">{{ $info['label'] }}</p>
