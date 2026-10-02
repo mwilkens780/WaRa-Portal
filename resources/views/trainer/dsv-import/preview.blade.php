@@ -119,7 +119,11 @@
                         <label class="block text-xs font-medium text-gray-700 mb-1" for="dsv-course-{{ $mi }}">Bahnlänge <span class="text-red-600">*</span></label>
                         <select name="comp_course" id="dsv-course-{{ $mi }}"
                                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                            <option value="Kurzbahn" {{ ($meet['course'] ?? 'Kurzbahn') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
+                            {{-- Steht die Bahnlaenge nicht in der Datei: bewusst waehlen lassen statt Kurzbahn vorzugeben --}}
+                            @if(empty($meet['course']))
+                                <option value="" selected>Nicht in der Datei – bitte wählen</option>
+                            @endif
+                            <option value="Kurzbahn" {{ ($meet['course'] ?? '') === 'Kurzbahn' ? 'selected' : '' }}>Kurzbahn (25 m)</option>
                             <option value="Langbahn" {{ ($meet['course'] ?? '') === 'Langbahn' ? 'selected' : '' }}>Langbahn (50 m)</option>
                         </select>
                     </div>

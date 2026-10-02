@@ -11,7 +11,8 @@
     $indexRoute  = $readonly ? 'records.public' : 'admin.records.index';
 
     // Zaehler in den Reitern: Zeilen ueber alle Strecken und beide Bahnen
-    $countRows = fn($lists) => collect($lists)->flatten(2)->count();
+    // Ebenen: Bahn → Geschlecht → Strecke → Eintraege. flatten(2) zaehlte die Strecken (immer 70)
+    $countRows = fn($lists) => collect($lists)->flatten(3)->count();
     $eternalCount = $countRows($eternal);
     $annualCount  = $countRows($annual);
 @endphp

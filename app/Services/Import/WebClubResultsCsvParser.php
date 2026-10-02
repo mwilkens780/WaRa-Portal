@@ -46,7 +46,7 @@ class WebClubResultsCsvParser
         $startdate = null;
         $enddate   = null;
         $city      = '';
-        $course    = 'Kurzbahn';
+        $course    = null;   // nur was in Zeile 2 steht - keine Vorgabe "Kurzbahn"
 
         // "11.10.2025 - 12.10.2025, Kurzbahn, Kiel, ..."
         if (preg_match('/^(\d{1,2}\.\d{1,2}\.\d{4})(?:\s*-\s*(\d{1,2}\.\d{1,2}\.\d{4}))?/', $meta2, $dm)) {

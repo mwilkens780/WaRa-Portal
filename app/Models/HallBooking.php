@@ -18,6 +18,9 @@ class HallBooking extends Model
         return ['day_of_week' => 'integer'];
     }
 
+    /** Vermerk des Excel-Imports - keine Notiz fuer Menschen, wird nicht angezeigt */
+    const IMPORT_NOTE = 'Aus Hallenbelegungsplan importiert';
+
     const TYPE_LABELS = [
         'training'    => 'Training',
         'course'      => 'Kurs',
@@ -197,6 +200,11 @@ class HallBooking extends Model
             'session_title'        => $this->trainingSession?->title,
             'recurrence_group_id'  => $this->trainingSession?->recurrence_group_id,
             'notes'                => $this->notes,
+            // Tagesansicht: Trainer und Notiz statt Bezeichnung (Trainings mit Einheit, Kurse).
+            // Bei verknuepften Trainings die Trainer der Einheit/Serie, sonst der Belegung.
+            'trainer_names'        => ($this->trainingSession?->coTrainers?->map(fn($t) => trim($t->firstname . ' ' . $t->lastname))->filter()->implode(', '))
+                                      ?: $this->trainer?->name,
+            'notes_display'        => $this->notes === self::IMPORT_NOTE ? null : $this->notes,
             // Eigene Farbe: fehlte hier, der Dialog kannte sie nicht und hat
             // sie beim Speichern geloescht
             'color'                => $this->color,

@@ -43,14 +43,18 @@ class DashboardController extends Controller
             'active_swimmers'     => $mySwimmersQuery()->count(),
         ];
 
-        $recent_sessions = $mySessionsQuery()
+        // Letzte Einheiten: schon vorbei, neueste zuerst. Trainer: nur die, fuer die
+        // sie eingeteilt waren; Admins: alle (Befund 02.10.2026 - vorher standen dort
+        // die am weitesten in der Zukunft liegenden Serientermine).
+        $recent_sessions = ($isAdmin ? TrainingSession::query() : $mySessionsQuery())
+            ->finished()->takingPlace()
             ->with('trainingGroups:id,name,color')
             ->withCount([
                 'attendances as present_count' => fn($q) => $q->where('attended', true),
                 'diaries as diary_count',
                 'swimmingTimes as times_count',
             ])
-            ->orderByDesc('date')->limit(5)->get();
+            ->orderByDesc('date')->orderByDesc('start_time')->limit(5)->get();
 
         $upcoming = $mySessionsQuery()
             ->where('date', '>=', today())

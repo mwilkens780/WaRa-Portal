@@ -262,14 +262,19 @@ class DsvDataCrawler
         }
 
         // Ort und Bahnlänge
+        // Bahnlaenge nur aus eindeutigen Angaben im Kopf. Vorher: Vorgabe "Kurzbahn"
+        // und "Langbahn" schon bei "50m" - das traf auch "50m Freistil" (Befund 02.10.2026).
+        // Unbekannt bleibt leer; die Korrekturseite (Admin -> Korrekturen -> Bahnlaengen) hilft.
         $city   = '';
-        $course = 'Kurzbahn';
+        $course = null;
         foreach (array_slice($lines, 0, 15) as $line) {
             if (preg_match('/^(.+?),\s*\d/u', $line, $m)) {
                 $city = trim($m[1]);
             }
-            if (preg_match('/50\s*[mM]|[Ll]angbahn|LCM/u', $line)) {
+            if (!$course && preg_match('/\bLangbahn\b|\b50\s*m[\s-]*Bahn\b|\bLCM\b/iu', $line)) {
                 $course = 'Langbahn';
+            } elseif (!$course && preg_match('/\bKurzbahn\b|\b25\s*m[\s-]*Bahn\b|\bSCM\b/iu', $line)) {
+                $course = 'Kurzbahn';
             }
         }
 

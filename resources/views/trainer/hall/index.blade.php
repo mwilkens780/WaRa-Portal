@@ -1091,15 +1091,22 @@ function hallApp() {
                         <div x-show="b.duration_slots >= 2"
                              style="font-size:10px; padding:1px 7px"
                              x-text="b.start_time + ' – ' + b.end_time"></div>
-                        {{-- Bezeichnung der Belegung, sofern sie etwas anderes sagt
-                             als der Titel (dort steht bei Gruppen deren Name) --}}
-                        <div x-show="b.duration_slots >= 3 && b.label && b.label !== b.display_title"
+                        {{-- Trainings mit Einheit und Kurse: Trainer und Notiz - so viel, wie der Block hergibt
+                             (der Block schneidet ab; die Notiz darf umbrechen) --}}
+                        <template x-if="b.training_session_id || b.type === 'course'">
+                            <div>
+                                <div x-show="b.duration_slots >= 3 && b.trainer_names"
+                                     style="font-size:10px; padding:0 7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
+                                     x-text="b.trainer_names"></div>
+                                <div x-show="b.duration_slots >= 4 && b.notes_display"
+                                     style="font-size:10px; padding:1px 7px 0; font-style:italic; white-space:pre-line; overflow-wrap:anywhere; line-height:1.3"
+                                     x-text="b.notes_display"></div>
+                            </div>
+                        </template>
+                        {{-- Uebrige Belegungen: Bezeichnung, sofern sie etwas anderes sagt als der Titel --}}
+                        <div x-show="!(b.training_session_id || b.type === 'course') && b.duration_slots >= 3 && b.label && b.label !== b.display_title"
                              style="font-size:10px; padding:0 7px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
                              x-text="b.label"></div>
-                        {{-- Linked session icon --}}
-                        <div x-show="b.duration_slots >= 4 && b.session_title"
-                             style="font-size:10px; padding:0 7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"
-                             x-text="'▶ ' + b.session_title"></div>
                     </div>
                 </template>
             </div>

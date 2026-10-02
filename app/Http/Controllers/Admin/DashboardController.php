@@ -26,8 +26,11 @@ class DashboardController extends Controller
             'upcoming_competitions' => Competition::upcomingOrRunning()->count(),
         ];
 
+        // Letzte = schon vorbei. Nur nach Datum absteigend lieferte die am weitesten
+        // in der Zukunft liegenden Serientermine (Befund 02.10.2026).
         $recent_sessions = TrainingSession::with('coTrainers:id,firstname,lastname')
-            ->orderByDesc('date')
+            ->finished()->takingPlace()
+            ->orderByDesc('date')->orderByDesc('start_time')
             ->limit(5)
             ->get();
 

@@ -112,7 +112,7 @@ class DsvImportService
             $meetData = [
                 'name'      => (string)$meet['name'],
                 'city'      => (string)$meet['city'],
-                'course'    => strtoupper((string)($meet['course'] ?? '')) === 'LCM' ? 'Langbahn' : 'Kurzbahn',
+                'course'    => $this->lenexCourse($meet),
                 'startdate' => $startdate,
                 'enddate'   => $enddate,
                 'organizer' => (string)($meet->ORGANIZER['name'] ?? ''),
@@ -202,6 +202,24 @@ class DsvImportService
         return ['meets' => $meets];
     }
 
+    /**
+     * Bahnlaenge aus Lenex: Attribut "course" am MEET, sonst am ersten SESSION
+     * (viele Dateien fuehren sie nur je Abschnitt). LCM = Langbahn, SCM = Kurzbahn.
+     * Unbekannt = null - vorher wurde daraus stillschweigend "Kurzbahn"
+     * (Befund 02.10.2026: praktisch alle Wettkaempfe standen auf Kurzbahn).
+     */
+    private function lenexCourse(SimpleXMLElement $meet): ?string
+    {
+        $codes = [(string) ($meet['course'] ?? '')];
+        foreach ($meet->SESSIONS->SESSION ?? [] as $session) $codes[] = (string) ($session['course'] ?? '');
+        foreach ($codes as $code) {
+            $code = strtoupper(trim($code));
+            if ($code === 'LCM') return 'Langbahn';
+            if ($code === 'SCM') return 'Kurzbahn';
+        }
+        return null;
+    }
+
     private function parseMeet(SimpleXMLElement $meet): array
     {
         $startdate = (string)$meet['startdate'];
@@ -210,7 +228,7 @@ class DsvImportService
         $data = [
             'name'      => (string)$meet['name'],
             'city'      => (string)$meet['city'],
-            'course'    => strtoupper((string)($meet['course'] ?? '')) === 'LCM' ? 'Langbahn' : 'Kurzbahn',
+            'course'    => $this->lenexCourse($meet),
             'startdate' => $startdate,
             'enddate'   => $enddate,
             'events'    => [],
@@ -361,7 +379,7 @@ class DsvImportService
                 'location'    => $meet['city'] ?? '',
                 'type'        => 'regional',
                 'organizer'   => $meet['organizer'] ?? null,
-                'course'      => $meet['course'] ?? 'Kurzbahn',
+                'course'      => $meet['course'] ?? null,
                 'date_end'    => $meet['enddate'] ?? null,
                 'source_file' => basename($filePath),
                 'source_url'  => $sourceUrl,
@@ -411,7 +429,7 @@ class DsvImportService
                 'location'    => $meet['city'] ?? '',
                 'type'        => 'regional',
                 'organizer'   => $meet['organizer'] ?? null,
-                'course'      => ($meet['course'] ?? 'Kurzbahn'),
+                'course'      => $meet['course'] ?? null,
                 'date_end'    => $meet['enddate'] ?? null,
                 'source_file' => basename($filePath),
                 'source_url'  => $sourceUrl,

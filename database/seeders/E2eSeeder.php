@@ -99,6 +99,7 @@ class E2eSeeder extends Seeder
         HallBooking::create([
             'hall_resource_id' => $bahnen[1]->id, 'day_of_week' => 3, 'start_time' => '18:00', 'end_time' => '19:00',
             'label' => 'Kurs Seepferdchen', 'type' => 'course', 'created_by_id' => $admin->id,
+            'trainer_id' => $trainer->id, 'notes' => "Eltern bitte am Beckenrand warten.\nSchwimmbrillen mitbringen.",
         ]);
 
         // Wettkaempfe: vergangen (mit Ergebnis) und kommend (fuer Zusammenfuehren im DSV-Import)

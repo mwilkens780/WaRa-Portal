@@ -68,7 +68,7 @@ class Dsv7Parser
             'meets' => [[
                 'name'      => $meta['name'] ?? '',
                 'city'      => $meta['city'] ?? '',
-                'course'    => $meta['course'] ?? 'Kurzbahn',
+                'course'    => $meta['course'] ?? null,
                 'startdate' => $startdate,
                 'enddate'   => $enddate,
                 'organizer' => $meta['organizer'] ?? '',
@@ -140,7 +140,7 @@ class Dsv7Parser
             'meets' => [[
                 'name'       => $meta['name'] ?? '',
                 'city'       => $meta['city'] ?? '',
-                'course'     => $meta['course'] ?? 'Kurzbahn',
+                'course'     => $meta['course'] ?? null,
                 'startdate'  => $startdate,
                 'enddate'    => $enddate,
                 'organizer'  => $meta['organizer'] ?? '',
@@ -200,7 +200,8 @@ class Dsv7Parser
                     // Name;City;PoolLength(25|50);TimingType;...
                     $meta['name']   = $f(0);
                     $meta['city']   = $f(1);
-                    $meta['course'] = $f(2) === '50' ? 'Langbahn' : 'Kurzbahn';
+                    // Bahnlaenge 25 oder 50 - andere/leere Angabe bleibt unbekannt (nicht stillschweigend Kurzbahn)
+                    $meta['course'] = match ($f(2)) { '50' => 'Langbahn', '25' => 'Kurzbahn', default => null };
                     break;
 
                 case 'VERANSTALTER':
