@@ -987,6 +987,7 @@
 
                 {{-- Antwortstatus-Tabelle --}}
                 @php
+                    $signupRequest->loadMissing(["responses.carpoolRide.user", "responses.carpoolRide.carpoolOfferedBy", "responses.carpoolPassengers.user"]);
                     $responses = $signupRequest->responses->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
                     $countAttending    = $responses->where('status', 'attending')->count();
                     $countNotAttending = $responses->where('status', 'not_attending')->count();
@@ -1018,15 +1019,21 @@
                             <span class="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">{{ $busRemaining }} Plätze frei</span>
                         @endif
                     @endif
+                    {{-- Fahrgemeinschaften (Eltern bieten an, Schwimmer/Eltern buchen) --}}
+                    @php $carpoolOffered = $signupRequest->carpoolSeatsOffered(); @endphp
+                    @if($carpoolOffered > 0)
+                        <div class="text-center border-l border-gray-200 pl-6">
+                            <p class="text-2xl font-bold text-green-700">{{ $signupRequest->carpoolSeatsBooked() }} / {{ $carpoolOffered }}</p>
+                            <p class="text-xs text-gray-600">Fahrgemeinschaft belegt</p>
+                        </div>
+                    @endif
                 </div>
                 <div class="rounded-lg border border-gray-200">
 <x-ui.table :card="false" caption="Rückmeldungen der Schwimmer">
 <x-slot:head>
                                 <x-ui.th>Schwimmer</x-ui.th>
                                 <x-ui.th>Status</x-ui.th>
-                                @if($signupRequest->bus_available)
-                                    <x-ui.th>Bus</x-ui.th>
-                                @endif
+                                <x-ui.th>Anreise</x-ui.th>
                                 <x-ui.th>Antwort am</x-ui.th>
                                 <x-ui.th>Notiz</x-ui.th>
                                 <x-ui.th>Erinnert</x-ui.th>
@@ -1043,17 +1050,7 @@
                                             <span class="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">Ausstehend</span>
                                         @endif
                                     </x-ui.td>
-                                    @if($signupRequest->bus_available)
-                                        <x-ui.td>
-                                            @if($response->bus_booked)
-                                                <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Gebucht</span>
-                                            @elseif($response->isAttending())
-                                                <span class="text-xs text-gray-600">–</span>
-                                            @else
-                                                <span class="text-xs text-gray-600">–</span>
-                                            @endif
-                                        </x-ui.td>
-                                    @endif
+                                    <x-ui.td>@include('competitions.signup._travel-cell', ['response' => $response])</x-ui.td>
                                     <x-ui.td muted class="text-xs">{{ $response->responded_at?->deBerlin('d.m.Y H:i') ?? '–' }}</x-ui.td>
                                     <x-ui.td muted class="text-xs">{{ $response->note ?? '–' }}</x-ui.td>
                                     <x-ui.td muted class="text-xs">{{ $response->reminder_sent_at?->deBerlin('d.m. H:i') ?? '–' }}</x-ui.td>
@@ -1082,6 +1079,7 @@
                     </div>
                 </div>
                 @php
+                    $signupRequest->loadMissing(["responses.carpoolRide.user", "responses.carpoolRide.carpoolOfferedBy", "responses.carpoolPassengers.user"]);
                     $responses      = $signupRequest->responses->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
                     $busBookedCount = $signupRequest->bus_available ? $signupRequest->busBookedCount() : null;
                 @endphp
@@ -1113,9 +1111,7 @@
 <x-slot:head>
                                 <x-ui.th>Schwimmer</x-ui.th>
                                 <x-ui.th>Status</x-ui.th>
-                                @if($signupRequest->bus_available)
-                                    <x-ui.th>Bus</x-ui.th>
-                                @endif
+                                <x-ui.th>Anreise</x-ui.th>
                                 <x-ui.th>Notiz</x-ui.th>
                             </x-slot:head>
                             @foreach($responses as $response)
@@ -1130,15 +1126,7 @@
                                             <span class="text-xs font-semibold bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">Keine Antwort</span>
                                         @endif
                                     </x-ui.td>
-                                    @if($signupRequest->bus_available)
-                                        <x-ui.td>
-                                            @if($response->bus_booked)
-                                                <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Gebucht</span>
-                                            @else
-                                                <span class="text-xs text-gray-600">–</span>
-                                            @endif
-                                        </x-ui.td>
-                                    @endif
+                                    <x-ui.td>@include('competitions.signup._travel-cell', ['response' => $response])</x-ui.td>
                                     <x-ui.td muted class="text-xs">{{ $response->note ?? '–' }}</x-ui.td>
                                 </tr>
                             @endforeach

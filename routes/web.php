@@ -514,6 +514,8 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::get('/dashboard', [SwimmerDashboard::class, 'index'])->name('dashboard');
     Route::post('/anmeldung/{signupRequest}/antworten', [SwimmerSignupController::class, 'respond'])->name('signup.respond');
     Route::post('/anmeldung/{signupRequest}/bus', [SwimmerSignupController::class, 'toggleBus'])->name('signup.bus');
+    Route::post('/anmeldung/{signupRequest}/fahrgemeinschaft', [SwimmerSignupController::class, 'bookCarpool'])->name('signup.carpool');
+    Route::delete('/anmeldung/{signupRequest}/fahrgemeinschaft', [SwimmerSignupController::class, 'cancelCarpool'])->name('signup.carpool.cancel');
     Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->middleware('menu:swimmer_times')->name('times');
     Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->middleware('menu:swimmer_comps')->name('competitions');
     Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->middleware('menu:swimmer_sessions')->name('sessions');
@@ -570,4 +572,6 @@ Route::middleware(['auth', 'role:elternteil'])->prefix('eltern')->name('parent.'
     Route::get('/kind/{childId}/anmeldungen', [ParentSignupController::class, 'childSignups'])->name('child.signups');
     Route::post('/kind/{childId}/anmeldungen/{signupRequest}/antworten', [ParentSignupController::class, 'respond'])->name('child.signup.respond');
     Route::post('/kind/{childId}/anmeldungen/{signupRequest}/bus', [ParentSignupController::class, 'toggleBus'])->name('child.signup.bus');
+    Route::post('/kind/{childId}/anmeldungen/{signupRequest}/fahrgemeinschaft', [ParentSignupController::class, 'bookCarpool'])->name('child.signup.carpool');
+    Route::delete('/kind/{childId}/anmeldungen/{signupRequest}/fahrgemeinschaft', [ParentSignupController::class, 'cancelCarpool'])->name('child.signup.carpool.cancel');
 });

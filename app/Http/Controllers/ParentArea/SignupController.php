@@ -33,6 +33,7 @@ class SignupController extends Controller
             'status'          => ['required', 'in:attending,not_attending'],
             'note'            => ['nullable', 'string', 'max:500'],
             'carpool_seats'   => ['nullable', 'integer', 'min:0', 'max:20'],
+            'carpool_note'    => ['nullable', 'string', 'max:255'],
             'wants_overnight' => ['boolean'],
             'wants_dinner'    => ['boolean'],
         ]);
@@ -51,6 +52,26 @@ class SignupController extends Controller
         abort_unless(auth()->user()->isGuardianOf($child), 403);
 
         [$ok, $msg] = $responder->toggleBus($signupRequest, $child, byParent: true);
+        return back()->with($ok ? 'success' : 'error', $msg);
+    }
+
+    /** Platz in einer Fahrgemeinschaft fuer das Kind buchen */
+    public function bookCarpool(Request $request, int $childId, CompetitionSignupRequest $signupRequest, SignupResponder $responder)
+    {
+        $child = auth()->user()->children()->findOrFail($childId);
+        abort_unless(auth()->user()->isGuardianOf($child), 403);
+        $data  = $request->validate(['offer_id' => ['required', 'integer']]);
+
+        [$ok, $msg] = $responder->bookCarpool($signupRequest, $child, (int) $data['offer_id'], byParent: true);
+        return back()->with($ok ? 'success' : 'error', $msg);
+    }
+
+    public function cancelCarpool(int $childId, CompetitionSignupRequest $signupRequest, SignupResponder $responder)
+    {
+        $child = auth()->user()->children()->findOrFail($childId);
+
+        abort_unless(auth()->user()->isGuardianOf($child), 403);
+        [$ok, $msg] = $responder->cancelCarpool($signupRequest, $child, byParent: true);
         return back()->with($ok ? 'success' : 'error', $msg);
     }
 }

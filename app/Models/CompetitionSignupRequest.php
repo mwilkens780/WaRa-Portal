@@ -43,6 +43,30 @@ class CompetitionSignupRequest extends Model
         return max(0, ($this->bus_seats ?? 8) - $this->busBookedCount());
     }
 
+    /**
+     * Fahrgemeinschafts-Angebote: zugesagte Rueckmeldungen mit freien Plaetzen,
+     * mit Anbieter, Kind und Mitfahrern - fuer Buchung und Trainer-Uebersicht.
+     */
+    public function carpoolOffers(): \Illuminate\Support\Collection
+    {
+        return $this->responses()
+            ->where('status', 'attending')->where('carpool_seats', '>', 0)
+            ->with(['user:id,firstname,lastname', 'carpoolOfferedBy:id,firstname,lastname', 'carpoolPassengers.user:id,firstname,lastname'])
+            ->get()
+            ->sortBy(fn($r) => $r->user?->lastname)
+            ->values();
+    }
+
+    public function carpoolSeatsOffered(): int
+    {
+        return (int) $this->responses()->where('status', 'attending')->sum('carpool_seats');
+    }
+
+    public function carpoolSeatsBooked(): int
+    {
+        return $this->responses()->whereNotNull('carpool_ride_id')->count();
+    }
+
     public const CLOSE_MANUAL            = 'manual';
     public const CLOSE_COMPETITION_ENDED = 'competition_ended';
 

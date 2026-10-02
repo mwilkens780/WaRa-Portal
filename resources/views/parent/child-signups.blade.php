@@ -127,18 +127,8 @@
                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
                         </div>
 
-                        {{-- Carpool offer --}}
-                        <div class="border-t border-gray-100 pt-3">
-                            <p class="text-xs font-semibold text-gray-600 mb-2">Fahrgemeinschaft</p>
-                            <div class="flex items-center gap-3">
-                                <label class="text-sm text-gray-700 whitespace-nowrap">Freie Plätze (außer Fahrer):</label>
-                                <input aria-label="Freie Plätze (außer Fahrer)" type="number" name="carpool_seats"
-                                       value="{{ old('carpool_seats', $response?->carpool_seats) }}"
-                                       min="0" max="20" placeholder="0"
-                                       class="w-20 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <span class="text-xs text-gray-400">0 = keine Mitfahrmöglichkeit</span>
-                            </div>
-                        </div>
+                        {{-- Fahrgemeinschaft anbieten --}}
+                        @include('competitions.signup._carpool-offer', ['response' => $response, 'idSuffix' => 's' . $signupRequest->id])
 
                         {{-- Overnight --}}
                         @if($signupRequest->offer_overnight)
@@ -172,20 +162,10 @@
                         </button>
                     </form>
 
-                    {{-- Vereinsbus: Eltern minderjaehriger Kinder buchen wie das Kind selbst --}}
-                    @if($signupRequest->bus_available && $isAttending && auth()->user()->isGuardianOf($child))
-                        <div class="mt-3 flex flex-wrap items-center gap-3">
-                            <form method="POST" action="{{ route('parent.child.signup.bus', [$child->id, $signupRequest]) }}">
-                                @csrf
-                                <button type="submit"
-                                        class="text-sm px-4 py-2 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">
-                                    {{ $response->bus_booked ? 'Busplatz stornieren' : 'Busplatz buchen' }}
-                                </button>
-                            </form>
-                            <span class="text-xs text-gray-500">
-                                @if($response->bus_booked) Busplatz für {{ $child->firstname }} gebucht · @endif
-                                {{ $signupRequest->busSeatsRemaining() }} Plätze frei
-                            </span>
+                    {{-- Anreise: Vereinsbus und Fahrgemeinschaften - Eltern minderjaehriger Kinder buchen wie das Kind selbst --}}
+                    @if($isAttending && auth()->user()->isGuardianOf($child))
+                        <div class="mt-3">
+                            @include('competitions.signup._travel', ['signupRequest' => $signupRequest, 'response' => $response, 'subject' => $child, 'asParent' => true])
                         </div>
                     @endif
                 </div>

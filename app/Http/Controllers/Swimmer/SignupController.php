@@ -27,4 +27,19 @@ class SignupController extends Controller
         [$ok, $msg] = $responder->toggleBus($signupRequest, auth()->user());
         return back()->with($ok ? 'success' : 'error', $msg);
     }
+
+    /** Platz in einer Fahrgemeinschaft buchen (Angebote machen Eltern) */
+    public function bookCarpool(Request $request, CompetitionSignupRequest $signupRequest, SignupResponder $responder)
+    {
+        $data = $request->validate(['offer_id' => ['required', 'integer']]);
+
+        [$ok, $msg] = $responder->bookCarpool($signupRequest, auth()->user(), (int) $data['offer_id']);
+        return back()->with($ok ? 'success' : 'error', $msg);
+    }
+
+    public function cancelCarpool(CompetitionSignupRequest $signupRequest, SignupResponder $responder)
+    {
+        [$ok, $msg] = $responder->cancelCarpool($signupRequest, auth()->user());
+        return back()->with($ok ? 'success' : 'error', $msg);
+    }
 }

@@ -117,6 +117,20 @@ class E2eSeeder extends Seeder
             'type' => 'regional', 'course' => 'Kurzbahn', 'season_id' => $season->id,
         ]);
         $kommend->trainingGroups()->attach($group->id);
+        // Anmeldeabfrage mit Vereinsbus und Fahrgemeinschaft (Elke bietet 2 Plaetze an, Sina faehrt selbst mit)
+        $abfrage = \App\Models\CompetitionSignupRequest::create([
+            'competition_id' => $kommend->id, 'status' => 'active', 'deadline' => now()->addDays(7)->format('Y-m-d'),
+            'eligible_group_ids' => [$group->id], 'created_by_id' => $admin->id, 'activated_at' => now(),
+            'meeting_point' => 'Stadtbad Norderstedt', 'meeting_time' => '07:00', 'bus_available' => true, 'bus_seats' => 8,
+        ]);
+        \App\Models\CompetitionSignupResponse::create([
+            'competition_signup_request_id' => $abfrage->id, 'user_id' => $swimmer->id, 'status' => 'attending', 'responded_at' => now(),
+            'carpool_seats' => 2, 'carpool_offered_by_id' => $parent->id, 'carpool_note' => 'Abfahrt 7:15 am Stadtbad',
+        ]);
+        \App\Models\CompetitionSignupResponse::create([
+            'competition_signup_request_id' => $abfrage->id, 'user_id' => $second->id, 'status' => 'attending', 'responded_at' => now(),
+        ]);
+
         // Lange Namen wie in echt: bringen Ueberlaeufe auf dem Handy ans Licht
         // (Befund 01.10.2026: abgeschnittener Name machte das Dashboard breiter als den Bildschirm)
         $lang = Competition::create([

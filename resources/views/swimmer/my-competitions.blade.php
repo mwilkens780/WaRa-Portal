@@ -46,7 +46,11 @@
         // Zugeklappt starten - nur eine offene Rueckmeldung zu einem noch
         // bevorstehenden Wettkampf oeffnet sich von selbst. Abgeschlossene
         // Wettkaempfe stehen zugeklappt in der Liste.
-        $autoOpen = (($isFuture && $isPending) || ($focusId ?? 0) === $comp->id) ? 'true' : 'false';
+        // Auch nach der Zusage offen, solange die Anreise (Bus/Fahrgemeinschaft) noch
+        // nicht gebucht ist - sonst steckte die Buchung in einer zugeklappten Karte
+        $travelOpen = $isFuture && $isAttending && $comp->signupRequest?->isActive()
+            && !$response->bus_booked && !$response->carpool_ride_id;
+        $autoOpen = (($isFuture && $isPending) || $travelOpen || ($focusId ?? 0) === $comp->id) ? 'true' : 'false';
         $discLabels = ['F' => 'Freistil', 'B' => 'Brust', 'R' => 'Rücken', 'S' => 'Schmetterling', 'L' => 'Lagen'];
     @endphp
 
@@ -239,30 +243,18 @@
                         @endif
                         @if($asParent)
                             {{-- Fahrgemeinschaft bieten Eltern an, nicht die Schwimmer selbst --}}
-                            <div class="border-t border-gray-100 pt-3">
-                                <label for="carpool_{{ $comp->id }}" class="block text-xs font-semibold text-gray-600 mb-2">Fahrgemeinschaft: freie Plätze (außer Fahrer)</label>
-                                <div class="flex items-center gap-3">
-                                    <input type="number" name="carpool_seats" id="carpool_{{ $comp->id }}"
-                                           value="{{ old('carpool_seats', $response->carpool_seats) }}"
-                                           min="0" max="20" placeholder="0"
-                                           class="w-20 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    <span class="text-xs text-gray-400">0 = keine Mitfahrmöglichkeit</span>
-                                </div>
-                            </div>
+                            @include('competitions.signup._carpool-offer', ['response' => $response, 'idSuffix' => $comp->id])
                         @endif
                         <button type="submit"
                                 class="bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">
                             Speichern
                         </button>
                     </form>
-                    @if($signupRequest->bus_available && $isAttending && $canActFully)
-                        <form method="POST" action="{{ $asParent ? route('parent.child.signup.bus', [$subject->id, $signupRequest]) : route('swimmer.signup.bus', $signupRequest) }}" class="mt-2">
-                            @csrf
-                            <button type="submit"
-                                    class="text-xs px-4 py-2 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors">
-                                {{ $response->bus_booked ? 'Busplatz stornieren' : 'Busplatz buchen' }}
-                            </button>
-                        </form>
+                    {{-- Anreise: Vereinsbus und Fahrgemeinschaften (Schwimmer selbst oder Eltern minderjaehriger Kinder) --}}
+                    @if($isAttending && $canActFully)
+                        @include('competitions.signup._travel', ['signupRequest' => $signupRequest, 'response' => $response, 'subject' => $subject, 'asParent' => $asParent])
+                    @elseif(!$isAttending)
+                        <p class="pt-3 text-xs text-gray-600">Nach der Zusage lassen sich hier Vereinsbus oder Fahrgemeinschaft buchen.</p>
                     @endif
                 @elseif($response)
                     <div class="pt-4 border-t border-gray-100">
