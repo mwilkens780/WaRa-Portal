@@ -1260,7 +1260,7 @@ class WebClubCrawler
 
         file_put_contents($configFile, json_encode($runtimeConfig));
 
-        $scriptPath = base_path('scripts/webclub-crawler.js');
+        $scriptPath = base_path('scripts/webclub-crawler.cjs');
         $env        = ['PLAYWRIGHT_BROWSERS_PATH' => '/opt/pw-browsers', 'HOME' => '/root'];
         $nodePath   = $this->resolveNodePath();
 

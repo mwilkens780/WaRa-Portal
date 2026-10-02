@@ -78,7 +78,7 @@ jobs:
 
       - name: Crawler ausführen
         run: |
-          node scripts/webclub-crawler.js /tmp/webclub-config.json > /tmp/webclub-output.json
+          node scripts/webclub-crawler.cjs /tmp/webclub-config.json > /tmp/webclub-output.json
           echo "Crawler-Output Größe: $(wc -c < /tmp/webclub-output.json) Bytes"
 
       - name: Debug-Screenshots hochladen

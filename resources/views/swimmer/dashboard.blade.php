@@ -97,7 +97,7 @@
                     </div>
                     <div class="flex-1">
                         <p class="font-semibold text-gray-800 text-sm">Vereinsbus: {{ $signup->competition->name }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">
+                        <p class="text-xs text-gray-700 mt-0.5">
                             {{ $signup->competition->date_range }}
                             @if($signup->meeting_time) · Treffpunkt {{ \Illuminate\Support\Str::substr($signup->meeting_time, 0, 5) }} Uhr @endif
                             @if($signup->meeting_point) · {{ $signup->meeting_point }} @endif
@@ -113,7 +113,7 @@
                                 <form method="POST" action="{{ route('swimmer.signup.bus', $signup) }}">
                                     @csrf
                                     <button type="submit"
-                                            class="text-xs text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                                            class="text-xs text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                                         Busplatz stornieren
                                     </button>
                                 </form>
@@ -125,7 +125,7 @@
                                         Busplatz buchen
                                     </button>
                                 </form>
-                                <span class="text-xs text-gray-500">Noch {{ $remaining }} von {{ $signup->bus_seats }} Plätzen frei</span>
+                                <span class="text-xs text-gray-700">Noch {{ $remaining }} von {{ $signup->bus_seats }} Plätzen frei</span>
                             @else
                                 <span class="text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg">
                                     Alle Plätze belegt ({{ $signup->bus_seats }} / {{ $signup->bus_seats }})

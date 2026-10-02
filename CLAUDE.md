@@ -107,7 +107,9 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 
 ## WebClub-Schnittstelle
 
-- **Playwright-Script**: `scripts/webclub-crawler.js` (Node.js)
+- **Playwright-Script**: `scripts/webclub-crawler.cjs` (Node.js, CommonJS). `package.json` hat
+  `"type": "module"` – Node-Skripte mit `require` müssen `.cjs` heißen (sonst bricht die
+  GitHub Action „WebClub Crawler“ ab, wie vom 29.09. bis 02.10.2026).
 - **PHP-Service**: `app/Services/Crawler/WebClubCrawler.php`
 - **Artisan-Befehl**: `php artisan webclub:crawl`
 - **Konfiguration**: Admin → Einstellungen → WebClub-Schnittstelle (URL, Benutzername, Passwort verschlüsselt)
