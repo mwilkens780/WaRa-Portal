@@ -131,9 +131,6 @@
   "resources/views/teamdoctor/show.blade.php": {
     "feld-ohne-beschriftung": 1
   },
-  "resources/views/trainer/dashboard.blade.php": {
-    "text-transparent": 1
-  },
   "resources/views/trainer/diary-overview.blade.php": {
     "feld-ohne-beschriftung": 1
   },

@@ -116,7 +116,7 @@
                     {{-- Datum --}}
                     <div class="text-center bg-green-50 rounded-lg p-2 min-w-[50px] flex-shrink-0">
                         <p class="text-xs font-semibold text-green-700">{{ $session->date->format('d.M') }}</p>
-                        <p class="text-xs text-green-600/70">{{ $session->date->isoFormat('ddd') }}</p>
+                        <p class="text-xs text-green-700">{{ $session->date->isoFormat('ddd') }}</p>
                     </div>
                     {{-- Info --}}
                     <div class="flex-1 min-w-0">
