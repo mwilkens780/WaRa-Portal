@@ -28,7 +28,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'firstname', 'lastname', 'email', 'email2', 'password', 'role',
-        'birth_date', 'phone', 'mobile', 'active', 'portal_active', 'created_by',
+        'birth_date', 'phone', 'mobile', 'carpool_share_phone', 'active', 'portal_active', 'created_by',
         'gender', 'dsv_id', 'membership_number', 'webclub_person_id', 'member_since', 'resigned_at', 'training_group',
         'street', 'postal_code', 'city', 'country',
         'initial_password', 'mail_preferences',
@@ -62,6 +62,7 @@ class User extends Authenticatable
             'opt_nutrition'                     => 'boolean',
             'opt_sports_medicine'               => 'boolean',
             'mail_preferences'                  => 'array',
+            'carpool_share_phone'               => 'boolean',
             'last_login_at'                     => 'datetime',
             'portal_active'                     => 'boolean',
             'portal_activated_at'               => 'datetime',

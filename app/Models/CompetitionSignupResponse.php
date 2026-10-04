@@ -9,7 +9,7 @@ class CompetitionSignupResponse extends Model
     protected $fillable = [
         'competition_signup_request_id', 'user_id', 'status', 'note', 'responded_at', 'reminder_sent_at',
         'bus_booked', 'wants_overnight', 'wants_dinner', 'carpool_seats',
-        'carpool_offered_by_id', 'carpool_note', 'carpool_ride_id',
+        'carpool_offered_by_id', 'carpool_note', 'carpool_ride_id', 'carpool_show_phone',
     ];
 
     /** Wer die Fahrgemeinschaft anbietet (Elternteil) */
@@ -25,6 +25,13 @@ class CompetitionSignupResponse extends Model
     {
         $booked = $this->relationLoaded('carpoolPassengers') ? $this->carpoolPassengers->count() : $this->carpoolPassengers()->count();
         return max(0, (int) $this->carpool_seats - $booked);
+    }
+
+    /** Handynummer des Anbieters - nur, wenn er sie fuer dieses Angebot freigegeben hat */
+    public function carpoolPhone(): ?string
+    {
+        if (!$this->carpool_show_phone || !$this->carpoolOfferedBy) return null;
+        return $this->carpoolOfferedBy->mobile ?: ($this->carpoolOfferedBy->phone ?: null);
     }
 
     /** "Petra Muster (Mutter von Lena)" - so sehen Mitfahrer, wer faehrt */
@@ -46,6 +53,7 @@ class CompetitionSignupResponse extends Model
             'wants_overnight'  => 'boolean',
             'wants_dinner'     => 'boolean',
             'carpool_seats'    => 'integer',
+            'carpool_show_phone' => 'boolean',
         ];
     }
 

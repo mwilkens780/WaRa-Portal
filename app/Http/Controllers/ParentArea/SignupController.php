@@ -34,6 +34,7 @@ class SignupController extends Controller
             'note'            => ['nullable', 'string', 'max:500'],
             'carpool_seats'   => ['nullable', 'integer', 'min:0', 'max:20'],
             'carpool_note'    => ['nullable', 'string', 'max:255'],
+            'carpool_show_phone' => ['boolean'],
             'wants_overnight' => ['boolean'],
             'wants_dinner'    => ['boolean'],
         ]);

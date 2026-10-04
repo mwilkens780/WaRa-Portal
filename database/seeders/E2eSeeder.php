@@ -56,7 +56,7 @@ class E2eSeeder extends Seeder
         $trainer = $user('trainer', 'Tom', 'Trainer', ['phone' => '040-1234567']);
         $swimmer = $user('schwimmer', 'Sina', 'Schwimmer', ['birth_date' => now()->subYears(13)->format('Y-m-d'), 'gender' => 'F']);
         $second  = $user('schwimmer', 'Ben', 'Bahn', ['email' => 'ben@e2e.test', 'birth_date' => now()->subYears(15)->format('Y-m-d'), 'gender' => 'M']);
-        $parent  = $user('elternteil', 'Elke', 'Eltern', ['email' => 'eltern@e2e.test']);
+        $parent  = $user('elternteil', 'Elke', 'Eltern', ['email' => 'eltern@e2e.test', 'mobile' => '0170 1234567', 'carpool_share_phone' => true]);
         $parent->children()->attach($swimmer->id);
 
         foreach ([$admin, $trainer, $swimmer, $second, $parent] as $u) {
@@ -125,7 +125,7 @@ class E2eSeeder extends Seeder
         ]);
         \App\Models\CompetitionSignupResponse::create([
             'competition_signup_request_id' => $abfrage->id, 'user_id' => $swimmer->id, 'status' => 'attending', 'responded_at' => now(),
-            'carpool_seats' => 2, 'carpool_offered_by_id' => $parent->id, 'carpool_note' => 'Abfahrt 7:15 am Stadtbad',
+            'carpool_seats' => 2, 'carpool_offered_by_id' => $parent->id, 'carpool_note' => 'Abfahrt 7:15 am Stadtbad', 'carpool_show_phone' => true,
         ]);
         \App\Models\CompetitionSignupResponse::create([
             'competition_signup_request_id' => $abfrage->id, 'user_id' => $second->id, 'status' => 'attending', 'responded_at' => now(),

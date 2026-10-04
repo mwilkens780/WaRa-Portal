@@ -16,9 +16,15 @@ E-Mail-Benachrichtigungen**. Welche Themen dort auftauchen, hängt von der
 Rolle ab; ein Schwimmer bekommt keine Trainer-Themen angeboten.
 
 **Ausnahme – voreingestellt an:** Themen mit `'default' => true` gelten als
-eingeschaltet, bis jemand sie im Profil abwählt. Bisher nur **Trainingsausfall**
-(Schwimmer und Eltern, Entscheidung 30.09.2026): Ein ausfallendes Training
-betrifft jeden. Neue Ausnahmen nur nach Rücksprache.
+eingeschaltet, bis jemand sie im Profil abwählt. Im Profil stehen sie in der
+Gruppe **„Absagen“**: **Trainingsausfall** (Entscheidung 30.09.2026) und
+**Fahrgemeinschaft fällt weg** (04.10.2026) – jeweils für Schwimmer und Eltern.
+Eine Absage betrifft jeden, der sich darauf verlassen hat. Neue Ausnahmen nur
+nach Rücksprache.
+
+**Handynummer bei Fahrgemeinschaften:** Mitfahrer sehen die Nummer des Anbieters
+nur, wenn er beim Angebot den Haken setzt. Die Voreinstellung dafür steht im
+Profil („Handynummer bei meinen Fahrgemeinschafts-Angeboten anzeigen“, aus).
 
 Der Themenkatalog steht in `app/Support/MailTopic.php`. Ein neues Thema
 braucht dort einen Eintrag mit Beschriftung, Erklärung und den Rollen, denen

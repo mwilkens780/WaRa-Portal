@@ -54,6 +54,10 @@
                     @if($mine)<x-ui.badge tone="info" class="ml-1">{{ $wer }} {{ $asParent ? 'fährt' : 'fährst' }} mit</x-ui.badge>@endif
                     <span class="block text-xs text-gray-600">{{ $free }} von {{ $offer->carpool_seats }} Plätzen frei</span>
                     @if($offer->carpool_note)<span class="block text-xs text-gray-700 italic break-words">{{ $offer->carpool_note }}</span>@endif
+                    {{-- Nur, wenn der Anbieter die Nummer fuer dieses Angebot freigegeben hat --}}
+                    @if($tel = $offer->carpoolPhone())
+                        <a href="tel:{{ preg_replace('/[^\d+]/', '', $tel) }}" class="block text-xs text-primary underline underline-offset-2">{{ $tel }}</a>
+                    @endif
                 </div>
                 @if($mine)
                     <form method="POST" action="{{ $routes['cancel'] }}">

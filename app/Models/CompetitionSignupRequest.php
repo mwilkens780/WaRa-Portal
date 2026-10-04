@@ -51,7 +51,7 @@ class CompetitionSignupRequest extends Model
     {
         return $this->responses()
             ->where('status', 'attending')->where('carpool_seats', '>', 0)
-            ->with(['user:id,firstname,lastname', 'carpoolOfferedBy:id,firstname,lastname', 'carpoolPassengers.user:id,firstname,lastname'])
+            ->with(['user:id,firstname,lastname', 'carpoolOfferedBy:id,firstname,lastname,mobile,phone', 'carpoolPassengers.user:id,firstname,lastname'])
             ->get()
             ->sortBy(fn($r) => $r->user?->lastname)
             ->values();

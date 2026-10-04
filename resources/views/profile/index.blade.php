@@ -63,6 +63,19 @@
                     </div>
                 </div>
 
+                {{-- Fahrgemeinschaften bieten Eltern an: Voreinstellung fuer den Haken am einzelnen Angebot --}}
+                @if($user->role === 'elternteil')
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="hidden" name="carpool_share_phone" value="0">
+                        <input type="checkbox" name="carpool_share_phone" value="1" @checked(old('carpool_share_phone', $user->carpool_share_phone))
+                               class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary">
+                        <span class="text-sm text-gray-700">
+                            Handynummer bei meinen Fahrgemeinschafts-Angeboten anzeigen
+                            <span class="block text-xs text-gray-600">Mitfahrer sehen dann deine Mobil- (sonst Telefon-)Nummer. Beim einzelnen Angebot kannst du es trotzdem ab- oder zuschalten.</span>
+                        </span>
+                    </label>
+                @endif
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Straße & Hausnummer</label>
                     <input aria-label="Straße & Hausnummer" type="text" name="street" value="{{ old('street', $user->street) }}"

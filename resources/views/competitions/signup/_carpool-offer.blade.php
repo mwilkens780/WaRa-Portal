@@ -13,6 +13,21 @@
                         :value="$response?->carpool_note" placeholder="z. B. Abfahrt 7:30 am Stadtbad" />
         </div>
     </div>
+    {{-- Handynummer fuer Mitfahrer: Haken je Angebot, vorbelegt aus dem Profil --}}
+    @php
+        $ich = auth()->user();
+        $nummer = $ich->mobile ?: $ich->phone;
+        $zeigen = $response?->carpool_seats ? $response->carpool_show_phone : $ich->carpool_share_phone;
+    @endphp
+    <label class="flex items-start gap-3 cursor-pointer">
+        <input type="hidden" name="carpool_show_phone" value="0">
+        <input type="checkbox" name="carpool_show_phone" value="1" @checked(old('carpool_show_phone', $zeigen)) @disabled(!$nummer)
+               class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary">
+        <span class="text-sm text-gray-700">
+            Meine Handynummer für Mitfahrer anzeigen{{ $nummer ? ' (' . $nummer . ')' : '' }}
+            @unless($nummer)<span class="block text-xs text-gray-600">Keine Nummer im Profil hinterlegt.</span>@endunless
+        </span>
+    </label>
     @if($mitfahrer->isNotEmpty())
         <p class="text-xs text-gray-700">
             Es fahren mit: <strong>{{ $mitfahrer->map(fn($m) => $m->user?->name)->filter()->implode(', ') }}</strong>

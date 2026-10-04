@@ -345,6 +345,41 @@ class EventMailer
     // ── Training ─────────────────────────────────────────────────────────────
 
     /** Termin faellt aus: an alle, die dazugehoeren, und deren Eltern (Warteschlange - kann viele treffen). */
+    /**
+     * Fahrgemeinschaft faellt weg (Kind des Fahrers hat abgesagt): an die Mitfahrer
+     * und deren Eltern - damit sie sich rechtzeitig um eine andere Anreise kuemmern.
+     */
+    public function carpoolCancelled(\App\Models\CompetitionSignupResponse $offer, Collection $passengers): int
+    {
+        $comp   = $offer->signupRequest?->competition;
+        $driver = $offer->carpoolDriverLabel();
+        $queued = 0;
+        foreach ($this->withParents($passengers) as [$recipient, $swimmer]) {
+            $forParent = $recipient->id !== $swimmer->id;
+            $mail = new NotificationMail(
+                subjectText: 'Fahrgemeinschaft fällt weg: ' . ($comp?->name ?? 'Wettkampf'),
+                heading:     'Fahrgemeinschaft fällt weg',
+                paragraphs:  [
+                    ($forParent ? "die Fahrgemeinschaft, bei der {$swimmer->firstname}" : 'die Fahrgemeinschaft, bei der du')
+                        . " zum Wettkampf mitfahren wollte" . ($forParent ? '' : 'st') . ", wurde abgesagt ({$driver}).",
+                    'Im Portal lassen sich ein Busplatz oder eine andere Fahrgemeinschaft buchen, sofern noch Plätze frei sind.',
+                ],
+                facts: array_filter([
+                    'Wettkampf' => $comp?->name,
+                    'Datum'     => $comp?->date?->format('d.m.Y'),
+                    'Ort'       => $comp?->location,
+                ]),
+                actionUrl:   $this->linkFor($recipient, 'swimmer.competitions', ['wettkampf' => $comp?->id], $swimmer),
+                actionLabel: 'Anreise neu planen',
+                greetingName: $recipient->firstname,
+            );
+            $log = $this->mailer->queue($recipient, 'carpool_changes', $mail, $mail->defaultSubject());
+            if ($log->status === 'pending') $queued++;
+        }
+
+        return $queued;
+    }
+
     public function trainingCancelled(TrainingSession $session): int
     {
         $queued = 0;

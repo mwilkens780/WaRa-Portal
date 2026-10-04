@@ -44,13 +44,19 @@ class SignupResponder
             'responded_at' => now(),
         ];
         $released = 0;
+        $passengers = collect();
         // Wer absagt, faehrt auch nicht mit - Busplatz und Mitfahrt freigeben.
-        // Ein eigenes Fahrgemeinschafts-Angebot entfaellt; die Mitfahrer werden frei.
+        // Ein eigenes Fahrgemeinschafts-Angebot entfaellt; die Mitfahrer werden frei
+        // und per Mail informiert (Thema "Fahrgemeinschaft faellt weg", voreingestellt an).
         if (!$attending) {
             $update['bus_booked']      = false;
             $update['carpool_ride_id'] = null;
             $update['carpool_seats']   = null;
+            $passengers = $response->carpoolPassengers()->with('user')->get()->pluck('user')->filter();
             $released = CompetitionSignupResponse::where('carpool_ride_id', $response->id)->update(['carpool_ride_id' => null]);
+            if ($passengers->isNotEmpty()) {
+                $this->mailer->carpoolCancelled($response->load(['carpoolOfferedBy', 'user', 'signupRequest.competition']), $passengers);
+            }
         }
         if ($request->offer_overnight) {
             $update['wants_overnight'] = (bool) ($data['wants_overnight'] ?? false);
@@ -68,6 +74,8 @@ class SignupResponder
             $update['carpool_seats']         = $seats ?: null;
             $update['carpool_offered_by_id'] = $seats ? auth()->id() : null;
             $update['carpool_note']          = $seats ? (($data['carpool_note'] ?? null) ?: null) : null;
+            // Handynummer nur mit Haken am Angebot (Voreinstellung aus dem Profil)
+            $update['carpool_show_phone']    = $seats && !empty($data['carpool_show_phone']);
         }
 
         $response->update($update);

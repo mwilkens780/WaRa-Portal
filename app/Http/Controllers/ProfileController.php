@@ -64,7 +64,11 @@ class ProfileController extends Controller
             'city'                => ['nullable', 'string', 'max:100'],
             'opt_nutrition'       => ['boolean'],
             'opt_sports_medicine' => ['boolean'],
+            'carpool_share_phone' => ['boolean'],
         ]);
+
+        // Handynummer bei Fahrgemeinschaften: Voreinstellung fuer den Haken am Angebot
+        $data['carpool_share_phone'] = $request->boolean('carpool_share_phone');
 
         if ($user->consentManagedByParents()) {
             // Entscheiden die Eltern - Formularwerte des Kindes nicht uebernehmen

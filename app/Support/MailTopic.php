@@ -50,8 +50,9 @@ final class MailTopic
             'parent_label'       => 'Erinnerungen',
             'parent_description' => 'Erinnerung, wenn für eines deiner Kinder eine Rückmeldung noch aussteht.',
         ],
+        // ── Absagen: voreingestellt an (Entscheidungen Martin 30.09. und 04.10.2026) ──
         'training_changes' => [
-            'group'       => 'Training',
+            'group'       => 'Absagen',
             'label'       => 'Trainingsausfall',
             'description' => 'Wenn ein Training, zu dem du gehörst, ausfällt.',
             'roles'       => ['schwimmer', 'elternteil'],
@@ -60,6 +61,15 @@ final class MailTopic
             'default'     => true,
             'parent_label'       => 'Trainingsausfall',
             'parent_description' => 'Wenn ein Training eines deiner Kinder ausfällt.',
+        ],
+        'carpool_changes' => [
+            'group'       => 'Absagen',
+            'label'       => 'Fahrgemeinschaft fällt weg',
+            'description' => 'Wenn eine Fahrgemeinschaft zu einem Wettkampf, bei der du mitfährst, abgesagt wird.',
+            'roles'       => ['schwimmer', 'elternteil'],
+            'default'     => true,
+            'parent_label'       => 'Fahrgemeinschaft fällt weg',
+            'parent_description' => 'Wenn eine Fahrgemeinschaft, bei der eines deiner Kinder mitfährt, abgesagt wird.',
         ],
         'own_records' => [
             'group'       => 'Leistungen',
