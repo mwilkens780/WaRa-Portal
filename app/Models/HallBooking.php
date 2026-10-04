@@ -204,7 +204,11 @@ class HallBooking extends Model
             // Bei verknuepften Trainings die Trainer der Einheit/Serie, sonst der Belegung.
             'trainer_names'        => ($this->trainingSession?->coTrainers?->map(fn($t) => trim($t->firstname . ' ' . $t->lastname))->filter()->implode(', '))
                                       ?: $this->trainer?->name,
-            'notes_display'        => $this->notes === self::IMPORT_NOTE ? null : $this->notes,
+            // Notiz der Belegung (oft Helfer), sonst die der verknuepften Einheit; Importvermerk nie
+            'notes_display'        => collect([$this->notes, $this->trainingSession?->notes])
+                                      ->first(fn($n) => filled($n) && trim($n) !== self::IMPORT_NOTE),
+            // Gastgruppe der verknuepften Einheit (Plaetze fuer Gaeste)
+            'guest_group_name'     => $this->trainingSession?->guestGroup?->name,
             // Eigene Farbe: fehlte hier, der Dialog kannte sie nicht und hat
             // sie beim Speichern geloescht
             'color'                => $this->color,

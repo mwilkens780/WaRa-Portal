@@ -36,9 +36,11 @@
             return $sessions
                 ->groupBy(fn($s) => $s->recurrence_group_id ?? ('__single__' . $s->id))
                 ->map(function ($group) {
-                    $rep     = $group->sortBy('date')->first();
                     $sorted  = $group->sortBy('date');
                     $today   = \Carbon\Carbon::today();
+                    // Stellvertreter = naechster kommender Termin (sonst der letzte): Serienaenderungen
+                    // gelten ab heute - der erste, meist vergangene Termin zeigte alte Zeit und alten Ort
+                    $rep     = $sorted->first(fn($s) => $s->date->gte($today)) ?? $sorted->last();
                     return [
                         'rep'        => $rep,
                         'sessions'   => $sorted,

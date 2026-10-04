@@ -5,6 +5,12 @@
 @section('content')
 <div class="mt-2 space-y-6" x-data="{ activeTab: '{{ session('active_tab', 'attendance') }}' }">
 
+    {{-- Zurueck: bei Serienterminen zur Serie (Termine-Reiter), sonst zur Liste --}}
+    <x-ui.page-header class="!mb-0"
+        :back="$series ? route('trainer.sessions.series.show', ['group' => $series->id, 'tab' => 'termine']) : route('trainer.sessions.index')"
+        :back-label="$series ? 'Serie ' . $series->title : 'Trainingseinheiten'"
+        :subtitle="$session->date->isoFormat('dddd, D. MMMM YYYY')" />
+
     {{-- Session-Info --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex flex-wrap items-start justify-between gap-4">

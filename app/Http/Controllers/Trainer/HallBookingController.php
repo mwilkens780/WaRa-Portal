@@ -29,7 +29,7 @@ class HallBookingController extends Controller
     {
         $resources = HallResource::where('active', true)->orderBy('sort_order')->get();
 
-        $bookings = HallBooking::with(['resource', 'trainingGroup', 'trainer', 'trainingSession.coTrainers:id,firstname,lastname'])
+        $bookings = HallBooking::with(['resource', 'trainingGroup', 'trainer', 'trainingSession.coTrainers:id,firstname,lastname', 'trainingSession.guestGroup:id,name'])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
@@ -158,7 +158,7 @@ class HallBookingController extends Controller
             $created = HallBooking::where('training_series_id', $group)->whereIn('hall_resource_id', $data['hall_resource_ids'])->get()->all();
         }
 
-        $created = array_map(fn($b) => $b->load(['resource', 'trainingGroup', 'trainer', 'trainingSession.coTrainers:id,firstname,lastname'])->toGridArray(), $created);
+        $created = array_map(fn($b) => $b->load(['resource', 'trainingGroup', 'trainer', 'trainingSession.coTrainers:id,firstname,lastname', 'trainingSession.guestGroup:id,name'])->toGridArray(), $created);
 
         return response()->json(['success' => true, 'bookings' => $created]);
     }
@@ -225,7 +225,7 @@ class HallBookingController extends Controller
         $booking = HallBooking::find($booking->id)
             ?? HallBooking::where('training_series_id', $group ?? '')->where('hall_resource_id', $data['hall_resource_id'] ?? $booking->hall_resource_id)->first()
             ?? $booking;
-        $booking->load(['resource', 'trainingGroup', 'trainer', 'trainingSession.coTrainers:id,firstname,lastname']);
+        $booking->load(['resource', 'trainingGroup', 'trainer', 'trainingSession.coTrainers:id,firstname,lastname', 'trainingSession.guestGroup:id,name']);
 
         return response()->json(['success' => true, 'booking' => $booking->toGridArray()]);
     }

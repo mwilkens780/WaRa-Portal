@@ -22,6 +22,13 @@
                 <x-ui.button variant="secondary" href="{{ route('trainer.sessions.show', $next) }}">Nächster Termin: {{ $next->date->format('d.m.') }}</x-ui.button>
             @endif
         </x-slot:actions>
+        {{-- Seltene und zerstoerende Aktionen im Menue - direkt von der Serie aus, ohne Umweg ueber die Liste --}}
+        <x-slot:menu>
+            <x-ui.menu label="Weitere Aktionen zur Serie">
+                <x-ui.menu-item @click="tab = 'saison'">Nächste Saison planen</x-ui.menu-item>
+                <x-ui.menu-item tone="danger" href="{{ route('trainer.sessions.series.delete', $series->id) }}">Serie beenden oder löschen …</x-ui.menu-item>
+            </x-ui.menu>
+        </x-slot:menu>
     </x-ui.page-header>
 
     {{-- Kurzüberblick --}}
