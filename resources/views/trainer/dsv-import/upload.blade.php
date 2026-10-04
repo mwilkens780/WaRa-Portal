@@ -46,7 +46,7 @@
             sonst entsteht ein neuer Wettkampf. DQ, DNS und DNF werden übersprungen, Bestzeiten erkannt.
         </p>
         <x-ui.upload-form :action="route('trainer.dsv-import.upload')">
-            <x-ui.file-drop name="dsv_file" label="Ergebnisdatei (Lenex/DSV)" accept=".dsv7,.lef,.xml,.txt" :max-mb="20"
+            <x-ui.file-drop name="dsv_file" label="Ergebnisdatei (Lenex/DSV)" accept="{{ \App\Support\DsvFile::ACCEPT }}" :max-mb="20"
                             hint="Aus DSV, Swimrankings oder WebClub (Lenex 2.0/3.0)." />
         </x-ui.upload-form>
     </x-ui.card>

@@ -3,10 +3,20 @@
 namespace App\Services;
 
 /**
- * Parser for DSV Standard 7 semicolon-delimited result/definition files.
+ * Parser for DSV Standard 7 and 8 semicolon-delimited result/definition files.
+ *
+ * DSV8 (gültig ab 01.08.2026, ab 2027 Pflicht) ist zu DSV7 kompatibel: Alle
+ * bisherigen Felder stehen an derselben Stelle, neue Attribute sind hinten
+ * angehängt. Ein Parser liest deshalb beide Versionen; die Version steht in
+ * der FORMAT-Zeile und wird als 'dsv_version' mit ausgegeben. Neu in DSV8:
+ *   - gepackte Fassung .DSV8z (ZIP, entpackt in App\Support\DsvFile)
+ *   - Geschlecht D (divers), Ausübung KB/KR (Kicks), LASTSCHRIFT,
+ *     Kontoinhaber in BANKVERBINDUNG, Meldegeld-Typen Teilnehmermeldegeld
+ *     und Abschnittspauschale, Geschlecht bei TRAINER/KAMPFGERICHT
  *
  * Supports:
- *   - Official DSV Standard 7 (August 2022) — Vereinsergebnisliste + Wettkampfergebnisliste
+ *   - Official DSV Standard 7 (August 2022) and 8 (August 2026) — Wettkampfdefinitionsliste,
+ *     Vereinsergebnisliste (PERSON/PERSONENERGEBNIS) + Wettkampfergebnisliste
  *   - EasyWK 3.x (new format, runde field) and EasyWK 2.x (old format)
  *   - PNERGEBNIS (extended) and ERGEBNIS (compact DSV) individual results
  *   - STAFFELERGEBNIS / PNSTAFFELERGEBNIS (Vereinsergebnisliste relay)
@@ -26,12 +36,22 @@ class Dsv7Parser
         'L' => 'L',
     ];
 
-    // Status codes that indicate the swimmer did not achieve a valid result
-    const DNS_STATUSES = ['AB', 'DNS', 'DNF', 'DQ', 'DSQ', 'DISQ', 'NZ', 'WDR', 'EXH'];
+    // Status codes that indicate the swimmer did not achieve a valid result.
+    // Offizieller Standard (Grund der Nichtwertung): DS = disqualifiziert,
+    // NA = nicht angetreten, AB = abgemeldet, AU = aufgegeben, ZU = Zeitüberschreitung
+    const DNS_STATUSES = ['AB', 'DS', 'NA', 'AU', 'ZU', 'DNS', 'DNF', 'DQ', 'DSQ', 'DISQ', 'NZ', 'WDR', 'EXH'];
+
+    // Meldegeld-Typen, die nicht je Start anfallen (pro Verein/Teilnehmer/Abschnitt)
+    const FLAT_FEE_TYPES = [
+        'MELDEGELDPAUSCHALE'  => 'Meldegeldpauschale (je Verein)',
+        'MANNSCHAFTMELDEGELD' => 'Mannschaftsmeldegeld',
+        'TEILNEHMERMELDEGELD' => 'Teilnehmermeldegeld (je Teilnehmer mit Einzelmeldung)',
+        'ABSCHNITTSPAUSCHALE' => 'Abschnittspauschale (je Verein und gemeldetem Abschnitt)',
+    ];
 
     // Record types that carry no result/definition data — skip entirely
     private const SKIP_KEYWORDS = [
-        'FORMAT', 'WETTKAMPFENDE', 'DATEIENDE', 'DATEI',
+        'WETTKAMPFENDE', 'DATEIENDE', 'DATEI',
         'PNZWISCHENZEIT', 'ZWISCHENZEIT', 'ZWISCHENZEITEN', 'STZWISCHENZEIT',
         'PNREAKTION', 'STABLOESE',
         'MELDUNG', 'ANMELDUNG', 'NACHMELDUNG',
@@ -94,6 +114,10 @@ class Dsv7Parser
                 'discipline'         => $w['discipline'],
                 'distance'           => $w['distance'],
                 'relay_legs'         => ($w['relay_legs'] ?? 0) > 1 ? (int)$w['relay_legs'] : null,
+                'ausuebung'          => $w['ausuebung'] ?? 'GL',
+                'round_type'         => $w['art'] ?? '',
+                'age_type'           => $w['age_type'] ?? null,
+                'dsv_wertungs_id'    => $wid,
                 'gender'             => $w['gender'],
                 'age_min'            => $w['age_min'] ?? null,
                 'age_max'            => $w['age_max'] ?? null,
@@ -132,8 +156,17 @@ class Dsv7Parser
             'bank_recipient'    => trim($meta['bank_recipient'] ?? ''),
             'bank_iban'         => trim($meta['bank_iban'] ?? ''),
             'bank_bic'          => trim($meta['bank_bic'] ?? ''),
+            'bank_holder'       => trim($meta['bank_holder'] ?? ''),
+            'lastschrift'       => ($meta['lastschrift'] ?? '') === 'J' ? 'J' : '',
+            'flat_fees'         => $meta['flat_fees'] ?? [],
             'besonderes'        => trim($meta['besonderes'] ?? ''),
             'sessions'          => array_values($sessionMeta),
+            // Für die Vereinsmeldeliste: Version, Bahn, Zeitmessung und die
+            // Wettkämpfe so, wie der Ausrichter sie definiert hat
+            'dsv_version'       => $meta['dsv_version'] ?? null,
+            'pool_length'       => $meta['pool_length'] ?? '',
+            'timing'            => $meta['timing'] ?? '',
+            'wettkaempfe'       => array_values($meta['wettkaempfe'] ?? []),
         ]);
 
         return [
@@ -172,6 +205,8 @@ class Dsv7Parser
         $pflichtzeiten    = []; // wertungsID → ['time_ms' => int, 'deadline' => string|null]
         $meldegelder      = []; // wertungsID → meldegeld amount
         $meldegelderByWk  = []; // wkNr (event_number) → meldegeld amount
+        $pflichtzeitenByWk = []; // wkNr → [[typ, low, high, time_ms, gender]] (offizielles Format)
+        $persons          = []; // Veranstaltungs-ID → PERSON (Vereinsergebnisliste)
 
         foreach ($lines as $rawLine) {
             $line = trim($rawLine);
@@ -196,12 +231,27 @@ class Dsv7Parser
 
             switch ($keyword) {
 
+                case 'FORMAT':
+                    // Listart;Version  – z. B. "Wettkampfdefinitionsliste;8"
+                    $meta['list_type'] = $f(0);
+                    if (ctype_digit($f(1))) {
+                        $meta['dsv_version'] = (int)$f(1);
+                    }
+                    break;
+
                 case 'VERANSTALTUNG':
                     // Name;City;PoolLength(25|50);TimingType;...
                     $meta['name']   = $f(0);
                     $meta['city']   = $f(1);
                     // Bahnlaenge 25 oder 50 - andere/leere Angabe bleibt unbekannt (nicht stillschweigend Kurzbahn)
                     $meta['course'] = match ($f(2)) { '50' => 'Langbahn', '25' => 'Kurzbahn', default => null };
+                    $meta['pool_length'] = $f(2);
+                    $meta['timing']      = strtoupper($f(3));
+                    break;
+
+                case 'LASTSCHRIFT':
+                    // DSV8: J = Veranstaltung arbeitet ausschließlich mit Lastschrift
+                    $meta['lastschrift'] = strtoupper($f(0)) === 'J' ? 'J' : 'N';
                     break;
 
                 case 'VERANSTALTER':
@@ -262,10 +312,11 @@ class Dsv7Parser
                     break;
 
                 case 'BANKVERBINDUNG':
-                    // recipient; IBAN; BIC
+                    // Name der Bank; IBAN; BIC; [DSV8: Kontoinhaber]
                     $meta['bank_recipient'] = $f(0);
                     $meta['bank_iban']      = $f(1);
                     $meta['bank_bic']       = $f(2);
+                    $meta['bank_holder']    = $f(3);
                     break;
 
                 case 'BESONDERES':
@@ -325,6 +376,25 @@ class Dsv7Parser
                         $distance   = (int)$f(4);
                         $strokeCode = $strokeAtNew;
                         $gender     = $this->normalizeGender($f(7));
+                        // GL ganze Lage, BE Beine, AR Arme, ST Start, WE Wende, GB Gleitübung,
+                        // KB/KR Kicks Bauch-/Rückenlage (DSV8), X Sonderform
+                        $ausuebung  = strtoupper($f(6));
+
+                        // Originalzeile für die Vereinsmeldeliste merken: Die Meldung
+                        // muss die Wettkämpfe genau so wiederholen, wie der Ausrichter sie definiert hat.
+                        $meta['wettkaempfe'][$eventNum] = [
+                            'nr'        => $eventNum,
+                            'art'       => strtoupper($f(1)),
+                            'abschnitt' => $sessionNum,
+                            'starter'   => $f(3),
+                            'strecke'   => $f(4),
+                            'technik'   => $strokeAtNew,
+                            'ausuebung' => $ausuebung,
+                            'geschlecht'=> strtoupper($f(7)),
+                            'bestenliste' => strtoupper($f(8)),
+                            'quali_nr'  => $f(9),
+                            'quali_art' => strtoupper($f(10)),
+                        ];
                     } else {
                         $eventNum   = (int)$f(0);
                         $sessionNum = (int)$f(1);
@@ -332,6 +402,7 @@ class Dsv7Parser
                         $distance   = (int)$f(3);
                         $strokeCode = $strokeAtOld;
                         $gender     = $this->normalizeGender($f(6));
+                        $ausuebung  = '';
                     }
 
                     // Only store events with known strokes; skip 'X' (Sonderform) etc.
@@ -350,6 +421,7 @@ class Dsv7Parser
                         'gender'         => $gender,
                         'is_relay'       => $relayLegs > 1,
                         'relay_legs'     => $relayLegs,
+                        'ausuebung'      => $ausuebung ?: 'GL',
                     ];
                     // Store by event number so WERTUNG can look it up regardless of
                     // whether all WETTKAMPFs precede all WERTUNGs in the file.
@@ -373,6 +445,7 @@ class Dsv7Parser
                         $sourceWk   = $wettkampfByNum[$wkNr] ?? $currentWettkampf;
                         $artRaw     = strtoupper(trim($f(1)));
                         $wertungId  = (int)$f(2);
+                        $ageType    = strtoupper($f(3)); // JG = Jahrgang, AK = Altersklasse
                         $ageMin     = is_numeric($f(4)) ? (int)$f(4) : null;
                         $ageMax     = is_numeric($f(5)) ? (int)$f(5) : null;
                         $wGender    = $this->normalizeGender($f(6));
@@ -381,6 +454,7 @@ class Dsv7Parser
                         $sourceWk   = $currentWettkampf;
                         $artRaw     = '';
                         $wertungId  = (int)$f(0);
+                        $ageType    = strtoupper($f(1));
                         $ageMin     = is_numeric($f(2)) ? (int)$f(2) : null;
                         $ageMax     = is_numeric($f(3)) ? (int)$f(3) : null;
                         $wGender    = $this->normalizeGender($f(4));
@@ -397,6 +471,7 @@ class Dsv7Parser
                         'age_group'          => $ageGroup,
                         'age_min'            => $ageMin,
                         'age_max'            => $ageMax,
+                        'age_type'           => in_array($ageType, ['JG', 'AK'], true) ? $ageType : null,
                         'art'                => $artCode,
                         'qualifying_time_ms' => null,
                         'meldegeld'          => null,
@@ -411,6 +486,25 @@ class Dsv7Parser
                     //
                     // Old / simple: wertungsID ; zeit ; ...
                     //                   0          1
+
+                    // Offizieller DSV-Standard (7 und 8): Die Pflichtzeit gilt nicht für eine
+                    // WertungsID, sondern für eine Jahrgangs-/Altersklassen-Spanne eines Wettkampfs:
+                    //   wkNr ; art ; JG|AK ; min ; max ; zeit ; [geschlecht]
+                    if (in_array(strtoupper($f(2)), ['JG', 'AK'], true)) {
+                        $pTime = strtoupper($f(5)) !== 'NT' && $f(5) !== '' ? $this->parseTime($f(5)) : 0;
+                        if ((int)$f(0) && $pTime > 0) {
+                            $lo = is_numeric($f(3)) ? (int)$f(3) : 0;
+                            $hi = is_numeric($f(4)) ? (int)$f(4) : $lo;
+                            $pflichtzeitenByWk[(int)$f(0)][] = [
+                                'typ'     => strtoupper($f(2)),
+                                'low'     => min($lo, $hi ?: $lo),
+                                'high'    => max($lo, $hi),
+                                'time_ms' => $pTime,
+                                'gender'  => $f(6) !== '' ? $this->normalizeGender($f(6)) : null,
+                            ];
+                        }
+                        break;
+                    }
 
                     if ($useNewFormat && ctype_alpha($f(1)) && $f(1) !== '') {
                         $pWertungId   = (int)$f(2);
@@ -466,9 +560,26 @@ class Dsv7Parser
                             $meldegelder[$mWertungId] = $mAmount;
                         }
                     } elseif (!is_numeric(str_replace(',', '.', $f(0))) && is_numeric(str_replace(',', '.', $f(1)))) {
-                        // Format B: description first, amount second, optional wkNr third
+                        // Format B (offizieller Standard): Meldegeld-Typ ; Betrag ; [wkNr]
+                        $mType   = strtoupper(str_replace([' ', '-'], '', $f(0)));
                         $mAmount = (float)str_replace(',', '.', $f(1));
                         $mWkNr   = $f(2) !== '' && ctype_digit(trim($f(2))) ? (int)$f(2) : null;
+
+                        // Pauschalen fallen nicht je Start an – nur für die Anzeige merken.
+                        // Früher landeten sie im Startgeld (die letzte Zeile gewann).
+                        if (isset(self::FLAT_FEE_TYPES[$mType])) {
+                            if ($mAmount > 0) {
+                                $meta['flat_fees'][] = ['type' => self::FLAT_FEE_TYPES[$mType], 'amount' => $mAmount];
+                            }
+                            break;
+                        }
+                        if ($mType === 'EINZELMELDEGELD' || $mType === 'STAFFELMELDEGELD') {
+                            if ($mAmount > 0) {
+                                $meldegelder[$mType === 'EINZELMELDEGELD' ? '__single__' : '__relay__'] = $mAmount;
+                            }
+                            break;
+                        }
+
                         if ($mAmount > 0) {
                             if ($mWkNr !== null) {
                                 $meldegelderByWk[$mWkNr] = $mAmount;
@@ -521,79 +632,26 @@ class Dsv7Parser
                         $timeStr   = $f(7);
                     }
 
-                    if ($rawName === '') break;
-                    if (!isset($wertungMap[$wertungId])) break;
+                    $this->addIndividualResult($clubs, $wertungMap, $clubName, $rawName, $dsvId, $gender, $birthYear, $wertungId, $placement, $rawStatus, $timeStr);
+                    break;
 
-                    $isDnsType = in_array($rawStatus, self::DNS_STATUSES, true);
+                case 'PERSON':
+                    // Vereinsergebnisliste: Name ; DSV-ID ; Veranstaltungs-ID ; Geschlecht ; Jahrgang ; AK ; Nation…
+                    $persons[(int)$f(2)] = [
+                        'name'   => $f(0),
+                        'dsvid'  => $f(1) === '0' ? '' : $f(1),
+                        'gender' => $this->normalizeGender($f(3)),
+                        'jg'     => $f(4),
+                        'club'   => $currentClub ?? '',
+                    ];
+                    break;
 
-                    // Parse time if present
-                    $timeMs = 0;
-                    if ($timeStr !== '' && strtoupper($timeStr) !== 'NT') {
-                        $timeMs = $this->parseTime($timeStr);
-                    }
-
-                    // Skip entries with no time AND no known DNS/AB status
-                    if ($timeMs <= 0 && !$isDnsType) break;
-
-                    $wertung   = $wertungMap[$wertungId];
-                    $ageGroup  = $wertung['age_group'] ?? '';
-
-                    if (!isset($clubs[$clubName])) {
-                        $clubs[$clubName] = ['name' => $clubName, 'athletes' => []];
-                    }
-
-                    $athleteKey = $rawName . '|' . $birthYear;
-
-                    if (!isset($clubs[$clubName]['athletes'][$athleteKey])) {
-                        $clubs[$clubName]['athletes'][$athleteKey] = [
-                            'name'            => $this->parseName($rawName),
-                            'firstname'       => $this->extractFirstname($rawName),
-                            'lastname'        => $this->extractLastname($rawName),
-                            'birthdate'       => $birthYear,
-                            'gender'          => $gender,
-                            'dsvid'           => $dsvId,
-                            'is_relay'        => false,
-                            'relay_members'   => [],
-                            'results'         => [],
-                            'matched_user_id' => null,
-                        ];
-                    }
-
-                    // Deduplicate: same physical swim = same (event_number, round_type, time/status)
-                    $eventNum  = $wertung['event_number'];
-                    $roundType = $wertung['art'] ?? '';
-                    $resultKey = $eventNum . '|' . ($isDnsType ? ('DNS.' . $rawStatus) : $roundType);
-
-                    $foundIdx = null;
-                    foreach ($clubs[$clubName]['athletes'][$athleteKey]['results'] as $i => $r) {
-                        if (($r['result_key'] ?? '') === $resultKey) {
-                            $foundIdx = $i;
-                            break;
-                        }
-                    }
-
-                    if ($foundIdx !== null) {
-                        // Same physical swim in another Wertung — accumulate only
-                        if ($ageGroup !== '' && !in_array($ageGroup, $clubs[$clubName]['athletes'][$athleteKey]['results'][$foundIdx]['wertungen'])) {
-                            $clubs[$clubName]['athletes'][$athleteKey]['results'][$foundIdx]['wertungen'][] = $ageGroup;
-                        }
-                    } else {
-                        $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
-                            'result_key' => $resultKey,
-                            'eventid'    => (string)$wertungId,
-                            'discipline' => $wertung['discipline'],
-                            'distance'   => $wertung['distance'],
-                            'age_group'  => $ageGroup,
-                            'wertungen'  => $ageGroup !== '' ? [$ageGroup] : [],
-                            'gender'     => $gender !== 'X' ? $gender : ($wertung['gender'] ?? 'X'),
-                            'time_ms'    => $timeMs,
-                            'swimtime'   => $timeMs > 0 ? $this->formatTime($timeMs) : ($isDnsType ? $rawStatus : 'NT'),
-                            'place'      => $isDnsType ? 0 : ($placement ?: null),
-                            'status'     => $isDnsType ? $rawStatus : null,
-                            'round_type' => $roundType,
-                            'is_relay'   => false,
-                        ];
-                    }
+                case 'PERSONENERGEBNIS':
+                    // Veranstaltungs-ID ; wkNr ; art ; WertungsID ; Platz ; Endzeit ; Grund der Nichtwertung ; …
+                    $p = $persons[(int)$f(0)] ?? null;
+                    if (!$p) break;
+                    $this->addIndividualResult($clubs, $wertungMap, $p['club'], $p['name'], $p['dsvid'], $p['gender'],
+                        $p['jg'], (int)$f(3), (int)$f(4), strtoupper($f(6)), $f(5));
                     break;
 
                 case 'STAFFELERGEBNIS':
@@ -747,6 +805,14 @@ class Dsv7Parser
                     $birthYear  = $keyword === 'STAFFELPERSON' ? $f(3) : $f(5);
                     $splitTime  = $keyword === 'STAFFELPERSON' ? $f(8) : $f(7);
 
+                    // Offizieller Standard (DSV7/8): VIDstaffel ; wkNr ; art ; Name ; DSV-ID ;
+                    // Startnr ; Geschlecht ; Jahrgang ; … – erkennbar an der Wettkampfart in Feld 2
+                    if ($keyword === 'STAFFELPERSON' && in_array(strtoupper($f(2)), ['V', 'Z', 'F', 'E', 'A', 'N'], true)) {
+                        $memberName = $f(3);
+                        $birthYear  = $f(7);
+                        $splitTime  = '';
+                    }
+
                     $clubs[$pendingRelay['club']]['athletes'][$pendingRelay['key']]['relay_members'][] = [
                         'name'      => $this->parseName($memberName),
                         'firstname' => $this->extractFirstname($memberName),
@@ -766,16 +832,23 @@ class Dsv7Parser
         $globalFee = $meldegelder['__global__'] ?? null;
 
         foreach ($wertungMap as $wid => &$wertung) {
+            $wkNr = $wertung['event_number'] ?? null;
+
             if (isset($pflichtzeiten[$wid])) {
                 $wertung['qualifying_time_ms']  = $pflichtzeiten[$wid]['time_ms'];
                 $wertung['qualifying_deadline'] = $pflichtzeiten[$wid]['deadline'];
+            } elseif ($wkNr !== null && !empty($pflichtzeitenByWk[$wkNr])) {
+                $wertung['qualifying_time_ms'] = $this->matchPflichtzeit($pflichtzeitenByWk[$wkNr], $wertung);
             }
-            // Priority: per-wertungsID > per-wkNr > global
-            $wkNr = $wertung['event_number'] ?? null;
+
+            // Priority: per-wertungsID > per-wkNr > Einzel-/Staffelmeldegeld > global
+            $typeFee = !empty($wertung['is_relay']) ? ($meldegelder['__relay__'] ?? null) : ($meldegelder['__single__'] ?? null);
             if (isset($meldegelder[$wid])) {
                 $wertung['meldegeld'] = $meldegelder[$wid];
             } elseif ($wkNr !== null && isset($meldegelderByWk[$wkNr])) {
                 $wertung['meldegeld'] = $meldegelderByWk[$wkNr];
+            } elseif ($typeFee !== null) {
+                $wertung['meldegeld'] = $typeFee;
             } elseif ($globalFee !== null) {
                 $wertung['meldegeld'] = $globalFee;
             }
@@ -785,13 +858,123 @@ class Dsv7Parser
         return [$meta, $sessions, $wertungMap, $clubs, $sessionMeta];
     }
 
+    /**
+     * Einzelergebnis einem Athleten seines Vereins zuordnen (PNERGEBNIS,
+     * ERGEBNIS, PERSONENERGEBNIS). Derselbe Lauf in mehreren Wertungen wird
+     * nur einmal angelegt und sammelt die Wertungen.
+     */
+    private function addIndividualResult(
+        array &$clubs, array $wertungMap, string $clubName, string $rawName, string $dsvId,
+        string $gender, string $birthYear, int $wertungId, int $placement, string $rawStatus, string $timeStr,
+    ): void {
+        if ($rawName === '') return;
+        if (!isset($wertungMap[$wertungId])) return;
+        if ($dsvId === '0') $dsvId = ''; // 0 = DSV-ID unbekannt
+
+        $isDnsType = in_array($rawStatus, self::DNS_STATUSES, true);
+
+        // Parse time if present
+        $timeMs = 0;
+        if ($timeStr !== '' && strtoupper($timeStr) !== 'NT') {
+            $timeMs = $this->parseTime($timeStr);
+        }
+
+        // Skip entries with no time AND no known DNS/AB status
+        if ($timeMs <= 0 && !$isDnsType) return;
+
+        // Disqualifiziert/aufgegeben: Die mitgelieferte Zeit ist keine gültige
+        // Zeit und darf weder Bestzeit noch Rekord werden.
+        if ($isDnsType) $timeMs = 0;
+
+        $wertung  = $wertungMap[$wertungId];
+        $ageGroup = $wertung['age_group'] ?? '';
+
+        if (!isset($clubs[$clubName])) {
+            $clubs[$clubName] = ['name' => $clubName, 'athletes' => []];
+        }
+
+        $athleteKey = $rawName . '|' . $birthYear;
+        $athlete    = &$clubs[$clubName]['athletes'][$athleteKey];
+
+        if ($athlete === null) {
+            $athlete = [
+                'name'            => $this->parseName($rawName),
+                'firstname'       => $this->extractFirstname($rawName),
+                'lastname'        => $this->extractLastname($rawName),
+                'birthdate'       => $birthYear,
+                'gender'          => $gender,
+                'dsvid'           => $dsvId,
+                'is_relay'        => false,
+                'relay_members'   => [],
+                'results'         => [],
+                'matched_user_id' => null,
+            ];
+        }
+
+        // Deduplicate: same physical swim = same (event_number, round_type, time/status)
+        $eventNum  = $wertung['event_number'];
+        $roundType = $wertung['art'] ?? '';
+        $resultKey = $eventNum . '|' . ($isDnsType ? ('DNS.' . $rawStatus) : $roundType);
+
+        foreach ($athlete['results'] as $i => $r) {
+            if (($r['result_key'] ?? '') === $resultKey) {
+                // Same physical swim in another Wertung — accumulate only
+                if ($ageGroup !== '' && !in_array($ageGroup, $r['wertungen'])) {
+                    $athlete['results'][$i]['wertungen'][] = $ageGroup;
+                }
+                return;
+            }
+        }
+
+        $athlete['results'][] = [
+            'result_key' => $resultKey,
+            'eventid'    => (string)$wertungId,
+            'discipline' => $wertung['discipline'],
+            'distance'   => $wertung['distance'],
+            'ausuebung'  => $wertung['ausuebung'] ?? 'GL',
+            'age_group'  => $ageGroup,
+            'wertungen'  => $ageGroup !== '' ? [$ageGroup] : [],
+            'gender'     => $gender !== 'X' ? $gender : ($wertung['gender'] ?? 'X'),
+            'time_ms'    => $timeMs,
+            'swimtime'   => $timeMs > 0 ? $this->formatTime($timeMs) : ($isDnsType ? $rawStatus : 'NT'),
+            'place'      => $isDnsType ? 0 : ($placement ?: null),
+            'status'     => $isDnsType ? $rawStatus : null,
+            'round_type' => $roundType,
+            'is_relay'   => false,
+        ];
+    }
+
+    /**
+     * Pflichtzeit (offizielles Format, je Jahrgangs-/AK-Spanne) für eine Wertung.
+     * Passt, wenn Typ und Geschlecht stimmen und die Wertung ganz in der Spanne
+     * liegt. Gibt es für den Wettkampf nur eine Pflichtzeit, gilt sie für alle.
+     */
+    private function matchPflichtzeit(array $candidates, array $wertung): ?int
+    {
+        $lo = $wertung['age_min'] ?? 0;
+        $hi = $wertung['age_max'] ?? $lo;
+        [$lo, $hi] = [min($lo, $hi ?: $lo), max($lo, $hi)];
+
+        foreach ($candidates as $c) {
+            if (($wertung['age_type'] ?? null) && $wertung['age_type'] !== $c['typ']) continue;
+            if ($c['gender'] && $c['gender'] !== 'X' && ($wertung['gender'] ?? 'X') !== 'X'
+                && $c['gender'] !== $wertung['gender']) continue;
+            if ($lo >= $c['low'] && $hi <= $c['high']) return $c['time_ms'];
+        }
+
+        return count($candidates) === 1 ? $candidates[0]['time_ms'] : null;
+    }
+
     // ── File reading ────────────────────────────────────────────────────────
 
     private function readFile(string $filePath): string
     {
-        $raw = file_get_contents($filePath);
-        if ($raw === false) {
-            throw new \RuntimeException('Datei konnte nicht gelesen werden.');
+        // Entpackt .DSV8z (ZIP) automatisch
+        $raw = \App\Support\DsvFile::read($filePath);
+
+        // UTF-8-BOM entfernen (DSV8 verlangt "ohne BOM", manche Programme schreiben ihn trotzdem)
+        if (str_starts_with($raw, "\xEF\xBB\xBF")) {
+            $raw = substr($raw, 3);
         }
 
         if (!mb_check_encoding($raw, 'UTF-8')) {
@@ -868,6 +1051,8 @@ class Dsv7Parser
 
     private function normalizeGender(string $g): string
     {
+        // D (divers, neu in DSV8) kennt das Portal nicht als eigenes Geschlecht
+        // und fällt wie bisher alles Unbekannte auf X (ohne Zuordnung).
         return match(strtoupper($g)) {
             'W'     => 'F',
             'M'     => 'M',

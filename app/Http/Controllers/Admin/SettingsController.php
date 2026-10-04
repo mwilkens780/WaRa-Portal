@@ -21,6 +21,8 @@ class SettingsController extends Controller
                 'Das Portal wird gerade gewartet. Bitte versuche es später erneut.'),
             'maintenance_bypass_users' => Setting::getBypassUserIds(),
             'mail_test_address'        => Setting::getCached('mail_test_address', ''),
+            'club_name'                => \App\Services\Competition\DsvWriter::clubName(),
+            'club_dsv_number'          => \App\Services\Competition\DsvWriter::clubNumber() ?? '',
         ];
 
         $users = User::where('role', '!=', 'admin')
@@ -45,6 +47,24 @@ class SettingsController extends Controller
         ];
 
         return view('admin.settings.index', compact('settings', 'users', 'mailConfig', 'mailStats'));
+    }
+
+    /** Vereinsangaben fuer Dateien nach DSV-Standard (Meldedatei). */
+    public function updateClub(Request $request)
+    {
+        $data = $request->validate([
+            'club_name'       => ['required', 'string', 'max:100'],
+            'club_dsv_number' => ['nullable', 'digits:4'],
+        ], [
+            'club_dsv_number.digits' => 'Die Vereinskennzahl hat genau vier Ziffern.',
+        ]);
+
+        Setting::set('club.name', $data['club_name']);
+        Setting::set('club.dsv_number', $data['club_dsv_number'] ?? '');
+        Setting::clearCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('club_success', 'Vereinsangaben gespeichert.');
     }
 
     /** Testadresse fuer den Wartungsmodus. */

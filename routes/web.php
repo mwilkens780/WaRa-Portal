@@ -448,6 +448,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/einstellungen', [SettingsController::class, 'update'])->name('admin.settings.update');
     Route::put('/admin/einstellungen/webclub', [SettingsController::class, 'updateWebClub'])->name('admin.settings.webclub');
     Route::put('/admin/einstellungen/mail',    [SettingsController::class, 'updateMail'])->name('admin.settings.mail');
+    Route::put('/admin/einstellungen/verein',  [SettingsController::class, 'updateClub'])->name('admin.settings.club');
     Route::post('/admin/einstellungen/testmail', [SettingsController::class, 'sendTestMail'])->name('admin.settings.test-mail');
 
     // Mail-Protokoll

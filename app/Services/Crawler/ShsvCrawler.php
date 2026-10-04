@@ -33,13 +33,13 @@ class ShsvCrawler implements CrawlerInterface
         }
 
         preg_match_all(
-            '/<a[^>]+href=["\']([^"\']*-Pr\.DSV7)["\'][^>]*>/i',
+            '/<a[^>]+href=["\']([^"\']*-Pr\.DSV(?:7|8z?))["\'][^>]*>/i',
             $response->body(),
             $matches
         );
 
-        $links = array_unique($matches[1] ?? []);
-        Log::info('ShsvCrawler: Index-Seite geladen, ' . count($links) . ' DSV7-Links gefunden', ['url' => self::INDEX_URL]);
+        $links = \App\Support\DsvFile::preferNewest($matches[1] ?? []);
+        Log::info('ShsvCrawler: Index-Seite geladen, ' . count($links) . ' DSV-Links gefunden', ['url' => self::INDEX_URL]);
 
         foreach ($links as $link) {
             $url = $this->absoluteUrl($link);

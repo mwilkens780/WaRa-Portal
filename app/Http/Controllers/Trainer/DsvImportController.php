@@ -34,8 +34,8 @@ class DsvImportController extends Controller
 
         // Accept .lef, .xml, .txt — mime type varies by tool
         $ext = strtolower($file->getClientOriginalExtension());
-        if (!in_array($ext, ['xml', 'lef', 'txt', 'dsv7'])) {
-            return back()->withErrors(['dsv_file' => 'Nur .xml, .lef, .dsv7 oder .txt Dateien sind erlaubt.']);
+        if (!\App\Support\DsvFile::allowedExtension($ext)) {
+            return back()->withErrors(['dsv_file' => 'Erlaubt sind ' . \App\Support\DsvFile::LABEL . '.']);
         }
 
         $path     = $file->store('dsv-imports', 'local');

@@ -117,6 +117,20 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 - **Sync-Prinzip**: non-destruktiv — nur NULL-Felder befüllen, nie überschreiben, nie löschen
 - WebClub-Benutzername: `martin.wilkens@itnweb.de`
 
+## DSV-Standard 7 und 8 (Ausschreibungen, Meldungen, Ergebnisse)
+
+- **Ein Parser für beide Versionen**: `App\Services\Dsv7Parser` (Name historisch). DSV8 (gültig
+  ab 01.08.2026, ab 2027 Pflicht) hängt neue Attribute nur hinten an; die Version steht in
+  `FORMAT:Listart;Version;` und landet als `dsv_version` in `dsv_header_data`.
+- **Dateien immer über `App\Support\DsvFile::read()` lesen** – entpackt `.DSV8z` (ZIP mit genau
+  einer Datei) und `.lxf` ohne ZipArchive. Erlaubte Endungen: `DsvFile::EXTENSIONS`/`ACCEPT`.
+- **Generatoren** (`MeldedateiGenerator`, `DefinitionsdateiGenerator`, Bausteine in `DsvWriter`)
+  schreiben nach Spezifikation (Kapitel 5.1/5.2). Version: wie die Ausschreibung des Ausrichters,
+  sonst bis Ende 2026 DSV7, ab 2027 DSV8. Gemeldet wird je **Wettkampfnummer** (STARTPN), nicht je Wertung.
+- Vereinskennzahl/-name: Admin → Einstellungen → „Verein (DSV-Dateien)“ (`club.dsv_number`, `club.name`).
+  Ohne Kennzahl gibt es keine Meldedatei.
+- Spezifikation: dsv.de → Service → Formulare → Schwimmen („DSV Standard 8 gültig ab 01.08.2026“).
+
 ## Crawler-Architektur
 
 Alle automatischen Importe laufen als Laravel-Scheduled-Commands über `routes/console.php`.

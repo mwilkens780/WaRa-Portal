@@ -212,7 +212,7 @@
                                           data-confirm="Wettkampffolge ersetzen?"
                                           data-confirm-text="Die aktuelle Wettkampffolge dieses Wettkampfs wird durch die Strecken aus der Datei ersetzt."
                                           data-confirm-label="Ersetzen">
-                            <x-ui.file-drop name="def_file" label="Definitionsdatei (*-Wk.DSV7)" accept=".dsv7,.txt" :max-mb="10" />
+                            <x-ui.file-drop name="def_file" label="Definitionsdatei (*-Wk.DSV7 / .DSV8)" accept="{{ \App\Support\DsvFile::ACCEPT }}" :max-mb="10" />
                         </x-ui.upload-form>
                     </div>
                 </div>
@@ -225,7 +225,7 @@
                     </div>
                     <div class="p-4">
                         <x-ui.upload-form :action="route('admin.competitions.results-import.upload', $competition)" layout="inline">
-                            <x-ui.file-drop name="dsv_file" label="Ergebnisdatei (DSV7/Lenex)" accept=".dsv7,.lef,.xml,.txt" :max-mb="20" />
+                            <x-ui.file-drop name="dsv_file" label="Ergebnisdatei (DSV7/DSV8/Lenex)" accept="{{ \App\Support\DsvFile::ACCEPT }}" :max-mb="20" />
                         </x-ui.upload-form>
                     </div>
                 </div>
@@ -1522,7 +1522,8 @@
                     $events = $competition->events->sortBy('event_number');
                 @endphp
 
-                {{-- Header: Meldeschluss + DSV7-Downloads --}}
+                {{-- Header: Meldeschluss + DSV-Downloads (Version wie Ausschreibung, sonst nach Datum) --}}
+                @php $dsvVersion = \App\Services\Competition\DsvWriter::versionFor($competition); @endphp
                 <div class="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-gray-100">
                     <div>
                         <h3 class="font-semibold text-gray-800">{{ $attending->count() }} Schwimmer · {{ $existingEntries->sum(fn($g) => $g->count()) }} Meldungen</h3>
@@ -1535,12 +1536,12 @@
                         <a href="{{ route('admin.competitions.dsv7.meldedatei', $competition) }}"
                            class="bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                            Meldedatei *-Vm.DSV7
+                            Meldedatei (DSV{{ $dsvVersion }})
                         </a>
                         <a href="{{ route('admin.competitions.dsv7.definitionsdatei', $competition) }}"
                            class="border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                            Definitionsdatei *-Wk.DSV7
+                            Definitionsdatei (DSV{{ $dsvVersion }})
                         </a>
                         @endif
                     </div>
@@ -1865,6 +1866,25 @@
                         @if($hd['bank_bic'] ?? null)
                             <p class="text-xs font-mono text-gray-600">BIC: {{ $hd['bank_bic'] }}</p>
                         @endif
+                        @if($hd['bank_holder'] ?? null)
+                            <p class="text-xs text-gray-600">Kontoinhaber: {{ $hd['bank_holder'] }}</p>
+                        @endif
+                    </div>
+                    @endif
+
+                    @if(($hd['lastschrift'] ?? '') === 'J')
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Zahlung</p>
+                        <p class="text-xs text-gray-600">Ausschließlich per Lastschrift</p>
+                    </div>
+                    @endif
+
+                    @if(!empty($hd['flat_fees']))
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Pauschalen</p>
+                        @foreach($hd['flat_fees'] as $fee)
+                            <p class="text-xs text-gray-600">{{ $fee['type'] }}: {{ number_format((float) $fee['amount'], 2, ',', '.') }} €</p>
+                        @endforeach
                     </div>
                     @endif
 
@@ -1881,7 +1901,7 @@
                                 · Start {{ $sess['start_time'] }} Uhr
                             @endif
                             @if(($sess['warmup_start'] ?? '') && $sess['warmup_start'] !== '00:00')
-                                · Einschwimmen ab {{ $sess['warmup_start'] }} Uhr
+                                · Einlass ab {{ $sess['warmup_start'] }} Uhr
                             @endif
                         </div>
                         @endforeach

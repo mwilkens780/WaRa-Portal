@@ -3,110 +3,121 @@
 namespace App\Services\Competition;
 
 use App\Models\Competition;
-use App\Services\Dsv7Parser;
 
+/**
+ * Wettkampfdefinitionsliste (*-Wk.DSV7 / *-Wk.DSV8) nach DSV-Standard, Kapitel 5.1.
+ *
+ * Für eigene Veranstaltungen: Aus den Wertungen im Portal und den Kopfdaten
+ * einer eingelesenen Ausschreibung (Ort, Ausrichter, Meldeadresse, Bank)
+ * entsteht die Datei, die Vereine in ihre Meldesoftware laden.
+ *
+ * DSV8 ergänzt den Kontoinhaber in BANKVERBINDUNG und das Element LASTSCHRIFT.
+ */
 class DefinitionsdateiGenerator
 {
-    /**
-     * Generate a DSV7 *-Wk.DSV7 Wettkampfdefinitionsdatei from competition_events.
-     *
-     * Returns the file content as a string (UTF-8, CRLF line endings).
-     */
-    public function generate(Competition $competition): string
+    public function generate(Competition $competition, ?int $version = null): string
     {
-        $competition->load(['events' => fn($q) => $q->orderBy('session_number')->orderBy('event_number')]);
+        $competition->load(['events' => fn($q) => $q->orderBy('event_number')->orderBy('id')]);
+        $version ??= DsvWriter::versionFor($competition);
+        $h = $competition->dsv_header_data ?? [];
+        $w = new DsvWriter($version);
 
-        $lines   = [];
-        $lines[] = 'FORMAT:Wettkampfdefinitionsliste;7';
-        $lines[] = 'ERZEUGER:WaRa-Portal;1.0;portal@wasserratten.de';
-        $lines[] = 'VERANSTALTUNG:' . implode(';', [
+        $w->add('FORMAT', ['Wettkampfdefinitionsliste', $version]);
+        $w->add('ERZEUGER', ['WaRa-Portal', '1.0', config('mail.from.address') ?: 'portal@wasserratten.de']);
+        $w->add('VERANSTALTUNG', [
             $competition->name,
             $competition->location ?? '',
-            $competition->course === 'Langbahn' ? '50' : '25',
-            'AUTOMATISCH',
-            $competition->date->format('d.m.Y'),
-            ($competition->date_end ?? $competition->date)->format('d.m.Y'),
+            DsvWriter::poolLength($competition),
+            DsvWriter::timing($competition),
+        ]);
+        $w->add('VERANSTALTUNGSORT', [
+            $h['venue_name'] ?? ($competition->location ?? ''),
+            $h['venue_street'] ?? '', $h['venue_plz'] ?? '', $h['venue_city'] ?? '',
+            'GER', $h['venue_phone'] ?? '', '', '',
+        ]);
+        $w->add('AUSSCHREIBUNGIMNETZ', [$h['announcement_url'] ?? '']);
+        $w->add('VERANSTALTER', [$competition->organizer ?: DsvWriter::clubName()]);
+        $w->add('AUSRICHTER', [
+            $h['ausrichter_name'] ?? DsvWriter::clubName(),
+            $h['ausrichter_person'] ?? '', $h['ausrichter_street'] ?? '', $h['ausrichter_plz'] ?? '',
+            $h['ausrichter_city'] ?? '', 'GER', $h['ausrichter_phone'] ?? '', '', $h['ausrichter_email'] ?? '',
+        ]);
+        $w->add('MELDEADRESSE', [
+            $h['melde_person'] ?? '', $h['melde_street'] ?? '', $h['melde_plz'] ?? '', $h['melde_city'] ?? '',
+            'GER', $h['melde_phone'] ?? '', '', $h['melde_email'] ?? '',
+        ]);
+        $w->add('MELDESCHLUSS', [
+            $competition->meldeschluss?->format('d.m.Y') ?? ($h['meldeschluss_date'] ?? ''),
+            $h['meldeschluss_time'] ?? '',
         ]);
 
-        if ($competition->organizer) {
-            $lines[] = "VERANSTALTER:{$competition->organizer}";
+        // LASTSCHRIFT und BANKVERBINDUNG schließen sich aus (DSV8)
+        if ($version >= 8 && ($h['lastschrift'] ?? '') === 'J') {
+            $w->add('LASTSCHRIFT', ['J']);
+        } elseif (!empty($h['bank_iban'])) {
+            $bank = [$h['bank_recipient'] ?? '', $h['bank_iban'], $h['bank_bic'] ?? ''];
+            if ($version >= 8) $bank[] = $h['bank_holder'] ?? '';
+            $w->add('BANKVERBINDUNG', $bank);
+        }
+        if (!empty($h['besonderes'])) {
+            $w->add('BESONDERES', [$h['besonderes']]);
         }
 
-        // Kampfgericht contacts from JSON field
-        foreach ($competition->kampfgericht['contacts'] ?? [] as $official) {
-            $role  = $official['role'] ?? '';
-            $name  = $official['name'] ?? '';
-            $club  = $official['email'] ?? '';
-            $lines[] = "KAMPFGERICHT:{$role};{$name};{$club}";
+        foreach (DsvWriter::abschnitte($competition) as $a) {
+            $w->add('ABSCHNITT', [$a['nr'], $a['date'], $a['einlass'], $a['kari'], $a['start'], $a['relative']]);
         }
 
-        // ABSCHNITT per session
-        $sessions = $competition->events->groupBy('session_number');
-        foreach ($sessions as $sessionNum => $sessionEvents) {
-            $first   = $sessionEvents->first();
-            $dateStr = $first->session_date?->format('d.m.Y') ?? '';
-            $name    = $first->session_name ?? ('Abschnitt ' . $sessionNum);
-            $lines[] = "ABSCHNITT:{$sessionNum};{$dateStr};{$name}";
+        $wettkaempfe = DsvWriter::wettkaempfe($competition);
+        foreach ($wettkaempfe as $wk) {
+            $w->add('WETTKAMPF', [
+                $wk['nr'], $wk['art'] ?: 'E', $wk['abschnitt'], $wk['starter'], $wk['strecke'],
+                $wk['technik'], $wk['ausuebung'] ?: 'GL', $wk['geschlecht'], $wk['bestenliste'] ?: 'SW',
+                $wk['quali_nr'] ?? '', $wk['quali_art'] ?? '',
+            ]);
         }
 
-        // WETTKAMPF + WERTUNG + PFLICHTZEIT + MELDEGELD
-        $wertungsIdCounter = 1;
+        // WertungsIDs: aus der Ausschreibung, sonst fortlaufend (eindeutig je Veranstaltung)
+        $used   = $competition->events->pluck('dsv_wertungs_id')->filter()->all();
+        $nextId = $used ? max($used) + 1 : 1;
+        $fees   = [];
 
-        foreach ($competition->events->groupBy('event_number') as $eventNum => $wertungen) {
-            $base      = $wertungen->first();
-            $isRelay   = str_contains(strtolower($base->age_group ?? ''), 'staffel');
-            $legs      = $isRelay ? 4 : 1;
-            $legDist   = $isRelay ? intdiv($base->distance, $legs) : $base->distance;
-            $stroke    = strtoupper(array_flip(Dsv7Parser::STROKE_MAP)[$base->discipline] ?? 'F');
+        foreach ($competition->events as $e) {
+            $art = $wettkaempfe[$e->event_number]['art'] ?? 'E';
+            $wid = $e->dsv_wertungs_id ?: $nextId++;
+            $typ = ($e->age_min ?? $e->age_max ?? 9999) >= 1900 ? 'JG' : 'AK';
+            $min = $e->age_min ?? 0;
+            $max = $e->age_max ?? ($e->age_min ? '' : 9999);
 
-            $lines[] = implode(';', [
-                "WETTKAMPF:{$eventNum}",
-                'E',
-                $base->session_number,
-                $legs,
-                $legDist,
-                $stroke,
-                'E',
-                $this->genderDs7($base->gender),
+            $w->add('WERTUNG', [
+                $e->event_number, $art, $wid, $typ, $min, $max,
+                DsvWriter::gender($e->gender), $e->age_group ?: 'Offene Wertung',
             ]);
 
-            foreach ($wertungen as $wertung) {
-                $ageMin = $wertung->age_min ?? 0;
-                $ageMax = $wertung->age_max ?? 9999;
-                $label  = $wertung->age_group ?: 'Offene Klasse';
-
-                $lines[] = implode(';', [
-                    "WERTUNG:{$eventNum}",
-                    'E',
-                    $wertungsIdCounter,
-                    'E',
-                    $ageMin,
-                    $ageMax,
-                    $this->genderDs7($wertung->gender),
-                    $label,
+            if ($e->qualifying_time_ms > 0) {
+                $w->add('PFLICHTZEIT', [
+                    $e->event_number, $art, $typ, $min, $max,
+                    DsvWriter::time($e->qualifying_time_ms), DsvWriter::gender($e->gender),
                 ]);
-
-                if ($wertung->qualifying_time_ms > 0) {
-                    $zeit    = MeldedateiGenerator::msToDs7($wertung->qualifying_time_ms);
-                    $lines[] = "PFLICHTZEIT:{$eventNum};E;{$wertungsIdCounter};;{$zeit}";
-                }
-
-                if ($wertung->meldegeld > 0) {
-                    $betrag  = number_format((float) $wertung->meldegeld, 2, ',', '');
-                    $lines[] = "MELDEGELD:{$eventNum};E;{$wertungsIdCounter};{$betrag};EUR";
-                }
-
-                $wertungsIdCounter++;
+            }
+            if ($e->meldegeld > 0) {
+                $fees[$e->event_number] = (float) $e->meldegeld;
             }
         }
 
-        $lines[] = 'DATEIENDE';
+        // Meldegeld je Wettkampf; Pauschalen aus der Ausschreibung bleiben erhalten
+        foreach ($h['flat_fees'] ?? [] as $fee) {
+            $type = array_search($fee['type'] ?? '', \App\Services\Dsv7Parser::FLAT_FEE_TYPES, true);
+            // Teilnehmermeldegeld und Abschnittspauschale gibt es erst ab DSV8
+            if ($type && ($version >= 8 || !in_array($type, ['TEILNEHMERMELDEGELD', 'ABSCHNITTSPAUSCHALE'], true))) {
+                $w->add('MELDEGELD', [$type, DsvWriter::amount((float) $fee['amount']), '']);
+            }
+        }
+        foreach ($fees as $nr => $amount) {
+            $w->add('MELDEGELD', ['WKMELDEGELD', DsvWriter::amount($amount), $nr]);
+        }
 
-        return implode("\r\n", $lines);
-    }
+        $w->add('DATEIENDE');
 
-    private function genderDs7(string $g): string
-    {
-        return ($g === 'F') ? 'W' : strtoupper($g);
+        return $w->content();
     }
 }

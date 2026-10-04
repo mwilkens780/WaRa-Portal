@@ -177,6 +177,29 @@
         </div>
     </div>
 
+    {{-- Verein: Angaben fuer Meldedateien nach DSV-Standard --}}
+    <x-ui.card title="Verein (DSV-Dateien)">
+        @if(session('club_success'))
+            <x-ui.alert tone="success" class="mb-4">{{ session('club_success') }}</x-ui.alert>
+        @endif
+        <form method="POST" action="{{ route('admin.settings.club') }}" class="space-y-4">
+            @csrf @method('PUT')
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-ui.field label="Vereinsname" name="club_name" :value="$settings['club_name']" required
+                            hint="So steht der Verein in Meldedateien und Ergebnislisten." />
+                <x-ui.field label="DSV-Vereinskennzahl" name="club_dsv_number" :value="$settings['club_dsv_number']"
+                            inputmode="numeric" maxlength="4" class="sm:max-w-xs"
+                            hint="Vierstellige Nummer, die der DSV dem Verein zugeteilt hat. Ohne sie gibt es keine Meldedatei." />
+            </div>
+            <p class="text-xs text-gray-600">
+                Landesverband in den Dateien: Schleswig-Holsteinischer Schwimmverband (Kennung 14).
+                Meldedateien entstehen im Format der Ausschreibung (DSV7 oder DSV8), ohne Ausschreibungsdatei
+                bis Ende 2026 als DSV7, ab 2027 als DSV8.
+            </p>
+            <x-ui.button type="submit">Speichern</x-ui.button>
+        </form>
+    </x-ui.card>
+
     {{-- WebClub: Hinweis, Konfig jetzt direkt in der Crawler-Seite --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-6 py-4 flex items-center gap-3">

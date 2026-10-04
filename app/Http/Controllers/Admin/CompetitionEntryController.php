@@ -10,7 +10,9 @@ use App\Services\Competition\DefinitionsdateiGenerator;
 use App\Services\Competition\AusschreibungGenerator;
 use App\Services\Competition\EntryService;
 use App\Services\Competition\EntryValidationService;
+use App\Services\Competition\DsvWriter;
 use App\Services\Competition\MeldedateiGenerator;
+use App\Support\DsvFile;
 use Illuminate\Http\Request;
 
 class CompetitionEntryController extends Controller
@@ -137,15 +139,21 @@ class CompetitionEntryController extends Controller
         return response()->json(['relay' => $relay->load('members.user')]);
     }
 
-    // ── DSV7 Downloads ───────────────────────────────────────────────────────
+    // ── DSV-Downloads (Standard 7 oder 8, siehe DsvWriter::versionFor) ─────────
 
     /**
-     * Download DSV7 *-Vm.DSV7 Vereinsmeldedatei.
+     * Vereinsmeldeliste *-Me.DSV7 bzw. *-Me.DSV8.
      */
-    public function downloadMeldedatei(Competition $competition)
+    public function downloadMeldedatei(Request $request, Competition $competition)
     {
-        $content  = $this->meldedatei->generate($competition);
-        $filename = $competition->date->format('Y-m-d') . '-' . $this->slugify($competition->location) . '-Vm.DSV7';
+        // Ohne Vereinskennzahl ordnet die Software des Ausrichters die Meldung keinem Verein zu
+        if (!DsvWriter::clubNumber()) {
+            return back()->with('error', 'Für die Meldedatei fehlt die DSV-Vereinskennzahl. Bitte unter Admin → Einstellungen → „Verein (DSV-Dateien)“ eintragen.');
+        }
+
+        $version  = DsvWriter::versionFor($competition);
+        $content  = $this->meldedatei->generate($competition, $request->user(), $version);
+        $filename = DsvFile::filename($competition->date_end ?? $competition->date, $competition->location, 'Me', $version, DsvWriter::clubName());
 
         return response($content, 200, [
             'Content-Type'        => 'text/plain; charset=UTF-8',
@@ -154,12 +162,13 @@ class CompetitionEntryController extends Controller
     }
 
     /**
-     * Download DSV7 *-Wk.DSV7 Wettkampfdefinitionsdatei.
+     * Wettkampfdefinitionsliste *-Wk.DSV7 bzw. *-Wk.DSV8.
      */
     public function downloadDefinitionsdatei(Competition $competition)
     {
-        $content  = $this->definitionsdatei->generate($competition);
-        $filename = $competition->date->format('Y-m-d') . '-' . $this->slugify($competition->location) . '-Wk.DSV7';
+        $version  = DsvWriter::versionFor($competition);
+        $content  = $this->definitionsdatei->generate($competition, $version);
+        $filename = DsvFile::filename($competition->date_end ?? $competition->date, $competition->location, 'Wk', $version);
 
         return response($content, 200, [
             'Content-Type'        => 'text/plain; charset=UTF-8',

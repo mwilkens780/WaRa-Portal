@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Services\WaScoringService;
+use App\Support\DsvFile;
 use SimpleXMLElement;
 
 class DsvImportService
@@ -22,23 +23,20 @@ class DsvImportService
      */
     private function isDsv7(string $filePath): bool
     {
-        $handle = fopen($filePath, 'r');
-        if (!$handle) return false;
+        // Gilt für DSV7 und DSV8, gepackt (.DSV8z) oder nicht
+        $content = DsvFile::read($filePath);
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
 
-        for ($i = 0; $i < 20; $i++) {
-            $line = fgets($handle);
-            if ($line === false) break;
+        foreach (array_slice(preg_split('/\r\n|\r|\n/', $content, 22), 0, 20) as $line) {
             $line = trim($line);
             if ($line === '') continue;
             // Pascal comment lines — skip
             if (str_starts_with($line, '(*')) continue;
             // First non-comment, non-empty line
-            fclose($handle);
-            // DSV7 keyword lines look like "FORMAT: ..." or "VERANSTALTUNG: ..."
+            // DSV keyword lines look like "FORMAT: ..." or "VERANSTALTUNG: ..."
             return str_contains($line, ':') && !str_starts_with($line, '<');
         }
 
-        fclose($handle);
         return false;
     }
 
@@ -58,10 +56,8 @@ class DsvImportService
      */
     private function loadXml(string $filePath): SimpleXMLElement
     {
-        $raw = file_get_contents($filePath);
-        if ($raw === false) {
-            throw new \RuntimeException('Datei konnte nicht gelesen werden.');
-        }
+        // Lenex gepackt (.lxf) wird hier ebenfalls entpackt
+        $raw = DsvFile::read($filePath);
 
         // Strip Pascal-style (* ... *) comment lines produced by EasyWk and similar tools
         $raw = preg_replace('/^\(\*.*?\*\)\s*/ms', '', $raw);

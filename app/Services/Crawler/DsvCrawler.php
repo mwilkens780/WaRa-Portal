@@ -38,12 +38,12 @@ class DsvCrawler implements CrawlerInterface
             }
 
             preg_match_all(
-                '/<a[^>]+href=["\']([^"\']*-Pr\.DSV7)["\'][^>]*>/i',
+                '/<a[^>]+href=["\']([^"\']*-Pr\.DSV(?:7|8z?))["\'][^>]*>/i',
                 $response->body(),
                 $matches
             );
 
-            foreach (array_unique($matches[1] ?? []) as $link) {
+            foreach (\App\Support\DsvFile::preferNewest($matches[1] ?? []) as $link) {
                 $url = $this->absoluteUrl($link, $pageUrl);
                 $fileResponse = Http::withOptions(['verify' => !env('CRAWLER_SSL_VERIFY_DISABLE', false)])->timeout(30)->get($url);
                 if ($fileResponse->failed()) continue;

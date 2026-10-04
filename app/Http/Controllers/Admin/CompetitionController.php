@@ -79,8 +79,8 @@ class CompetitionController extends Controller
         $file = $request->file('lenex_file');
         $ext  = strtolower($file->getClientOriginalExtension());
 
-        if (!in_array($ext, ['xml', 'lef', 'txt', 'dsv7'])) {
-            return back()->withErrors(['lenex_file' => 'Nur .xml, .lef, .dsv7 oder .txt Dateien sind erlaubt.']);
+        if (!\App\Support\DsvFile::allowedExtension($ext)) {
+            return back()->withErrors(['lenex_file' => 'Erlaubt sind ' . \App\Support\DsvFile::LABEL . '.']);
         }
 
         $path     = $file->store('dsv-imports', 'local');
@@ -136,8 +136,14 @@ class CompetitionController extends Controller
             $events = json_decode($data['events_json'], true) ?? [];
         }
 
-        $competition = DB::transaction(function () use ($data, $events) {
+        // Kopfdaten der eingelesenen Ausschreibung (DSV-Version, Wettkämpfe,
+        // Bankverbindung …) mitnehmen – aber nur, wenn sie zu diesem Wettkampf gehören
+        $lenex     = session('lenex_competition_data');
+        $dsvHeader = ($lenex['name'] ?? null) === $data['name'] ? ($lenex['dsv_header'] ?? null) : null;
+
+        $competition = DB::transaction(function () use ($data, $events, $dsvHeader) {
             $competition = Competition::create([
+                'dsv_header_data' => $dsvHeader,
                 'name'        => $data['name'],
                 'location'    => $data['location'],
                 'date'        => $data['date'],
@@ -161,6 +167,7 @@ class CompetitionController extends Controller
                     'session_name'   => $ev['session_name'] ?: null,
                     'discipline'     => $ev['discipline'],
                     'distance'       => (int)$ev['distance'],
+                    'dsv_wertungs_id' => $ev['dsv_wertungs_id'] ?? null,
                     'relay_legs'     => isset($ev['relay_legs']) && (int)$ev['relay_legs'] > 1 ? (int)$ev['relay_legs'] : null,
                     'gender'         => $ev['gender'] ?? 'X',
                     // Normalize: 0 = "no minimum", 9999+ = "no maximum" → store as null
@@ -581,6 +588,7 @@ class CompetitionController extends Controller
                     'session_name'        => $ev['session_name'] ?: null,
                     'discipline'          => $ev['discipline'],
                     'distance'            => (int)$ev['distance'],
+                    'dsv_wertungs_id'     => $ev['dsv_wertungs_id'] ?? null,
                     'relay_legs'          => isset($ev['relay_legs']) && (int)$ev['relay_legs'] > 1 ? (int)$ev['relay_legs'] : null,
                     'gender'              => $ev['gender'] ?? 'X',
                     'age_min'             => ($ageMin > 0) ? $ageMin : null,

@@ -60,7 +60,7 @@ class BatchImporter
                 continue;
             }
 
-            if (!preg_match('/\.(DSV7|dsv7)$/', $file)) {
+            if (!preg_match('/\.dsv(7|8z?)$/i', $file)) {
                 continue;
             }
 

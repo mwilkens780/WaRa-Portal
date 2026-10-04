@@ -334,10 +334,10 @@ class NsvCrawler implements CrawlerInterface
 
     private function downloadDsv7Links(string $html, string $baseUrl): array
     {
-        preg_match_all('/<a[^>]+href=["\']([^"\']*\.dsv7)["\'][^>]*>/i', $html, $matches);
+        preg_match_all('/<a[^>]+href=["\']([^"\']*\.dsv(?:7|8z?))["\'][^>]*>/i', $html, $matches);
 
         $files = [];
-        foreach (array_unique($matches[1] ?? []) as $link) {
+        foreach (\App\Support\DsvFile::preferNewest($matches[1] ?? []) as $link) {
             $url  = $this->absoluteUrl($link, $baseUrl);
             $resp = $this->http($url);
             if (!$resp) continue;

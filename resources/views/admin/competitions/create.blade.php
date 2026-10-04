@@ -44,7 +44,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <x-ui.upload-form :action="route('admin.competitions.lenex')" submit="Einlesen und Formular füllen">
-                <x-ui.file-drop name="lenex_file" label="Ausschreibung (Lenex/DSV7)" accept=".dsv7,.lef,.xml,.txt" :max-mb="20" />
+                <x-ui.file-drop name="lenex_file" label="Ausschreibung (Lenex/DSV7/DSV8)" accept="{{ \App\Support\DsvFile::ACCEPT }}" :max-mb="20" />
             </x-ui.upload-form>
         </div>
     </div>
