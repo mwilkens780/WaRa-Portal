@@ -47,7 +47,8 @@
                 </div>
                 @endif
             </div>
-            <div class="flex gap-2 flex-shrink-0 flex-wrap">
+            {{-- Handy: volle Breite und umbrechen (vier Knoepfe passen nicht in eine Zeile) --}}
+            <div class="flex flex-wrap gap-2 basis-full sm:basis-auto sm:flex-shrink-0">
                 <x-ui.button variant="secondary" size="sm" href="{{ route('trainer.sessions.edit', $session) }}">{{ $series ? 'Nur diesen Termin ändern' : 'Bearbeiten' }}</x-ui.button>
                 @if($series)
                     <x-ui.button variant="secondary" size="sm" href="{{ route('trainer.sessions.series.show', $series->id) }}">Serie öffnen</x-ui.button>
