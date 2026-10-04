@@ -41,7 +41,7 @@
     <div>
     @foreach($sections as $section)
         <div class="record-section border-b border-gray-100 last:border-0"
-             data-gender="{{ $section['gender'] }}">
+             data-gender="{{ $section['gender'] }}" x-show="activeGender === '{{ $section['gender'] }}'">
             <div class="bg-gray-50 px-5 py-2 flex items-center gap-2">
                 <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     {{ $discLabels[$section['discipline']] ?? $section['discipline'] }}

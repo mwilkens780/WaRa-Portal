@@ -18,7 +18,7 @@
     </p>
 @else
     @foreach(['F' => 'Weiblich', 'M' => 'Männlich'] as $gender => $genderLabel)
-        <div class="border-b border-gray-100 last:border-0">
+        <div class="border-b border-gray-100 last:border-0" x-show="activeGender === '{{ $gender }}'">
             <div class="bg-gray-100 px-5 py-2">
                 <p class="text-xs font-bold text-gray-700 uppercase tracking-wider">{{ $genderLabel }} · {{ $course }}</p>
             </div>

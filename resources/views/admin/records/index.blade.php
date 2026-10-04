@@ -19,6 +19,7 @@
 <div class="mt-2 space-y-4" x-data="{
     activeTab: '{{ $initTab }}',
     activeCourse: 'Langbahn',
+    activeGender: 'F',
     showAddVrLr: false,
     showAddBestList: false,
     addType: 'vereinsrekord',
@@ -323,20 +324,27 @@
             </button>
         </div>
 
-        {{-- Course Toggle (shared across all tabs) --}}
-        <div class="flex items-center gap-3 px-5 py-3 bg-gray-50/60 border-b border-gray-100">
-            <span class="text-xs text-gray-500 font-medium">Bahnlänge:</span>
-            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-                <button @click="activeCourse = 'Langbahn'"
-                        :class="activeCourse === 'Langbahn' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                        class="px-4 py-1.5 font-medium transition-colors">
-                    Langbahn
-                </button>
-                <button @click="activeCourse = 'Kurzbahn'"
-                        :class="activeCourse === 'Kurzbahn' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                        class="px-4 py-1.5 font-medium transition-colors border-l border-gray-200">
-                    Kurzbahn
-                </button>
+        {{-- Filter fuer alle Reiter: Bahnlaenge und Geschlecht --}}
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 bg-gray-50/60 border-b border-gray-100">
+            <div class="flex items-center gap-3" role="group" aria-label="Bahnlänge">
+                <span class="text-xs text-gray-600 font-medium">Bahnlänge:</span>
+                <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                    @foreach(['Langbahn', 'Kurzbahn'] as $i => $c)
+                        <button type="button" @click="activeCourse = '{{ $c }}'" :aria-pressed="activeCourse === '{{ $c }}' ? 'true' : 'false'"
+                                :class="activeCourse === '{{ $c }}' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                class="px-4 py-1.5 font-medium transition-colors {{ $i ? 'border-l border-gray-200' : '' }}">{{ $c }}</button>
+                    @endforeach
+                </div>
+            </div>
+            <div class="flex items-center gap-3" role="group" aria-label="Geschlecht">
+                <span class="text-xs text-gray-600 font-medium">Geschlecht:</span>
+                <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                    @foreach(['F' => 'Weiblich', 'M' => 'Männlich'] as $g => $gLabel)
+                        <button type="button" @click="activeGender = '{{ $g }}'" :aria-pressed="activeGender === '{{ $g }}' ? 'true' : 'false'"
+                                :class="activeGender === '{{ $g }}' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                class="px-4 py-1.5 font-medium transition-colors {{ $g === 'M' ? 'border-l border-gray-200' : '' }}">{{ $gLabel }}</button>
+                    @endforeach
+                </div>
             </div>
         </div>
 
