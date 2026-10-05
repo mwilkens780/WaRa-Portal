@@ -144,6 +144,15 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   **nie** als Zeit der Lage: Jede neue Bestzeit-/Rekord-/Bestenlisten-/Meldezeit-Abfrage braucht
   `->whereNull('exercise')`.
 
+## Punkte (WA und Rudolph)
+
+- **WA-Punkte**: Basiszeiten in `wa_scoring_tables`, Tabelle nach Wettkampfdatum
+  (`WaScoringService::yearFor`: Langbahn „Y“ = Kalenderjahr, Kurzbahn „Y“ = 01.09.Y–31.08.Y+1).
+  Neue Basiszeiten per Daten-Migration nachtragen (Kurzbahn erscheint im September).
+- **Rudolph-Punkte** (1–20, altersgerecht): `App\Support\RudolphTable`, Daten in
+  `resources/data/rudolph-2025.json` (DSV-Tabelle 2025, gilt 2026). Fachvorgaben: nur Langbahn,
+  Alter = Wettkampfjahr − Geburtsjahr (ab 19 „offen“, unter 8 keine). Zuschaltbar in „Meine Zeiten“.
+
 ## Crawler-Architektur
 
 Alle automatischen Importe laufen als Laravel-Scheduled-Commands über `routes/console.php`.

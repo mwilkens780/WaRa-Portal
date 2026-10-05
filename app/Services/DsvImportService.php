@@ -442,7 +442,8 @@ class DsvImportService
         $swimmers   = \App\Models\User::where('role', 'schwimmer')->where('active', true)->get();
         $poolLength = $this->waScoring->poolLengthFromCourse($meet['course'] ?? '');
         $compYear   = (int) substr($meet['startdate'] ?? now()->toDateString(), 0, 4);
-        $waYear     = $this->waScoring->latestYear($poolLength) ?? $compYear;
+        // Tabelle, die am Wettkampftag galt (Kurzbahn wechselt am 01.09.)
+        $waYear     = $this->waScoring->yearFor($poolLength, $meet['startdate'] ?? null) ?? $compYear;
 
         foreach ($meet['clubs'] as $club) {
             foreach ($club['athletes'] as $athlete) {

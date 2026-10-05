@@ -567,7 +567,7 @@ class DsvDataCrawler
     {
         $swimmers   = User::where('role', 'schwimmer')->where('active', true)->get();
         $poolLength = $this->waScoring->poolLengthFromCourse($competition->course ?? '');
-        $waYear     = $this->waScoring->latestYear($poolLength) ?? (int) substr($competition->date, 0, 4);
+        $waYear     = $this->waScoring->yearFor($poolLength, $competition->date) ?? (int) substr($competition->date, 0, 4);
 
         $count = 0;
         foreach ($results as $result) {

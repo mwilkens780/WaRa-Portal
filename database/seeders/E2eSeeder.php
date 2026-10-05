@@ -123,6 +123,15 @@ class E2eSeeder extends Seeder
             'competition_id' => $vergangen->id, 'user_id' => $diverse->id, 'discipline' => 'F', 'distance' => 50,
             'time_ms' => 34120, 'placement' => 1, 'is_personal_best' => true, 'gender' => 'D',
         ]);
+        // Langbahn-Ergebnis: Rudolph-Punkte in "Meine Zeiten"
+        $langbahn = Competition::create([
+            'name' => 'E2E-Langbahnmeeting', 'location' => 'Hamburg', 'date' => now()->subDays(40)->format('Y-m-d'),
+            'type' => 'regional', 'course' => 'Langbahn', 'season_id' => $season->id,
+        ]);
+        CompetitionResult::create([
+            'competition_id' => $langbahn->id, 'user_id' => $swimmer->id, 'discipline' => 'F', 'distance' => 100,
+            'time_ms' => 68000, 'placement' => 3, 'is_personal_best' => true, 'gender' => 'F',
+        ]);
         $kommend = Competition::create([
             'name' => 'E2E-Sprintpokal', 'location' => 'Kiel', 'date' => now()->addDays(10)->format('Y-m-d'),
             'type' => 'regional', 'course' => 'Kurzbahn', 'season_id' => $season->id,

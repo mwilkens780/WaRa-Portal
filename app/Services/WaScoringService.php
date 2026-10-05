@@ -39,6 +39,23 @@ class WaScoringService
         return WaScoringTable::where('pool_length', $poolLength)->max('year');
     }
 
+    /**
+     * Tabelle, die am Wettkampftag galt. World Aquatics:
+     * Langbahn "Y" gilt 01.01.–31.12.Y, Kurzbahn "Y" gilt 01.09.Y–31.08.Y+1.
+     * Fehlt sie, die jüngste ältere Tabelle, sonst die neueste vorhandene.
+     */
+    public function yearFor(int $poolLength, \DateTimeInterface|string|null $date): ?int
+    {
+        if (!$date) return $this->latestYear($poolLength);
+        $d = $date instanceof \DateTimeInterface ? $date : new \DateTimeImmutable($date);
+
+        $year = (int) $d->format('Y');
+        if ($poolLength === 25 && (int) $d->format('n') < 9) $year--;
+
+        return WaScoringTable::where('pool_length', $poolLength)->where('year', '<=', $year)->max('year')
+            ?? $this->latestYear($poolLength);
+    }
+
     public function poolLengthFromCourse(string $course): int
     {
         return str_contains(strtolower($course), 'lang') ? 50 : 25;

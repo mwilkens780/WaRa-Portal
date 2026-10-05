@@ -110,6 +110,27 @@ class SwimmerPages
             }
         }
 
+        // Rudolph-Punkte (zuschaltbar): nur Langbahn-Wettkampfzeiten, Alter nach
+        // Jahrgang. Gilt für die beste Langbahn-Wettkampfzeit der Strecke – ist die
+        // angezeigte Bestzeit eine Trainingszeit (Bahn unbekannt), steht die
+        // bewertete Wettkampfzeit mit dabei.
+        $lbCompBest = [];
+        foreach ($compResults as $r) {
+            if ($r->competition?->course !== 'Langbahn') continue;
+            $k = $r->discipline . '_' . $r->distance . '_LB';
+            if (!isset($lbCompBest[$k]) || $r->time_ms < $lbCompBest[$k]->time_ms) $lbCompBest[$k] = $r;
+        }
+        foreach ($bestsByKey as $k => $b) {
+            $r = $lbCompBest[$k] ?? null;
+            $b->rudolph = $r && $r->competition?->date ? \App\Support\RudolphTable::score(
+                $swimmer->gender, $swimmer->birth_date?->year, $r->competition->date->year,
+                $r->discipline, (int) $r->distance, (int) $r->time_ms
+            ) : null;
+            if ($b->rudolph && $r->time_ms !== $b->ms) {
+                $b->rudolph->time = SwimmingTime::formatMs($r->time_ms);
+            }
+        }
+
         $bests = collect($bestsByKey)
             ->sortBy(fn($b) => sprintf('%d_%05d_%s', $b->discipline_order, $b->distance, $b->course))
             ->values();

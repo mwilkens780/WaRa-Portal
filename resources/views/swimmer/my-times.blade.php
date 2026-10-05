@@ -11,7 +11,10 @@
 @section('page-title', $pageTitle)
 
 @section('content')
-<div class="mt-2 space-y-6">
+{{-- Rudolph-Punkte zuschaltbar, die Wahl merkt sich der Browser --}}
+<div class="mt-2 space-y-6"
+     x-data="{ rudolph: (() => { try { return localStorage.getItem('times.rudolph') === '1' } catch (e) { return false } })() }"
+     x-init="$watch('rudolph', v => { try { localStorage.setItem('times.rudolph', v ? '1' : '0') } catch (e) {} })">
 
     @if($asParent)
         <a href="{{ route('parent.dashboard') }}" class="inline-block text-sm text-gray-500 hover:text-primary">← Übersicht</a>
@@ -80,6 +83,21 @@
         @if($filter !== 'all')
             <span class="text-sm text-gray-500">{{ $filterLabel }}</span>
         @endif
+
+        <button type="button" @click="rudolph = !rudolph" :aria-pressed="rudolph ? 'true' : 'false'"
+                :class="rudolph ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                class="sm:ml-auto px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">
+            Rudolph-Punkte
+        </button>
+    </div>
+
+    <div x-show="rudolph" x-cloak>
+        <x-ui.alert tone="info">
+            Rudolph-Punkte (DSV-Punktetabelle {{ \App\Support\RudolphTable::EDITION }}) bewerten eine Leistung altersgerecht
+            von 1 bis 20 – 20 entspricht Weltniveau der Altersklasse. Bewertet wird nur die beste
+            <strong>Langbahn-Wettkampfzeit</strong>, das Alter zählt nach Jahrgang (ab 19: offene Klasse).
+            Mit * markierte Strecken sind laut Tabelle in dieser Altersklasse statistisch unzureichend gesichert.
+        </x-ui.alert>
     </div>
 
     {{-- Bests per discipline --}}
@@ -100,7 +118,16 @@
                                 <x-ui.badge tone="info" class="ml-1">LB</x-ui.badge>
                             @endif
                         </x-ui.td>
-                        <x-ui.td label="Zeit" num class="font-mono font-bold text-primary">{{ $best->formatted }}</x-ui.td>
+                        <x-ui.td label="Zeit" num class="font-mono font-bold text-primary">
+                            {{ $best->formatted }}
+                            @if($best->rudolph ?? null)
+                                <span x-show="rudolph" x-cloak class="block font-sans text-xs font-medium text-gray-700"
+                                      title="Rudolph-Punkte, {{ $best->rudolph->age }}{{ isset($best->rudolph->time) ? ', Langbahn-Wettkampfzeit ' . $best->rudolph->time : '' }}">
+                                    {{ $best->rudolph->points ?: 'unter 1' }} {{ $best->rudolph->points <= 1 ? 'Punkt' : 'Punkte' }}@if($best->rudolph->unreliable)*@endif
+                                    @isset($best->rudolph->time)<span class="text-gray-600">({{ $best->rudolph->time }})</span>@endisset
+                                </span>
+                            @endif
+                        </x-ui.td>
                         <x-ui.td label="Datum" muted class="text-xs tabular-nums">{{ $best->date?->format('d.m.Y') ?? '–' }}</x-ui.td>
                         {{-- Kein Quellen-Etikett mehr: Datum steht links daneben,
                              hier der Ort und die Veranstaltung. --}}
