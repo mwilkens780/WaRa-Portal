@@ -50,7 +50,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="bg-gray-100 px-5 py-2">
                 <p class="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    {{ $gender === 'M' ? 'Männlich' : 'Weiblich' }} · {{ $byGender->count() }} Einträge
+                    {{ \App\Support\Gender::title($gender) }} · {{ $byGender->count() }} Einträge
                 </p>
             </div>
             @foreach($byGender->groupBy(fn($e) => $e['discipline'] . '_' . $e['distance']) as $key => $rows)

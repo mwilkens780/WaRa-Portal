@@ -35,7 +35,7 @@ class BestListService
         $rows = $this->portalRows($course, $year)->concat($this->manualRows($course, $year));
 
         $out = [];
-        foreach (['F', 'M'] as $gender) {
+        foreach (\App\Support\Gender::PERSON as $gender) {
             foreach (Record::VR_EVENTS[$course] ?? [] as $discipline => $distances) {
                 foreach ($distances as $distance) {
                     $key = $discipline . '_' . $distance;
@@ -115,7 +115,8 @@ class BestListService
             ->where('competition_results.time_ms', '>', 0)
             // Ueber ihre Strecke unmoegliche Zeiten gehoeren in keine Bestenliste
             ->whereRaw('NOT (' . TimePlausibility::sqlCondition('competition_results') . ')')
-            ->whereIn('competition_results.gender', ['M', 'F'])
+            ->whereIn('competition_results.gender', \App\Support\Gender::PERSON)
+            ->whereNull('competition_results.exercise')
             ->selectRaw('competition_results.id, competition_results.user_id, competition_results.discipline,
                          competition_results.distance, competition_results.gender, competition_results.time_ms,
                          competitions.date as comp_date, competitions.name as comp_name,

@@ -9,7 +9,7 @@
         // Rekord - so sieht man, welche Rekorde noch offen sind.
         $byKey = $records->keyBy(fn($r) => "{$r->discipline}_{$r->gender}_{$r->course}_{$r->distance}");
         foreach (['F', 'R', 'B', 'S', 'L'] as $disc) {
-            foreach (['M', 'F'] as $gender) {
+            foreach (array_keys($recordGenders) as $gender) {
                 $rows = [];
                 foreach (\App\Models\Record::VR_EVENTS as $course => $events) {
                     foreach ($events[$disc] ?? [] as $dist) {
@@ -45,7 +45,7 @@
             <div class="bg-gray-50 px-5 py-2 flex items-center gap-2">
                 <p class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     {{ $discLabels[$section['discipline']] ?? $section['discipline'] }}
-                    · {{ $section['gender'] === 'M' ? 'Männlich' : 'Weiblich' }}
+                    · {{ \App\Support\Gender::title($section['gender']) }}
                 </p>
             </div>
             <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Tabelle (waagerecht scrollbar)">

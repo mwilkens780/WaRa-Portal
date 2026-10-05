@@ -122,7 +122,7 @@ class UserController extends Controller
             'user_roles'   => ['nullable', 'array'],
             'user_roles.*' => ['in:' . implode(',', User::ROLES)],
             'birth_date'   => ['nullable', 'date'],
-            'gender'       => ['nullable', 'in:M,F'],
+            'gender'       => ['nullable', \App\Support\Gender::personRule()],
             'phone'        => ['nullable', 'string', 'max:30'],
             'mobile'       => ['nullable', 'string', 'max:30'],
             'email2'       => ['nullable', 'email'],

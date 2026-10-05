@@ -21,7 +21,7 @@ class CompetitionResultGrouper
     public static function forCompetition(Collection $results): Collection
     {
         return $results
-            ->groupBy(fn($r) => $r->discipline . '_' . $r->distance)
+            ->groupBy(fn($r) => $r->discipline . '_' . $r->distance . ($r->exercise ? '_' . $r->exercise : ''))
             ->map(fn($discGroup) => static::mergeSwims($discGroup)
                 ->sortBy(fn($s) => $s->is_dns ? PHP_INT_MAX : $s->time_ms)
                 ->values()
@@ -35,7 +35,7 @@ class CompetitionResultGrouper
     public static function forSwimmer(Collection $results): Collection
     {
         return $results
-            ->groupBy(fn($r) => $r->competition_id . '_' . $r->user_id . '_' . $r->discipline . '_' . $r->distance)
+            ->groupBy(fn($r) => $r->competition_id . '_' . $r->user_id . '_' . $r->discipline . '_' . $r->distance . '_' . $r->exercise)
             ->map(fn($group) => static::mergeSwims($group)->values())
             ->flatten(1)
             ->sortByDesc(fn($s) => $s->competition?->date?->timestamp ?? 0)
@@ -89,6 +89,7 @@ class CompetitionResultGrouper
                     'discipline'           => $first->discipline,
                     'discipline_label'     => $first->discipline_label,
                     'distance'             => $first->distance,
+                    'exercise'             => $first->exercise,
                     'time_ms'              => $first->time_ms,
                     'formatted_time'       => $first->formatted_time,
                     'is_personal_best'     => $sameTimeGroup->contains('is_personal_best', true),

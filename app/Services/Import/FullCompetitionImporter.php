@@ -64,6 +64,7 @@ class FullCompetitionImporter
                                         'athlete_id'     => $athlete->id,
                                         'discipline'     => $result['discipline'],
                                         'distance'       => (int) $result['distance'],
+                                        'exercise'       => \App\Support\Exercise::normalize($result['ausuebung'] ?? null),
                                         'age_group'      => $result['age_group'] ?? null,
                                     ],
                                     [
@@ -110,6 +111,7 @@ class FullCompetitionImporter
         return match(strtoupper($g)) {
             'W', 'F' => 'F',
             'M'      => 'M',
+            'D'      => 'D',
             default  => 'X',
         };
     }

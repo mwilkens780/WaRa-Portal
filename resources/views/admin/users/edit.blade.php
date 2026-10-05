@@ -126,6 +126,7 @@
                         <option value="">– keine Angabe –</option>
                         <option value="M" {{ old('gender', $user->gender) === 'M' ? 'selected' : '' }}>Männlich</option>
                         <option value="F" {{ old('gender', $user->gender) === 'F' ? 'selected' : '' }}>Weiblich</option>
+                        <option value="D" {{ old('gender', $user->gender) === 'D' ? 'selected' : '' }}>Divers</option>
                     </select>
                 </div>
                 <div>

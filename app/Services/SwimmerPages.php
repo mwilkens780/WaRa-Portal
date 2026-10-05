@@ -52,7 +52,7 @@ class SwimmerPages
         $trainTimes = $trainQuery->get();
 
         // Competition results (filtered by competition date)
-        $compQuery = CompetitionResult::where('user_id', $swimmer->id)->where('time_ms', '>', 0)
+        $compQuery = CompetitionResult::where('user_id', $swimmer->id)->whereNull('exercise')->where('time_ms', '>', 0)
             ->with('competition:id,date,name,location,course');
         if ($filter === 'year')
             $compQuery->whereHas('competition', fn($q) => $q->whereYear('date', $yearVal));
@@ -177,7 +177,8 @@ class SwimmerPages
 
         foreach ($raw as $result) {
             if (!$result->time_ms || $result->time_ms <= 0) continue;
-            $key  = $result->discipline . '_' . $result->distance;
+            // Übungsformen (Beine, Kicks …) nur untereinander vergleichen
+            $key  = $result->discipline . '_' . $result->distance . '_' . $result->exercise;
             $ms   = $result->time_ms;
             $date = $result->competition?->date;
 
@@ -202,7 +203,7 @@ class SwimmerPages
                 $swim->beaten_records = [];
                 return $swim;
             }
-            $key  = $swim->discipline . '_' . $swim->distance;
+            $key  = $swim->discipline . '_' . $swim->distance . '_' . $swim->exercise;
             $date = $swim->competition?->date;
             $isBestEver   = $swim->time_ms === ($allTimeBests[$key] ?? PHP_INT_MAX);
             $isBestYear   = $date && $swim->time_ms === ($yearBests[$date->year][$key] ?? PHP_INT_MAX);
@@ -215,7 +216,7 @@ class SwimmerPages
             };
             // Ohne bekannte Bahn keine Rekord-Badges - lieber keine als falsche
             $course = $swim->competition?->course;
-            if (!$course) {
+            if (!$course || $swim->exercise) {
                 $swim->beaten_records = [];
                 return $swim;
             }

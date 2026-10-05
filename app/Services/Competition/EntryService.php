@@ -100,7 +100,7 @@ class EntryService
      */
     public function getBestEntryTime(int $userId, string $discipline, int $distance): ?int
     {
-        $fromResults = CompetitionResult::where('user_id', $userId)
+        $fromResults = CompetitionResult::where('user_id', $userId)->whereNull('exercise')
             ->where('discipline', $discipline)
             ->where('distance', $distance)
             ->where('time_ms', '>', 0)

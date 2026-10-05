@@ -248,7 +248,7 @@ JSON-Schema:
   "relay_qualification": [
     {
       "stroke": "F|L",
-      "gender": "W|M|Mixed",
+      "gender": "W|M|D|Mixed",
       "min_time": "04:10,00",
       "top_n": 16
     }
@@ -336,7 +336,7 @@ PROMPT;
             'F' => 'F', 'B' => 'B', 'R' => 'R',
             'S' => 'S', 'L' => 'L',
         ];
-        $genderMap = ['M' => 'M', 'W' => 'F'];
+        $genderMap = ['M' => 'M', 'W' => 'F', 'D' => 'D'];
 
         foreach ($data['qualifying_times'] ?? [] as $genderCode => $yearGroups) {
             $gender = $genderMap[$genderCode] ?? $genderCode;

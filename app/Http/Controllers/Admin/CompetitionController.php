@@ -167,6 +167,7 @@ class CompetitionController extends Controller
                     'session_name'   => $ev['session_name'] ?: null,
                     'discipline'     => $ev['discipline'],
                     'distance'       => (int)$ev['distance'],
+                    'exercise'       => \App\Support\Exercise::normalize($ev['ausuebung'] ?? null),
                     'dsv_wertungs_id' => $ev['dsv_wertungs_id'] ?? null,
                     'relay_legs'     => isset($ev['relay_legs']) && (int)$ev['relay_legs'] > 1 ? (int)$ev['relay_legs'] : null,
                     'gender'         => $ev['gender'] ?? 'X',
@@ -252,7 +253,7 @@ class CompetitionController extends Controller
                 $qEnd   = $signupRequest->qualifying_period_end;
 
                 // Best qualifying-period results per user per discipline+distance
-                $qResults = CompetitionResult::whereIn('user_id', $qualificationSwimmers->pluck('id'))
+                $qResults = CompetitionResult::whereIn('user_id', $qualificationSwimmers->pluck('id'))->whereNull('exercise')
                     ->where('time_ms', '>', 0)
                     ->when($qStart || $qEnd, fn($q) =>
                         $q->whereHas('competition', fn($cq) =>
@@ -271,7 +272,7 @@ class CompetitionController extends Controller
                 }
 
                 // Best times overall (no date filter) for Meldungen entry-time suggestion
-                $allResults = CompetitionResult::whereIn('user_id', $qualificationSwimmers->pluck('id'))
+                $allResults = CompetitionResult::whereIn('user_id', $qualificationSwimmers->pluck('id'))->whereNull('exercise')
                     ->where('time_ms', '>', 0)
                     ->orderBy('time_ms')
                     ->get();
@@ -473,7 +474,7 @@ class CompetitionController extends Controller
             'user_id'           => ['required', 'exists:users,id'],
             'discipline'        => ['required', 'in:F,B,R,S,L'],
             'distance'          => ['required', 'integer', 'min:25'],
-            'gender'            => ['nullable', 'in:M,F'],
+            'gender'            => ['nullable', \App\Support\Gender::personRule()],
             'time_minutes'      => ['nullable', 'integer', 'min:0'],
             'time_seconds'      => ['required', 'integer', 'min:0', 'max:59'],
             'time_centiseconds' => ['required', 'integer', 'min:0', 'max:99'],
@@ -485,7 +486,7 @@ class CompetitionController extends Controller
         $timeMs = (($data['time_minutes'] ?? 0) * 60 + $data['time_seconds']) * 1000
             + $data['time_centiseconds'] * 10;
 
-        $existingBest = CompetitionResult::where('user_id', $data['user_id'])
+        $existingBest = CompetitionResult::where('user_id', $data['user_id'])->whereNull('exercise')
             ->where('discipline', $data['discipline'])
             ->where('distance', $data['distance'])
             ->where('time_ms', '>', 0)
@@ -588,6 +589,7 @@ class CompetitionController extends Controller
                     'session_name'        => $ev['session_name'] ?: null,
                     'discipline'          => $ev['discipline'],
                     'distance'            => (int)$ev['distance'],
+                    'exercise'            => \App\Support\Exercise::normalize($ev['ausuebung'] ?? null),
                     'dsv_wertungs_id'     => $ev['dsv_wertungs_id'] ?? null,
                     'relay_legs'          => isset($ev['relay_legs']) && (int)$ev['relay_legs'] > 1 ? (int)$ev['relay_legs'] : null,
                     'gender'              => $ev['gender'] ?? 'X',

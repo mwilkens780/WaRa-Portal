@@ -1238,7 +1238,7 @@ class WebClubCrawler
         if (!$gender) return null;
         $g = strtoupper(trim($gender));
         if ($g === 'W') return 'F';
-        if (in_array($g, ['M', 'F', 'X'])) return $g;
+        if (in_array($g, ['M', 'F', 'D', 'X'])) return $g;
         return null;
     }
 

@@ -131,6 +131,19 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   Ohne Kennzahl gibt es keine Meldedatei.
 - Spezifikation: dsv.de → Service → Formulare → Schwimmen („DSV Standard 8 gültig ab 01.08.2026“).
 
+### Geschlecht und Übungsform
+
+- **Drei Geschlechter für Personen**: M, F, **D (divers)**; X = gemischt (nur Wettkämpfe/Staffeln).
+  Codes, Beschriftungen und Fremdformate zentral in `App\Support\Gender` – nie
+  `$g === 'M' ? 'Männlich' : 'Weiblich'` schreiben (macht divers zu weiblich).
+  WA-Punkte gibt es für divers nicht (World Aquatics hat keine Tabelle). DSV7 kennt kein D:
+  Dateien mit divers werden immer DSV8 (`DsvWriter::versionFor`).
+- **Übungsform** (`exercise`, DSV „Ausübung“: Beine, Arme, Kicks …; null = ganze Lage) an
+  `competition_events`, `competition_results`, `ext_competition_results`, Beschriftungen in
+  `App\Support\Exercise`. Solche Zeiten werden markiert angezeigt (`discipline_label`), zählen aber
+  **nie** als Zeit der Lage: Jede neue Bestzeit-/Rekord-/Bestenlisten-/Meldezeit-Abfrage braucht
+  `->whereNull('exercise')`.
+
 ## Crawler-Architektur
 
 Alle automatischen Importe laufen als Laravel-Scheduled-Commands über `routes/console.php`.

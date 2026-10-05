@@ -9,7 +9,7 @@ class CompetitionEvent extends Model
     protected $fillable = [
         'competition_id', 'event_number', 'dsv_wertungs_id', 'session_number', 'session_date',
         'session_name', 'discipline', 'distance', 'relay_legs', 'gender', 'age_min', 'age_max',
-        'age_group', 'qualifying_time_ms', 'qualifying_deadline', 'meldegeld',
+        'exercise', 'age_group', 'qualifying_time_ms', 'qualifying_deadline', 'meldegeld',
     ];
 
     protected function casts(): array
@@ -46,7 +46,7 @@ class CompetitionEvent extends Model
             'S' => 'Schmetterling',
             'L' => 'Lagen',
             default => $this->discipline,
-        };
+        } . ($this->exercise ? ' (' . \App\Support\Exercise::label($this->exercise) . ')' : '');
     }
 
     public function getDistanceLabelAttribute(): string
@@ -60,18 +60,14 @@ class CompetitionEvent extends Model
 
     public function getGenderLabelAttribute(): string
     {
-        return match($this->gender) {
-            'M' => 'Männlich',
-            'F' => 'Weiblich',
-            default => 'Mixed',
-        };
+        return \App\Support\Gender::title($this->gender) ?? 'Gemischt';
     }
 
     public function getLabelAttribute(): string
     {
         $parts = [$this->distance_label . ' m', $this->discipline_label];
         if ($this->age_group) $parts[] = $this->age_group;
-        if ($this->gender !== 'X') $parts[] = $this->gender === 'M' ? 'M' : 'W';
+        if ($this->gender !== 'X') $parts[] = \App\Support\Gender::toDsv($this->gender);
         return implode(' · ', $parts);
     }
 }

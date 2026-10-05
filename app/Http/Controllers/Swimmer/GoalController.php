@@ -52,7 +52,7 @@ class GoalController extends Controller
                     ->get()
                     ->keyBy(fn($r) => $r->discipline . '_' . $r->distance);
 
-                $compBests = CompetitionResult::where('user_id', $swimmer->id)
+                $compBests = CompetitionResult::where('user_id', $swimmer->id)->whereNull('exercise')
                     ->where('time_ms', '>', 0)
                     ->whereHas('competition', fn($q) => $q->whereBetween('date', [$start, $end]))
                     ->selectRaw('discipline, distance, MIN(time_ms) as best_ms')

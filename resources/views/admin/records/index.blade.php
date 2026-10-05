@@ -140,6 +140,7 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="M">Männlich</option>
                         <option value="F">Weiblich</option>
+                        <option value="D">Divers</option>
                     </select>
                 </div>
                 <div>
@@ -227,6 +228,7 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="M">Männlich</option>
                         <option value="F">Weiblich</option>
+                        <option value="D">Divers</option>
                     </select>
                 </div>
                 <div>
@@ -339,10 +341,10 @@
             <div class="flex items-center gap-3" role="group" aria-label="Geschlecht">
                 <span class="text-xs text-gray-600 font-medium">Geschlecht:</span>
                 <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-                    @foreach(['F' => 'Weiblich', 'M' => 'Männlich'] as $g => $gLabel)
+                    @foreach($recordGenders as $g => $gLabel)
                         <button type="button" @click="activeGender = '{{ $g }}'" :aria-pressed="activeGender === '{{ $g }}' ? 'true' : 'false'"
                                 :class="activeGender === '{{ $g }}' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                                class="px-4 py-1.5 font-medium transition-colors {{ $g === 'M' ? 'border-l border-gray-200' : '' }}">{{ $gLabel }}</button>
+                                class="px-4 py-1.5 font-medium transition-colors {{ $loop->first ? '' : 'border-l border-gray-200' }}">{{ $gLabel }}</button>
                     @endforeach
                 </div>
             </div>

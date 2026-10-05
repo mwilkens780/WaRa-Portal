@@ -9,7 +9,7 @@ class ExtCompetitionResult extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'competition_id', 'athlete_id', 'discipline', 'distance',
+        'competition_id', 'athlete_id', 'discipline', 'distance', 'exercise',
         'time_ms', 'status', 'placement', 'age_group', 'gender',
         'is_final', 'dsv_points',
     ];

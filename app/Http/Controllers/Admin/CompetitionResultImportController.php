@@ -274,12 +274,15 @@ class CompetitionResultImportController extends Controller
         $resGender = $result['gender'] ?? $gender;
         if ($resGender === 'X') $resGender = $gender;
         $isFinal   = in_array($result['round_type'] ?? '', ['F', 'E']);
+        // Übungsform (Beine, Kicks …): markiert übernehmen, keine Bestzeit
+        $exercise  = \App\Support\Exercise::normalize($result['ausuebung'] ?? null);
 
         // Dedup by physical swim: competition + user + discipline + distance + round_type + time
         $exists = CompetitionResult::where('competition_id', $competitionId)
             ->where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
+            ->where('exercise', $exercise)
             ->where('is_final', $isFinal)
             ->where('time_ms', $isDns ? 0 : $result['time_ms'])
             ->exists();
@@ -293,6 +296,7 @@ class CompetitionResultImportController extends Controller
                 'user_id'          => $userId,
                 'discipline'       => $result['discipline'],
                 'distance'         => $result['distance'],
+                'exercise'         => $exercise,
                 'time_ms'          => 0,
                 'placement'        => 0,
                 'is_personal_best' => false,
@@ -307,15 +311,17 @@ class CompetitionResultImportController extends Controller
         $existingBest = CompetitionResult::where('user_id', $userId)
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
+            ->whereNull('exercise')
             ->where('time_ms', '>', 0)
             ->min('time_ms');
 
-        $isPb = !$existingBest || $result['time_ms'] < $existingBest;
+        $isPb = !$exercise && (!$existingBest || $result['time_ms'] < $existingBest);
 
         if ($isPb && $existingBest) {
             CompetitionResult::where('user_id', $userId)
                 ->where('discipline', $result['discipline'])
                 ->where('distance', $result['distance'])
+                ->whereNull('exercise')
                 ->where('is_personal_best', true)
                 ->update(['is_personal_best' => false]);
         }
@@ -325,6 +331,7 @@ class CompetitionResultImportController extends Controller
             'user_id'          => $userId,
             'discipline'       => $result['discipline'],
             'distance'         => $result['distance'],
+            'exercise'         => $exercise,
             'time_ms'          => $result['time_ms'],
             'placement'        => $result['place'] ?? null,
             'is_personal_best' => $isPb,

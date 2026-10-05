@@ -74,8 +74,8 @@ class BestListWorkbookParser
                 if (preg_match('/(\d{2})\s*m\s*Bahn/iu', $v, $m)) {
                     $course = ((int) $m[1]) === 25 ? 'Kurzbahn' : 'Langbahn';
                 }
-                if (preg_match('/\b(weiblich|m(ä|ae)nnlich)\b/iu', $v, $m)) {
-                    $gender = str_starts_with(mb_strtolower($m[1]), 'w') ? 'F' : 'M';
+                if (preg_match('/\b(weiblich|m(ä|ae)nnlich|divers)\b/iu', $v, $m)) {
+                    $gender = \App\Support\Gender::normalize($m[1]);
                 }
             }
 

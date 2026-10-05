@@ -1421,7 +1421,7 @@ function parseWettkampffolge(bodies) {
                 const distance   = parseInt(item.wkfLAENGE ?? item.wkSTR ?? item.str ?? item.strecke ?? '0', 10);
                 if (!discipline || !distance) continue;
                 const gRaw   = String(item.wkfGESCHLECHT ?? item.wkGES ?? item.ges ?? item.geschlecht ?? 'X').toUpperCase();
-                const gender = gRaw === 'W' ? 'F' : (['M', 'F', 'X'].includes(gRaw) ? gRaw : 'X');
+                const gender = gRaw === 'W' ? 'F' : (['M', 'F', 'D', 'X'].includes(gRaw) ? gRaw : 'X');
                 const pzMs   = parseTimeToMs(item.wkPZ ?? item.pz ?? item.pflichtzeit ?? '');
                 // Altersgruppe aus Geburtsjahr-Spanne (wkfJUNG = jüngster Jg., wkfALT = ältester; '0' = kein Limit)
                 const jg = String(item.wkfJUNG ?? item.wkJUNG ?? '').trim();
@@ -2215,6 +2215,7 @@ function normalizeGender(val) {
     val = val.toLowerCase().trim();
     if (['m', 'männlich', 'male', 'man', 'herr', 'junge'].includes(val)) return 'M';
     if (['w', 'f', 'weiblich', 'female', 'woman', 'frau', 'mädchen'].includes(val)) return 'F';
+    if (['d', 'divers', 'diverse'].includes(val)) return 'D';
     return null;
 }
 

@@ -31,9 +31,16 @@ class DsvWriter
      * Version für eine Datei zu diesem Wettkampf: die Version der Ausschreibung
      * des Ausrichters (dessen Software liest sie sicher), sonst nach Datum –
      * bis Ende 2026 DSV7, das jede Software noch kennt, ab 2027 DSV8.
+     *
+     * DSV7 kennt kein "divers": Steht ein divers gemeldeter Mensch oder ein
+     * Wettkampf für divers in der Datei, wird es immer DSV8 (seit 01.08.2026 gültig).
      */
     public static function versionFor(Competition $competition): int
     {
+        if (self::involvesDiverse($competition)) {
+            return 8;
+        }
+
         $fromFile = (int) ($competition->dsv_header_data['dsv_version'] ?? 0);
         if (in_array($fromFile, [7, 8], true)) {
             return $fromFile;
@@ -42,6 +49,21 @@ class DsvWriter
         $lastDay = $competition->date_end ?? $competition->date;
 
         return $lastDay && $lastDay->format('Y-m-d') >= self::DSV8_REQUIRED_FROM ? 8 : 7;
+    }
+
+    private static function involvesDiverse(Competition $competition): bool
+    {
+        if ($competition->events()->where('gender', 'D')->exists()) return true;
+
+        $entered = fn($q) => $q->where('competition_id', $competition->id)->where('status', 'entered');
+
+        return \App\Models\User::where('gender', 'D')
+            ->where(fn($q) => $q
+                ->whereIn('id', \App\Models\CompetitionEntry::query()->tap($entered)->select('user_id'))
+                ->orWhereIn('id', \App\Models\CompetitionRelayEntryMember::query()
+                    ->whereIn('relay_entry_id', \App\Models\CompetitionRelayEntry::query()->tap($entered)->select('id'))
+                    ->select('user_id')))
+            ->exists();
     }
 
     public static function clubName(): string
@@ -146,7 +168,7 @@ class DsvWriter
                 // Staffeln: im Portal Gesamtstrecke, im Standard die Einzelstrecke
                 'strecke'     => $legs > 1 ? intdiv((int) $e->distance, $legs) : (int) $e->distance,
                 'technik'     => self::stroke($e->discipline),
-                'ausuebung'   => 'GL',
+                'ausuebung'   => $e->exercise ?: 'GL',
                 'geschlecht'  => self::gender($e->gender),
                 'bestenliste' => 'SW',
                 'quali_nr'    => '',

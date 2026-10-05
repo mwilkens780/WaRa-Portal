@@ -78,6 +78,7 @@
                                         <option value="">–</option>
                                         <option value="M" {{ $row['gender'] === 'M' ? 'selected' : '' }}>M</option>
                                         <option value="F" {{ $row['gender'] === 'F' ? 'selected' : '' }}>W</option>
+                                        <option value="D" {{ $row['gender'] === 'D' ? 'selected' : '' }}>D</option>
                                     </select>
                                 </x-ui.td>
                                 {{-- Age group --}}

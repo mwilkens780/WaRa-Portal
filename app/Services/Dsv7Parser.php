@@ -1051,11 +1051,11 @@ class Dsv7Parser
 
     private function normalizeGender(string $g): string
     {
-        // D (divers, neu in DSV8) kennt das Portal nicht als eigenes Geschlecht
-        // und fällt wie bisher alles Unbekannte auf X (ohne Zuordnung).
+        // D = divers (neu in DSV8), X = gemischt bzw. unbekannt
         return match(strtoupper($g)) {
             'W'     => 'F',
             'M'     => 'M',
+            'D'     => 'D',
             default => 'X',
         };
     }

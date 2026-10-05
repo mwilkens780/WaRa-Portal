@@ -11,7 +11,8 @@ class CompetitionRelayEntry extends Model
     const GENDER_LABELS = [
         'M'     => 'Männlich',
         'F'     => 'Weiblich',
-        'mixed' => 'Mixed',
+        'D'     => 'Divers',
+        'mixed' => 'Gemischt',
     ];
 
     protected $fillable = [

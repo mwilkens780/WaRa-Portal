@@ -285,7 +285,7 @@
                                                 {{ $baseWk->distance_label }} m {{ $baseWk->discipline_label }}
                                                 @if($baseWk->relay_legs) <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium ml-1">Staffel</span> @endif
                                                 @if($baseWk->gender !== 'X')
-                                                    <span class="text-gray-600 font-normal">· {{ $baseWk->gender === 'M' ? 'Männlich' : 'Weiblich' }}</span>
+                                                    <span class="text-gray-600 font-normal">· {{ \App\Support\Gender::title($baseWk->gender) }}</span>
                                                 @endif
                                             </span>
                                         </div>
@@ -295,7 +295,7 @@
                                                 <span class="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 bg-gray-50">
                                                     {{ $wertung->age_group ?: 'Offene Klasse' }}
                                                     @if($wertung->gender !== $baseWk->gender)
-                                                        <span class="text-gray-600">· {{ $wertung->gender === 'M' ? 'M' : 'W' }}</span>
+                                                        <span class="text-gray-600">· {{ \App\Support\Gender::toDsv($wertung->gender) }}</span>
                                                     @endif
                                                 </span>
                                             @endforeach
@@ -393,7 +393,7 @@
                                         <x-ui.td label="Disziplin" class="text-gray-700">
                                             {{ $ev->distance_label }} m {{ $ev->discipline_label }}
                                             @if($ev->gender !== 'X')
-                                                <span class="text-gray-600">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
+                                                <span class="text-gray-600">· {{ \App\Support\Gender::toDsv($ev->gender) }}</span>
                                             @endif
                                         </x-ui.td>
                                         <x-ui.td label="Wertung" muted>{{ $ev->age_group ?: 'Offene Klasse' }}</x-ui.td>
@@ -431,7 +431,7 @@
                                         <x-ui.td label="Disziplin" class="text-gray-700">
                                             {{ $ev->distance_label }} m {{ $ev->discipline_label }}
                                             @if($ev->gender !== 'X')
-                                                <span class="text-gray-600">· {{ $ev->gender === 'M' ? 'M' : 'W' }}</span>
+                                                <span class="text-gray-600">· {{ \App\Support\Gender::toDsv($ev->gender) }}</span>
                                             @endif
                                         </x-ui.td>
                                         <x-ui.td label="Wertung" muted>{{ $ev->age_group ?: 'Offene Klasse' }}</x-ui.td>
@@ -511,6 +511,7 @@
                                 <option value="">– unbekannt –</option>
                                 <option value="M">Männlich</option>
                                 <option value="F">Weiblich</option>
+                                <option value="D">Divers</option>
                             </select>
                         </div>
                     </div>
@@ -1349,7 +1350,7 @@
                                 <x-ui.td class="sticky left-0 bg-inherit">
                                     <span class="font-medium text-gray-800">{{ $qs->lastname }}, {{ $qs->firstname }}</span>
                                     @if($qs->gender)
-                                        <span class="text-xs text-gray-600 ml-1">{{ $qs->gender === 'M' ? '♂' : '♀' }}</span>
+                                        <span class="text-xs text-gray-600 ml-1">{{ \App\Support\Gender::short($qs->gender) }}</span>
                                     @endif
                                 </x-ui.td>
                                 <x-ui.td align="center" muted class="text-xs">
@@ -2232,7 +2233,7 @@
                                 <template x-for="[gender, yearGroups] in Object.entries(parsed.qualifying_times)" :key="gender">
                                     <div>
                                         <p class="text-xs font-semibold text-gray-500 mb-2"
-                                           x-text="gender === 'M' ? 'Männlich' : 'Weiblich'"></p>
+                                           x-text="({M: 'Männlich', F: 'Weiblich', D: 'Divers'})[gender] ?? gender"></p>
                                         <x-ui.table :card="false" caption="Qualifikationszeiten" class="text-xs border-collapse">
 <x-slot:head>
                                                         <x-ui.th class="border border-gray-100 sticky left-0">Strecke</x-ui.th>

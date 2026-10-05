@@ -301,7 +301,7 @@ class DashboardController extends Controller
                 'place'    => $t->trainingSession?->location ?: 'Training',
             ]);
 
-        $wettkampfzeiten = CompetitionResult::with('competition:id,name,date,location')
+        $wettkampfzeiten = CompetitionResult::with('competition:id,name,date,location')->whereNull('exercise')
             ->where('user_id', $userId)->where('time_ms', '>', 0)
             ->get()
             ->map(fn($r) => (object) [

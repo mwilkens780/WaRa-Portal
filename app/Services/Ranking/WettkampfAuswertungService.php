@@ -32,6 +32,7 @@ class WettkampfAuswertungService
             $previousBest = CompetitionResult::where('user_id', $result->user_id)
                 ->where('discipline', $result->discipline)
                 ->where('distance', $result->distance)
+                ->where('exercise', $result->exercise) // Übungsformen nur untereinander
                 ->where('time_ms', '>', 0)
                 ->where('competition_id', '!=', $competition->id)
                 ->min('time_ms');

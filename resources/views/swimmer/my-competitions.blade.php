@@ -302,7 +302,7 @@
                                         <span class="text-xs text-gray-400 w-7 shrink-0 font-mono">{{ $event->event_number }}</span>
                                         <span class="text-gray-700 flex-1">
                                             {{ $event->distance }} m {{ $event->discipline_label }}
-                                            @if($event->gender !== 'X') · {{ $event->gender === 'M' ? 'Männlich' : 'Weiblich' }}@endif
+                                            @if($event->gender !== 'X') · {{ \App\Support\Gender::title($event->gender) }}@endif
                                             @if($event->age_group) · {{ $event->age_group }}@endif
                                         </span>
                                         @if($event->formatted_qualifying_time)
@@ -531,7 +531,7 @@
                                 @php
                                     $strokes = array_map(fn($s) => $discLabels[$s] ?? $s, explode('|', $evt['stroke'] ?? ''));
                                     $genders = explode('|', $evt['gender'] ?? 'Mixed');
-                                    $genderLabel = in_array('Mixed', $genders) ? '' : ' · ' . implode('/', array_map(fn($g) => $g === 'M' ? 'M' : 'W', $genders));
+                                    $genderLabel = in_array('Mixed', $genders) ? '' : ' · ' . implode('/', array_map(fn($g) => \App\Support\Gender::toDsv($g), $genders));
                                 @endphp
                                 <div class="flex items-center gap-3 py-1.5 text-sm">
                                     <span class="text-gray-700 flex-1">

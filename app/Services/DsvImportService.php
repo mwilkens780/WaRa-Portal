@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Services\WaScoringService;
 use App\Support\DsvFile;
+use App\Support\Exercise;
+use App\Support\Gender;
 use SimpleXMLElement;
 
 class DsvImportService
@@ -153,7 +155,7 @@ class DsvImportService
                             'session_name'   => $sessionName,
                             'discipline'     => self::STROKE_MAP[$stroke],
                             'distance'       => $distance,
-                            'gender'         => in_array($gender, ['M', 'F']) ? $gender : 'X',
+                            'gender'         => in_array($gender, ['M', 'F', 'D']) ? $gender : 'X',
                             'age_min'        => $ag['age_min'],
                             'age_max'        => $ag['age_max'],
                             'age_group'      => $ag['age_group'],
@@ -482,30 +484,35 @@ class DsvImportService
 
     private function persistResult(int $competitionId, int $userId, array $result, string $gender, int $poolLength = 25, int $waYear = 0): void
     {
+        // Übungsform (Beine, Kicks …): wird markiert übernommen, zählt aber nicht als Zeit der Lage
+        $exercise = Exercise::normalize($result['ausuebung'] ?? null);
+
         $exists = \App\Models\CompetitionResult::where([
             'competition_id' => $competitionId,
             'user_id'        => $userId,
             'discipline'     => $result['discipline'],
             'distance'       => $result['distance'],
+            'exercise'       => $exercise,
             'age_group'      => $result['age_group'] ?? null,
         ])->exists();
 
         if ($exists) return;
 
         $isPb = false;
-        if (!empty($result['time_ms'])) {
+        if (!empty($result['time_ms']) && !$exercise) {
             $best = \App\Models\CompetitionResult::where('user_id', $userId)
                 ->where('discipline', $result['discipline'])
                 ->where('distance', $result['distance'])
+                ->whereNull('exercise')
                 ->where('time_ms', '>', 0)
                 ->min('time_ms');
             $isPb = !$best || $result['time_ms'] < $best;
         }
 
-        $resolvedGender = $gender !== 'X' ? $gender : null;
+        $resolvedGender = in_array($gender, Gender::PERSON, true) ? $gender : null;
         $waPoints       = null;
         $usedWaYear     = null;
-        if ($waYear && $resolvedGender && !empty($result['time_ms'])) {
+        if ($waYear && $resolvedGender && !$exercise && !empty($result['time_ms'])) {
             $waPoints   = $this->waScoring->calculatePoints(
                 $result['discipline'], $result['distance'], $resolvedGender,
                 $result['time_ms'], $waYear, $poolLength
@@ -518,6 +525,7 @@ class DsvImportService
             'user_id'          => $userId,
             'discipline'       => $result['discipline'],
             'distance'         => $result['distance'],
+            'exercise'         => $exercise,
             'time_ms'          => $result['time_ms'] ?? 0,
             'placement'        => $result['place'] ?? null,
             'is_personal_best' => $isPb,

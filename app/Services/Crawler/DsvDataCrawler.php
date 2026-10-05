@@ -436,10 +436,11 @@ class DsvDataCrawler
         return null;
     }
 
-    /** 'X' steht – wie in DSV7 – für gemischte Wertung (mixed). */
+    /** 'X' steht – wie im DSV-Standard – für gemischte Wertung (mixed), 'D' für divers. */
     private function genderFromText(string $line): string
     {
         if (preg_match('/mixed|gemischt/iu', $line)) return 'X';
+        if (preg_match('/\bdivers/iu', $line)) return 'D';
         // Weiblich zuerst: "female" enthält "male".
         if (preg_match('/weiblich|frauen|mädchen|maedchen|female/iu', $line)) return 'F';
         if (preg_match('/männlich|maennlich|männer|maenner|jungen|male/iu', $line)) return 'M';

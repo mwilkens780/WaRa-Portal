@@ -8,7 +8,6 @@
 --}}
 @php
     $discLabels = ['F' => 'Freistil', 'R' => 'Rücken', 'B' => 'Brust', 'S' => 'Schmetterling', 'L' => 'Lagen'];
-    $genderLabels = ['F' => 'Weiblich', 'M' => 'Männlich'];
     $isEmpty = collect($lists)->flatten(1)->flatten(1)->isEmpty();
 @endphp
 
@@ -17,7 +16,7 @@
         Für die {{ $course }} sind noch keine Leistungen erfasst.
     </p>
 @else
-    @foreach(['F' => 'Weiblich', 'M' => 'Männlich'] as $gender => $genderLabel)
+    @foreach($recordGenders as $gender => $genderLabel)
         <div class="border-b border-gray-100 last:border-0" x-show="activeGender === '{{ $gender }}'">
             <div class="bg-gray-100 px-5 py-2">
                 <p class="text-xs font-bold text-gray-700 uppercase tracking-wider">{{ $genderLabel }} · {{ $course }}</p>

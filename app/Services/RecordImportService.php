@@ -166,6 +166,7 @@ class RecordImportService
                 $line = $text($el);
                 if (preg_match('/weiblich|damen|frauen/iu', $line))            $gender = 'F';
                 elseif (preg_match('/männlich|maennlich|herren|männer/iu', $line)) $gender = 'M';
+                elseif (preg_match('/\bdivers/iu', $line))                       $gender = 'D';
                 continue;
             }
             if ($el->localName !== 'tbl' || !$gender) continue;
@@ -420,6 +421,7 @@ class RecordImportService
 
         if (preg_match('/weiblich/iu', $header))              $gender = 'F';
         elseif (preg_match('/männlich|maennlich/iu', $header)) $gender = 'M';
+        elseif (preg_match('/divers/iu', $header))             $gender = 'D';
 
         if (preg_match('/kurzbahn/iu', $header))    $course = 'Kurzbahn';
         elseif (preg_match('/langbahn/iu', $header)) $course = 'Langbahn';

@@ -304,6 +304,7 @@ class WebClubImportService
         return match(strtolower(trim($val))) {
             'm', 'männlich', 'male'        => 'M',
             'w', 'f', 'weiblich', 'female' => 'F',
+            'd', 'divers', 'diverse'       => 'D',
             default                        => null,
         };
     }

@@ -9,7 +9,7 @@
         'Geburtsdatum'    => $user->birth_date
                                 ? $user->birth_date->format('d.m.Y') . ($user->age !== null ? " ({$user->age} J.)" : '')
                                 : null,
-        'Geschlecht'      => match($user->gender) { 'M' => 'männlich', 'F' => 'weiblich', default => null },
+        'Geschlecht'      => \App\Support\Gender::label($user->gender),
         'Rolle'           => $user->role_label,
         'Mitgliedsnummer' => $user->membership_number,
         'DSV-ID'          => $user->dsv_id,

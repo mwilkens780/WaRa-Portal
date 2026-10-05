@@ -55,7 +55,7 @@ class CompetitionEntryController extends Controller
             'user_id'              => ['required', 'exists:users,id'],
             'discipline'           => ['required', 'in:F,B,R,S,L'],
             'distance'             => ['required', 'integer', 'min:25'],
-            'gender'               => ['required', 'in:M,F,X'],
+            'gender'               => ['required', 'in:M,F,D,X'],
             'age_group'            => ['nullable', 'string', 'max:50'],
             'competition_event_id' => ['nullable', 'exists:competition_events,id'],
             'entry_time_ms'        => ['nullable', 'integer', 'min:1'],
@@ -64,7 +64,7 @@ class CompetitionEntryController extends Controller
         // Auto-fill entry_time_ms from best competition result if not supplied
         if (empty($data['entry_time_ms'])) {
             $signup = $competition->signupRequest;
-            $best   = CompetitionResult::where('user_id', $data['user_id'])
+            $best   = CompetitionResult::where('user_id', $data['user_id'])->whereNull('exercise')
                 ->where('discipline', $data['discipline'])
                 ->where('distance', $data['distance'])
                 ->where('time_ms', '>', 0)
@@ -79,7 +79,7 @@ class CompetitionEntryController extends Controller
 
             if (!$best && ($signup?->qualifying_period_start || $signup?->qualifying_period_end)) {
                 // Fallback: best time overall if period filter returned nothing
-                $best = CompetitionResult::where('user_id', $data['user_id'])
+                $best = CompetitionResult::where('user_id', $data['user_id'])->whereNull('exercise')
                     ->where('discipline', $data['discipline'])
                     ->where('distance', $data['distance'])
                     ->where('time_ms', '>', 0)
@@ -123,7 +123,7 @@ class CompetitionEntryController extends Controller
         $data = $request->validate([
             'discipline'           => ['required', 'in:F,B,R,S,L'],
             'distance'             => ['required', 'integer'],
-            'gender'               => ['required', 'in:M,F,mixed'],
+            'gender'               => ['required', 'in:M,F,D,mixed'],
             'age_group'            => ['nullable', 'string'],
             'competition_event_id' => ['nullable', 'exists:competition_events,id'],
             'members'              => ['required', 'array', 'min:1', 'max:4'],

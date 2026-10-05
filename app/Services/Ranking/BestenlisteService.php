@@ -21,6 +21,7 @@ class BestenlisteService
         int     $limit   = 25
     ): Collection {
         return ExtCompetitionResult::with(['athlete', 'competition'])
+            ->whereNull('exercise')
             ->where('discipline', $discipline)
             ->where('distance', $distance)
             ->where('gender', $gender)
@@ -44,7 +45,7 @@ class BestenlisteService
      */
     public function getClubBestTimes(string $gender, ?string $course = null, ?int $year = null): Collection
     {
-        return \App\Models\CompetitionResult::with(['user', 'competition'])
+        return \App\Models\CompetitionResult::with(['user', 'competition'])->whereNull('exercise')
             ->where('gender', $gender)
             ->where('time_ms', '>', 0)
             ->where('is_personal_best', true)

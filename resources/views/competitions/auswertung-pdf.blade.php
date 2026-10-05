@@ -173,7 +173,7 @@
           <td>{{ $swim->user?->name }}</td>
           <td style="font-size:8pt;color:#6b7280;">
             {{ $swim->distance }}m {{ $swim->discipline_label }}
-            @if($swim->gender) <span style="color:#9ca3af">({{ $swim->gender === 'M' ? 'm' : 'w' }})</span> @endif
+            @if($swim->gender) <span style="color:#9ca3af">({{ \App\Support\Gender::short($swim->gender) }})</span> @endif
           </td>
           <td class="right">
             @if(!$swim->is_dns)

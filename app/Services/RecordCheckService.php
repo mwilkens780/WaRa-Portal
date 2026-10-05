@@ -14,6 +14,8 @@ class RecordCheckService
     {
         if ($result->time_ms <= 0) return;
         if (!$result->gender || $result->gender === 'X') return;
+        // Übungsformen (Beine, Kicks …) sind keine Zeit der Lage
+        if ($result->exercise) return;
 
         // Ohne bekannte Bahnlaenge keine Rekord- oder Bestenlistenwertung.
         // Bisher wurde stillschweigend Langbahn angenommen - so landeten
@@ -130,7 +132,8 @@ class RecordCheckService
             $results = CompetitionResult::with(['user', 'competition'])
                 ->where('time_ms', '>', 0)
                 ->whereNotNull('gender')
-                ->whereIn('gender', ['M', 'F'])
+                ->whereIn('gender', \App\Support\Gender::PERSON)
+                ->whereNull('exercise')
                 ->whereHas('competition', fn($q) => $q->whereIn('course', ['Kurzbahn', 'Langbahn']))
                 ->whereRaw('NOT (' . TimePlausibility::sqlCondition('competition_results') . ')')
                 ->get();

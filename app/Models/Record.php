@@ -80,7 +80,7 @@ class Record extends Model
 
     public function getGenderLabelAttribute(): string
     {
-        return $this->gender === 'M' ? 'Männlich' : 'Weiblich';
+        return \App\Support\Gender::title($this->gender) ?? '';
     }
 
     public function getTypeLabel(): string

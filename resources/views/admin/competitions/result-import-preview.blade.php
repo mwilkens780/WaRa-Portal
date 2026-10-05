@@ -186,7 +186,7 @@
                                     @if($athlete['birthdate'])
                                         <p class="text-xs text-gray-600 mt-0.5">
                                             Jg. {{ $athlete['birthdate'] }}
-                                            @if($athlete['gender'] === 'F') · w @elseif($athlete['gender'] === 'M') · m @endif
+                                            @if(in_array($athlete['gender'], \App\Support\Gender::PERSON, true)) · {{ \App\Support\Gender::short($athlete['gender']) }} @endif
                                         </p>
                                     @endif
                                 </x-ui.td>

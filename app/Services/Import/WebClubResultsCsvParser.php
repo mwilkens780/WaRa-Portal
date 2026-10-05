@@ -98,7 +98,7 @@ class WebClubResultsCsvParser
 
             if ($rawName === '' || $zeitStr === '' || $strecke === '') continue;
 
-            $gender = match($rawGender) { 'W' => 'F', 'M' => 'M', default => 'X' };
+            $gender = match($rawGender) { 'W' => 'F', 'M' => 'M', 'D' => 'D', default => 'X' };
 
             // ── Relay detection ──────────────────────────────────────────────
             if ($jg === '0' || preg_match('/^\d+\s*x\s*\d+/i', $strecke)) {

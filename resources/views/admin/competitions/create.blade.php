@@ -197,7 +197,7 @@
                                                 {'F':'Freistil','B':'Brust','R':'Rücken','S':'Schmetterling','L':'Lagen'}[ev.discipline] || ev.discipline">
                                             </span>
                                             <span x-show="ev.age_group" x-text="' · ' + ev.age_group" class="text-gray-400"></span>
-                                            <span x-show="ev.gender !== 'X'" x-text="ev.gender === 'M' ? ' · Männer' : ' · Frauen'" class="text-gray-400"></span>
+                                            <span x-show="ev.gender !== 'X'" x-text="({M: ' · Männer', F: ' · Frauen', D: ' · Divers'})[ev.gender] ?? ''" class="text-gray-400"></span>
                                         </span>
                                     </div>
                                     <span class="text-xs text-gray-400 flex-shrink-0"

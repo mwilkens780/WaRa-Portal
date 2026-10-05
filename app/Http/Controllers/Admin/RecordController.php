@@ -63,9 +63,16 @@ class RecordController extends Controller
             'Kurzbahn' => $this->bestLists->lists('Kurzbahn', $annualYear),
         ];
 
+        // "Divers" nur zeigen, wenn es dazu Mitglieder, Rekorde oder Bestenlisten-
+        // Einträge gibt – sonst wäre es eine leere dritte Liste
+        $hasDiverse = \App\Models\User::where('gender', 'D')->exists()
+            || Record::where('gender', 'D')->exists()
+            || \App\Models\BestListEntry::where('gender', 'D')->exists();
+        $recordGenders = ['F' => 'Weiblich', 'M' => 'Männlich'] + ($hasDiverse ? ['D' => 'Divers'] : []);
+
         return compact(
             'vereinsrekorde', 'landesrekorde',
-            'eternal', 'annual', 'availableYears', 'annualYear'
+            'eternal', 'annual', 'availableYears', 'annualYear', 'recordGenders'
         );
     }
 
@@ -77,7 +84,7 @@ class RecordController extends Controller
             'type'         => ['required', 'in:vereinsrekord,landesrekord'],
             'discipline'   => ['required', 'in:F,B,R,S,L'],
             'distance'     => ['required', 'integer', 'min:25'],
-            'gender'       => ['required', 'in:M,F'],
+            'gender'       => ['required', \App\Support\Gender::personRule()],
             'age_group'    => ['nullable', 'string', 'max:20'],
             'course'       => ['required', 'in:Kurzbahn,Langbahn'],
             'swimmer_name' => ['required', 'string', 'max:255'],
@@ -288,7 +295,7 @@ class RecordController extends Controller
 
             if (!$discipline || !$distance || !$gender || !$swimmerName || $timeMs <= 0) continue;
             if (!in_array($discipline, ['F', 'B', 'R', 'S', 'L'])) continue;
-            if (!in_array($gender, ['M', 'F'])) continue;
+            if (!in_array($gender, \App\Support\Gender::PERSON, true)) continue;
 
             // Zahlendreher in der Liste nicht uebernehmen
             if (TimePlausibility::isImplausible($discipline, $distance, $timeMs)) {
@@ -410,7 +417,7 @@ class RecordController extends Controller
         $data = $request->validate([
             'discipline'   => ['required', 'in:F,B,R,S,L'],
             'distance'     => ['required', 'integer', 'min:25'],
-            'gender'       => ['required', 'in:M,F'],
+            'gender'       => ['required', \App\Support\Gender::personRule()],
             'course'       => ['required', 'in:Kurzbahn,Langbahn'],
             'birth_year'   => ['nullable', 'integer', 'min:1900', 'max:2100'],
             'set_year'     => ['required', 'integer', 'min:1900', 'max:2100'],
@@ -586,7 +593,7 @@ class RecordController extends Controller
                 fputcsv($out, [
                     $labels[$r->discipline] ?? $r->discipline,
                     $r->distance,
-                    $r->gender === 'M' ? 'Männlich' : 'Weiblich',
+                    \App\Support\Gender::title($r->gender),
                     $r->course,
                     $r->swimmer_name,
                     $r->formatted_time,
@@ -623,7 +630,7 @@ class RecordController extends Controller
                     [$discipline, $distance] = explode('_', $key);
                     foreach ($rows as $row) {
                         fputcsv($out, [
-                            $gender === 'M' ? 'Männlich' : 'Weiblich',
+                            \App\Support\Gender::title($gender),
                             $distance . ' m ' . ($labels[$discipline] ?? $discipline),
                             $row['rank'],
                             $row['name'],

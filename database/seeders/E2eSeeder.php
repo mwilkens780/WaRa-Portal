@@ -56,16 +56,18 @@ class E2eSeeder extends Seeder
         $trainer = $user('trainer', 'Tom', 'Trainer', ['phone' => '040-1234567']);
         $swimmer = $user('schwimmer', 'Sina', 'Schwimmer', ['birth_date' => now()->subYears(13)->format('Y-m-d'), 'gender' => 'F']);
         $second  = $user('schwimmer', 'Ben', 'Bahn', ['email' => 'ben@e2e.test', 'birth_date' => now()->subYears(15)->format('Y-m-d'), 'gender' => 'M']);
+        // Drittes Geschlecht: Rekord-/Bestenlisten-Filter "Divers" und Anzeigen
+        $diverse = $user('schwimmer', 'Dani', 'Delfin', ['email' => 'dani@e2e.test', 'birth_date' => now()->subYears(14)->format('Y-m-d'), 'gender' => 'D']);
         $parent  = $user('elternteil', 'Elke', 'Eltern', ['email' => 'eltern@e2e.test', 'mobile' => '0170 1234567', 'carpool_share_phone' => true]);
         $parent->children()->attach($swimmer->id);
 
-        foreach ([$admin, $trainer, $swimmer, $second, $parent] as $u) {
+        foreach ([$admin, $trainer, $swimmer, $second, $diverse, $parent] as $u) {
             $u->forceFill(['portal_activated_at' => now()])->saveQuietly();
         }
 
         $group = TrainingGroup::create(['name' => 'E2E-Gruppe', 'color' => 'blue', 'group_type' => 'leistungssport', 'active' => true]);
         $group->trainers()->attach($trainer->id);
-        $group->swimmers()->attach([$swimmer->id, $second->id]);
+        $group->swimmers()->attach([$swimmer->id, $second->id, $diverse->id]);
 
         // Einheiten: vergangene, heutige Woche, eine Serie in der Zukunft
         $serie = (string) Str::uuid();
@@ -111,6 +113,15 @@ class E2eSeeder extends Seeder
         CompetitionResult::create([
             'competition_id' => $vergangen->id, 'user_id' => $swimmer->id, 'discipline' => 'F', 'distance' => 100,
             'time_ms' => 72340, 'placement' => 2, 'is_personal_best' => true,
+        ]);
+        // Übungsform: markiert, keine Bestzeit
+        CompetitionResult::create([
+            'competition_id' => $vergangen->id, 'user_id' => $swimmer->id, 'discipline' => 'S', 'distance' => 25,
+            'exercise' => 'KB', 'time_ms' => 21500, 'placement' => 1, 'is_personal_best' => false, 'gender' => 'F',
+        ]);
+        CompetitionResult::create([
+            'competition_id' => $vergangen->id, 'user_id' => $diverse->id, 'discipline' => 'F', 'distance' => 50,
+            'time_ms' => 34120, 'placement' => 1, 'is_personal_best' => true, 'gender' => 'D',
         ]);
         $kommend = Competition::create([
             'name' => 'E2E-Sprintpokal', 'location' => 'Kiel', 'date' => now()->addDays(10)->format('Y-m-d'),
