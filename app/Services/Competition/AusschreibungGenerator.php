@@ -16,7 +16,7 @@ class AusschreibungGenerator
      */
     public function generate(Competition $competition): string
     {
-        $competition->load(['events' => fn($q) => $q->orderBy('session_number')->orderBy('event_number')]);
+        $competition->load(['events' => fn($q) => $q->reorder()->inProgramOrder()]);
 
         $sessions     = $competition->events->groupBy('session_number');
         $pflichtzeiten = $competition->events->where('qualifying_time_ms', '>', 0);

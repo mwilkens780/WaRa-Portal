@@ -127,6 +127,10 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 - **Generatoren** (`MeldedateiGenerator`, `DefinitionsdateiGenerator`, Bausteine in `DsvWriter`)
   schreiben nach Spezifikation (Kapitel 5.1/5.2). Version: wie die Ausschreibung des Ausrichters,
   sonst bis Ende 2026 DSV7, ab 2027 DSV8. Gemeldet wird je **Wettkampfnummer** (STARTPN), nicht je Wertung.
+- **Wettkampffolge** (`competition_events`): bei Staffeln ist `distance` die **Gesamtstrecke**
+  (4×50 → 200), Strecke je Schwimmer = `leg_distance`. WebClub und Lenex liefern die Strecke je
+  Schwimmer – beim Speichern mit `relay_legs` multiplizieren. Reihenfolge = `sort_order` aus der
+  Quelle (Scope `inProgramOrder`), nie nach `event_number` sortieren (Finals 101 … gehören ins Programm).
 - Vereinskennzahl/-name: Admin → Einstellungen → „Verein (DSV-Dateien)“ (`club.dsv_number`, `club.name`).
   Ohne Kennzahl gibt es keine Meldedatei.
 - Spezifikation: dsv.de → Service → Formulare → Schwimmen („DSV Standard 8 gültig ab 01.08.2026“).

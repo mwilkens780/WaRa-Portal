@@ -117,6 +117,7 @@ class DsvImportService
                 'events'    => [],
             ];
 
+            $position = 0; // Programmreihenfolge wie in der Datei
             foreach ($meet->SESSIONS->SESSION ?? [] as $session) {
                 $sessionNum  = (int)($session['number'] ?? 1);
                 $sessionDate = (string)($session['date'] ?? $startdate);
@@ -131,6 +132,11 @@ class DsvImportService
                     $stroke   = strtoupper((string)$style['stroke']);
                     $distance = (int)$style['distance'];
                     if (!isset(self::STROKE_MAP[$stroke]) || $distance <= 0) continue;
+                    // Staffel: Lenex gibt die Strecke je Schwimmer und relaycount an;
+                    // im Portal steht bei Staffeln die Gesamtstrecke (wie in der DSV-Datei)
+                    $legs = (int)($style['relaycount'] ?? 1);
+                    if ($legs > 1) $distance *= $legs;
+                    $position++;
 
                     // Collect age groups (one event can have multiple age groups)
                     $ageGroups = [];
@@ -150,6 +156,8 @@ class DsvImportService
                     foreach ($ageGroups as $ag) {
                         $meetData['events'][] = [
                             'event_number'   => $eventNum,
+                            'sort_order'     => $position,
+                            'relay_legs'     => $legs > 1 ? $legs : null,
                             'session_number' => $sessionNum,
                             'session_date'   => $sessionDate,
                             'session_name'   => $sessionName,

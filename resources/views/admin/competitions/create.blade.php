@@ -193,7 +193,7 @@
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <span class="text-sm font-medium text-gray-700">
-                                            <span x-text="'Nr. ' + ev.event_number + ':  ' + ev.distance + ' m ' +
+                                            <span x-text="'Nr. ' + ev.event_number + ':  ' + (ev.relay_legs > 1 ? ev.relay_legs + '×' + Math.round(ev.distance / ev.relay_legs) : ev.distance) + ' m ' +
                                                 {'F':'Freistil','B':'Brust','R':'Rücken','S':'Schmetterling','L':'Lagen'}[ev.discipline] || ev.discipline">
                                             </span>
                                             <span x-show="ev.age_group" x-text="' · ' + ev.age_group" class="text-gray-400"></span>

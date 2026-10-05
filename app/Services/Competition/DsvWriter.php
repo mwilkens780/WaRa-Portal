@@ -152,12 +152,10 @@ class DsvWriter
         foreach ($competition->dsv_header_data['wettkaempfe'] ?? [] as $wk) {
             if (!empty($wk['nr'])) $out[(int) $wk['nr']] = $wk;
         }
-        if ($out) {
-            ksort($out);
-            return $out;
-        }
+        // Reihenfolge der Ausschreibung beibehalten (nicht nach Nummer sortieren)
+        if ($out) return $out;
 
-        foreach ($competition->events->sortBy('event_number')->groupBy('event_number') as $nr => $wertungen) {
+        foreach ($competition->events->groupBy('event_number') as $nr => $wertungen) {
             $e    = $wertungen->first();
             $legs = (int) ($e->relay_legs ?? 0);
             $out[(int) $nr] = [
@@ -166,7 +164,7 @@ class DsvWriter
                 'abschnitt'   => $e->session_number ?: 1,
                 'starter'     => $legs > 1 ? $legs : '',
                 // Staffeln: im Portal Gesamtstrecke, im Standard die Einzelstrecke
-                'strecke'     => $legs > 1 ? intdiv((int) $e->distance, $legs) : (int) $e->distance,
+                'strecke'     => $e->leg_distance,
                 'technik'     => self::stroke($e->discipline),
                 'ausuebung'   => $e->exercise ?: 'GL',
                 'geschlecht'  => self::gender($e->gender),

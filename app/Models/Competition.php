@@ -73,9 +73,7 @@ class Competition extends Model
 
     public function events()
     {
-        return $this->hasMany(CompetitionEvent::class)
-            ->orderBy('session_number')
-            ->orderBy('event_number');
+        return $this->hasMany(CompetitionEvent::class)->inProgramOrder();
     }
 
     public function signupRequest()

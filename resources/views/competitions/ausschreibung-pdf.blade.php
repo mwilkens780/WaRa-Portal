@@ -152,7 +152,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($sessionEvents->sortBy('event_number') as $event)
+        @foreach($sessionEvents as $event)
         <tr>
           <td>{{ $event->event_number }}</td>
           <td>{{ $event->distance }}m {{ $event->discipline_label }}</td>

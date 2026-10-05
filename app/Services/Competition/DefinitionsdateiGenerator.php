@@ -17,7 +17,7 @@ class DefinitionsdateiGenerator
 {
     public function generate(Competition $competition, ?int $version = null): string
     {
-        $competition->load(['events' => fn($q) => $q->orderBy('event_number')->orderBy('id')]);
+        $competition->load(['events' => fn($q) => $q->reorder()->inProgramOrder()]);
         $version ??= DsvWriter::versionFor($competition);
         $h = $competition->dsv_header_data ?? [];
         $w = new DsvWriter($version);

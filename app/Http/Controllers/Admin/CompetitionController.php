@@ -155,13 +155,14 @@ class CompetitionController extends Controller
                 'description' => $data['description'] ?? null,
             ]);
 
-            foreach ($events as $ev) {
+            foreach (array_values($events) as $idx => $ev) {
                 $ageMin = (int)($ev['age_min'] ?? 0);
                 $ageMax = (int)($ev['age_max'] ?? 0);
 
                 CompetitionEvent::create([
                     'competition_id' => $competition->id,
                     'event_number'   => (int)($ev['event_number'] ?? 0),
+                    'sort_order'     => (int)($ev['sort_order'] ?? 0) ?: $idx + 1,
                     'session_number' => (int)($ev['session_number'] ?? 1),
                     'session_date'   => $ev['session_date'] ?: null,
                     'session_name'   => $ev['session_name'] ?: null,
@@ -200,10 +201,8 @@ class CompetitionController extends Controller
 
     public function show(Competition $competition)
     {
-        $competition->load(['events' => fn($q) => $q
-            ->orderBy('session_number')
-            ->orderBy('event_number')
-            ->orderBy('age_group'),
+        // Reihenfolge wie im Programm der Quelle (Finals 101 … nicht ans Ende)
+        $competition->load(['events' => fn($q) => $q->reorder()->inProgramOrder(),
             'trainingGroups',
         ]);
 
@@ -577,13 +576,14 @@ class CompetitionController extends Controller
         DB::transaction(function () use ($competition, $meet) {
             $competition->events()->delete();
 
-            foreach ($meet['events'] as $ev) {
+            foreach (array_values($meet['events']) as $idx => $ev) {
                 $ageMin = (int)($ev['age_min'] ?? 0);
                 $ageMax = (int)($ev['age_max'] ?? 0);
 
                 CompetitionEvent::create([
                     'competition_id'      => $competition->id,
                     'event_number'        => (int)($ev['event_number'] ?? 0),
+                    'sort_order'          => (int)($ev['sort_order'] ?? 0) ?: $idx + 1,
                     'session_number'      => (int)($ev['session_number'] ?? 1),
                     'session_date'        => $ev['session_date'] ?: null,
                     'session_name'        => $ev['session_name'] ?: null,

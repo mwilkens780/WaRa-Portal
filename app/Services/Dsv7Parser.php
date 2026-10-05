@@ -104,10 +104,17 @@ class Dsv7Parser
         $startdate = $this->firstDate($sessions);
         $enddate   = $this->lastDate($sessions);
 
+        // Programmreihenfolge = Reihenfolge der WETTKAMPF-Zeilen in der Datei
+        // (Finals mit Nummer 101 … stehen dort, wo sie im Programm stehen)
+        $position = array_flip(array_keys($meta['wettkaempfe'] ?? []));
+
         $events = [];
+        $i = 0;
         foreach ($wertungMap as $wid => $w) {
+            $i++;
             $events[] = [
                 'event_number'       => $w['event_number'],
+                'sort_order'         => isset($position[$w['event_number']]) ? $position[$w['event_number']] + 1 : $i,
                 'session_number'     => $w['session_number'],
                 'session_date'       => $sessions[$w['session_number']] ?? $startdate,
                 'session_name'       => 'Abschnitt ' . $w['session_number'],

@@ -299,7 +299,9 @@ class WebClubCrawler
 
         // Bulk: alle Portal-Events dieser Veranstaltung
         $portalEvents     = CompetitionEvent::where('competition_id', $competition->id)->get();
-        $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
+        // Einzelmeldungen nur Einzelstrecken zuordnen – eine 4×50 ist keine 200 m
+        $portalByDiscDist = $portalEvents->filter(fn($e) => !($e->relay_legs > 1))
+            ->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
 
         // Bulk-Duplikat-Check (kein N×DB-Query)
         $existingKeys = CompetitionEntry::where('competition_id', $competition->id)
@@ -430,8 +432,9 @@ class WebClubCrawler
 
         // Bulk: alle Portal-Events dieser Veranstaltung (1 Query)
         $portalEvents   = CompetitionEvent::where('competition_id', $competition->id)->get();
-        // Gruppiert nach Disziplin+Distanz für systemübergreifendes Matching
-        $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
+        // Gruppiert nach Disziplin+Distanz für systemübergreifendes Matching (nur Einzelstrecken)
+        $portalByDiscDist = $portalEvents->filter(fn($e) => !($e->relay_legs > 1))
+            ->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
 
         // Bulk: bereits vorhandene Ergebnisse (1 Query statt N exists()-Queries)
         $existingKeys = CompetitionResult::where('competition_id', $competition->id)
@@ -585,7 +588,8 @@ class WebClubCrawler
             }
         }
 
-        foreach ($events as $ev) {
+        // Reihenfolge der WebClub-Wettkampffolge übernehmen (Finals 101 … nicht ans Ende)
+        foreach (array_values($events) as $position => $ev) {
             if (empty($ev['discipline']) || empty($ev['distance'])) continue;
             if (!in_array($ev['discipline'], ['F', 'B', 'R', 'S', 'L'])) continue;
 
@@ -605,7 +609,11 @@ class WebClubCrawler
                     'session_date'       => $meta['date'] ?? null,
                     'session_name'       => $meta['name'] ?? null,
                     'discipline'         => $ev['discipline'],
-                    'distance'           => (int) $ev['distance'],
+                    'sort_order'         => $position + 1,
+                    // WebClub liefert die Strecke je Schwimmer (wkfLAENGE), der Wettkampf
+                    // speichert bei Staffeln die Gesamtstrecke (wie die DSV-Datei) –
+                    // sonst zeigte die Wettkampffolge "4×12" statt 4×50
+                    'distance'           => $legs > 1 ? (int) $ev['distance'] * $legs : (int) $ev['distance'],
                     'relay_legs'         => $legs > 1 ? $legs : null,
                     'gender'             => $ev['gender'] ?? 'X',
                     'age_group'          => $ev['age_group'] ?? null,
@@ -647,8 +655,11 @@ class WebClubCrawler
             ->get(['discipline', 'distance', 'club_name', 'time_ms'])
             ->mapWithKeys(fn($r) => ["{$r->discipline}_{$r->distance}_{$r->club_name}_{$r->time_ms}" => true]);
 
+        // Staffeln nur Staffel-Wettkämpfen zuordnen, Schlüssel = Strecke je Schwimmer
+        // (relay_results.distance), der Wettkampf speichert die Gesamtstrecke
         $portalEvents     = CompetitionEvent::where('competition_id', $competition->id)->get();
-        $portalByDiscDist = $portalEvents->groupBy(fn($e) => $e->discipline . '_' . $e->distance);
+        $portalByDiscDist = $portalEvents->filter(fn($e) => $e->relay_legs > 1)
+            ->groupBy(fn($e) => $e->discipline . '_' . $e->leg_distance);
 
         $synced    = 0;
         $skipNoDef = 0;

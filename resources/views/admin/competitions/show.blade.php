@@ -1520,7 +1520,7 @@
                 @php
                     $attending = $signupRequest->responses->where('status', 'attending')
                         ->sortBy(fn($r) => $r->user?->lastname . $r->user?->firstname);
-                    $events = $competition->events->sortBy('event_number');
+                    $events = $competition->events; // Programmreihenfolge
                 @endphp
 
                 {{-- Header: Meldeschluss + DSV-Downloads (Version wie Ausschreibung, sonst nach Datum) --}}
