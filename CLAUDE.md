@@ -148,6 +148,19 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   **nie** als Zeit der Lage: Jede neue Bestzeit-/Rekord-/Bestenlisten-/Meldezeit-Abfrage braucht
   `->whereNull('exercise')`.
 
+## Termine mit Einladung (Kalender)
+
+- Arten und Rechte in `CalendarEvent::TYPES` (`creators` = Portal- oder Vereinsrolle, `audience`):
+  Vorstandssitzung (Vorstand → Vorstand), Elternabend (Trainer → Eltern Minderjähriger +
+  volljährige Mitglieder), Team-Event (Vorstand/Trainer/Schwimmer → Gruppen/Einzelne, Eltern sagen
+  für minderjährige Kinder zu), dazu immer Gäste aus dem Portal oder per E-Mail (Token-Link).
+- Rechte am Modell: `canManage`, `canSeeDetails` (Details nur Eingeladene + Ersteller + Admin,
+  Termin selbst sieht jeder im Kalender), `invitationsFor` (eigene + Kinder).
+- Empfänger und Versand in `App\Services\EventInvitations`, Mails in `EventMailer::calendar*`,
+  Thema `event_invitations` (Standard an). Erinnerung automatisch 2 Tage vor Anmeldeschluss.
+- Dateien: `calendar_event_files` (Agenda-Unterlagen, Anhänge, Protokolle; Datei oder Link;
+  frühere Protokolle per `source_file_id` verknüpft, nicht kopiert).
+
 ## Punkte (WA und Rudolph)
 
 - **WA-Punkte**: Basiszeiten in `wa_scoring_tables`, Tabelle nach Wettkampfdatum

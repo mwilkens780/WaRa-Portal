@@ -457,6 +457,11 @@ class CalendarController extends Controller
             ->orderBy('start_date')->orderBy('start_time')
             ->get();
 
+        // Termine, zu denen ich oder ein minderjähriges Kind eingeladen bin
+        $invitedTo = \App\Models\CalendarEventInvitee::whereIn('calendar_event_id', $calEvents->pluck('id'))
+            ->whereIn('user_id', array_merge([$user->id], $user->wards()->pluck('id')->all()))
+            ->pluck('calendar_event_id')->flip();
+
         foreach ($calEvents as $e) {
             $eStart = max($e->start_date, $from->copy()->startOfDay());
             $eEnd   = $e->end_date ? min($e->end_date, $to->copy()->endOfDay()) : $e->start_date;
@@ -469,9 +474,12 @@ class CalendarController extends Controller
                         'color'      => $e->type_color,
                         'time'       => $e->start_time ? substr($e->start_time, 0, 5) : null,
                         'title'      => $e->title,
-                        'sub'        => $e->type_label,
-                        'url'        => null,
+                        'sub'        => $e->type_label . (isset($invitedTo[$e->id]) ? ' · eingeladen' : ''),
+                        // Detailseite: Agenda, Anhänge, Anmeldung (Details nur für Eingeladene)
+                        'url'        => route('calendar.events.show', $e),
+                        'url_label'  => isset($invitedTo[$e->id]) && $e->rsvpOpen() ? 'Details und Anmeldung' : 'Details',
                         'id'         => $e->id,
+                        'can_edit'   => $e->canManage($user),
                         'span_start' => $e->start_date->format('Y-m-d'),
                         'span_end'   => ($e->end_date ?? $e->start_date)->format('Y-m-d'),
                     ];

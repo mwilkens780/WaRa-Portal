@@ -86,6 +86,28 @@ class Mailer
         return $log;
     }
 
+    /**
+     * Einladung an einen Gast ohne Portal-Konto (Entscheidung Martin, 06.10.2026).
+     *
+     * Ohne Konto gibt es keine Profileinstellung: Die Mail geht raus, weil der
+     * Einladende die Adresse ausdrücklich angegeben hat. Wartungsmodus und
+     * Protokoll greifen wie bei jeder anderen Mail.
+     */
+    public function queueGuest(string $email, ?string $name, string $topic, Mailable $mailable, string $subject): MailMessage
+    {
+        return MailMessage::create([
+            'user_id'         => null,
+            'topic'           => $topic,
+            'recipient_email' => $email,
+            'recipient_name'  => $name,
+            'subject'         => $subject,
+            'mailable'        => get_class($mailable),
+            'payload'         => method_exists($mailable, 'queuePayload') ? $mailable->queuePayload() : null,
+            'status'          => 'pending',
+            'triggered_by'    => auth()->id(),
+        ]);
+    }
+
     /** Verschickt offene Mails aus der Warteschlange (Cron). */
     public function processQueue(int $limit = self::BATCH_SIZE): array
     {

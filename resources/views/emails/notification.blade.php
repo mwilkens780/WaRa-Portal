@@ -8,7 +8,7 @@
     @endif
 
     @foreach($paragraphs as $paragraph)
-        <p style="margin:0 0 14px; font-size:15px; line-height:1.6;">{{ $paragraph }}</p>
+        <p style="margin:0 0 14px; font-size:15px; line-height:1.6; white-space:pre-line;">{{ $paragraph }}</p>
     @endforeach
 
     @if(!empty($facts))

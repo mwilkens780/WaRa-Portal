@@ -19,8 +19,16 @@ Rolle ab; ein Schwimmer bekommt keine Trainer-Themen angeboten.
 eingeschaltet, bis jemand sie im Profil abwählt. Im Profil stehen sie in der
 Gruppe **„Absagen“**: **Trainingsausfall** (Entscheidung 30.09.2026) und
 **Fahrgemeinschaft fällt weg** (04.10.2026) – jeweils für Schwimmer und Eltern.
-Eine Absage betrifft jeden, der sich darauf verlassen hat. Neue Ausnahmen nur
-nach Rücksprache.
+Eine Absage betrifft jeden, der sich darauf verlassen hat. Außerdem die Gruppe
+**„Einladungen“** (Entscheidung 06.10.2026): **Einladungen zu Terminen**
+(Vorstandssitzung, Elternabend, Team-Event – samt Erinnerung und Protokoll-Hinweis)
+und **Kampfrichter-Anfragen**, für alle Rollen. Neue Ausnahmen nur nach Rücksprache.
+
+**Gäste ohne Konto:** Bei Terminen lassen sich Gäste per E-Mail-Adresse einladen.
+Sie haben kein Profil und damit keine Einstellung – die Mail geht raus, weil der
+Einladende die Adresse ausdrücklich angegeben hat (`Mailer::queueGuest`, mit
+Protokoll und Wartungsmodus wie jede Mail). Der Link darin ist persönlich
+(`/einladung/{token}`) und zeigt nur diesen einen Termin.
 
 **Handynummer bei Fahrgemeinschaften:** Mitfahrer sehen die Nummer des Anbieters
 nur, wenn er beim Angebot den Haken setzt. Die Voreinstellung dafür steht im

@@ -6,7 +6,7 @@
 
     Sichtbar klein, Trefferflaeche aber 44 px (mobil) bzw. 36 px (Desktop).
 --}}
-@props(['icon', 'label', 'href' => null, 'tone' => 'neutral'])
+@props(['icon', 'label', 'href' => null, 'tone' => 'neutral', 'type' => 'button'])
 
 @php
     $tones = [
@@ -24,7 +24,7 @@
         <x-ui.icon :name="$icon" class="w-5 h-5" />
     </a>
 @else
-    <button type="button" aria-label="{{ $label }}" title="{{ $label }}" {{ $attributes->merge(['class' => $classes]) }}>
+    <button type="{{ $type }}" aria-label="{{ $label }}" title="{{ $label }}" {{ $attributes->merge(['class' => $classes]) }}>
         <x-ui.icon :name="$icon" class="w-5 h-5" />
     </button>
 @endif

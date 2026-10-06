@@ -120,6 +120,25 @@ Schedule::call(function () {
     }
 })->fridays()->at('17:00')->name('motto-reminder')->withoutOverlapping();
 
+// Termine mit Einladung: zwei Tage vor Anmeldeschluss an fehlende Rueckmeldungen
+// erinnern (einmal je Termin; manuell geht es auf der Terminseite jederzeit)
+$remindInvitations = function (): int {
+    $events = \App\Models\CalendarEvent::where('rsvp_enabled', true)
+        ->whereDate('rsvp_deadline', today()->addDays(2))
+        ->whereNull('reminder_sent_at')->get();
+    $mails = 0;
+    foreach ($events as $event) {
+        $mails += app(\App\Services\EventInvitations::class)->remind($event);
+    }
+    return $mails;
+};
+
+Artisan::command('invitations:remind', function () use ($remindInvitations) {
+    $this->info($remindInvitations() . ' Erinnerungen an Termin-Einladungen verschickt.');
+})->purpose('Zwei Tage vor Anmeldeschluss an fehlende Rueckmeldungen erinnern');
+
+Schedule::call($remindInvitations)->dailyAt('09:00')->name('invitations-remind')->withoutOverlapping();
+
 // Versandprotokoll nach zwoelf Monaten loeschen - so steht es in der
 // Datenschutzerklaerung, also muss es auch geschehen.
 Artisan::command('mails:purge-log', function () {

@@ -413,6 +413,115 @@ class EventMailer
         return $queued;
     }
 
+    // ── Termine mit Einladung (Vorstandssitzung, Elternabend, Team-Event) ─────
+
+    public function calendarInvitation(\App\Models\CalendarEventInvitee $invitee): int
+    {
+        $e = $invitee->event;
+        return $this->toInvitee($invitee, function (string $who, bool $forParent, ?string $child) use ($e) {
+            $intro = $forParent
+                ? "{$child} ist zu folgendem Termin eingeladen: {$e->title}."
+                : "du bist zu folgendem Termin eingeladen: {$e->title}.";
+            return [
+                'subject'    => 'Einladung: ' . $e->title . ', ' . $e->start_date->format('d.m.Y'),
+                'heading'    => 'Einladung: ' . $e->title,
+                'paragraphs' => array_values(array_filter([
+                    $intro,
+                    $e->description ? strip_tags($e->description) : null,
+                    $e->agenda ? "Agenda:\n" . self::plainText($e->agenda) : null,
+                    $e->rsvp_enabled ? 'Bitte gib Bescheid, ob du kommst' . ($e->rsvp_deadline ? ' – bis ' . $e->rsvp_deadline->format('d.m.Y') : '') . '.' : null,
+                ])),
+                'label'      => $e->rsvp_enabled ? 'Zu- oder absagen' : 'Termin ansehen',
+            ];
+        });
+    }
+
+    public function calendarReminder(\App\Models\CalendarEventInvitee $invitee): int
+    {
+        $e = $invitee->event;
+        return $this->toInvitee($invitee, fn(string $who, bool $forParent, ?string $child) => [
+            'subject'    => 'Erinnerung: ' . $e->title . ', ' . $e->start_date->format('d.m.Y'),
+            'heading'    => 'Rückmeldung fehlt noch',
+            'paragraphs' => [
+                ($forParent ? "für {$child} fehlt noch die Rückmeldung zu „{$e->title}“." : "deine Rückmeldung zu „{$e->title}“ fehlt noch.")
+                    . ($e->rsvp_deadline ? ' Anmeldeschluss ist der ' . $e->rsvp_deadline->format('d.m.Y') . '.' : ''),
+            ],
+            'label'      => 'Zu- oder absagen',
+        ]);
+    }
+
+    public function calendarProtocol(\App\Models\CalendarEventInvitee $invitee, \App\Models\CalendarEventFile $file): int
+    {
+        $e = $invitee->event;
+        return $this->toInvitee($invitee, fn() => [
+            'subject'    => 'Protokoll: ' . $e->title . ', ' . $e->start_date->format('d.m.Y'),
+            'heading'    => 'Neues Protokoll',
+            'paragraphs' => ["zu „{$e->title}“ vom {$e->start_date->format('d.m.Y')} liegt ein Protokoll vor: {$file->title}."],
+            'label'      => 'Protokoll ansehen',
+        ]);
+    }
+
+    /**
+     * Mail an eine Einladung: Portal-Benutzer (bei minderjährigen Schwimmern
+     * zusätzlich die Eltern) oder Gast mit persönlichem Link.
+     *
+     * @param callable(string $who, bool $forParent, ?string $childName): array{subject: string, heading: string, paragraphs: list<string>, label: string} $build
+     */
+    private function toInvitee(\App\Models\CalendarEventInvitee $invitee, callable $build): int
+    {
+        $e     = $invitee->event;
+        $facts = array_filter([
+            'Termin'       => $e->title,
+            'Wann'         => $e->when_label,
+            'Ort'          => $e->location,
+            'Rückmeldung bis' => $e->rsvp_enabled && $e->rsvp_deadline ? $e->rsvp_deadline->format('d.m.Y') : null,
+        ]);
+
+        if ($invitee->isGuest()) {
+            $c    = $build($invitee->guest_name ?? '', false, null);
+            $mail = new NotificationMail(
+                subjectText: $c['subject'], heading: $c['heading'], paragraphs: $c['paragraphs'], facts: $facts,
+                actionUrl: route('invitation.guest', $invitee->token), actionLabel: $c['label'],
+                greetingName: $invitee->guest_name,
+                footnote: 'Der Link ist persönlich und funktioniert ohne Anmeldung im Portal. Bitte nicht weitergeben.',
+            );
+            $log = $this->mailer->queueGuest($invitee->guest_email, $invitee->guest_name, 'event_invitations', $mail, $mail->defaultSubject());
+            return $log->status === 'pending' ? 1 : 0;
+        }
+
+        $user = $invitee->user;
+        if (!$user) return 0;
+
+        // Team-Events laden Schwimmer ein; minderjährige bekommen die Eltern dazu
+        $pairs = $e->audience === 'team' && ($user->age === null || $user->age < 18)
+            ? $this->withParents(collect([$user]))
+            : collect([[$user, $user]]);
+
+        $queued = 0;
+        foreach ($pairs as [$recipient, $swimmer]) {
+            $forParent = $recipient->id !== $swimmer->id;
+            $c    = $build($recipient->firstname, $forParent, $swimmer->firstname);
+            $mail = new NotificationMail(
+                subjectText: $c['subject'], heading: $c['heading'], paragraphs: $c['paragraphs'], facts: $facts,
+                actionUrl: route('calendar.events.show', $e), actionLabel: $c['label'],
+                greetingName: $recipient->firstname,
+            );
+            $log = $this->mailer->queue($recipient, 'event_invitations', $mail, $mail->defaultSubject());
+            if ($log->status === 'pending') $queued++;
+        }
+
+        return $queued;
+    }
+
+    /** HTML aus dem Editor als lesbarer Mailtext (Listen als Spiegelstriche) */
+    public static function plainText(string $html): string
+    {
+        $html = preg_replace(['/<li[^>]*>/i', '/<\/(p|li|h\d|div)>/i', '/<br\s*\/?>/i'], ['• ', "\n", "\n"], $html);
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace("/\n{2,}/", "\n", $text));
+    }
+
     // ── Empfängerkreise ──────────────────────────────────────────────────────
 
     /**

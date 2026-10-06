@@ -71,6 +71,22 @@ final class MailTopic
             'parent_label'       => 'Fahrgemeinschaft fällt weg',
             'parent_description' => 'Wenn eine Fahrgemeinschaft, bei der eines deiner Kinder mitfährt, abgesagt wird.',
         ],
+        // ── Einladungen: voreingestellt an (Entscheidung Martin, 06.10.2026) ──
+        'event_invitations' => [
+            'group'       => 'Einladungen',
+            'label'       => 'Einladungen zu Terminen',
+            'description' => 'Einladungen zu Vorstandssitzungen, Elternabenden und Team-Events, Erinnerungen an deine Rückmeldung und neue Protokolle.',
+            'roles'       => ['*'],
+            'default'     => true,
+            'parent_description' => 'Einladungen zu Elternabenden und Team-Events (auch für deine Kinder), Erinnerungen und neue Protokolle.',
+        ],
+        'official_requests' => [
+            'group'       => 'Einladungen',
+            'label'       => 'Kampfrichter-Anfragen',
+            'description' => 'Wenn der Vorstand Kampfrichter für einen Wettkampf sucht und dich anfragt.',
+            'roles'       => ['*'],
+            'default'     => true,
+        ],
         'own_records' => [
             'group'       => 'Leistungen',
             'label'       => 'Eigene Rekorde und Bestzeiten',

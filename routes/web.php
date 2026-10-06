@@ -431,12 +431,29 @@ Route::middleware(['auth', 'menu:club_records'])
 Route::middleware(['auth', 'menu:calendar'])->group(function () {
     Route::get('/kalender', [CalendarController::class, 'index'])->name('calendar.index');
 });
-Route::middleware(['auth', 'role:trainer,admin', 'menu:calendar'])->group(function () {
+// Termine: Anlegen je nach Art (Vorstand, Trainer, Schwimmer), Rechte am Modell (CalendarEvent)
+Route::middleware(['auth', 'role', 'menu:calendar'])->group(function () {
     Route::get('/kalender/termin/neu', [CalendarEventController::class, 'create'])->name('calendar.events.create');
     Route::post('/kalender/termin', [CalendarEventController::class, 'store'])->name('calendar.events.store');
+    Route::get('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'show'])->name('calendar.events.show');
     Route::get('/kalender/termin/{calendarEvent}/bearbeiten', [CalendarEventController::class, 'edit'])->name('calendar.events.edit');
     Route::put('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'update'])->name('calendar.events.update');
     Route::delete('/kalender/termin/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar.events.destroy');
+    Route::post('/kalender/termin/{calendarEvent}/einladen', [CalendarEventController::class, 'invite'])->name('calendar.events.invite');
+    Route::post('/kalender/termin/{calendarEvent}/erinnern', [CalendarEventController::class, 'remind'])->name('calendar.events.remind');
+    Route::post('/kalender/termin/{calendarEvent}/rueckmeldung/{invitee}', [CalendarEventController::class, 'respond'])->name('calendar.events.respond');
+    Route::delete('/kalender/termin/{calendarEvent}/eingeladen/{invitee}', [CalendarEventController::class, 'removeInvitee'])->name('calendar.events.invitee.destroy');
+    Route::post('/kalender/termin/{calendarEvent}/dateien', [CalendarEventController::class, 'storeFile'])->name('calendar.events.files.store');
+    Route::get('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'downloadFile'])->name('calendar.events.files.download');
+    Route::delete('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'destroyFile'])->name('calendar.events.files.destroy');
+    Route::get('/einladungen', [\App\Http\Controllers\InvitationController::class, 'index'])->name('invitations.index');
+});
+
+// Gäste ohne Konto: persönlicher Einladungslink (Token), gedrosselt
+Route::middleware('throttle:30,1')->group(function () {
+    Route::get('/einladung/{token}', [\App\Http\Controllers\GuestInvitationController::class, 'show'])->name('invitation.guest');
+    Route::post('/einladung/{token}', [\App\Http\Controllers\GuestInvitationController::class, 'respond'])->name('invitation.guest.respond');
+    Route::get('/einladung/{token}/datei/{file}', [\App\Http\Controllers\GuestInvitationController::class, 'download'])->name('invitation.guest.file');
 });
 
 // Berechtigungs-Matrix + Einstellungen (nur Admin)

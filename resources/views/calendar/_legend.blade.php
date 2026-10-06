@@ -12,6 +12,8 @@
                 ['key' => 'amber',   'label' => 'Ehrung',           'dot'  => 'bg-amber-500'],
                 ['key' => 'orange',  'label' => 'Meldefrist',       'dot'  => 'bg-orange-500'],
                 ['key' => 'purple',  'label' => 'Vorstandssitzung', 'dot'  => 'bg-purple-500'],
+                ['key' => 'teal',    'label' => 'Elternabend',      'dot'  => 'bg-teal-500'],
+                ['key' => 'sky',     'label' => 'Team-Event',       'dot'  => 'bg-sky-500'],
                 ['key' => 'gray',    'label' => 'Sonstiges',        'dot'  => 'bg-gray-400'],
             ];
             $bgs = [

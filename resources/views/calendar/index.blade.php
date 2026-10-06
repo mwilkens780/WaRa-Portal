@@ -6,6 +6,8 @@
 @php
     $isAdmin   = auth()->user()->isAdmin();
     $isTrainer = in_array(auth()->user()->role, ['trainer', 'admin']);
+    // Termine anlegen: je nach Art Trainer, Vorstand, Schwimmer (CalendarEvent::TYPES)
+    $canCreate = !empty(\App\Models\CalendarEvent::creatableTypesFor(auth()->user()));
 
     $colorMap = [
         'blue'    => ['chip' => 'bg-blue-100 text-blue-800',       'dot' => 'bg-blue-500'],
@@ -14,6 +16,8 @@
         'amber'   => ['chip' => 'bg-amber-100 text-amber-800',     'dot' => 'bg-amber-500'],
         'orange'  => ['chip' => 'bg-orange-100 text-orange-800',   'dot' => 'bg-orange-500'],
         'purple'  => ['chip' => 'bg-purple-100 text-purple-800',   'dot' => 'bg-purple-500'],
+        'teal'    => ['chip' => 'bg-teal-100 text-teal-800',       'dot' => 'bg-teal-500'],
+        'sky'     => ['chip' => 'bg-sky-100 text-sky-800',         'dot' => 'bg-sky-500'],
         'gray'    => ['chip' => 'bg-gray-100 text-gray-700',       'dot' => 'bg-gray-400'],
     ];
 
@@ -92,7 +96,7 @@
 
 <div class="mt-2 space-y-4"
      x-data="{
-         categories: { blue: true, red: true, emerald: true, amber: true, orange: true, purple: true, gray: true, holiday: true, vacSH: true, vacHH: true },
+         categories: { blue: true, red: true, emerald: true, amber: true, orange: true, purple: true, teal: true, sky: true, gray: true, holiday: true, vacSH: true, vacHH: true },
          {{-- Detail-Sheet (calendar/_event-sheet): ein Termin oder alle eines Tages --}}
          sheetDate: '',
          sheetEvents: [],
@@ -182,7 +186,7 @@
                 </a>
             </div>
 
-            @if($isTrainer)
+            @if($canCreate)
                 <a href="{{ route('calendar.events.create', ['date' => $newEventDate]) }}"
                    class="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
@@ -352,7 +356,7 @@
                                     {{ $day['isToday'] ? 'bg-primary text-white' : ($day['inMonth'] ? ($isWknd ? 'text-blue-600' : 'text-gray-700') : 'text-gray-400') }}">
                                     {{ $day['date']->day }}
                                 </span>
-                                @if($isTrainer && $day['inMonth'])
+                                @if($canCreate && $day['inMonth'])
                                     <a href="{{ route('calendar.events.create', ['date' => $day['date']->format('Y-m-d')]) }}"
                                        aria-label="Termin am {{ $day['date']->isoFormat('D. MMMM') }} anlegen" title="Termin anlegen"
                                        class="inline-flex items-center justify-center w-7 h-7 -mr-1 rounded text-gray-400 hover:text-primary hover:bg-gray-100 transition-colors">

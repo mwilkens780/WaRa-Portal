@@ -19,6 +19,14 @@ const PAGES = {
         '/trainer/training/neu',
         '/admin/wettkaempfe/neu',
         '/profil',
+        // Termine mit Einladung (Vorstandssitzung, Elternabend, Team-Event)
+        '/kalender/termin/neu?type=team_event',
+        ['/einladungen', /\/kalender\/termin\/\d+$/],
+        // Gast ohne Konto (Token aus dem E2eSeeder)
+        '/einladung/E2E-GAST-TOKEN-0123456789abcdef0123456789abcdef',
+    ],
+    eltern: [
+        ['/einladungen', /\/kalender\/termin\/\d+$/],
     ],
     schwimmer: [
         ['/schwimmer/dashboard', /\/schwimmer\/training\/\d+$/],

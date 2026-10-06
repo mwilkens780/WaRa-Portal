@@ -2,78 +2,44 @@
 @section('title', 'Termin anlegen')
 @section('page-title', 'Termin anlegen')
 
+@php
+    $audiences  = collect($types)->map(fn($t) => $t['audience'])->all();
+    $initial    = old('type', $defaultType);
+@endphp
+
 @section('content')
-<div class="mt-2 max-w-xl">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <form method="POST" action="{{ route('calendar.events.store') }}" class="space-y-4">
-            @csrf
-            <input type="hidden" name="return_to" value="{{ url()->previous() }}">
+<form method="POST" action="{{ route('calendar.events.store') }}" class="mt-2 max-w-3xl space-y-6"
+      x-data="{ type: {{ \Illuminate\Support\Js::from($initial) }}, audiences: {{ \Illuminate\Support\Js::from($audiences) }},
+                get audience() { return this.audiences[this.type] ?? null } }">
+    @csrf
+    <input type="hidden" name="return_to" value="{{ url()->previous() }}">
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Titel <span class="text-red-600">*</span></label>
-                <input aria-label="Titel" type="text" name="title" value="{{ old('title') }}" required maxlength="200"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none @error('title') border-red-400 @enderror">
-                @error('title') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
-            </div>
+    @if($errors->any())
+        <x-ui.alert tone="error">Bitte die markierten Felder prüfen.</x-ui.alert>
+    @endif
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Art <span class="text-red-600">*</span></label>
-                <select aria-label="Art" name="type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    @foreach(\App\Models\CalendarEvent::TYPES as $key => $info)
-                        <option value="{{ $key }}" {{ old('type', 'vereinstermin') === $key ? 'selected' : '' }}>{{ $info['label'] }}</option>
-                    @endforeach
-                </select>
-            </div>
+    <x-ui.card title="Termin">
+        <div class="space-y-4">
+            @include('calendar.events._fields')
+        </div>
+    </x-ui.card>
 
-            <div class="grid sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Datum von <span class="text-red-600">*</span></label>
-                    <input aria-label="Datum von" type="date" name="start_date" value="{{ old('start_date', $defaultDate) }}" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    @error('start_date') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Datum bis</label>
-                    <input aria-label="Datum bis" type="date" name="end_date" value="{{ old('end_date') }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit von</label>
-                    <input aria-label="Uhrzeit von" type="time" name="start_time" value="{{ old('start_time') }}" step="900"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit bis</label>
-                    <input aria-label="Uhrzeit bis" type="time" name="end_time" value="{{ old('end_time') }}" step="900"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Saison</label>
-                <select aria-label="Saison" name="season_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="">– keine Saison –</option>
-                    @foreach($seasons as $s)
-                        <option value="{{ $s->id }}" {{ old('season_id') == $s->id ? 'selected' : '' }}>Saison {{ $s->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                <textarea aria-label="Beschreibung" name="description" rows="3"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none">{{ old('description') }}</textarea>
-            </div>
-
-            <div class="flex items-center gap-3 pt-2">
-                <button type="submit" class="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-                    Speichern
-                </button>
-                <a href="{{ route('calendar.index') }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
-                    Abbrechen
-                </a>
-            </div>
-        </form>
+    <div x-show="audience" x-cloak>
+        <x-ui.card title="Einladen">
+            <p class="text-sm text-gray-600 mb-4">
+                Die Eingeladenen bekommen eine Mail mit Agenda und Link zur Anmeldung. Agenda, Anhänge und
+                Protokolle sehen nur Eingeladene; im Kalender steht der Termin für alle ohne Details.
+                Anhänge und frühere Protokolle fügst du nach dem Speichern auf der Terminseite hinzu.
+            </p>
+            @include('calendar.events._invite')
+        </x-ui.card>
     </div>
-</div>
+
+    <div class="flex flex-wrap items-center gap-3">
+        <x-ui.button type="submit">
+            <span x-text="audience ? 'Speichern und einladen' : 'Speichern'">Speichern</span>
+        </x-ui.button>
+        <x-ui.button variant="secondary" :href="route('calendar.index')">Abbrechen</x-ui.button>
+    </div>
+</form>
 @endsection

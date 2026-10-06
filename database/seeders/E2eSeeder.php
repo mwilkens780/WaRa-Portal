@@ -58,10 +58,13 @@ class E2eSeeder extends Seeder
         $second  = $user('schwimmer', 'Ben', 'Bahn', ['email' => 'ben@e2e.test', 'birth_date' => now()->subYears(15)->format('Y-m-d'), 'gender' => 'M']);
         // Drittes Geschlecht: Rekord-/Bestenlisten-Filter "Divers" und Anzeigen
         $diverse = $user('schwimmer', 'Dani', 'Delfin', ['email' => 'dani@e2e.test', 'birth_date' => now()->subYears(14)->format('Y-m-d'), 'gender' => 'D']);
+        // Vorstand (Sitzungen) und Kampfrichter (Kampfrichter-Abfrage)
+        $board   = $user('vorstand', 'Vera', 'Vorstand');
+        $official = $user('kampfrichter', 'Kai', 'Kampfrichter');
         $parent  = $user('elternteil', 'Elke', 'Eltern', ['email' => 'eltern@e2e.test', 'mobile' => '0170 1234567', 'carpool_share_phone' => true]);
         $parent->children()->attach($swimmer->id);
 
-        foreach ([$admin, $trainer, $swimmer, $second, $diverse, $parent] as $u) {
+        foreach ([$admin, $trainer, $swimmer, $second, $diverse, $board, $official, $parent] as $u) {
             $u->forceFill(['portal_activated_at' => now()])->saveQuietly();
         }
 
@@ -167,6 +170,44 @@ class E2eSeeder extends Seeder
             'title' => 'E2E-Sommerfest', 'start_date' => now()->addDays(5)->format('Y-m-d'), 'start_time' => '15:00',
             'type' => 'vereinstermin', 'season_id' => $season->id, 'created_by' => $admin->id,
         ]);
+
+        // Termine mit Einladung: Vorstandssitzung (mit Gast per Link und früherem Protokoll),
+        // Elternabend und Trainingslager (Elke sagt für Sina zu)
+        $frueher = CalendarEvent::create([
+            'title' => 'E2E-Vorstandssitzung August', 'start_date' => now()->subDays(30)->format('Y-m-d'), 'start_time' => '19:00',
+            'type' => 'vorstandssitzung', 'created_by' => $board->id, 'rsvp_enabled' => true,
+        ]);
+        $frueher->invitees()->create(['user_id' => $board->id, 'source' => 'vorstand', 'status' => 'zugesagt', 'invited_at' => now()]);
+        $frueher->files()->create(['category' => 'protokoll', 'title' => 'Protokoll August', 'url' => 'https://example.org/protokoll-august.pdf', 'created_by_id' => $board->id]);
+        $sitzung = CalendarEvent::create([
+            'title' => 'E2E-Vorstandssitzung', 'start_date' => now()->addDays(6)->format('Y-m-d'), 'start_time' => '19:30', 'end_time' => '21:30',
+            'type' => 'vorstandssitzung', 'location' => 'Vereinsheim, Raum 2', 'created_by' => $board->id,
+            'agenda' => '<ol><li>Begrüßung</li><li>Bericht der Kasse</li><li>Planung Trainingslager</li></ol>',
+            'rsvp_enabled' => true, 'rsvp_deadline' => now()->addDays(4)->format('Y-m-d'),
+        ]);
+        $sitzung->invitees()->create(['user_id' => $board->id, 'source' => 'vorstand', 'invited_at' => now()]);
+        $sitzung->invitees()->create(['user_id' => $admin->id, 'source' => 'gast', 'status' => 'zugesagt', 'comment' => 'Komme etwas später', 'invited_at' => now()]);
+        $sitzung->invitees()->create(['guest_name' => 'Gerd Gast', 'guest_email' => 'gast@example.org', 'source' => 'gast',
+            'token' => 'E2E-GAST-TOKEN-0123456789abcdef0123456789abcdef', 'invited_at' => now()]);
+        $sitzung->files()->create(['category' => 'protokoll', 'title' => 'Protokoll August (' . $frueher->start_date->format('d.m.Y') . ')',
+            'source_file_id' => $frueher->files()->value('id'), 'created_by_id' => $board->id]);
+        $sitzung->files()->create(['category' => 'agenda', 'title' => 'Kassenbericht (Entwurf)', 'url' => 'https://example.org/kasse', 'created_by_id' => $board->id]);
+
+        $elternabend = CalendarEvent::create([
+            'title' => 'E2E-Elternabend', 'start_date' => now()->addDays(8)->format('Y-m-d'), 'start_time' => '18:30',
+            'type' => 'elternabend', 'location' => 'Stadtbad, Seminarraum', 'created_by' => $trainer->id, 'rsvp_enabled' => true,
+        ]);
+        $elternabend->invitees()->create(['user_id' => $parent->id, 'source' => 'eltern', 'invited_at' => now()]);
+
+        $lager = CalendarEvent::create([
+            'title' => 'E2E-Trainingslager', 'start_date' => now()->addDays(20)->format('Y-m-d'), 'end_date' => now()->addDays(23)->format('Y-m-d'),
+            'type' => 'team_event', 'location' => 'Sportschule Malente', 'created_by' => $trainer->id,
+            'rsvp_enabled' => true, 'rsvp_deadline' => now()->addDays(10)->format('Y-m-d'), 'capacity' => 20,
+            'description' => 'Vier Tage Training im Langbahnbecken, Unterkunft im Mehrbettzimmer.',
+        ]);
+        foreach ([$swimmer, $second] as $m) {
+            $lager->invitees()->create(['user_id' => $m->id, 'source' => 'gruppe', 'invited_at' => now()]);
+        }
 
         Record::create([
             'type' => 'vereinsrekord', 'discipline' => 'F', 'distance' => 50, 'gender' => 'M', 'course' => 'Langbahn',
