@@ -60,7 +60,8 @@ class E2eSeeder extends Seeder
         $diverse = $user('schwimmer', 'Dani', 'Delfin', ['email' => 'dani@e2e.test', 'birth_date' => now()->subYears(14)->format('Y-m-d'), 'gender' => 'D']);
         // Vorstand (Sitzungen) und Kampfrichter (Kampfrichter-Abfrage)
         $board   = $user('vorstand', 'Vera', 'Vorstand');
-        $official = $user('kampfrichter', 'Kai', 'Kampfrichter');
+        // Lizenz läuft in 3 Monaten aus (Erinnerung im Dashboard, Liste des Vorstands)
+        $official = $user('kampfrichter', 'Kai', 'Kampfrichter', ['kampfrichter_license_nr' => 'KR-4711', 'kampfrichter_license_valid_until' => now()->addMonths(3)->format('Y-m-d')]);
         $parent  = $user('elternteil', 'Elke', 'Eltern', ['email' => 'eltern@e2e.test', 'mobile' => '0170 1234567', 'carpool_share_phone' => true]);
         $parent->children()->attach($swimmer->id);
 
@@ -220,6 +221,17 @@ class E2eSeeder extends Seeder
             'positions' => ['ZN', 'WR'], 'comment' => 'Lizenz C',
         ]);
         $kr->invitees()->create(['user_id' => $board->id, 'invited_at' => now()]);
+        // Vergangener Einsatz: gemeldet als Zeitnehmer ("Letzte Einsätze")
+        $krAlt = \App\Models\CompetitionOfficialRequest::create([
+            'competition_id' => $vergangen->id, 'created_by_id' => $board->id, 'closed_at' => now()->subDays(25), 'finalized_at' => now()->subDays(25), 'finalized_by_id' => $board->id,
+        ]);
+        $krAltInv = $krAlt->invitees()->create([
+            'user_id' => $official->id, 'invited_at' => now()->subDays(30), 'responded_at' => now()->subDays(28), 'kari_group' => 'WKR',
+            'availability' => [$vergangen->date->format('Y-m-d') => ['available' => true, 'comment' => null]], 'positions' => ['ZN'],
+        ]);
+        $krAltInv->assignments()->create(['session_number' => 1, 'position' => 'ZN']);
+        // Abgelaufene Lizenz eines Elternteils (Liste des Vorstands)
+        $parent->forceFill(['kampfrichter_license_nr' => 'KR-0815', 'kampfrichter_license_valid_until' => now()->subMonths(2)->format('Y-m-d')])->saveQuietly();
 
         Record::create([
             'type' => 'vereinsrekord', 'discipline' => 'F', 'distance' => 50, 'gender' => 'M', 'course' => 'Langbahn',

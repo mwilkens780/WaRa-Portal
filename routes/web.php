@@ -246,6 +246,9 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin', 'menu:com
     Route::post('/wettkaempfe/{competition}/kampfgericht', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'store'])->name('competitions.officials.store');
     Route::post('/wettkaempfe/{competition}/kampfgericht/erinnern', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'remind'])->name('competitions.officials.remind');
     Route::post('/wettkaempfe/{competition}/kampfgericht/status', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'toggle'])->name('competitions.officials.toggle');
+    Route::put('/wettkaempfe/{competition}/kampfgericht/zuordnung', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'assign'])->name('competitions.officials.assign');
+    Route::post('/wettkaempfe/{competition}/kampfgericht/freigabe', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'finalize'])->name('competitions.officials.finalize');
+    Route::delete('/wettkaempfe/{competition}/kampfgericht/freigabe', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'unfinalize'])->name('competitions.officials.unfinalize');
     Route::post('/wettkaempfe/{competition}/auswertung',[AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
     Route::post('/wettkaempfe/{competition}/auswertung/speichern', [AdminCompetitionController::class, 'saveAnalysis'])->name('competitions.analysis.save');
     Route::get('/wettkaempfe/{competition}/auswertung/pdf', [AdminCompetitionController::class, 'exportAnalysisPdf'])->name('competitions.analysis.pdf');
@@ -451,6 +454,8 @@ Route::middleware(['auth', 'role', 'menu:calendar'])->group(function () {
     Route::get('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'downloadFile'])->name('calendar.events.files.download');
     Route::delete('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'destroyFile'])->name('calendar.events.files.destroy');
     Route::get('/einladungen', [\App\Http\Controllers\InvitationController::class, 'index'])->name('invitations.index');
+    // Startseite Vorstand/Kampfrichter (Kampfgericht, Lizenzen, Einladungen)
+    Route::view('/dashboard', 'dashboard.officials')->name('dashboard.officials');
     // Rückmeldung angefragter Kampfrichter (beliebige Portal-Rolle, Kampfrichter oft als Vereinsrolle)
     Route::get('/kampfgericht/{officialRequest}', [\App\Http\Controllers\OfficialResponseController::class, 'show'])->name('officials.respond');
     Route::put('/kampfgericht/{officialRequest}', [\App\Http\Controllers\OfficialResponseController::class, 'update'])->name('officials.respond.update');

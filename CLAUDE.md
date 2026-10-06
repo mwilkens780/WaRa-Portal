@@ -168,6 +168,15 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   `OfficialRequests::officials()`) oder gezielt einzelne. Rückmeldung je Veranstaltungstag ja/nein
   + Kommentar, Wunschpositionen als DSV-Kürzel (`POSITIONS`, wie KARIABSCHNITT). Antwortseite
   `/kampfgericht/{id}`, Übersicht im Wettkampf-Reiter „Kampfgericht“, Mail-Thema `official_requests`.
+- **Zuordnung und Meldung**: Der Kampfrichterobmann (Vorstand) legt je Person und Abschnitt die
+  Position fest (nur an zugesagten Tagen, `OfficialRequests::saveAssignments`) und die Gruppe
+  (WKR/SCH/AUS/SPR, aus der ersten Position vorgeschlagen). Freigabe erst, wenn alle geantwortet
+  haben oder die Abfrage geschlossen ist; danach stehen die Eingesetzten als KARIMELDUNG/
+  KARIABSCHNITT in der Meldedatei (`OfficialRequests::reportable`), Änderungen nur nach Rücknahme.
+- **Dashboard** (`<x-officials-panel />`, auf allen Dashboards; Vorstand/Kampfrichter-Rolle haben
+  `/dashboard`): Kampfrichter – Erinnerungen (offene Anfragen, eigene Lizenz < 6 Monate), anstehende
+  Einsätze, letzte Einsätze; Vorstand – Wettkämpfe (90 Tage) mit Meldestand, auslaufende Lizenzen
+  (`users.kampfrichter_license_valid_until`, 6 Monate voraus, abgelaufene des letzten Jahres).
 
 ## Punkte (WA und Rudolph)
 

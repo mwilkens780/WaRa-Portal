@@ -52,6 +52,55 @@ class CompetitionOfficialController extends Controller
             ->with('success', $n ? "Erinnerung an {$n} Kampfrichter verschickt." : 'Niemand hatte eine offene Rückmeldung (oder hat Erinnerungen abgewählt).');
     }
 
+    /** Zuordnung des Kampfrichterobmanns speichern (je Person: Abschnitte, Positionen, Gruppe) */
+    public function assign(Request $request, Competition $competition)
+    {
+        abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);
+        $req = $competition->officialRequest()->firstOrFail()->setRelation('competition', $competition);
+
+        $data = $request->validate([
+            'rows'              => ['nullable', 'array'],
+            'rows.*.group'      => ['nullable', 'in:' . implode(',', array_keys(CompetitionOfficialRequest::KARI_GROUPS))],
+            'rows.*.sessions'   => ['nullable', 'array'],
+            'rows.*.sessions.*' => ['nullable', 'in:' . implode(',', array_keys(CompetitionOfficialRequest::POSITIONS))],
+        ]);
+
+        try {
+            $n = $this->officials->saveAssignments($req, $data['rows'] ?? []);
+        } catch (\DomainException $e) {
+            return $this->back($competition)->withErrors(['assign' => $e->getMessage()]);
+        }
+
+        return $this->back($competition)->with('success', "Zuordnung gespeichert: {$n} Einsätze.");
+    }
+
+    public function finalize(Request $request, Competition $competition)
+    {
+        abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);
+        $req = $competition->officialRequest()->with('invitees')->firstOrFail()->setRelation('competition', $competition);
+
+        try {
+            $this->officials->finalize($req, $request->user());
+        } catch (\DomainException $e) {
+            return $this->back($competition)->withErrors(['assign' => $e->getMessage()]);
+        }
+
+        return $this->back($competition)->with('success', 'Meldung freigegeben – die Kampfrichter stehen jetzt in der Meldedatei (KARIMELDUNG).');
+    }
+
+    public function unfinalize(Request $request, Competition $competition)
+    {
+        abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);
+        $competition->officialRequest()->firstOrFail()->update(['finalized_at' => null, 'finalized_by_id' => null]);
+
+        return $this->back($competition)->with('success', 'Freigabe zurückgenommen – die Zuordnung kann wieder geändert werden.');
+    }
+
+    private function back(Competition $competition)
+    {
+        return redirect()->to(route('admin.competitions.show', $competition) . '?tab=kampfgericht');
+    }
+
     public function toggle(Request $request, Competition $competition)
     {
         abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);

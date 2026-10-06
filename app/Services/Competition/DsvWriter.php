@@ -57,6 +57,9 @@ class DsvWriter
 
         $entered = fn($q) => $q->where('competition_id', $competition->id)->where('status', 'entered');
 
+        // Gemeldete Kampfrichter mit Geschlecht divers
+        if (\App\Services\OfficialRequests::reportable($competition)->contains(fn($i) => $i->user?->gender === 'D')) return true;
+
         return \App\Models\User::where('gender', 'D')
             ->where(fn($q) => $q
                 ->whereIn('id', \App\Models\CompetitionEntry::query()->tap($entered)->select('user_id'))

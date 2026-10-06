@@ -8,7 +8,7 @@
 import { test, expect } from './fixtures.js';
 import { authFile, ready, collectErrors, expectAccessible, layoutProblems } from './helpers.js';
 
-const ROLES = ['admin', 'trainer', 'schwimmer', 'eltern'];
+const ROLES = ['admin', 'trainer', 'schwimmer', 'eltern', 'vorstand', 'kampfrichter'];
 
 // Seiten ohne Layout bzw. reine Datenausgaben
 const SKIP = [/\/logout/, /\.(pdf|csv|ics)(\?|$)/, /download/, /export/];

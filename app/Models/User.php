@@ -180,6 +180,7 @@ class User extends Authenticatable
             'elternteil'         => route('parent.dashboard'),
             'ernaehrungsberater' => route('nutrition.index'),
             'teamarzt'           => route('teamdoctor.index'),
+            'vorstand', 'kampfrichter' => route('dashboard.officials'),
             default              => MenuPermission::can((string) $this->role, 'calendar')
                                         ? route('calendar.index')
                                         : route('profile.index'),

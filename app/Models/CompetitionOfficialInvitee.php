@@ -12,7 +12,7 @@ class CompetitionOfficialInvitee extends Model
 {
     protected $fillable = [
         'competition_official_request_id', 'user_id', 'availability', 'positions', 'comment',
-        'invited_at', 'responded_at',
+        'invited_at', 'responded_at', 'kari_group',
     ];
 
     protected function casts(): array
@@ -33,6 +33,25 @@ class CompetitionOfficialInvitee extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function assignments()
+    {
+        return $this->hasMany(CompetitionOfficialAssignment::class)->orderBy('session_number');
+    }
+
+    /** Gruppe für KARIMELDUNG: festgelegt oder aus der ersten Wunschposition vorgeschlagen */
+    public function getGroupAttribute(): string
+    {
+        if ($this->kari_group) return $this->kari_group;
+        $first = $this->assignments->first()?->position ?? ($this->positions[0] ?? null);
+
+        return match ($first) {
+            'SCH', 'ASCH' => 'SCH',
+            'AUS'         => 'AUS',
+            'SP'          => 'SPR',
+            default       => 'WKR',
+        };
     }
 
     /** true/false je Tag, null = keine Angabe */

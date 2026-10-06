@@ -26,7 +26,7 @@ class Navigation
 
         $sections = [
             [null, [
-                self::item('Dashboard', $user->homeUrl(), 'dashboard', ['admin.dashboard', 'trainer.dashboard', 'swimmer.dashboard', 'parent.dashboard'], $is('admin', 'trainer', 'schwimmer', 'elternteil')),
+                self::item('Dashboard', $user->homeUrl(), 'dashboard', ['admin.dashboard', 'trainer.dashboard', 'swimmer.dashboard', 'parent.dashboard', 'dashboard.officials'], $is('admin', 'trainer', 'schwimmer', 'elternteil', 'vorstand', 'kampfrichter')),
                 self::item('Kalender', 'calendar.index', 'calendar', 'calendar.*', $can('calendar')),
                 // Termine mit Einladung (Sitzungen, Elternabende, Team-Events), eigene und der Kinder
                 self::item('Einladungen', 'invitations.index', 'inbox', 'invitations.*', $can('calendar')),

@@ -11,6 +11,7 @@ export const ACCOUNTS = {
     schwimmer: 'schwimmer@e2e.test',
     eltern: 'eltern@e2e.test',
     kampfrichter: 'kampfrichter@e2e.test',
+    vorstand: 'vorstand@e2e.test',
 };
 export const authFile = (role) => `tests/e2e/.auth/${role}.json`;
 

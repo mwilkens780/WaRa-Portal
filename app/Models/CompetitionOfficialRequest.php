@@ -36,11 +36,68 @@ class CompetitionOfficialRequest extends Model
         'VER'  => 'Ordner Versorgungsstelle',
     ];
 
-    protected $fillable = ['competition_id', 'message', 'deadline', 'created_by_id', 'closed_at'];
+    /**
+     * Kampfrichtergruppen der KARIMELDUNG (DSV-Standard). Die Gruppe wird je Person
+     * aus der ersten Position vorgeschlagen und ist vom Obmann änderbar.
+     */
+    const KARI_GROUPS = [
+        'WKR' => 'Wettkampfrichter*in',
+        'SCH' => 'Schiedsrichter*in',
+        'AUS' => 'Auswerter*in',
+        'SPR' => 'Sprecher*in',
+    ];
+
+    protected $fillable = ['competition_id', 'message', 'deadline', 'created_by_id', 'closed_at', 'finalized_at', 'finalized_by_id'];
 
     protected function casts(): array
     {
-        return ['deadline' => 'date', 'closed_at' => 'datetime'];
+        return ['deadline' => 'date', 'closed_at' => 'datetime', 'finalized_at' => 'datetime'];
+    }
+
+    public function finalizer()
+    {
+        return $this->belongsTo(User::class, 'finalized_by_id');
+    }
+
+    /** Alle Angefragten haben geantwortet */
+    public function allResponded(): bool
+    {
+        return $this->invitees->isNotEmpty() && $this->invitees->every(fn($i) => $i->responded_at !== null);
+    }
+
+    /** Melden erst, wenn alle geantwortet haben oder die Abfrage geschlossen ist */
+    public function readyToAssign(): bool
+    {
+        return $this->allResponded() || $this->closed_at !== null;
+    }
+
+    /**
+     * Abschnitte je Veranstaltungstag: aus der Ausschreibung bzw. der
+     * Wettkampffolge, sonst ein Abschnitt je Tag.
+     *
+     * @return array<string, list<int>>  Y-m-d => Abschnittsnummern
+     */
+    public function sessionsByDay(): array
+    {
+        $days = $this->days();
+        $out  = array_fill_keys($days, []);
+        foreach (\App\Services\Competition\DsvWriter::abschnitte($this->competition->loadMissing('events')) as $a) {
+            $d = $a['date'] ? Carbon::createFromFormat('d.m.Y', $a['date'])?->format('Y-m-d') : null;
+            $out[isset($out[$d]) ? $d : $days[0]][] = $a['nr'];
+        }
+        foreach ($days as $i => $d) {
+            if (empty($out[$d]) && !collect($out)->flatten()->contains($i + 1)) $out[$d] = [$i + 1];
+        }
+        return $out;
+    }
+
+    /** Tag eines Abschnitts */
+    public function dayOfSession(int $nr): ?string
+    {
+        foreach ($this->sessionsByDay() as $day => $nrs) {
+            if (in_array($nr, $nrs, true)) return $day;
+        }
+        return null;
     }
 
     public function competition()

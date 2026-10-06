@@ -16,7 +16,10 @@ use App\Models\User;
  * Gemeldet wird je Wettkampfnummer, nicht je Wertung.
  *
  * DSV7 und DSV8 unterscheiden sich hier nur im Attribut Lastschrift am Ende
- * von VEREIN (nur DSV8).
+ * von VEREIN und im Geschlecht am Ende von KARIMELDUNG (nur DSV8).
+ *
+ * Kampfrichter (KARIMELDUNG/KARIABSCHNITT) stehen erst drin, wenn der
+ * Kampfrichterobmann die Zuordnung im Reiter "Kampfgericht" freigegeben hat.
  */
 class MeldedateiGenerator
 {
@@ -71,6 +74,17 @@ class MeldedateiGenerator
             '', '', '', '', $contact?->mobile ?: ($contact?->phone ?? ''), '',
             $contact?->email ?? '',
         ]);
+
+        // Kampfrichter: nur nach Freigabe durch den Kampfrichterobmann (Reiter "Kampfgericht")
+        foreach (\App\Services\OfficialRequests::reportable($competition)->values() as $i => $official) {
+            $nr   = $i + 1;
+            $kari = [$nr, DsvWriter::personName($official->user?->lastname, $official->user?->firstname), $official->group];
+            if ($version >= 8) $kari[] = $official->user?->gender ? DsvWriter::gender($official->user->gender) : '';
+            $w->add('KARIMELDUNG', $kari);
+            foreach ($official->assignments as $a) {
+                $w->add('KARIABSCHNITT', [$nr, $a->session_number, $a->position]);
+            }
+        }
 
         // Alle Personen: Einzelstarter und reine Staffelschwimmer
         $persons = [];

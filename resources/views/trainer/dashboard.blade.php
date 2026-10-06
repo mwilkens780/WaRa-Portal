@@ -5,6 +5,9 @@
 @section('content')
 <div class="space-y-6 mt-2">
 
+    {{-- Kampfgericht: Erinnerungen, Einsätze, Vorstand-Übersicht (nur wenn passend) --}}
+    <x-officials-panel />
+
     {{-- Motto der Woche Warnungen --}}
     @if(isset($upcomingMottoWarnings) && $upcomingMottoWarnings->isNotEmpty())
     <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">

@@ -5,6 +5,9 @@
 @section('content')
 <div class="space-y-6 mt-2">
 
+    {{-- Kampfgericht: Erinnerungen, Einsätze, Vorstand-Übersicht (nur wenn passend) --}}
+    <x-officials-panel />
+
     {{-- Wartungsmodus-Banner --}}
     @if($maintenanceMode)
     <div class="flex items-center justify-between gap-4 bg-amber-50 border border-amber-300 rounded-xl px-5 py-4">

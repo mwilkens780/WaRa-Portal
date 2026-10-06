@@ -5,6 +5,9 @@
 @section('content')
 <div class="space-y-6 mt-2">
 
+    {{-- Kampfgericht: Erinnerungen, Einsätze, Vorstand-Übersicht (nur wenn passend) --}}
+    <x-officials-panel />
+
     {{-- Offene Wettkampf-Anmeldeabfragen --}}
     @if($pendingSignups->isNotEmpty())
         @foreach($pendingSignups as $signup)
