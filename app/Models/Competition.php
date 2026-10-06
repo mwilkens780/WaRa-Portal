@@ -71,6 +71,12 @@ class Competition extends Model
         return $this->hasMany(CompetitionResult::class);
     }
 
+    /** Kampfrichter-Abfrage (Vorstand) */
+    public function officialRequest()
+    {
+        return $this->hasOne(CompetitionOfficialRequest::class);
+    }
+
     public function events()
     {
         return $this->hasMany(CompetitionEvent::class)->inProgramOrder();

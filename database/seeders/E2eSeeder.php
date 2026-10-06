@@ -209,6 +209,18 @@ class E2eSeeder extends Seeder
             $lager->invitees()->create(['user_id' => $m->id, 'source' => 'gruppe', 'invited_at' => now()]);
         }
 
+        // Kampfrichter-Abfrage zum Sprintpokal: Kai hat geantwortet, Vera noch nicht
+        $kr = \App\Models\CompetitionOfficialRequest::create([
+            'competition_id' => $kommend->id, 'created_by_id' => $board->id,
+            'message' => 'Wir stellen vier Kampfrichter je Abschnitt.', 'deadline' => now()->addDays(7)->format('Y-m-d'),
+        ]);
+        $kr->invitees()->create([
+            'user_id' => $official->id, 'invited_at' => now(), 'responded_at' => now(),
+            'availability' => [$kommend->date->format('Y-m-d') => ['available' => true, 'comment' => 'ab 9 Uhr']],
+            'positions' => ['ZN', 'WR'], 'comment' => 'Lizenz C',
+        ]);
+        $kr->invitees()->create(['user_id' => $board->id, 'invited_at' => now()]);
+
         Record::create([
             'type' => 'vereinsrekord', 'discipline' => 'F', 'distance' => 50, 'gender' => 'M', 'course' => 'Langbahn',
             'swimmer_name' => 'Ben Bahn', 'time_ms' => 24530, 'set_year' => now()->year - 1, 'location' => 'Hamburg',

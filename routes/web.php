@@ -242,7 +242,11 @@ Route::middleware(['auth', 'role:trainer,admin', 'menu:training_groups'])->prefi
 Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin', 'menu:competitions'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
     Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
-    Route::post('/wettkaempfe/{competition}/auswertung', [AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
+    // Kampfrichter-Abfrage (Vorstand/Admin, Prüfung im Controller)
+    Route::post('/wettkaempfe/{competition}/kampfgericht', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'store'])->name('competitions.officials.store');
+    Route::post('/wettkaempfe/{competition}/kampfgericht/erinnern', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'remind'])->name('competitions.officials.remind');
+    Route::post('/wettkaempfe/{competition}/kampfgericht/status', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'toggle'])->name('competitions.officials.toggle');
+    Route::post('/wettkaempfe/{competition}/auswertung',[AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
     Route::post('/wettkaempfe/{competition}/auswertung/speichern', [AdminCompetitionController::class, 'saveAnalysis'])->name('competitions.analysis.save');
     Route::get('/wettkaempfe/{competition}/auswertung/pdf', [AdminCompetitionController::class, 'exportAnalysisPdf'])->name('competitions.analysis.pdf');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import', [CompetitionResultImportController::class, 'upload'])->name('competitions.results-import.upload');
@@ -447,6 +451,9 @@ Route::middleware(['auth', 'role', 'menu:calendar'])->group(function () {
     Route::get('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'downloadFile'])->name('calendar.events.files.download');
     Route::delete('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'destroyFile'])->name('calendar.events.files.destroy');
     Route::get('/einladungen', [\App\Http\Controllers\InvitationController::class, 'index'])->name('invitations.index');
+    // Rückmeldung angefragter Kampfrichter (beliebige Portal-Rolle, Kampfrichter oft als Vereinsrolle)
+    Route::get('/kampfgericht/{officialRequest}', [\App\Http\Controllers\OfficialResponseController::class, 'show'])->name('officials.respond');
+    Route::put('/kampfgericht/{officialRequest}', [\App\Http\Controllers\OfficialResponseController::class, 'update'])->name('officials.respond.update');
 });
 
 // Gäste ohne Konto: persönlicher Einladungslink (Token), gedrosselt

@@ -513,6 +513,39 @@ class EventMailer
         return $queued;
     }
 
+    /** Kampfrichter-Abfrage (bzw. Erinnerung daran) an eine angefragte Person */
+    public function officialRequest(\App\Models\CompetitionOfficialInvitee $invitee, bool $reminder = false): int
+    {
+        $req  = $invitee->request;
+        $comp = $req->competition;
+        $user = $invitee->user;
+        if (!$user || !$comp) return 0;
+
+        $mail = new NotificationMail(
+            subjectText: ($reminder ? 'Erinnerung: ' : '') . 'Kampfrichter gesucht: ' . $comp->name,
+            heading:     $reminder ? 'Deine Rückmeldung fehlt noch' : 'Kampfrichter gesucht',
+            paragraphs:  array_values(array_filter([
+                $reminder
+                    ? "für {$comp->name} fehlt noch deine Rückmeldung als Kampfrichter."
+                    : "für {$comp->name} sucht der Verein Kampfrichter. Kannst du an einem oder mehreren Tagen?",
+                $req->message,
+                'Gib je Veranstaltungstag an, ob du kannst, und welche Positionen du dir wünschst.',
+            ])),
+            facts: array_filter([
+                'Wettkampf'       => $comp->name,
+                'Datum'           => $comp->date->format('d.m.Y') . ($comp->date_end && !$comp->date_end->isSameDay($comp->date) ? ' – ' . $comp->date_end->format('d.m.Y') : ''),
+                'Ort'             => $comp->location,
+                'Rückmeldung bis' => $req->deadline?->format('d.m.Y'),
+            ]),
+            actionUrl:   route('officials.respond', $req),
+            actionLabel: 'Rückmeldung geben',
+            greetingName: $user->firstname,
+        );
+        $log = $this->mailer->queue($user, 'official_requests', $mail, $mail->defaultSubject());
+
+        return $log->status === 'pending' ? 1 : 0;
+    }
+
     /** HTML aus dem Editor als lesbarer Mailtext (Listen als Spiegelstriche) */
     public static function plainText(string $html): string
     {

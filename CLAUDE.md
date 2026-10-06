@@ -161,6 +161,14 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 - Dateien: `calendar_event_files` (Agenda-Unterlagen, Anhänge, Protokolle; Datei oder Link;
   frühere Protokolle per `source_file_id` verknüpft, nicht kopiert).
 
+### Kampfrichter-Abfrage
+
+- Je Wettkampf eine Abfrage (`competition_official_requests`), gestartet von Vorstand/Admin
+  (`CompetitionOfficialRequest::canManage`) an alle Kampfrichter (Portal- oder Vereinsrolle,
+  `OfficialRequests::officials()`) oder gezielt einzelne. Rückmeldung je Veranstaltungstag ja/nein
+  + Kommentar, Wunschpositionen als DSV-Kürzel (`POSITIONS`, wie KARIABSCHNITT). Antwortseite
+  `/kampfgericht/{id}`, Übersicht im Wettkampf-Reiter „Kampfgericht“, Mail-Thema `official_requests`.
+
 ## Punkte (WA und Rudolph)
 
 - **WA-Punkte**: Basiszeiten in `wa_scoring_tables`, Tabelle nach Wettkampfdatum

@@ -5,7 +5,7 @@
 @section('content')
 <div class="mt-2 space-y-4"
      x-data="{
-         activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : 'ergebnisse' }}',
+         activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : (in_array(request('tab'), ['kampfgericht', 'anmeldungen', 'organisation', 'dokumente'], true) ? request('tab') : 'ergebnisse') }}',
          showForm: false,
          resultsView: 'strecke',
          editPZ: {},
@@ -145,6 +145,18 @@
                     @endif
                 @endif
             </button>
+            @if($canManageOfficials || $myOfficialInvite)
+                <button @click="activeTab = 'kampfgericht'"
+                        :class="activeTab === 'kampfgericht'
+                            ? 'border-primary text-primary bg-blue-50/40'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                        class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5">
+                    Kampfgericht
+                    @if($officialRequest)
+                        <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $officialRequest->invitees->whereNotNull('responded_at')->count() }}/{{ $officialRequest->invitees->count() }}</span>
+                    @endif
+                </button>
+            @endif
             <button @click="activeTab = 'organisation'"
                     :class="activeTab === 'organisation'
                         ? 'border-primary text-primary bg-blue-50/40'
@@ -1137,6 +1149,12 @@
         </div>
 
         {{-- Tab: Organisation --}}
+        @if($canManageOfficials || $myOfficialInvite)
+            <div x-show="activeTab === 'kampfgericht'" x-cloak class="p-5 space-y-5">
+                @include('admin.competitions._officials')
+            </div>
+        @endif
+
         <div x-show="activeTab === 'organisation'" x-cloak class="p-5 space-y-5">
 
             {{-- WebClub-Daten (Basisdaten + Meldedaten) --}}

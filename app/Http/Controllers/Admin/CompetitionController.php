@@ -294,11 +294,21 @@ class CompetitionController extends Controller
             ->get()
             ->groupBy('category');
 
+        // Kampfrichter-Abfrage: Vorstand/Admin verwalten, Angefragte sehen ihren Link
+        $officialRequest    = $competition->officialRequest()->with('invitees.user:id,firstname,lastname')->first()?->setRelation('competition', $competition);
+        $canManageOfficials = \App\Models\CompetitionOfficialRequest::canManage(auth()->user());
+        $myOfficialInvite   = $officialRequest?->invitees->firstWhere('user_id', auth()->id());
+        $officialCandidates = $canManageOfficials
+            ? \App\Models\User::where('active', true)->orderBy('lastname')->orderBy('firstname')->get(['id', 'firstname', 'lastname'])
+            : collect();
+        $officialCount      = $canManageOfficials ? \App\Services\OfficialRequests::officials()->count() : 0;
+
         return view('admin.competitions.show',
             compact('competition', 'results', 'swimmers', 'allGroups',
                     'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest',
                     'hasQualifikation', 'qualifyingEvents', 'qualificationSwimmers',
-                    'qualResultsByUserEvent', 'bestTimesByUserEvent', 'documents'));
+                    'qualResultsByUserEvent', 'bestTimesByUserEvent', 'documents',
+                    'officialRequest', 'canManageOfficials', 'myOfficialInvite', 'officialCandidates', 'officialCount'));
     }
 
     // ── Ausschreibungs-Import (PDF → Claude → strukturierte Daten) ────────────

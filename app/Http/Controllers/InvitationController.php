@@ -24,10 +24,20 @@ class InvitationController extends Controller
             ->get()
             ->sortBy(fn($i) => [$i->event->start_date->lt(today()) ? 1 : 0, $i->event->start_date->timestamp]);
 
+        // Kampfrichter-Anfragen zu anstehenden Wettkämpfen
+        $officialInvites = \App\Models\CompetitionOfficialInvitee::where('user_id', $user->id)
+            ->whereHas('request.competition', fn($q) => $q->where(fn($q) => $q
+                ->whereDate('date', '>=', today())->orWhereDate('date_end', '>=', today())))
+            ->with('request.competition')
+            ->get()
+            ->sortBy(fn($i) => $i->request->competition->date->timestamp)
+            ->values();
+
         return view('invitations.index', [
-            'upcoming' => $invitations->filter(fn($i) => ($i->event->end_date ?? $i->event->start_date)->gte(today()))->values(),
-            'past'     => $invitations->filter(fn($i) => ($i->event->end_date ?? $i->event->start_date)->lt(today()))->values(),
-            'user'     => $user,
+            'upcoming'        => $invitations->filter(fn($i) => ($i->event->end_date ?? $i->event->start_date)->gte(today()))->values(),
+            'past'            => $invitations->filter(fn($i) => ($i->event->end_date ?? $i->event->start_date)->lt(today()))->values(),
+            'officialInvites' => $officialInvites,
+            'user'            => $user,
         ]);
     }
 }
