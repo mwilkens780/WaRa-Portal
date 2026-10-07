@@ -16,11 +16,13 @@ use Symfony\Component\HttpFoundation\Response;
  * Entscheidung.
  *
  * Verwendung: ->middleware('menu:records') – der Schluessel muss einer der
- * Eintraege aus MenuPermission::MENU_ITEMS sein.
+ * Eintraege aus MenuPermission::MENU_ITEMS sein. Mehrere Schluessel
+ * ('menu:training,training_all'): einer genuegt. Portal- und Vereinsrollen
+ * zaehlen (User::canAccess).
  */
 class CheckMenuPermission
 {
-    public function handle(Request $request, Closure $next, string $menuKey): Response
+    public function handle(Request $request, Closure $next, string ...$menuKeys): Response
     {
         $user = $request->user();
 
@@ -28,7 +30,7 @@ class CheckMenuPermission
             return redirect()->route('login');
         }
 
-        if (!MenuPermission::can($user->role, $menuKey)) {
+        if (!MenuPermission::allows($user, ...$menuKeys)) {
             abort(403, 'Zugriff verweigert. Dieser Bereich ist für deine Rolle nicht freigegeben.');
         }
 

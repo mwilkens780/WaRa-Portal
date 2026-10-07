@@ -191,9 +191,15 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   qualifikationen`), Vorstand/Geschäftsstelle/Admin alle (`/kampfrichter`). Die Hauptlizenz
   (`is_primary`) ist synchron mit `users.kampfrichter_license_*` – beide Richtungen schreiben quietly
   (`OfficialQualification::syncToUser`, `User::booted`).
-- **Rollen**: `User::isClubManager()` = Admin, Geschäftsstelle, Vorstand (auch Vereinsrolle);
-  `managesAllGroups()` = Admin, Geschäftsstelle; `assignableRoles()` – Administrator vergibt nur ein
-  Administrator, Admin-Konten ändern nur Admins.
+- **Rechte = Berechtigungs-Matrix** (Martin, 07.10.2026: nicht hart codieren). Jedes Recht ist ein
+  Schlüssel in `MenuPermission::MENU_ITEMS` (Abschnitte inkl. „Reichweite“ `users_all`, `training_all`,
+  `training_groups_all`; Kampfrichter `officials`, `officials_own`, `official_requests`; Termine
+  `events_<art>`, `events_manage`, `events_all_groups`) mit Voreinstellung in `DEFAULT_PERMISSIONS`.
+  Prüfen nur über `$user->canAccess(...)` bzw. Route-Middleware `menu:a,b` (einer genügt); es zählen
+  Portal- und Vereinsrollen. Keine Rollenlisten in Routen (`role` ohne Parameter prüft nur aktiv).
+  Fest bleiben: Systemwerkzeuge (`role:admin`), persönliche Bereiche (Schwimmer, Eltern),
+  Gesundheitsdaten (Ernährung/Teamarzt), `assignableRoles()` (Administrator vergibt nur ein Admin).
+  Trainingseinheiten: Trainer eigene Gruppen, Vorstand alle – nicht die Geschäftsstelle.
 - **Dashboard** (`<x-officials-panel />`, auf allen Dashboards; Vorstand/Kampfrichter-Rolle haben
   `/dashboard`): Kampfrichter – Erinnerungen (offene Anfragen, eigene Lizenz < 6 Monate), anstehende
   Einsätze, letzte Einsätze; Vorstand – Wettkämpfe (90 Tage) mit Meldestand, auslaufende Lizenzen

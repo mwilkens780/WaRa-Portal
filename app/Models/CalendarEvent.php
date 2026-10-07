@@ -18,20 +18,21 @@ class CalendarEvent extends Model
     use Auditable;
 
     /**
-     * creators: Rollen (Portal- oder Vereinsrolle), die diese Art anlegen dürfen.
+     * Wer eine Art anlegt, steuert die Berechtigungs-Matrix (Schlüssel events_<art>).
+     * shared: Alle, die die Art anlegen dürfen, pflegen auch fremde Termine dieser Art.
      * audience: Wer eingeladen wird (null = keine Einladungen).
      */
     const TYPES = [
-        'vereinstermin'    => ['label' => 'Vereinstermin',    'color' => 'emerald', 'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
-        'ehrung'           => ['label' => 'Ehrung',           'color' => 'amber',   'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
-        'meldefrist'       => ['label' => 'Meldefrist',       'color' => 'orange',  'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
+        'vereinstermin'    => ['label' => 'Vereinstermin',    'color' => 'emerald', 'audience' => null],
+        'ehrung'           => ['label' => 'Ehrung',           'color' => 'amber', 'audience' => null],
+        'meldefrist'       => ['label' => 'Meldefrist',       'color' => 'orange', 'audience' => null],
         // Vorstand lädt Vorstand ein (+ Gäste)
-        'vorstandssitzung' => ['label' => 'Vorstandssitzung', 'color' => 'purple',  'creators' => ['vorstand', 'admin'], 'audience' => 'vorstand'],
+        'vorstandssitzung' => ['label' => 'Vorstandssitzung', 'color' => 'purple', 'audience' => 'vorstand', 'shared' => true],
         // Trainer laden Eltern minderjähriger und volljährige Gruppenmitglieder ein (+ Gäste)
-        'elternabend'      => ['label' => 'Elternabend',      'color' => 'teal',    'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => 'eltern'],
+        'elternabend'      => ['label' => 'Elternabend',      'color' => 'teal', 'audience' => 'eltern'],
         // Trainingslager und gemeinsame Events: einzelne Schwimmer oder Gruppen (+ Gäste)
-        'team_event'       => ['label' => 'Team-Event',       'color' => 'sky',     'creators' => ['vorstand', 'trainer', 'schwimmer', 'geschaeftsstelle', 'admin'], 'audience' => 'team'],
-        'sonstiges'        => ['label' => 'Sonstiges',        'color' => 'gray',    'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
+        'team_event'       => ['label' => 'Team-Event',       'color' => 'sky', 'audience' => 'team'],
+        'sonstiges'        => ['label' => 'Sonstiges',        'color' => 'gray', 'audience' => null],
     ];
 
     protected $fillable = [
@@ -98,15 +99,7 @@ class CalendarEvent extends Model
     /** Terminarten, die dieser Benutzer anlegen darf */
     public static function creatableTypesFor(User $user): array
     {
-        return array_filter(self::TYPES, fn($t) => self::userHasAnyRole($user, $t['creators']));
-    }
-
-    public static function userHasAnyRole(User $user, array $roles): bool
-    {
-        foreach ($roles as $role) {
-            if ($user->hasAnyRole($role)) return true;
-        }
-        return false;
+        return array_filter(self::TYPES, fn($t, $type) => $user->canAccess('events_' . $type), ARRAY_FILTER_USE_BOTH);
     }
 
     // ── Rechte ──────────────────────────────────────────────────────────────
@@ -116,14 +109,13 @@ class CalendarEvent extends Model
     {
         if (!$user) return false;
         if ($user->hasRole('admin') || $user->id === $this->created_by) return true;
-        // Geschäftsstelle: alle Termine außer Vorstandssitzungen (Zuweisungen zu Terminen)
-        if ($user->hasRole('geschaeftsstelle') && $this->type !== 'vorstandssitzung') return true;
-        // Vorstandssitzungen pflegt der ganze Vorstand
-        if ($this->type === 'vorstandssitzung') return $user->hasAnyRole('vorstand');
-        // Einfache Termine wie bisher: Trainer
-        if (!$this->hasInvitations()) return $user->hasRole('trainer');
+        // Fremde Termine nur, wer diese Art selbst anlegen darf (Matrix events_<art>) …
+        if (!$user->canAccess('events_' . $this->type)) return false;
+        // … einfache Termine und gemeinsam gepflegte (Vorstandssitzung) dann immer,
+        // Termine mit Einladungen nur mit "Termine anderer bearbeiten" (Geschäftsstelle)
+        if (!$this->hasInvitations() || !empty(self::TYPES[$this->type]['shared'])) return true;
 
-        return false;
+        return $user->canAccess('events_manage');
     }
 
     /** Agenda, Anhänge, Protokolle, Teilnehmer sehen */

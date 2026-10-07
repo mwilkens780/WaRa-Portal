@@ -309,9 +309,9 @@ class CalendarEventController extends Controller
         ]);
         $sel['all_board'] = $request->boolean('all_board');
 
-        // Schwimmer laden nur einzelne Schwimmer und ihre eigenen Gruppen ein
+        // Ohne Matrix-Recht "Beliebige Gruppen einladen" nur die eigenen Gruppen
         $user = $request->user();
-        if (!$user->hasRole(['admin', 'trainer']) && !$user->hasAnyRole('vorstand')) {
+        if (!$user->canAccess('events_all_groups')) {
             $own = $user->trainingGroups()->pluck('training_groups.id')->all();
             $sel['group_ids'] = array_values(array_intersect($sel['group_ids'] ?? [], $own));
         }
@@ -326,7 +326,7 @@ class CalendarEventController extends Controller
     /** Auswahllisten für Einladungen */
     private function formData(User $user): array
     {
-        $isStaff = $user->hasRole(['admin', 'trainer']) || $user->hasAnyRole('vorstand');
+        $isStaff = $user->canAccess('events_all_groups');
 
         return [
             'seasons'     => Season::orderByDesc('start_date')->get(),

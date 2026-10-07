@@ -157,8 +157,11 @@ final class ImportCatalog
 
     public static function allows(User $user, array $import): bool
     {
-        return in_array($user->role, $import['roles'], true)
-            && (empty($import['menu']) || MenuPermission::can($user->role, $import['menu']));
+        // Mit Matrix-Schlüssel entscheidet allein die Matrix; ohne bleibt der
+        // Import fest bei den genannten Rollen (Systemimporte: nur Admin)
+        return empty($import['menu'])
+            ? in_array($user->role, $import['roles'], true)
+            : MenuPermission::allows($user, $import['menu']);
     }
 
     /** Wohin die Kachel fuehrt */

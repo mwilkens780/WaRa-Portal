@@ -150,19 +150,12 @@ class User extends Authenticatable
     public function isAdmin(): bool               { return $this->role === 'admin'; }
 
     /**
-     * Verwaltung für den ganzen Verein: Admin, Geschäftsstelle (Portal-Rolle)
-     * und Vorstand (Portal- oder Vereinsrolle) – Benutzer, Gruppen-Zuweisungen,
-     * Kampfrichter-Lizenzen (Auftrag Martin, 07.10.2026).
+     * Recht aus der Berechtigungs-Matrix (MenuPermission::MENU_ITEMS); mehrere
+     * Schlüssel = eines davon genügt. Portal- und Vereinsrollen zählen.
      */
-    public function isClubManager(): bool
+    public function canAccess(string ...$keys): bool
     {
-        return $this->isAdmin() || $this->role === 'geschaeftsstelle' || $this->hasAnyRole('vorstand');
-    }
-
-    /** Alle Trainingsgruppen und Kurse sehen und Mitglieder/Trainer zuweisen */
-    public function managesAllGroups(): bool
-    {
-        return $this->isAdmin() || $this->role === 'geschaeftsstelle';
+        return MenuPermission::allows($this, ...$keys);
     }
 
     /** Rollen, die dieser Benutzer anderen geben darf – Administrator nur durch Administratoren */

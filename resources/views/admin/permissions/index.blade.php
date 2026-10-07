@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $sections = ['general' => 'Allgemein', 'trainer' => 'Trainer-Bereich', 'swimmer' => 'Schwimmer', 'parent' => 'Eltern'];
+    $sections = \App\Models\MenuPermission::SECTIONS;
     $roleLabels = \App\Models\User::ROLE_LABELS;
     $editableRoles = array_filter(array_keys($roleLabels), fn($r) => $r !== 'admin');
 @endphp
@@ -14,6 +14,11 @@
             Ein Haken steuert beides: Der Menüpunkt erscheint in der Seitenleiste
             <strong>und</strong> der Bereich ist aufrufbar. Ohne Haken führt auch der
             direkte Aufruf der Adresse zu „Zugriff verweigert“.
+        </p>
+        <p>
+            Es zählen die Portal-Rolle <strong>und</strong> alle Vereinsrollen eines Mitglieds:
+            Ein Trainer, der auch im Vorstand ist, bekommt die Rechte beider Spalten.
+            „Reichweite“ erweitert einen Bereich von den eigenen Gruppen auf alle.
         </p>
         <p>
             Der <strong>Administrator</strong> hat immer Zugriff auf alle Bereiche.

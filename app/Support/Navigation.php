@@ -9,9 +9,11 @@ use App\Models\User;
  * Menue des Portals: Seitenleiste und untere Navigation (mobil).
  *
  * Gruppiert nach Aufgabe, nicht nach Rolle (docs/frontend-audit.md, Kap. 6).
- * Sichtbar ist ein Eintrag nur, wenn die Route fuer die Rolle freigegeben ist -
- * dieselben Rollen und Matrix-Schluessel wie die Routen-Middleware. Wer hier
- * einen Eintrag ergaenzt, muss die Route genauso absichern.
+ * Sichtbar ist ein Eintrag nur, wenn die Berechtigungs-Matrix ihn freigibt -
+ * dieselben Schluessel wie die Routen-Middleware (menu:...). Wer hier einen
+ * Eintrag ergaenzt, muss die Route genauso absichern. Fest an eine Rolle
+ * gebunden bleiben nur die persoenlichen Bereiche (Schwimmer, Eltern) und die
+ * Systemwerkzeuge bzw. Gesundheitsdaten (nur Admin bzw. Fachrolle).
  */
 class Navigation
 {
@@ -21,7 +23,8 @@ class Navigation
     public static function sections(User $user): array
     {
         $role = $user->role;
-        $can  = fn(string $key) => MenuPermission::can($role, $key);
+        // Portal- und Vereinsrollen zusammen (User::canAccess)
+        $can  = fn(string ...$keys) => $user->canAccess(...$keys);
         $is   = fn(string ...$roles) => in_array($role, $roles, true);
 
         $sections = [
@@ -33,12 +36,12 @@ class Navigation
             ]],
 
             ['Training', [
-                self::item('Trainingseinheiten', 'trainer.sessions.index', 'calendar', 'trainer.sessions.*', $is('trainer', 'admin') && $can('training')),
-                self::item('Hallenbelegung', 'trainer.hall.index', 'building', 'trainer.hall.*', $is('trainer', 'admin') && $can('hall')),
-                self::item('Trainingsgruppen', 'admin.training-groups.index', 'users', 'admin.training-groups.*', $is('trainer', 'admin', 'geschaeftsstelle') && $can('training_groups')),
-                self::item('Ziele & Kriterien', 'trainer.goals.index', 'chart', 'trainer.goals.*', $is('trainer', 'admin') && $can('goals')),
-                self::item('Einschätzungen', 'trainer.diary.overview', 'pie', 'trainer.diary.*', $is('trainer', 'admin') && $can('diary')),
-                self::item('Motto der Woche', 'trainer.motto.index', 'bulb', 'trainer.motto.*', $is('trainer', 'admin') && $can('motto')),
+                self::item('Trainingseinheiten', 'trainer.sessions.index', 'calendar', 'trainer.sessions.*', $can('training', 'training_all')),
+                self::item('Hallenbelegung', 'trainer.hall.index', 'building', 'trainer.hall.*', $can('hall')),
+                self::item('Trainingsgruppen', 'admin.training-groups.index', 'users', 'admin.training-groups.*', $can('training_groups', 'training_groups_all')),
+                self::item('Ziele & Kriterien', 'trainer.goals.index', 'chart', 'trainer.goals.*', $can('goals')),
+                self::item('Einschätzungen', 'trainer.diary.overview', 'pie', 'trainer.diary.*', $can('diary')),
+                self::item('Motto der Woche', 'trainer.motto.index', 'bulb', 'trainer.motto.*', $can('motto')),
             ]],
 
             ['Mein Bereich', [
@@ -64,9 +67,9 @@ class Navigation
         }
 
         $sections[] = ['Wettkampf', [
-            self::item('Wettkämpfe', 'admin.competitions.index', 'check-circle', 'admin.competitions.*', $is('trainer', 'admin', 'vorstand', 'kampfrichter') && $can('competitions')),
+            self::item('Wettkämpfe', 'admin.competitions.index', 'check-circle', 'admin.competitions.*', $can('competitions')),
             // Pflegen (Trainer/Vorstand) oder lesen (Mitglieder) - nie beides
-            $is('trainer', 'admin', 'vorstand') && $can('records')
+            $can('records')
                 ? self::item('Rekorde & Bestenlisten', 'admin.records.index', 'sparkles', 'admin.records.*', true)
                 : self::item('Rekorde & Bestenlisten', 'records.public', 'sparkles', 'records.public', $can('club_records')),
         ]];
@@ -74,10 +77,11 @@ class Navigation
         $sections[] = ['Mitglieder', [
             $is('admin')
                 ? self::item('Benutzer', 'admin.users.index', 'users', 'admin.users.*', true)
-                : self::item('Benutzer', 'users-lite.index', 'users', 'users-lite.*', $can('users_lite')),
-            // Kampfrichter: Vorstand/Geschäftsstelle pflegen alle, Kampfrichter die eigenen Qualifikationen
-            self::item('Kampfrichter & Lizenzen', 'officials.index', 'badge', 'officials.*', $user->isClubManager() && ($is('admin') || $can('officials') || $user->hasAnyRole('vorstand'))),
-            self::item('Meine Qualifikationen', 'officials.mine', 'badge', 'officials.mine', !$user->isClubManager() && $user->hasAnyRole('kampfrichter')),
+                : self::item('Benutzer', 'users-lite.index', 'users', 'users-lite.*', $can('users_lite', 'users_all')),
+            // Kampfrichter: alle pflegen (Vorstand, Geschäftsstelle) oder die eigenen Qualifikationen
+            $can('officials')
+                ? self::item('Kampfrichter & Lizenzen', 'officials.index', 'badge', 'officials.*', true)
+                : self::item('Meine Qualifikationen', 'officials.mine', 'badge', 'officials.mine', $can('officials_own')),
             self::item('Ernährungsberatung', 'nutrition.index', 'document', 'nutrition.*', $is('ernaehrungsberater', 'admin')),
             self::item('Sportmedizin', 'teamdoctor.index', 'heart', 'teamdoctor.*', $is('teamarzt', 'admin')),
         ]];
@@ -128,7 +132,7 @@ class Navigation
     public static function bottom(User $user): array
     {
         $role = $user->role;
-        $can  = fn(string $key) => MenuPermission::can($role, $key);
+        $can  = fn(string $key) => $user->canAccess($key);
 
         if ($role === 'schwimmer') {
             $items = [

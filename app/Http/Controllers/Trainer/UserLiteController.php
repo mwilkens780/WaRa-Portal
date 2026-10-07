@@ -195,8 +195,8 @@ class UserLiteController extends Controller
 
     private function mayEditAll(User $me): bool
     {
-        // Vorstand (auch als Vereinsrolle), Geschäftsstelle und Admin
-        return $me->isClubManager();
+        // Matrix: "Benutzer: alle Konten bearbeiten"
+        return $me->canAccess('users_all');
     }
 
     /**

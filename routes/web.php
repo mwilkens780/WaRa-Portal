@@ -210,8 +210,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 Route::get('/impressum', [LegalController::class, 'impressum'])->name('legal.impressum');
 Route::get('/datenschutz', [LegalController::class, 'datenschutz'])->name('legal.datenschutz');
 
-// Trainingsgruppen – Index, Show, Edit: Trainer + Admin
-Route::middleware(['auth', 'role:trainer,geschaeftsstelle,admin', 'menu:training_groups'])->prefix('admin')->name('admin.')->group(function () {
+// Trainingsgruppen – eigene oder alle (Berechtigungs-Matrix)
+Route::middleware(['auth', 'role', 'menu:training_groups,training_groups_all'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/trainingsgruppen', [TrainingGroupController::class, 'index'])->name('training-groups.index');
     Route::get('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'show'])->name('training-groups.show');
     Route::get('/trainingsgruppen/{trainingGroup}/bearbeiten', [TrainingGroupController::class, 'edit'])->name('training-groups.edit');
@@ -238,8 +238,8 @@ Route::middleware(['auth', 'role:trainer,geschaeftsstelle,admin', 'menu:training
     Route::post('/trainingsgruppen/{trainingGroup}/motto/zuruecksetzen', [TrainingGroupController::class, 'mottoReset'])->name('training-groups.motto-reset');
 });
 
-// Wettkämpfe – Ansicht & Import auch für Trainer, Vorstand, Kampfrichter zugänglich
-Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin', 'menu:competitions'])->prefix('admin')->name('admin.')->group(function () {
+// Wettkämpfe – wer, steuert die Berechtigungs-Matrix
+Route::middleware(['auth', 'role', 'menu:competitions'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/wettkaempfe', [AdminCompetitionController::class, 'index'])->name('competitions.index');
     Route::get('/wettkaempfe/{competition}', [AdminCompetitionController::class, 'show'])->name('competitions.show');
     // Kampfrichter-Abfrage (Vorstand/Admin, Prüfung im Controller)
@@ -295,14 +295,15 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin', 'menu:com
     Route::post('/wettkaempfe/{competition}/anmeldung/{signupRequest}/zuweisen', [CompetitionSignupController::class, 'quickAssign'])->name('competitions.signup.quick-assign');
 });
 
-// Rekorde – Ansicht für Trainer, Vorstand und Admin
-Route::middleware(['auth', 'role:trainer,vorstand,admin', 'menu:records'])->prefix('admin')->name('admin.')->group(function () {
+// Rekorde pflegen – wer, steuert die Berechtigungs-Matrix
+Route::middleware(['auth', 'role', 'menu:records'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/rekorde', [RecordController::class, 'index'])->name('records.index');
 });
 
-// Trainer-Bereich (Trainer + Admin)
-Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trainer.')->group(function () {
-    Route::get('/dashboard', [TrainerDashboard::class, 'index'])->name('dashboard');
+// Trainer-Bereich: jeder Teil hinter seinem Matrix-Schlüssel; nur das
+// Trainer-Dashboard ist die Startseite der Rolle Trainer
+Route::middleware(['auth', 'role'])->prefix('trainer')->name('trainer.')->group(function () {
+    Route::get('/dashboard', [TrainerDashboard::class, 'index'])->middleware('role:trainer,admin')->name('dashboard');
 
     // DSV6/7 Ergebnisimport – gehoert fachlich zu den Wettkaempfen
     Route::middleware('menu:competitions')->group(function () {
@@ -313,7 +314,7 @@ Route::middleware(['auth', 'role:trainer,admin'])->prefix('trainer')->name('trai
     });
 
     // Trainingseinheiten
-    Route::middleware('menu:training')->group(function () {
+    Route::middleware('menu:training,training_all')->group(function () {
         Route::get('/training', [TrainingSessionController::class, 'index'])->name('sessions.index');
         Route::get('/training/neu', [TrainingSessionController::class, 'create'])->name('sessions.create');
         Route::post('/training', [TrainingSessionController::class, 'store'])->name('sessions.store');
@@ -519,7 +520,7 @@ Route::post('/api/webclub-import', [\App\Http\Controllers\Api\WebClubImportContr
     ->name('api.webclub-import');
 
 // Benutzerverwaltung Lite (Trainer + Vorstand)
-Route::middleware(['auth', 'role:trainer,vorstand,geschaeftsstelle,admin', 'menu:users_lite'])->prefix('benutzer')->name('users-lite.')->group(function () {
+Route::middleware(['auth', 'role', 'menu:users_lite,users_all'])->prefix('benutzer')->name('users-lite.')->group(function () {
     Route::get('/',                    [UserLiteController::class, 'index'])->name('index');
     Route::get('/neu',                 [UserLiteController::class, 'create'])->name('create');
     Route::post('/',                   [UserLiteController::class, 'store'])->name('store');

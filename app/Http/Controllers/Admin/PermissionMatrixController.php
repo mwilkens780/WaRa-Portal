@@ -17,9 +17,12 @@ class PermissionMatrixController extends Controller
 
         foreach ($roles as $role) {
             if ($role === 'admin') continue; // admin always has everything
-            $matrix[$role] = MenuPermission::where('role', $role)
-                ->pluck('allowed', 'menu_key')
-                ->toArray();
+            // Wirksamer Stand: gespeicherte Entscheidung oder – bei neuen
+            // Schlüsseln ohne Eintrag – die Voreinstellung der Rolle. Sonst
+            // stünden neue Rechte hier leer und das nächste Speichern nähme sie weg.
+            foreach (array_keys($items) as $key) {
+                $matrix[$role][$key] = MenuPermission::can($role, $key);
+            }
         }
 
         return view('admin.permissions.index', compact('roles', 'items', 'matrix'));

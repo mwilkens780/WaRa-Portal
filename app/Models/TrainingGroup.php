@@ -165,7 +165,7 @@ class TrainingGroup extends Model
      */
     public function scopeVisibleTo($query, User $user): void
     {
-        if ($user->isAdmin()) return;
+        if ($user->canAccess('training_groups_all')) return;
 
         if (in_array($user->role, ['trainer'])) {
             $query->whereHas('trainers', fn($q) => $q->where('users.id', $user->id));
@@ -176,7 +176,7 @@ class TrainingGroup extends Model
 
     public function canEdit(User $user): bool
     {
-        if ($user->managesAllGroups()) return true;
+        if ($user->canAccess('training_groups_all')) return true;
         return $this->trainers()->where('users.id', $user->id)->exists();
     }
 

@@ -34,7 +34,7 @@ class TrainingSessionController extends Controller
 
         // Jede Gruppe mit mindestens einer Einheit, die der Trainer bearbeiten
         // darf - auch fremde Gruppen, in denen er als Co-Trainer eingetragen ist
-        if (!$user->isAdmin()) {
+        if (!$user->canAccess('training_all')) {
             $groupQuery->whereHas('sessions', fn($q) => $q->manageableBy($user));
         }
 
@@ -145,7 +145,7 @@ class TrainingSessionController extends Controller
         $coTrainerIds = $request->input('co_trainer_ids', []);
 
         // Auto-add the creating user as trainer so they can access the session
-        if (!auth()->user()->isAdmin() && !in_array(auth()->id(), $coTrainerIds)) {
+        if (!auth()->user()->canAccess('training_all') && !in_array(auth()->id(), $coTrainerIds)) {
             $coTrainerIds[] = auth()->id();
         }
 
@@ -964,7 +964,7 @@ class TrainingSessionController extends Controller
     private function availableGroups()
     {
         $query = TrainingGroup::with('trainers:id,firstname,lastname')->where('active', true)->orderBy('name');
-        if (!auth()->user()->isAdmin()) {
+        if (!auth()->user()->canAccess('training_all')) {
             $query->whereHas('trainers', fn($q) => $q->where('users.id', auth()->id()));
         }
         return $query->get();

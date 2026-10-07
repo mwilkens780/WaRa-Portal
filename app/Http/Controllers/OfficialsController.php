@@ -18,7 +18,7 @@ class OfficialsController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless($request->user()->isClubManager(), 403);
+        abort_unless($request->user()->canAccess('officials'), 403);
 
         $withQuals = OfficialQualification::pluck('user_id')->unique();
         $officials = OfficialRequests::officials()->pluck('id')->merge($withQuals)->unique();
@@ -41,6 +41,8 @@ class OfficialsController extends Controller
 
     public function mine(Request $request)
     {
+        abort_unless($request->user()->canAccess('officials', 'officials_own'), 403);
+
         return view('officials.mine', ['user' => $request->user()->load('officialQualifications')]);
     }
 
@@ -85,6 +87,6 @@ class OfficialsController extends Controller
     /** Eigene Daten oder Vereinsverwaltung (Vorstand, Geschäftsstelle, Admin) */
     private function authorizeFor(User $me, User $user): void
     {
-        abort_unless($me->id === $user->id || $me->isClubManager(), 403);
+        abort_unless($me->canAccess('officials') || ($me->id === $user->id && $me->canAccess('officials_own')), 403);
     }
 }

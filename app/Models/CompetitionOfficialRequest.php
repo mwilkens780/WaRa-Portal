@@ -162,9 +162,9 @@ class CompetitionOfficialRequest extends Model
             && today()->lte(Carbon::parse($this->competition->date_end ?? $this->competition->date));
     }
 
-    /** Darf Abfragen starten und auswerten: Vorstand (Portal- oder Vereinsrolle) und Admin */
+    /** Darf Abfragen starten, besetzen und melden (Matrix "Obmann") */
     public static function canManage(?User $user): bool
     {
-        return $user && ($user->hasRole('admin') || $user->hasAnyRole('vorstand'));
+        return $user && $user->canAccess('official_requests');
     }
 }

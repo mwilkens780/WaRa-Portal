@@ -38,8 +38,8 @@ class OfficialsPanel extends Component
         $user = auth()->user();
 
         $this->isBoard    = (bool) $user && CompetitionOfficialRequest::canManage($user);
-        // Lizenzen pflegen Vorstand, Geschäftsstelle und Admin
-        $this->managesLicenses = (bool) $user && $user->isClubManager();
+        // Lizenzen pflegen (Matrix "Kampfrichter & Lizenzen")
+        $this->managesLicenses = (bool) $user && $user->canAccess('officials');
         $mine             = $user ? $this->myInvites($user) : collect();
         $this->isOfficial = $user && ($user->hasAnyRole('kampfrichter') || $mine->isNotEmpty() || $user->officialQualifications()->exists());
 

@@ -228,7 +228,8 @@ class TrainingSession extends Model
      */
     public function scopeManageableBy(\Illuminate\Database\Eloquent\Builder $q, User $user): \Illuminate\Database\Eloquent\Builder
     {
-        if ($user->isAdmin()) {
+        // Matrix "Trainingseinheiten aller Gruppen" (Admin, Vorstand)
+        if ($user->canAccess('training_all')) {
             return $q;
         }
 
@@ -276,7 +277,7 @@ class TrainingSession extends Model
 
     public function isManageableBy(User $user): bool
     {
-        return $user->isAdmin()
+        return $user->canAccess('training_all')
             || static::whereKey($this->getKey())->manageableBy($user)->exists();
     }
 
