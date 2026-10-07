@@ -28,6 +28,8 @@ class MenuPermission extends Model
         'training'       => ['label' => 'Trainingseinheiten (eigene Gruppen)', 'section' => 'trainer'],
         'training_groups'=> ['label' => 'Trainingsgruppen (eigene)', 'section' => 'trainer'],
         'competitions'   => ['label' => 'Wettkämpfe',             'section' => 'trainer'],
+        // Ergebnisse, Definitionsdatei, Ausschreibung einlesen und Wettkämpfe per Import anlegen
+        'competition_import' => ['label' => 'Wettkämpfe & Ergebnisse importieren', 'section' => 'trainer'],
         'records'        => ['label' => 'Rekorde',                'section' => 'trainer'],
         'goals'          => ['label' => 'Ziele',                  'section' => 'trainer'],
         'diary'          => ['label' => 'Einschätzungen',         'section' => 'trainer'],
@@ -74,12 +76,12 @@ class MenuPermission extends Model
 
     const DEFAULT_PERMISSIONS = [
         'admin'        => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','parent_area','club_records'],
-        'trainer'      => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall',
+        'trainer'      => ['calendar','users_lite','training','training_groups','competitions','competition_import','records','goals','diary','motto','hall',
                            'events_vereinstermin','events_ehrung','events_meldefrist','events_elternabend','events_team_event','events_sonstiges','events_all_groups'],
         // Vorstand: Trainingseinheiten aller Gruppen (Martin, 07.10.2026), Obmann, Lizenzen
-        'vorstand'     => ['calendar','users_lite','users_all','competitions','records','training_all',
+        'vorstand'     => ['calendar','users_lite','users_all','competitions','competition_import','records','training_all',
                            'officials','official_requests','events_vorstandssitzung','events_team_event','events_all_groups'],
-        'kampfrichter' => ['calendar','competitions','officials_own'],
+        'kampfrichter' => ['calendar','competitions','competition_import','officials_own'],
         // Geschäftsstelle: Benutzer, Gruppen-/Kurszuweisung, Termine, Lizenzen – keine Trainingseinheiten
         'geschaeftsstelle' => ['calendar','users_lite','users_all','training_groups','training_groups_all','officials',
                            'events_vereinstermin','events_ehrung','events_meldefrist','events_elternabend','events_team_event','events_sonstiges',

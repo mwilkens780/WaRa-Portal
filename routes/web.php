@@ -253,19 +253,22 @@ Route::middleware(['auth', 'role', 'menu:competitions'])->prefix('admin')->name(
     Route::post('/wettkaempfe/{competition}/auswertung',[AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
     Route::post('/wettkaempfe/{competition}/auswertung/speichern', [AdminCompetitionController::class, 'saveAnalysis'])->name('competitions.analysis.save');
     Route::get('/wettkaempfe/{competition}/auswertung/pdf', [AdminCompetitionController::class, 'exportAnalysisPdf'])->name('competitions.analysis.pdf');
+    // Importe zum Wettkampf – eigenes Matrix-Recht "Wettkämpfe & Ergebnisse importieren"
+    Route::middleware('menu:competition_import')->group(function () {
     Route::post('/wettkaempfe/{competition}/ergebnisse-import', [CompetitionResultImportController::class, 'upload'])->name('competitions.results-import.upload');
     Route::get('/wettkaempfe/{competition}/ergebnisse-import/vorschau', [CompetitionResultImportController::class, 'preview'])->name('competitions.results-import.preview');
     Route::post('/wettkaempfe/{competition}/ergebnisse-import/speichern', [CompetitionResultImportController::class, 'execute'])->name('competitions.results-import.execute');
     Route::post('/wettkaempfe/{competition}/webclub-csv-import', [WebClubCsvImportController::class, 'upload'])->name('competitions.wc-import.upload');
     Route::get('/wettkaempfe/{competition}/webclub-csv-import/vorschau', [WebClubCsvImportController::class, 'preview'])->name('competitions.wc-import.preview');
     Route::post('/wettkaempfe/{competition}/webclub-csv-import/speichern', [WebClubCsvImportController::class, 'execute'])->name('competitions.wc-import.execute');
+    Route::post('/wettkaempfe/{competition}/ausschreibung/parsen',     [AdminCompetitionController::class, 'parseAnnouncement'])->name('competitions.announcement.parse');
+    Route::post('/wettkaempfe/{competition}/ausschreibung/speichern',  [AdminCompetitionController::class, 'saveAnnouncement'])->name('competitions.announcement.save');
+    Route::post('/wettkaempfe/{competition}/vollimport', [AdminCompetitionController::class, 'fullImport'])->name('competitions.full-import');
+    Route::post('/wettkaempfe/{competition}/definition-import', [AdminCompetitionController::class, 'importDefinition'])->name('competitions.definition-import');
+    }); // Ende menu:competition_import
 
     // Organisation-Notizen speichern
     Route::post('/wettkaempfe/{competition}/organisation', [AdminCompetitionController::class, 'saveOrganisation'])->name('competitions.organisation.save');
-
-    // Ausschreibungs-Import (PDF → Claude → strukturierte Daten)
-    Route::post('/wettkaempfe/{competition}/ausschreibung/parsen',     [AdminCompetitionController::class, 'parseAnnouncement'])->name('competitions.announcement.parse');
-    Route::post('/wettkaempfe/{competition}/ausschreibung/speichern',  [AdminCompetitionController::class, 'saveAnnouncement'])->name('competitions.announcement.save');
 
     // Meldungen (Entries + DSV7-Generatoren)
     Route::get('/wettkaempfe/{competition}/meldungen/entries', [CompetitionEntryController::class, 'index'])->name('competitions.entries.index');
@@ -275,8 +278,6 @@ Route::middleware(['auth', 'role', 'menu:competitions'])->prefix('admin')->name(
     Route::get('/wettkaempfe/{competition}/dsv7/meldedatei', [CompetitionEntryController::class, 'downloadMeldedatei'])->name('competitions.dsv7.meldedatei');
     Route::get('/wettkaempfe/{competition}/dsv7/definitionsdatei', [CompetitionEntryController::class, 'downloadDefinitionsdatei'])->name('competitions.dsv7.definitionsdatei');
     Route::get('/wettkaempfe/{competition}/dsv7/ausschreibung-pdf', [CompetitionEntryController::class, 'downloadAusschreibungPdf'])->name('competitions.dsv7.ausschreibung-pdf');
-    Route::post('/wettkaempfe/{competition}/vollimport', [AdminCompetitionController::class, 'fullImport'])->name('competitions.full-import');
-    Route::post('/wettkaempfe/{competition}/definition-import', [AdminCompetitionController::class, 'importDefinition'])->name('competitions.definition-import');
 
     // Dokumente
     Route::post('/wettkaempfe/{competition}/dokumente', [CompetitionDocumentController::class, 'store'])->name('competitions.documents.store');
@@ -305,8 +306,8 @@ Route::middleware(['auth', 'role', 'menu:records'])->prefix('admin')->name('admi
 Route::middleware(['auth', 'role'])->prefix('trainer')->name('trainer.')->group(function () {
     Route::get('/dashboard', [TrainerDashboard::class, 'index'])->middleware('role:trainer,admin')->name('dashboard');
 
-    // DSV6/7 Ergebnisimport – gehoert fachlich zu den Wettkaempfen
-    Route::middleware('menu:competitions')->group(function () {
+    // DSV/Lenex-Ergebnisimport (legt Wettkaempfe an) – eigenes Matrix-Recht
+    Route::middleware('menu:competition_import')->group(function () {
         Route::get('/dsv-import', [DsvImportController::class, 'index'])->name('dsv-import.index');
         Route::post('/dsv-import/upload', [DsvImportController::class, 'upload'])->name('dsv-import.upload');
         Route::get('/dsv-import/preview', [DsvImportController::class, 'preview'])->name('dsv-import.preview');

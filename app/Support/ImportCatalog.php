@@ -43,7 +43,7 @@ final class ImportCatalog
                 'icon'    => 'check-circle',
                 'route'   => 'trainer.dsv-import.index',
                 'roles'   => ['trainer', 'admin'],
-                'menu'    => 'competitions',
+                'menu'    => 'competition_import',
             ],
             'results-context' => [
                 'area'    => 'Wettkampf',
@@ -54,7 +54,7 @@ final class ImportCatalog
                 'icon'    => 'check-circle',
                 'route'   => 'admin.competitions.index',
                 'roles'   => ['trainer', 'vorstand', 'kampfrichter', 'admin'],
-                'menu'    => 'competitions',
+                'menu'    => 'competition_import',
                 'context' => 'Wettkampf wählen',
             ],
             'competition-lenex' => [

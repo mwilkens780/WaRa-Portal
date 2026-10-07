@@ -3,6 +3,7 @@
 @section('page-title', $competition->name)
 
 @section('content')
+@php $canImport = auth()->user()->canAccess('competition_import'); @endphp
 <div class="mt-2 space-y-4"
      x-data="{
          activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : (in_array(request('tab'), ['kampfgericht', 'mannschaft', 'anmeldungen', 'organisation', 'dokumente'], true) ? request('tab') : 'ergebnisse') }}',
@@ -45,6 +46,7 @@
                         Bearbeiten
                     </a>
                 @endif
+                @if($canImport)
                 <button @click="activeTab = 'import'; showForm = false"
                         class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,6 +54,7 @@
                     </svg>
                     Import
                 </button>
+                @endif
                 @if(auth()->user()->role === 'admin')
                     <button @click="activeTab = 'ergebnisse'; showForm = !showForm"
                             class="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">
@@ -67,6 +70,7 @@
 
         {{-- Tab-Bar --}}
         <div class="flex border-b border-gray-200 overflow-x-auto">
+            @if($canImport)
             <button @click="activeTab = 'import'"
                     :class="activeTab === 'import'
                         ? 'border-primary text-primary bg-blue-50/40'
@@ -74,6 +78,7 @@
                     class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">
                 Import
             </button>
+            @endif
             <button @click="activeTab = 'dokumente'"
                     :class="activeTab === 'dokumente'
                         ? 'border-primary text-primary bg-blue-50/40'
@@ -217,7 +222,8 @@
             </button>
         </div>
 
-        {{-- Tab: Import --}}
+        {{-- Tab: Import (Matrix: Wettkämpfe & Ergebnisse importieren) --}}
+        @if($canImport)
         <div x-show="activeTab === 'import'" x-cloak>
             <div class="p-5 space-y-6">
 
@@ -266,6 +272,7 @@
 
             </div>
         </div>
+        @endif
 
         {{-- Tab: Wettkampffolge --}}
         <div x-show="activeTab === 'wettkampf'" x-cloak>
@@ -1962,6 +1969,7 @@
             @endif
 
             {{-- Upload-Bereich --}}
+            @if($canImport)
             <div class="bg-gray-50 border border-gray-200 rounded-xl p-5">
                 <h3 class="font-semibold text-gray-800 mb-1">Ausschreibung als PDF importieren</h3>
                 <p class="text-sm text-gray-500 mb-4">
@@ -1987,6 +1995,7 @@
                 <div x-show="error" x-cloak class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" x-text="error"></div>
                 <div x-show="saveMsg" x-cloak class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700" x-text="saveMsg"></div>
             </div>
+            @endif
 
             {{-- Geparste Daten --}}
             <template x-if="parsed">

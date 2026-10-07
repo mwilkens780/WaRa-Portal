@@ -193,7 +193,7 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   (`OfficialQualification::syncToUser`, `User::booted`).
 - **Rechte = Berechtigungs-Matrix** (Martin, 07.10.2026: nicht hart codieren). Jedes Recht ist ein
   Schlüssel in `MenuPermission::MENU_ITEMS` (Abschnitte inkl. „Reichweite“ `users_all`, `training_all`,
-  `training_groups_all`; Kampfrichter `officials`, `officials_own`, `official_requests`; Termine
+  `training_groups_all`; `competition_import` (alle Wettkampf-Importe); Kampfrichter `officials`, `officials_own`, `official_requests`; Termine
   `events_<art>`, `events_manage`, `events_all_groups`) mit Voreinstellung in `DEFAULT_PERMISSIONS`.
   Prüfen nur über `$user->canAccess(...)` bzw. Route-Middleware `menu:a,b` (einer genügt); es zählen
   Portal- und Vereinsrollen. Keine Rollenlisten in Routen (`role` ohne Parameter prüft nur aktiv).
