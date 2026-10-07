@@ -173,9 +173,8 @@ class TrainingPlanController extends Controller
         $plan = $session->trainingPlan;
         if (!$plan?->attachment_path) abort(404);
 
-        if (auth()->user()->role === 'schwimmer' && $session->date->gt(today())) {
-            abort(403);
-        }
+        // Trainer der Einheit/Gruppe; Sportler nur ihre Einheit nach dem Training
+        abort_unless($session->planVisibleTo(auth()->user()), 403);
 
         return \Storage::disk('local')->download($plan->attachment_path);
     }
@@ -190,7 +189,9 @@ class TrainingPlanController extends Controller
 
     private function authorizeSession(TrainingSession $session): void
     {
-        if (!$session->isManageableBy(auth()->user())) {
+        // Plan bearbeiten: Einheit verwalten und Plan sehen dürfen (Schutz der Trainingspläne)
+        $user = auth()->user();
+        if (!$session->isManageableBy($user) || !$session->planVisibleTo($user)) {
             abort(403);
         }
     }

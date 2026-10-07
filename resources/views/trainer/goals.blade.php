@@ -416,6 +416,8 @@
                             $swimGoals = $goalsBySwimmer[$swimmer->id] ?? collect();
                             $achieved  = $swimGoals->where('achieved', true)->count();
                             $total     = $swimGoals->count();
+                            // Nicht freigegebene Ziele: nur die Anzahl
+                            $private   = (int) ($privateGoalCounts[$swimmer->id] ?? 0);
                         @endphp
                         <div x-data="keep('goals-s-{{ $group->id }}-{{ $swimmer->id }}', false)">
                             <button type="button" @click="open = !open" @if($total === 0) disabled @endif
@@ -435,7 +437,10 @@
                                         <div class="bg-green-500 h-1.5 rounded-full" style="width: {{ round($achieved / $total * 100) }}%"></div>
                                     </div>
                                     <span class="text-xs text-gray-500 font-medium w-10 text-right flex-shrink-0">{{ $achieved }}/{{ $total }}</span>
-                                @else
+                                @endif
+                                @if($private > 0)
+                                    <span class="text-xs text-gray-600 flex-shrink-0" title="Vom Sportler nicht freigegeben">{{ $total ? '+ ' : '' }}{{ $private }} {{ $private === 1 ? 'Ziel' : 'Ziele' }} geplant, nicht freigegeben</span>
+                                @elseif($total === 0)
                                     <span class="text-xs text-gray-600 flex-shrink-0">keine Ziele</span>
                                 @endif
                             </button>

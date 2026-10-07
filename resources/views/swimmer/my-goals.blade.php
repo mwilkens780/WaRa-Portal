@@ -150,6 +150,14 @@
                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none"
                               placeholder="Weitere Details oder Motivation..."></textarea>
                 </div>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="hidden" name="shared_with_trainer" value="0">
+                    <input type="checkbox" name="shared_with_trainer" value="1" checked
+                           class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/30">
+                    <span class="text-sm text-gray-700">Für meine Trainer sichtbar
+                        <span class="block text-xs text-gray-500">Ohne Freigabe sehen deine Trainer nur, dass du Ziele geplant hast – nicht welche, und sie können sie nicht kommentieren. Du kannst das jederzeit ändern.</span>
+                    </span>
+                </label>
                 <button type="submit" class="px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors">
                     Ziel speichern
                 </button>
@@ -308,6 +316,19 @@
                                         @endforeach
                                     </div>
                                 @endif
+
+                                {{-- Freigabe für die Trainer --}}
+                                <form method="POST" action="{{ route('swimmer.goals.share', $goal) }}" class="mt-2">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="shared_with_trainer" value="{{ $goal->shared_with_trainer ? 0 : 1 }}">
+                                    @if($goal->shared_with_trainer)
+                                        <span class="text-xs text-gray-500">Für deine Trainer sichtbar ·</span>
+                                        <button type="submit" class="text-xs font-medium text-primary hover:underline">verbergen</button>
+                                    @else
+                                        <span class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Nur für dich</span>
+                                        <button type="submit" class="ml-1 text-xs font-medium text-primary hover:underline">für Trainer freigeben</button>
+                                    @endif
+                                </form>
                             </div>
 
                             {{-- Actions --}}

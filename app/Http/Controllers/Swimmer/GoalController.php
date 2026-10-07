@@ -101,6 +101,7 @@ class GoalController extends Controller
             'target_minutes'      => ['nullable', 'integer', 'min:0'],
             'target_seconds'      => ['required_if:type,time', 'nullable', 'integer', 'min:0', 'max:59'],
             'target_centiseconds' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'shared_with_trainer' => ['nullable', 'boolean'],
         ], [], [
             'title'          => 'Titel',
             'discipline'     => 'Disziplin',
@@ -130,14 +131,34 @@ class GoalController extends Controller
             'course'        => $data['course'] ?? null,
             'target_time_ms'=> $targetMs,
             'notes'         => $data['notes'] ?? null,
+            // Ohne ausdrückliche Angabe freigegeben (wie bisher)
+            'shared_with_trainer' => $request->boolean('shared_with_trainer', true),
             'status'        => 'open',
             'notified'      => true,
         ]);
 
-        // Trainer informieren, sofern sie Zielsetzungen abonniert haben
-        app(\App\Services\EventMailer::class)->goalSubmitted($goal->fresh('user'));
+        // Trainer informieren, sofern sie Zielsetzungen abonniert haben – nur freigegebene Ziele
+        if ($goal->shared_with_trainer) {
+            app(\App\Services\EventMailer::class)->goalSubmitted($goal->fresh('user'));
+        }
 
         return back()->with('success', 'Ziel gespeichert.');
+    }
+
+    /** Ziel für die Trainer freigeben oder verbergen */
+    public function share(Request $request, SwimmerGoal $goal)
+    {
+        abort_if($goal->user_id !== auth()->id(), 403);
+        $shared = $request->boolean('shared_with_trainer');
+        $was    = $goal->shared_with_trainer;
+        $goal->update(['shared_with_trainer' => $shared]);
+
+        // Erst jetzt sichtbar: Trainer wie bei einem neuen Ziel informieren
+        if ($shared && !$was) {
+            app(\App\Services\EventMailer::class)->goalSubmitted($goal->fresh('user'));
+        }
+
+        return back()->with('success', $shared ? 'Ziel für deine Trainer freigegeben.' : 'Ziel ist jetzt nur für dich sichtbar.');
     }
 
     public function destroy(SwimmerGoal $goal)

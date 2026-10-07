@@ -590,6 +590,7 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
         Route::get('/meine-ziele', [SwimmerGoalController::class, 'index'])->name('goals.index');
         Route::post('/meine-ziele', [SwimmerGoalController::class, 'store'])->name('goals.store');
         Route::delete('/meine-ziele/{goal}', [SwimmerGoalController::class, 'destroy'])->name('goals.destroy');
+        Route::patch('/meine-ziele/{goal}/freigabe', [SwimmerGoalController::class, 'share'])->name('goals.share');
         Route::post('/meine-ziele/{goal}/bewerten', [SwimmerGoalController::class, 'evaluate'])->name('goals.evaluate');
         Route::patch('/meine-ziele/{goal}/fortschritt', [SwimmerGoalController::class, 'updateProgress'])->name('goals.progress');
     });

@@ -404,6 +404,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-semibold text-gray-700">Trainingsplan</h2>
+            @if($canSeePlan)
             <div class="flex items-center gap-2">
                 @if($session->trainingPlan && $session->trainingPlan->blocks->filter(fn($b) => $b->tracksTime())->isNotEmpty())
                     <a href="{{ route('trainer.sessions.live', $session) }}"
@@ -433,7 +434,12 @@
                     {{ $session->trainingPlan ? 'Bearbeiten' : 'Trainingsplan erstellen' }}
                 </a>
             </div>
+            @endif
         </div>
+
+        @if(!$canSeePlan)
+            <p class="text-sm text-gray-600">Den Trainingsplan sehen nur die Trainer dieser Einheit bzw. ihrer Gruppe.</p>
+        @else
 
         @if($session->trainingPlan)
             @if($session->trainingPlan->description)
@@ -533,6 +539,7 @@
             <div class="py-4 text-center">
                 <p class="text-sm text-gray-600">Noch kein Trainingsplan erstellt.</p>
             </div>
+        @endif
         @endif
     </div>
 

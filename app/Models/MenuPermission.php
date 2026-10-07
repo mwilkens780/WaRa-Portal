@@ -52,6 +52,8 @@ class MenuPermission extends Model
         'users_all'           => ['label' => 'Benutzer: alle Konten bearbeiten',                     'section' => 'scope'],
         'training_all'        => ['label' => 'Trainingseinheiten aller Gruppen verwalten',           'section' => 'scope'],
         'training_groups_all' => ['label' => 'Alle Trainingsgruppen & Kurse: Mitglieder und Trainer zuweisen', 'section' => 'scope'],
+        // Schutz der Trainingspläne: sonst nur Trainer der Einheit/Gruppe (Voreinstellung: niemand außer Admin)
+        'training_plans_all'  => ['label' => 'Trainingspläne aller Einheiten einsehen', 'section' => 'scope'],
         // Termine (Arten aus CalendarEvent::TYPES)
         'events_vereinstermin'    => ['label' => 'Vereinstermin anlegen',     'section' => 'events'],
         'events_ehrung'           => ['label' => 'Ehrung anlegen',            'section' => 'events'],

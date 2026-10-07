@@ -243,6 +243,9 @@ class TrainingSessionController extends Controller
     {
         $this->authorizeSession($session);
         $session->load('coTrainers', 'attendances.user', 'swimmingTimes.user', 'diaries.user', 'trainingGroups.swimmers', 'trainingPlan.blocks', 'hallBookings.resource', 'guestGroup.swimmers');
+        // Trainingsplan nur für die Trainer der Einheit/Gruppe (planVisibleTo)
+        $canSeePlan = $session->planVisibleTo(auth()->user());
+        if (!$canSeePlan) $session->setRelation('trainingPlan', null);
 
         // Only show swimmers from the session's training groups; fall back to all if no groups assigned
         if ($session->trainingGroups->isNotEmpty()) {
@@ -348,7 +351,7 @@ class TrainingSessionController extends Controller
             'preAbsentCount', 'registeredSwimmers', 'cancelledSwimmers',
             'blockTimesMap', 'allResources', 'freeResources', 'laneBookings',
             'individualSwimmers', 'seriesIndividualSwimmers', 'allSwimmersForAssign', 'sessionRegistrations',
-            'guestBookings', 'expectedCount', 'isOverCapacity', 'allGroups'
+            'guestBookings', 'expectedCount', 'isOverCapacity', 'allGroups', 'canSeePlan'
         ));
     }
 
@@ -356,6 +359,7 @@ class TrainingSessionController extends Controller
     {
         $this->authorizeSession($session);
         $session->load(['coTrainers:id,firstname,lastname', 'trainingPlan.blocks', 'attendances.user', 'trainingGroups.swimmers']);
+        if (!$session->planVisibleTo(auth()->user())) $session->setRelation('trainingPlan', null);
 
         if ($session->trainingGroups->isNotEmpty()) {
             $swimmerIds = $session->trainingGroups
@@ -737,7 +741,7 @@ class TrainingSessionController extends Controller
 
     public function uploadTeamPlan(Request $request, TrainingSession $session)
     {
-        $this->authorizeSession($session);
+        $this->authorizePlan($session);
 
         $request->validate([
             'team_plan' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,png', 'max:5120'],
@@ -755,7 +759,7 @@ class TrainingSessionController extends Controller
 
     public function uploadIndividualPlan(Request $request, TrainingSession $session)
     {
-        $this->authorizeSession($session);
+        $this->authorizePlan($session);
 
         $request->validate([
             'individual_plan' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,png', 'max:5120'],
@@ -773,6 +777,9 @@ class TrainingSessionController extends Controller
 
     public function downloadPlan(TrainingSession $session, string $type = 'team')
     {
+        // Bisher ohne Prüfung: jeder Angemeldete kam über die Einheit-ID an jeden Plan
+        abort_unless($session->planVisibleTo(auth()->user()), 403);
+
         $path = $type === 'individual'
             ? $session->individual_plan_path
             : $session->team_plan_path;
@@ -953,6 +960,14 @@ class TrainingSessionController extends Controller
         }
 
         return $dates;
+    }
+
+    /** Trainingsplan bearbeiten/hochladen: Einheit verwalten UND Plan sehen dürfen */
+    private function authorizePlan(TrainingSession $session): void
+    {
+        $this->authorizeSession($session);
+        abort_unless($session->planVisibleTo(auth()->user()), 403,
+            'Den Trainingsplan sehen nur die Trainer dieser Einheit bzw. Gruppe.');
     }
 
     private function authorizeSession(TrainingSession $session): void

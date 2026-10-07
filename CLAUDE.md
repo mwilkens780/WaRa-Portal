@@ -200,6 +200,11 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   Fest bleiben: Systemwerkzeuge (`role:admin`), persönliche Bereiche (Schwimmer, Eltern),
   Gesundheitsdaten (Ernährung/Teamarzt), `assignableRoles()` (Administrator vergibt nur ein Admin).
   Trainingseinheiten: Trainer eigene Gruppen, Vorstand alle – nicht die Geschäftsstelle.
+- **Trainingspläne (Know-how-Schutz)**: Plan, Beschreibung, Anhänge, Teamplan nur über
+  `TrainingSession::planVisibleTo()` – Trainer der Einheit/Gruppe, Admin, Matrix `training_plans_all`;
+  Sportler ihre Einheit nach dem Training. Einheit verwalten (`isManageableBy`) reicht nicht.
+- **Persönliche Ziele**: `swimmer_goals.shared_with_trainer` (Sportler entscheidet je Ziel); Trainer sehen
+  nicht freigegebene nur als Anzahl, kommentieren nur freigegebene Ziele eigener Gruppen.
 - **Dashboard** (`<x-officials-panel />`, auf allen Dashboards; Vorstand/Kampfrichter-Rolle haben
   `/dashboard`): Kampfrichter – Erinnerungen (offene Anfragen, eigene Lizenz < 6 Monate), anstehende
   Einsätze, letzte Einsätze; Vorstand – Wettkämpfe (90 Tage) mit Meldestand, auslaufende Lizenzen

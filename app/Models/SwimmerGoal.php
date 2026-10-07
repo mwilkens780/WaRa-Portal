@@ -10,12 +10,13 @@ class SwimmerGoal extends Model
         'user_id', 'season_id', 'type', 'title',
         'discipline', 'distance', 'course',
         'target_time_ms', 'status', 'achieved', 'achieved_at', 'achieved_time_ms',
-        'progress', 'notes', 'notified',
+        'progress', 'notes', 'notified', 'shared_with_trainer',
     ];
 
     protected function casts(): array
     {
         return [
+            'shared_with_trainer' => 'boolean',
             'achieved'         => 'boolean',
             'notified'         => 'boolean',
             'achieved_at'      => 'date',
@@ -72,7 +73,13 @@ class SwimmerGoal extends Model
     public function season()   { return $this->belongsTo(Season::class); }
     public function comments() { return $this->hasMany(SwimmerGoalComment::class); }
 
-    public function isOpen(): bool        { return ($this->status ?? 'open') === 'open'; }
+    /** Nur freigegebene Ziele dürfen Trainer sehen und kommentieren */
+    public function scopeSharedWithTrainer($query)
+    {
+        return $query->where('shared_with_trainer', true);
+    }
+
+    public function isOpen(): bool       { return ($this->status ?? 'open') === 'open'; }
     public function isAchieved(): bool    { return $this->achieved; }
     public function isClosed(): bool      { return !$this->isOpen(); }
 

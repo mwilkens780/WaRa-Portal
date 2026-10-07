@@ -181,7 +181,9 @@ class LiveTimingController extends Controller
 
     private function authorizeSession(TrainingSession $session): void
     {
-        if (!$session->isManageableBy(auth()->user())) {
+        // Live-Zeitnahme zeigt den Trainingsplan: nur Trainer der Einheit/Gruppe
+        $user = auth()->user();
+        if (!$session->isManageableBy($user) || !$session->planVisibleTo($user)) {
             abort(403);
         }
     }

@@ -275,6 +275,31 @@ class TrainingSession extends Model
         return static::query()->whereKey($this->getKey())->visibleToSwimmer($user)->exists();
     }
 
+    /** Trainer dieser Einheit: als Co-Trainer eingetragen oder Trainer einer ihrer Gruppen */
+    public function isTrainerOf(User $user): bool
+    {
+        return $this->coTrainers()->where('users.id', $user->id)->exists()
+            || $this->trainingGroups()->whereHas('trainers', fn($t) => $t->where('users.id', $user->id))->exists();
+    }
+
+    /**
+     * Wer den Trainingsplan (Blöcke, Beschreibung, Anhänge) sehen darf –
+     * Schutz vor Abfluss an andere Trainer (Martin, 07.10.2026):
+     * nur die Trainer der Einheit bzw. ihrer Gruppen, Admin und wer das
+     * Matrix-Recht "Trainingspläne aller Einheiten einsehen" hat. Vorstand
+     * verwaltet Einheiten, sieht die Pläne aber nur mit diesem Recht.
+     * Sportler sehen den Plan ihrer eigenen Einheit nach dem Training.
+     */
+    public function planVisibleTo(?User $user): bool
+    {
+        if (!$user) return false;
+        if ($user->canAccess('training_plans_all') || $this->isTrainerOf($user)) return true;
+
+        return $user->role === 'schwimmer'
+            && $this->date->lte(today())
+            && $this->isVisibleToSwimmer($user);
+    }
+
     public function isManageableBy(User $user): bool
     {
         return $user->canAccess('training_all')

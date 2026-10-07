@@ -54,7 +54,16 @@ class GoalController extends Controller
                 ->merge($r['leavers']->map(fn($l) => $l->user->id)))
             ->unique();
 
-        $goalsBySwimmer = SwimmerGoal::whereIn('user_id', $swimmerIds)
+        // Persönliche Ziele nur, wenn der Sportler sie freigegeben hat; von den
+        // übrigen sieht der Trainer nur die Anzahl (Martin, 07.10.2026)
+        $privateGoalCounts = SwimmerGoal::whereIn('user_id', $swimmerIds)
+            ->where('season_id', $activeSeason?->id)
+            ->where('shared_with_trainer', false)
+            ->selectRaw('user_id, COUNT(*) as cnt')->groupBy('user_id')
+            ->pluck('cnt', 'user_id');
+
+        $goalsBySwimmer = SwimmerGoal::sharedWithTrainer()
+            ->whereIn('user_id', $swimmerIds)
             ->where('season_id', $activeSeason?->id)
             ->with(['user', 'comments.trainer'])
             ->orderByRaw("FIELD(type,'time','qualification','free')")
@@ -72,12 +81,18 @@ class GoalController extends Controller
             ->groupBy('training_group_id');
 
         return view('trainer.goals', compact(
-            'groups', 'rosters', 'isPast', 'goalsBySwimmer', 'criteria', 'seasons', 'activeSeason'
+            'groups', 'rosters', 'isPast', 'goalsBySwimmer', 'privateGoalCounts', 'criteria', 'seasons', 'activeSeason'
         ));
     }
 
     public function storeComment(Request $request, SwimmerGoal $goal)
     {
+        // Nur freigegebene Ziele von Sportlern der eigenen Gruppen (bisher ohne Prüfung)
+        $trainer = auth()->user();
+        abort_unless($goal->shared_with_trainer, 403, 'Dieses Ziel hat der Sportler nicht freigegeben.');
+        abort_unless($trainer->isAdmin() || TrainingGroup::whereHas('trainers', fn($q) => $q->where('users.id', $trainer->id))
+            ->whereHas('swimmers', fn($q) => $q->where('users.id', $goal->user_id))->exists(), 403);
+
         $data = $request->validate(['comment' => ['required', 'string', 'max:1000']]);
 
         SwimmerGoalComment::updateOrCreate(
