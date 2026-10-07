@@ -20,6 +20,7 @@ class CompetitionResultImportController extends Controller
     public function __construct(
         private DsvImportService $service,
         private RecordCheckService $recordCheck,
+        private \App\Services\Import\RelayResultWriter $relays,
     ) {}
 
     // ── Schritt 1: Datei hochladen + parsen ─────────────────────────────────
@@ -134,7 +135,8 @@ class CompetitionResultImportController extends Controller
     {
         $data = $request->validate([
             'meet_index' => ['required', 'integer', 'min:0'],
-            'mappings'   => ['present', 'array'],
+            'mappings'      => ['nullable', 'array'],
+            'import_relays' => ['nullable', 'array'],
         ]);
 
         $parsed = session('comp_result_import_parsed');
@@ -164,8 +166,10 @@ class CompetitionResultImportController extends Controller
         foreach ($meet['clubs'] as $ci => $club) {
             foreach ($club['athletes'] as $ai => $athlete) {
                 if ($athlete['is_relay'] ?? false) {
+                    // Staffeln je Verein abwählbar (Vorschau); alle Vereine nötig für Mannschaftswertungen
+                    if (empty($data['import_relays'][$ci])) continue;
                     foreach ($athlete['results'] as $result) {
-                        $this->importRelayResult($competition->id, $club['name'], $athlete, $result);
+                        $this->relays->store($competition->id, $club['name'], $athlete, $result);
                         $relayImported++;
                     }
                     continue;
@@ -220,6 +224,13 @@ class CompetitionResultImportController extends Controller
 
     private function matchAthlete(array $athlete, \Illuminate\Support\Collection $swimmers): ?int
     {
+        if ($athlete['is_relay'] ?? false) return null;
+
+        // DSV-ID ist eindeutig – vor dem Namen prüfen
+        if (!empty($athlete['dsvid']) && ($byDsv = $swimmers->firstWhere('dsv_id', (string) $athlete['dsvid']))) {
+            return $byDsv->id;
+        }
+
         $aFirst = mb_strtolower(trim($athlete['firstname'] ?? ''));
         $aLast  = mb_strtolower(trim($athlete['lastname']  ?? ''));
 
@@ -241,30 +252,6 @@ class CompetitionResultImportController extends Controller
         return null;
     }
 
-    private function importRelayResult(int $competitionId, string $clubName, array $athlete, array $result): void
-    {
-        $exists = RelayResult::where([
-            'competition_id' => $competitionId,
-            'discipline'     => $result['discipline'],
-            'distance'       => $result['distance'],
-            'club_name'      => $clubName,
-            'time_ms'        => $result['time_ms'],
-        ])->exists();
-
-        if ($exists) return;
-
-        RelayResult::create([
-            'competition_id' => $competitionId,
-            'discipline'     => $result['discipline'],
-            'distance'       => $result['distance'],
-            'club_name'      => $clubName,
-            'time_ms'        => $result['time_ms'],
-            'placement'      => $result['place'] ?? null,
-            'age_group'      => $result['age_group'] ?? null,
-            'gender'         => $athlete['gender'] ?? null,
-            'status'         => 'OK',
-        ]);
-    }
 
     private function importResult(int $competitionId, int $userId, array $result, string $gender = 'X'): ?CompetitionResult
     {
@@ -276,6 +263,8 @@ class CompetitionResultImportController extends Controller
         $isFinal   = in_array($result['round_type'] ?? '', ['F', 'E']);
         // Übungsform (Beine, Kicks …): markiert übernehmen, keine Bestzeit
         $exercise  = \App\Support\Exercise::normalize($result['ausuebung'] ?? null);
+        // Startschwimmer einer Staffel: offizielle Einzelzeit, aber eigenes Rennen
+        $leadoff   = !empty($result['relay_leadoff']);
 
         // Dedup by physical swim: competition + user + discipline + distance + round_type + time
         $exists = CompetitionResult::where('competition_id', $competitionId)
@@ -283,6 +272,7 @@ class CompetitionResultImportController extends Controller
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
             ->where('exercise', $exercise)
+            ->where('relay_leadoff', $leadoff)
             ->where('is_final', $isFinal)
             ->where('time_ms', $isDns ? 0 : $result['time_ms'])
             ->exists();
@@ -332,6 +322,7 @@ class CompetitionResultImportController extends Controller
             'discipline'       => $result['discipline'],
             'distance'         => $result['distance'],
             'exercise'         => $exercise,
+            'relay_leadoff'    => $leadoff,
             'time_ms'          => $result['time_ms'],
             'placement'        => $result['place'] ?? null,
             'is_personal_best' => $isPb,
@@ -339,6 +330,7 @@ class CompetitionResultImportController extends Controller
             'wertungen'        => $wertungen,
             'gender'           => $resGender !== 'X' ? $resGender : null,
             'is_final'         => $isFinal,
+            'notes'            => $result['notes'] ?? null,
         ]);
     }
 }

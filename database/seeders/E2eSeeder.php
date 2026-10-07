@@ -233,6 +233,18 @@ class E2eSeeder extends Seeder
         // Abgelaufene Lizenz eines Elternteils (Liste des Vorstands)
         $parent->forceFill(['kampfrichter_license_nr' => 'KR-0815', 'kampfrichter_license_valid_until' => now()->subMonths(2)->format('Y-m-d')])->saveQuietly();
 
+        // DMS-J: Mannschaftswertung aus fünf Staffeln je Mannschaft (Reiter "Mannschaftswertung")
+        $dms = Competition::create([
+            'name' => 'E2E-DMS-J Landesentscheid', 'location' => 'Niebüll', 'date' => now()->subDays(3)->format('Y-m-d'),
+            'type' => 'dms', 'course' => 'Kurzbahn', 'season_id' => $season->id,
+        ]);
+        foreach (['F' => [300000, 310000], 'B' => [360000, 350000], 'R' => [330000, 340000], 'S' => [320000, 0], 'L' => [325000, 335000]] as $disc => [$own, $other]) {
+            \App\Models\RelayResult::create(['competition_id' => $dms->id, 'discipline' => $disc, 'distance' => 100, 'relay_legs' => 4,
+                'club_name' => 'SG Wasserratten Norderstedt', 'team_number' => 1, 'round' => 'E', 'time_ms' => $own, 'status' => 'OK', 'age_group' => 'Jugend D', 'gender' => 'F']);
+            \App\Models\RelayResult::create(['competition_id' => $dms->id, 'discipline' => $disc, 'distance' => 100, 'relay_legs' => 4,
+                'club_name' => 'SG Lübeck', 'team_number' => 1, 'round' => 'E', 'time_ms' => $other ?: null, 'status' => $other ? 'OK' : 'DQ', 'age_group' => 'Jugend D', 'gender' => 'F']);
+        }
+
         Record::create([
             'type' => 'vereinsrekord', 'discipline' => 'F', 'distance' => 50, 'gender' => 'M', 'course' => 'Langbahn',
             'swimmer_name' => 'Ben Bahn', 'time_ms' => 24530, 'set_year' => now()->year - 1, 'location' => 'Hamburg',

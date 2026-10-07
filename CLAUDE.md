@@ -131,6 +131,16 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   (4×50 → 200), Strecke je Schwimmer = `leg_distance`. WebClub und Lenex liefern die Strecke je
   Schwimmer – beim Speichern mit `relay_legs` multiplizieren. Reihenfolge = `sort_order` aus der
   Quelle (Scope `inProgramOrder`), nie nach `event_number` sortieren (Finals 101 … gehören ins Programm).
+- **Staffeln aus DSV-Dateien**: `relay_results.distance` = Strecke je Schwimmer + `relay_legs`,
+  dazu `team_number` (1./2. Mannschaft), `round` (E/N = Nachschwimmen), Status aus dem Grund der
+  Nichtwertung (DS→DQ, AB …). Speichern nur über `App\Services\Import\RelayResultWriter` (inkl.
+  Besetzung als Athleten, per DSV-ID/Name mit Portal-Schwimmern verknüpft). Der Parser legt die
+  Zeit des **Startschwimmers** (1. Zwischenzeit bei der Strecke je Schwimmer, Lagen → Rücken) als
+  Einzelergebnis mit `relay_leadoff` an – nur aus gewerteten Staffeln.
+- **Mannschaftswertung** (DMS-J): `App\Services\Ranking\TeamRelayRanking` – Gesamtzeit je
+  Altersklasse/Geschlecht/Vereinsmannschaft, Nachschwimmen ersetzt Disqualifikation, ohne gültige
+  Zeit „ohne Gesamtzeit“, Gleichstand: Lagen, Rücken, Brust, Schmetterling, Freistil (DSV-DB DMSJ).
+  Reiter „Mannschaftswertung“ bei Typ `dms`, „DMS“ im Namen oder reinen Staffelwettkämpfen.
 - Vereinskennzahl/-name: Admin → Einstellungen → „Verein (DSV-Dateien)“ (`club.dsv_number`, `club.name`).
   Ohne Kennzahl gibt es keine Meldedatei.
 - Spezifikation: dsv.de → Service → Formulare → Schwimmen („DSV Standard 8 gültig ab 01.08.2026“).

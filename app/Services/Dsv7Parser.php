@@ -52,7 +52,7 @@ class Dsv7Parser
     // Record types that carry no result/definition data — skip entirely
     private const SKIP_KEYWORDS = [
         'WETTKAMPFENDE', 'DATEIENDE', 'DATEI',
-        'PNZWISCHENZEIT', 'ZWISCHENZEIT', 'ZWISCHENZEITEN', 'STZWISCHENZEIT',
+        'PNZWISCHENZEIT', 'ZWISCHENZEIT', 'ZWISCHENZEITEN',
         'PNREAKTION', 'STABLOESE',
         'MELDUNG', 'ANMELDUNG', 'NACHMELDUNG',
         'STAFFELSTART', 'STAFFELAUSSCHLUSS',
@@ -220,7 +220,8 @@ class Dsv7Parser
 
             // Skip Pascal comment lines
             if (str_starts_with($line, '(*')) continue;
-            // Strip inline trailing comments: (* ... *)
+            // Strip inline trailing comments: (* ... *) – Inhalt als Hinweis merken
+            $comment = preg_match('/\(\*\s*(.*?)\s*\*\)\s*$/', $line, $cm) ? $cm[1] : '';
             $line = preg_replace('/\s*\(\*.*?\*\)\s*$/', '', $line);
             $line = trim($line);
             if ($line === '') continue;
@@ -429,6 +430,8 @@ class Dsv7Parser
                         'is_relay'       => $relayLegs > 1,
                         'relay_legs'     => $relayLegs,
                         'ausuebung'      => $ausuebung ?: 'GL',
+                        // Altersklasse aus dem Kommentar (EasyWk: "4x100m Freistil weiblich Jugend D")
+                        'class_hint'     => preg_match('/\b(Jugend [A-E]|Junioren|Masters|Offene Klasse)\b/iu', $comment, $hm) ? $hm[1] : null,
                     ];
                     // Store by event number so WERTUNG can look it up regardless of
                     // whether all WETTKAMPFs precede all WERTUNGs in the file.
@@ -479,6 +482,7 @@ class Dsv7Parser
                         'age_min'            => $ageMin,
                         'age_max'            => $ageMax,
                         'age_type'           => in_array($ageType, ['JG', 'AK'], true) ? $ageType : null,
+                        'class_label'        => $this->classLabel($sourceWk['class_hint'] ?? null, $ageType, $ageMin, $ageMax, $sessions),
                         'art'                => $artCode,
                         'qualifying_time_ms' => null,
                         'meldegeld'          => null,
@@ -744,24 +748,32 @@ class Dsv7Parser
                     break;
 
                 case 'STERGEBNIS':
-                    // Wettkampfergebnisliste relay: wkNr;art;wertungsID;platz;nichtwertung;nrMannschaft;VIDstaffel;verein;vereinNr;endzeit
+                    // Wettkampfergebnisliste relay:
+                    //   wkNr ; art ; wertungsID ; platz ; nichtwertung ; nrMannschaft ; VIDstaffel ; verein ; vereinNr ; endzeit
+                    //     0     1        2          3          4              5              6           7         8         9
+                    // art: E = Entscheidung, N = Nachschwimmen (z. B. DMS-J nach Disqualifikation)
                     $wertungId   = (int)$f(2);
                     $placement   = ((int)$f(3)) ?: null;
+                    $rawStatus   = strtoupper($f(4));
+                    $teamNumber  = (int)$f(5) ?: 1;
                     $staffelId   = (int)$f(6);
-                    $staffelName = $f(5) !== '' ? $f(5) : 'Staffel';
                     $clubName    = $f(7);
                     $timeStr     = $f(9);
+                    $isDnsType   = in_array($rawStatus, self::DNS_STATUSES, true);
 
                     if (!isset($wertungMap[$wertungId])) break;
                     if ($clubName === '') break;
-                    if ($timeStr === '' || strtoupper($timeStr) === 'NT') break;
 
-                    $timeMs = $this->parseTime($timeStr);
-                    if ($timeMs <= 0) break;
+                    $timeMs = ($timeStr !== '' && strtoupper($timeStr) !== 'NT') ? $this->parseTime($timeStr) : 0;
+                    // Ohne Zeit nur mit Grund (disqualifiziert, abgemeldet …) – für Mannschaftswertungen wichtig
+                    if ($timeMs <= 0 && !$isDnsType) break;
+                    if ($isDnsType) $timeMs = 0;
 
                     $wertung    = $wertungMap[$wertungId];
-                    $ageGroup   = $wertung['age_group'] ?? '';
                     $eventNum   = $wertung['event_number'];
+                    $legs       = max(1, (int)($wertung['relay_legs'] ?? 1));
+                    // Altersklasse statt "Offene Wertung", wenn die Wertung keinen sprechenden Namen hat
+                    $ageGroup   = $this->relayAgeGroup($wertung);
                     $athleteKey = '__relay_' . $eventNum . '_' . $staffelId;
 
                     if (!isset($clubs[$clubName])) {
@@ -769,15 +781,18 @@ class Dsv7Parser
                     }
 
                     if (!isset($clubs[$clubName]['athletes'][$athleteKey])) {
+                        $label = $teamNumber > 1 ? "{$teamNumber}. Mannschaft" : 'Staffel';
                         $clubs[$clubName]['athletes'][$athleteKey] = [
-                            'name'            => $staffelName,
-                            'firstname'       => $staffelName,
+                            'name'            => $label,
+                            'firstname'       => $label,
                             'lastname'        => '(Staffel)',
                             'birthdate'       => '',
                             'gender'          => $wertung['gender'],
                             'dsvid'           => '',
                             'is_relay'        => true,
+                            'team_number'     => $teamNumber,
                             'relay_members'   => [],
+                            'relay_splits'    => [],
                             'results'         => [],
                             'matched_user_id' => null,
                         ];
@@ -785,22 +800,43 @@ class Dsv7Parser
 
                     if (empty($clubs[$clubName]['athletes'][$athleteKey]['results'])) {
                         $clubs[$clubName]['athletes'][$athleteKey]['results'][] = [
-                            'eventid'    => (string)$wertungId,
-                            'discipline' => $wertung['discipline'],
-                            'distance'   => $wertung['distance'],
-                            'age_group'  => $ageGroup,
-                            'wertungen'  => $ageGroup !== '' ? [$ageGroup] : [],
-                            'time_ms'    => $timeMs,
-                            'swimtime'   => $this->formatTime($timeMs),
-                            'place'      => $placement,
-                            'status'     => null,
-                            'is_relay'   => true,
+                            'eventid'      => (string)$wertungId,
+                            'event_number' => $eventNum,
+                            'discipline'   => $wertung['discipline'],
+                            // Staffeln: Strecke je Schwimmer + Anzahl (wie relay_results), nicht 400 für 4×100
+                            'distance'     => intdiv((int)$wertung['distance'], $legs),
+                            'relay_legs'   => $legs,
+                            'age_group'    => $ageGroup,
+                            'wertungen'    => $ageGroup !== '' ? [$ageGroup] : [],
+                            'time_ms'      => $timeMs,
+                            'swimtime'     => $timeMs > 0 ? $this->formatTime($timeMs) : $rawStatus,
+                            'place'        => $isDnsType ? 0 : $placement,
+                            'status'       => $isDnsType ? $rawStatus : null,
+                            'round'        => strtoupper($f(1)) ?: 'E',
+                            'team_number'  => $teamNumber,
+                            'is_relay'     => true,
                         ];
                     } elseif ($ageGroup !== '' && !in_array($ageGroup, $clubs[$clubName]['athletes'][$athleteKey]['results'][0]['wertungen'])) {
                         $clubs[$clubName]['athletes'][$athleteKey]['results'][0]['wertungen'][] = $ageGroup;
                     }
 
                     $pendingRelay = ['club' => $clubName, 'key' => $athleteKey];
+                    break;
+
+                case 'STZWISCHENZEIT':
+                    // VIDstaffel ; wkNr ; art ; Startnr. des Schwimmers ; Distanz ; Zeit (aufgelaufen)
+                    // Beispiel im Standard mit Komma-Tippfehler ("E,1") – beides lesen
+                    if (!$pendingRelay) break;
+                    $parts = $fields;
+                    if (str_contains($f(2), ',')) array_splice($parts, 2, 1, explode(',', $f(2)));
+                    $leg  = (int)trim($parts[3] ?? 0);
+                    $dist = (int)trim($parts[4] ?? 0);
+                    $ms   = $this->parseTime(trim($parts[5] ?? ''));
+                    if ($leg > 0 && $dist > 0 && $ms > 0) {
+                        $clubs[$pendingRelay['club']]['athletes'][$pendingRelay['key']]['relay_splits'][] = [
+                            'leg' => $leg, 'distance_m' => $dist, 'cumulative_ms' => $ms,
+                        ];
+                    }
                     break;
 
                 case 'STAFFELMITGLIED':
@@ -811,6 +847,9 @@ class Dsv7Parser
                     $memberName = $f(1);
                     $birthYear  = $keyword === 'STAFFELPERSON' ? $f(3) : $f(5);
                     $splitTime  = $keyword === 'STAFFELPERSON' ? $f(8) : $f(7);
+                    $leg        = count($clubs[$pendingRelay['club']]['athletes'][$pendingRelay['key']]['relay_members']) + 1;
+                    $memberDsv  = '';
+                    $memberSex  = 'X';
 
                     // Offizieller Standard (DSV7/8): VIDstaffel ; wkNr ; art ; Name ; DSV-ID ;
                     // Startnr ; Geschlecht ; Jahrgang ; … – erkennbar an der Wettkampfart in Feld 2
@@ -818,6 +857,9 @@ class Dsv7Parser
                         $memberName = $f(3);
                         $birthYear  = $f(7);
                         $splitTime  = '';
+                        $memberDsv  = $f(4) === '0' ? '' : $f(4);
+                        $leg        = (int)$f(5) ?: $leg;
+                        $memberSex  = $this->normalizeGender($f(6));
                     }
 
                     $clubs[$pendingRelay['club']]['athletes'][$pendingRelay['key']]['relay_members'][] = [
@@ -826,6 +868,9 @@ class Dsv7Parser
                         'lastname'  => $this->extractLastname($memberName),
                         'birthyear' => $birthYear,
                         'splittime' => $splitTime,
+                        'leg'       => $leg,
+                        'dsvid'     => $memberDsv,
+                        'gender'    => $memberSex,
                     ];
                     break;
 
@@ -862,7 +907,104 @@ class Dsv7Parser
         }
         unset($wertung);
 
+        $this->addLeadoffResults($clubs);
+
         return [$meta, $sessions, $wertungMap, $clubs, $sessionMeta];
+    }
+
+    /**
+     * Startschwimmer einer Staffel: Er startet vom Block, seine Zeit ist eine
+     * offizielle Einzelzeit (Hinweis Martin, 07.10.2026). Sie steht als
+     * aufgelaufene Zwischenzeit des 1. Schwimmers bei genau der Strecke je
+     * Schwimmer in STZWISCHENZEIT. Lagenstaffel: Startschwimmer schwimmt Rücken.
+     *
+     * Nur aus gewerteten Staffeln (nicht disqualifiziert/abgemeldet) und nur
+     * mit plausibler Zeit – lieber keine als eine falsche Einzelzeit.
+     */
+    private function addLeadoffResults(array &$clubs): void
+    {
+        $add = [];
+        foreach ($clubs as $clubName => $club) {
+            foreach ($club['athletes'] as $relay) {
+                if (empty($relay['is_relay'])) continue;
+                $r = $relay['results'][0] ?? null;
+                if (!$r || !empty($r['status']) || ($r['relay_legs'] ?? 1) < 2) continue;
+
+                $lead = collect($relay['relay_members'])->firstWhere('leg', 1);
+                $time = collect($relay['relay_splits'] ?? [])
+                    ->first(fn($s) => $s['leg'] === 1 && $s['distance_m'] === (int) $r['distance'])['cumulative_ms'] ?? 0;
+                if (!$lead || $time <= 0 || $lead['lastname'] === '') continue;
+
+                $discipline = $r['discipline'] === 'L' ? 'R' : $r['discipline'];
+                if (\App\Services\TimePlausibility::isImplausible($discipline, (int) $r['distance'], $time)) continue;
+
+                $add[$clubName][] = [$lead, [
+                    'result_key'    => 'leadoff|' . ($r['event_number'] ?? $r['eventid']),
+                    'eventid'       => $r['eventid'],
+                    'discipline'    => $discipline,
+                    'distance'      => (int) $r['distance'],
+                    'age_group'     => $r['age_group'],
+                    'wertungen'     => [],
+                    'gender'        => $lead['gender'] ?? ($relay['gender'] ?? 'X'),
+                    'time_ms'       => $time,
+                    'swimtime'      => $this->formatTime($time),
+                    'place'         => null,
+                    'status'        => null,
+                    'round_type'    => '',
+                    'is_relay'      => false,
+                    'relay_leadoff' => true,
+                    'notes'         => 'Startschwimmer ' . $r['relay_legs'] . '×' . $r['distance'] . ' m',
+                ]];
+            }
+        }
+
+        foreach ($add as $clubName => $rows) {
+            foreach ($rows as [$m, $result]) {
+                $key = $m['name'] . '|' . $m['birthyear'];
+                $clubs[$clubName]['athletes'][$key] ??= [
+                    'name'            => $m['name'],
+                    'firstname'       => $m['firstname'],
+                    'lastname'        => $m['lastname'],
+                    'birthdate'       => $m['birthyear'],
+                    'gender'          => $m['gender'] ?? 'X',
+                    'dsvid'           => $m['dsvid'] ?? '',
+                    'is_relay'        => false,
+                    'relay_members'   => [],
+                    'results'         => [],
+                    'matched_user_id' => null,
+                ];
+                $clubs[$clubName]['athletes'][$key]['results'][] = $result;
+            }
+        }
+    }
+
+    /** Altersklasse einer Staffel-Wertung: sprechender Wertungsname, sonst die ermittelte Klasse */
+    private function relayAgeGroup(array $wertung): string
+    {
+        $name = trim($wertung['age_group'] ?? '');
+        if ($name !== '' && !preg_match('/^offene? (wertung|klasse)$/iu', $name)) return $name;
+
+        return $wertung['class_label'] ?? $name;
+    }
+
+    /**
+     * Altersklasse aus Kommentar oder Jahrgängen. Jugend A–D nach den DSV-
+     * Durchführungsbestimmungen DMSJ (D = 10/11, C = 12/13, B = 14/15, A = 16/17
+     * Jahre im Wettkampfjahr); alles andere als Jahrgangsspanne.
+     */
+    private function classLabel(?string $hint, string $ageType, ?int $min, ?int $max, array $sessions): ?string
+    {
+        if ($hint) return $hint;
+        if ($ageType !== 'JG' || !$min) return null;
+
+        $max  = $max && $max < 9999 ? $max : $min;
+        $year = (int) substr((string) (collect($sessions)->sort()->first() ?? date('Y-m-d')), 0, 4);
+        $ages = [$year - $max, $year - $min];   // jüngster, ältester Jahrgang
+        foreach (['D' => 10, 'C' => 12, 'B' => 14, 'A' => 16] as $class => $young) {
+            if ($ages === [$young, $young + 1]) return "Jugend {$class}";
+        }
+
+        return $min === $max ? "Jg. {$min}" : "Jg. {$min}–{$max}";
     }
 
     /**

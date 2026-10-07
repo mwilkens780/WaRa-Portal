@@ -99,3 +99,23 @@ test.describe('Kampfgericht-Übersicht (Admin)', () => {
         expect(errors).toEqual([]);
     });
 });
+
+test.describe('Mannschaftswertung DMS-J (Admin)', () => {
+    test.use({ storageState: authFile('admin') });
+
+    test('Gesamtzeit je Mannschaft, Disqualifikation ohne Gesamtzeit', async ({ page }) => {
+        const errors = collectErrors(page);
+        await page.goto('/admin/wettkaempfe');
+        await ready(page);
+        await page.getByRole('link', { name: 'E2E-DMS-J Landesentscheid' }).first().click();
+        await ready(page);
+        await page.getByRole('button', { name: 'Mannschaftswertung' }).click();
+        const own = page.locator('tr', { hasText: 'SG Wasserratten Norderstedt' });
+        await expect(own).toContainText('1.');
+        await expect(own).toContainText('27:15,00');
+        await expect(page.locator('tr', { hasText: 'SG Lübeck' })).toContainText('ohne Gesamtzeit');
+        expect(await layoutProblems(page)).toEqual([]);
+        await expectAccessible(page);
+        expect(errors).toEqual([]);
+    });
+});

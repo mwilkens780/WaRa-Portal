@@ -294,6 +294,11 @@ class CompetitionController extends Controller
             ->get()
             ->groupBy('category');
 
+        // Mannschaftswertung aus Staffeln (DMS-J: Gesamtzeit je Altersklasse und Vereinsmannschaft)
+        $teamRanking = \App\Services\Ranking\TeamRelayRanking::applies($competition)
+            ? app(\App\Services\Ranking\TeamRelayRanking::class)->forCompetition($competition)
+            : collect();
+
         // Kampfrichter-Abfrage: Vorstand/Admin verwalten, Angefragte sehen ihren Link
         $officialRequest    = $competition->officialRequest()->with(['invitees.user:id,firstname,lastname', 'invitees.assignments'])->first()?->setRelation('competition', $competition);
         $canManageOfficials = \App\Models\CompetitionOfficialRequest::canManage(auth()->user());
@@ -308,7 +313,7 @@ class CompetitionController extends Controller
                     'hasPflichtzeiten', 'hasMeldegelder', 'signupRequest',
                     'hasQualifikation', 'qualifyingEvents', 'qualificationSwimmers',
                     'qualResultsByUserEvent', 'bestTimesByUserEvent', 'documents',
-                    'officialRequest', 'canManageOfficials', 'myOfficialInvite', 'officialCandidates', 'officialCount'));
+                    'officialRequest', 'canManageOfficials', 'myOfficialInvite', 'officialCandidates', 'officialCount', 'teamRanking'));
     }
 
     // ── Ausschreibungs-Import (PDF → Claude → strukturierte Daten) ────────────

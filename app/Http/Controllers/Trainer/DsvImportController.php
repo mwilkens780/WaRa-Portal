@@ -176,7 +176,7 @@ class DsvImportController extends Controller
             foreach ($club['athletes'] as $ai => $athlete) {
                 if ($athlete['is_relay'] ?? false) {
                     foreach ($athlete['results'] as $result) {
-                        if ($this->importRelayResult($competition->id, $club['name'], $athlete, $result)) {
+                        if (app(\App\Services\Import\RelayResultWriter::class)->store($competition->id, $club['name'], $athlete, $result)) {
                             $relayImported++;
                         } else {
                             $duplicates++;
@@ -225,6 +225,12 @@ class DsvImportController extends Controller
 
     private function matchAthlete(array $athlete, \Illuminate\Support\Collection $swimmers): ?int
     {
+        if ($athlete['is_relay'] ?? false) return null;
+        // DSV-ID ist eindeutig – vor dem Namen prüfen
+        if (!empty($athlete['dsvid']) && ($byDsv = $swimmers->firstWhere('dsv_id', (string) $athlete['dsvid']))) {
+            return $byDsv->id;
+        }
+
         $aFirst = mb_strtolower(trim($athlete['firstname'] ?? ''));
         $aLast  = mb_strtolower(trim($athlete['lastname']  ?? ''));
 
@@ -248,33 +254,6 @@ class DsvImportController extends Controller
         return null;
     }
 
-    /** @return bool true = neu gespeichert, false = schon vorhanden */
-    private function importRelayResult(int $competitionId, string $clubName, array $athlete, array $result): bool
-    {
-        $exists = RelayResult::where([
-            'competition_id' => $competitionId,
-            'discipline'     => $result['discipline'],
-            'distance'       => $result['distance'],
-            'club_name'      => $clubName,
-            'time_ms'        => $result['time_ms'],
-        ])->exists();
-
-        if ($exists) return false;
-
-        RelayResult::create([
-            'competition_id' => $competitionId,
-            'discipline'     => $result['discipline'],
-            'distance'       => $result['distance'],
-            'club_name'      => $clubName,
-            'time_ms'        => $result['time_ms'],
-            'placement'      => $result['place'] ?? null,
-            'age_group'      => $result['age_group'] ?? null,
-            'gender'         => $athlete['gender'] ?? null,
-            'status'         => 'OK',
-        ]);
-
-        return true;
-    }
 
     /** @return bool true = neu gespeichert, false = schon vorhanden (Zusammenfuehren) */
     private function importResult(int $competitionId, int $userId, array $result): bool
@@ -284,6 +263,8 @@ class DsvImportController extends Controller
         $isFinal   = in_array($result['round_type'] ?? '', ['F', 'E']);
         // Übungsform (Beine, Kicks …): markiert übernehmen, keine Bestzeit
         $exercise  = \App\Support\Exercise::normalize($result['ausuebung'] ?? null);
+        // Startschwimmer einer Staffel: offizielle Einzelzeit, eigenes Rennen
+        $leadoff   = !empty($result['relay_leadoff']);
 
         // Dedup by physical swim: competition + user + discipline + distance + round_type + time
         $exists = CompetitionResult::where('competition_id', $competitionId)
@@ -291,6 +272,7 @@ class DsvImportController extends Controller
             ->where('discipline', $result['discipline'])
             ->where('distance', $result['distance'])
             ->where('exercise', $exercise)
+            ->where('relay_leadoff', $leadoff)
             ->where('is_final', $isFinal)
             ->where('time_ms', $result['time_ms'])
             ->exists();
@@ -321,6 +303,8 @@ class DsvImportController extends Controller
             'discipline'       => $result['discipline'],
             'distance'         => $result['distance'],
             'exercise'         => $exercise,
+            'relay_leadoff'    => $leadoff,
+            'notes'            => $result['notes'] ?? null,
             'time_ms'          => $result['time_ms'],
             'placement'        => $result['place'],
             'is_personal_best' => $isPb,

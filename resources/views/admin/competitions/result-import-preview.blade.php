@@ -130,9 +130,17 @@
                     <p class="text-xs text-gray-600">
                         {{ $totalResults }} Einzelergebnisse
                         @if($relayEntries->count() > 0)
-                            · {{ $relayEntries->count() }} Staffel
+                            · {{ $relayEntries->count() }} Staffel{{ $relayEntries->count() !== 1 ? 'n' : '' }}
                         @endif
                     </p>
+                    {{-- Staffeln aller Vereine übernehmen: nötig für Mannschaftswertungen (DMS-J) --}}
+                    @if($relayEntries->count() > 0)
+                        <label class="mt-1 inline-flex items-center gap-2 text-xs text-gray-700">
+                            <input type="checkbox" name="import_relays[{{ $ci }}]" value="1" checked
+                                   class="rounded border-gray-300 text-primary focus:ring-primary/30">
+                            Staffeln übernehmen
+                        </label>
+                    @endif
                 </div>
             </div>
 
@@ -146,12 +154,13 @@
                                     <div class="flex items-center gap-2">
                                         <span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">Staffel</span>
                                         <span class="font-medium text-gray-700">{{ $athlete['firstname'] }}</span>
+                                        @if($athlete['results'][0]['age_group'] ?? null)<span class="text-xs text-gray-600">{{ $athlete['results'][0]['age_group'] }} · {{ \App\Support\Gender::label($athlete['gender']) }}</span>@endif
                                     </div>
                                     @if(!empty($athlete['relay_members']))
                                         <div class="mt-1 ml-1 space-y-0.5">
                                             @foreach($athlete['relay_members'] as $member)
                                                 <p class="text-xs text-gray-600">
-                                                    {{ $member['firstname'] }} {{ $member['lastname'] }}
+                                                    @isset($member['leg']){{ $member['leg'] }}. @endisset{{ $member['firstname'] }} {{ $member['lastname'] }}
                                                     @if($member['birthyear']) ({{ $member['birthyear'] }}) @endif
                                                     @if($member['splittime']) <span class="font-mono">{{ $member['splittime'] }}</span> @endif
                                                 </p>
@@ -162,17 +171,19 @@
                                 <x-ui.td>
                                     <div class="space-y-0.5">
                                         @foreach($athlete['results'] as $r)
-                                            <p class="text-xs text-gray-500">
-                                                {{ $r['distance'] }} m
+                                            <p class="text-xs text-gray-700">
+                                                {{ ($r['relay_legs'] ?? 0) > 1 ? $r['relay_legs'] . '×' . $r['distance'] : $r['distance'] }} m
                                                 {{ $r['discipline'] }}
-                                                <span class="font-mono text-purple-600 font-medium">{{ $r['swimtime'] }}</span>
+                                                @if(($r['round'] ?? 'E') === 'N') <span class="text-gray-600">Nachschwimmen</span> @endif
+                                                <span class="font-mono text-purple-700 font-medium">{{ $r['swimtime'] }}</span>
+                                                @if($r['status'] ?? null) <x-ui.badge tone="danger">{{ ['DS' => 'disqualifiziert', 'AB' => 'abgemeldet', 'NA' => 'nicht angetreten', 'AU' => 'aufgegeben'][$r['status']] ?? $r['status'] }}</x-ui.badge> @endif
                                                 @if($r['place'] ?? null) <span class="text-gray-600">Pl.&nbsp;{{ $r['place'] }}</span> @endif
                                             </p>
                                         @endforeach
                                     </div>
                                 </x-ui.td>
                                 <x-ui.td>
-                                    <p class="text-xs text-purple-600 font-medium">Staffelergebnis – wird importiert</p>
+                                    <p class="text-xs text-purple-700 font-medium">Staffelergebnis</p>
                                 </x-ui.td>
                             </tr>
                         @else
@@ -195,6 +206,7 @@
                                         @foreach($athlete['results'] as $r)
                                             <div class="text-xs text-gray-500">
                                                 <span>{{ $r['distance'] }} m {{ $r['discipline'] }}</span>
+                                                @if(!empty($r['relay_leadoff'])) <span class="px-1 py-0.5 bg-purple-50 text-purple-700 rounded">Startschwimmer</span> @endif
                                                 @if($r['round_type'] ?? '') <span class="text-gray-600">{{ ['V'=>'VL','F'=>'Fin','E'=>'E','Z'=>'ZL'][$r['round_type']] ?? $r['round_type'] }}</span> @endif
                                                 <span class="font-mono text-primary font-medium">{{ $r['swimtime'] }}</span>
                                                 @if($r['place'] ?? null) <span class="text-gray-600">Pl.&nbsp;{{ $r['place'] }}</span> @endif
@@ -248,8 +260,8 @@
 
         {{-- Aktions-Leiste --}}
         <x-ui.import-bar :cancel="route('admin.competitions.show', $competition)"
-                         count="select[name^='mappings'] option:checked:not([value='0'])"
-                         singular="zugeordneten Schwimmer" plural="zugeordnete Schwimmer">
+                         count="select[name^='mappings'] option:checked:not([value='0']), input[name^='import_relays']:checked"
+                         singular="Eintrag" plural="Einträge">
                 @php
                     $totalAthletes = collect($allClubs)->sum(fn($c) => collect($c['athletes'])->where('is_relay', false)->count());
                     $autoMatched   = collect($allClubs)->sum(fn($c) =>
@@ -265,7 +277,7 @@
                 <strong>{{ $autoMatched }}/{{ $totalAthletes }}</strong> Athleten automatisch erkannt ·
                 <strong>{{ $totalResults }}</strong> Einzelergebnisse bereit
                 @if($totalRelay > 0)
-                    · <strong>{{ $totalRelay }}</strong> Staffelergebnis{{ $totalRelay !== 1 ? 'se' : '' }} (werden importiert)
+                    · <strong>{{ $totalRelay }}</strong> Staffelergebnis{{ $totalRelay !== 1 ? 'se' : '' }} (je Verein abwählbar)
                 @endif
         </x-ui.import-bar>
 

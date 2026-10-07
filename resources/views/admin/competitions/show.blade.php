@@ -5,7 +5,7 @@
 @section('content')
 <div class="mt-2 space-y-4"
      x-data="{
-         activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : (in_array(request('tab'), ['kampfgericht', 'anmeldungen', 'organisation', 'dokumente'], true) ? request('tab') : 'ergebnisse') }}',
+         activeTab: '{{ $errors->has('dsv_file') || $errors->has('def_file') ? 'import' : (in_array(request('tab'), ['kampfgericht', 'mannschaft', 'anmeldungen', 'organisation', 'dokumente'], true) ? request('tab') : 'ergebnisse') }}',
          showForm: false,
          resultsView: 'strecke',
          editPZ: {},
@@ -125,6 +125,15 @@
                     <span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full font-normal">{{ $results->sum(fn($g) => $g->count()) }}</span>
                 @endif
             </button>
+            @if($teamRanking->isNotEmpty())
+                <button @click="activeTab = 'mannschaft'"
+                        :class="activeTab === 'mannschaft'
+                            ? 'border-primary text-primary bg-blue-50/40'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                        class="px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">
+                    Mannschaftswertung
+                </button>
+            @endif
             <button @click="activeTab = 'auswertung'"
                     :class="activeTab === 'auswertung'
                         ? 'border-primary text-primary bg-blue-50/40'
@@ -457,6 +466,12 @@
         @endif
 
         {{-- Tab: Ergebnisse --}}
+        @if($teamRanking->isNotEmpty())
+            <div x-show="activeTab === 'mannschaft'" x-cloak class="p-5 space-y-6">
+                @include('admin.competitions._team-ranking')
+            </div>
+        @endif
+
         <div x-show="activeTab === 'ergebnisse'">
 
             {{-- Ergebnis-Formular (nur Admin) --}}
