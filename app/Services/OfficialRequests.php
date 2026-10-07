@@ -59,43 +59,99 @@ class OfficialRequests
     }
 
     /**
-     * Zuordnung des Kampfrichterobmanns speichern: je Person und Abschnitt eine
-     * Position (leer = nicht eingesetzt) und die Kampfrichtergruppe.
-     * Eingesetzt wird nur, wer für den Tag des Abschnitts zugesagt hat.
+     * Bedarf je Abschnitt festlegen: gesuchte Positionen mit Anzahl
+     * (Basis der Zuordnung, Auftrag Martin 07.10.2026).
      *
-     * @param array<int, array{sessions?: array<int, ?string>, group?: ?string}> $rows  invitee_id => …
+     * @param array<int, array<string, int|string|null>> $grid  Abschnitt => [Position => Anzahl]
+     */
+    public function saveNeeds(CompetitionOfficialRequest $request, array $grid): int
+    {
+        if ($request->finalized_at) {
+            throw new \DomainException('Die Meldung ist freigegeben. Zum Ändern zuerst die Freigabe zurücknehmen.');
+        }
+        $sessions = collect($request->sessionsByDay())->flatten()->all();
+        $request->needs()->delete();
+        $total = 0;
+        foreach ($grid as $nr => $positions) {
+            if (!in_array((int) $nr, $sessions, true)) continue;
+            foreach ((array) $positions as $code => $count) {
+                $count = min(20, max(0, (int) $count));
+                if (!$count || !isset(CompetitionOfficialRequest::POSITIONS[$code])) continue;
+                $request->needs()->create(['session_number' => (int) $nr, 'position' => $code, 'count' => $count]);
+                $total += $count;
+            }
+        }
+
+        // Einsätze ohne passenden Bedarf entfallen
+        $needKeys = $request->needs()->get()->map(fn($n) => $n->session_number . '|' . $n->position)->all();
+        CompetitionOfficialAssignment::whereIn('competition_official_invitee_id', $request->invitees()->pluck('id'))->get()
+            ->reject(fn($a) => in_array($a->session_number . '|' . $a->position, $needKeys, true))
+            ->each->delete();
+
+        return $total;
+    }
+
+    /**
+     * Gesuchte Positionen besetzen: je Abschnitt und Position die gewählten
+     * Personen (aus den Rückmeldungen). Eine Person je Abschnitt nur einmal,
+     * nur an Tagen, für die sie zugesagt hat, höchstens so viele wie gesucht.
+     *
+     * @param array<int, array<string, list<int|string|null>>> $slots   Abschnitt => [Position => [invitee_id, …]]
+     * @param array<int, string|null>                            $groups  invitee_id => Kampfrichtergruppe
      * @return int Anzahl Einsätze
      */
-    public function saveAssignments(CompetitionOfficialRequest $request, array $rows): int
+    public function saveSlots(CompetitionOfficialRequest $request, array $slots, array $groups = []): int
     {
         if ($request->finalized_at) {
             throw new \DomainException('Die Meldung ist freigegeben. Zum Ändern zuerst die Freigabe zurücknehmen.');
         }
 
-        $valid = array_keys(CompetitionOfficialRequest::POSITIONS);
+        $invitees = $request->invitees()->with('user')->get()->keyBy('id');
+        $needs    = $request->needs()->get()->keyBy(fn($n) => $n->session_number . '|' . $n->position);
+        $plan     = [];   // invitee_id => [session => position]
+
+        foreach ($slots as $nr => $positions) {
+            foreach ((array) $positions as $code => $ids) {
+                $need = $needs[(int) $nr . '|' . $code] ?? null;
+                if (!$need) continue;
+                $ids = array_slice(array_values(array_filter((array) $ids)), 0, $need->count);
+                foreach ($ids as $id) {
+                    $inv = $invitees[(int) $id] ?? null;
+                    if (!$inv) continue;
+                    $day = $request->dayOfSession((int) $nr);
+                    if ($inv->availableOn($day) !== true) {
+                        throw new \DomainException("{$inv->user?->firstname} {$inv->user?->lastname} hat für den Tag von Abschnitt {$nr} nicht zugesagt.");
+                    }
+                    if (isset($plan[$inv->id][(int) $nr])) {
+                        throw new \DomainException("{$inv->user?->firstname} {$inv->user?->lastname} ist in Abschnitt {$nr} zweimal eingeteilt.");
+                    }
+                    $plan[$inv->id][(int) $nr] = $code;
+                }
+            }
+        }
+
         $count = 0;
-
-        foreach ($request->invitees()->with('assignments')->get() as $inv) {
-            $row = $rows[$inv->id] ?? [];
-            $inv->update(['kari_group' => array_key_exists($row['group'] ?? '', CompetitionOfficialRequest::KARI_GROUPS) ? $row['group'] : null]);
+        foreach ($invitees as $inv) {
             $inv->assignments()->delete();
-
-            foreach ($row['sessions'] ?? [] as $nr => $position) {
-                $day = $request->dayOfSession((int) $nr);
-                if (!$position || !in_array($position, $valid, true) || !$day || $inv->availableOn($day) !== true) continue;
-                $inv->assignments()->create(['session_number' => (int) $nr, 'position' => $position]);
+            foreach ($plan[$inv->id] ?? [] as $nr => $code) {
+                $inv->assignments()->create(['session_number' => $nr, 'position' => $code]);
                 $count++;
             }
+            $group = $groups[$inv->id] ?? null;
+            $inv->update(['kari_group' => array_key_exists((string) $group, CompetitionOfficialRequest::KARI_GROUPS) ? $group : $inv->kari_group]);
         }
 
         return $count;
     }
-
     /** Meldung freigeben: Ab jetzt stehen die Eingesetzten in der Meldedatei */
-    public function finalize(CompetitionOfficialRequest $request, User $by): void
+    public function finalize(CompetitionOfficialRequest $request, User $by, bool $despiteVacancies = false): void
     {
         if (!$request->readyToAssign()) {
             throw new \DomainException('Es haben noch nicht alle geantwortet. Abfrage schließen oder Rückmeldungen abwarten.');
+        }
+        $open = $request->openCount();
+        if ($open > 0 && !$despiteVacancies) {
+            throw new \DomainException("Noch {$open} gesuchte Position" . ($open === 1 ? ' ist' : 'en sind') . ' offen. Besetzen oder ausdrücklich trotzdem melden.');
         }
         if (!\App\Models\CompetitionOfficialAssignment::whereIn('competition_official_invitee_id', $request->invitees()->pluck('id'))->exists()) {
             throw new \DomainException('Noch niemand ist einem Abschnitt zugeordnet.');

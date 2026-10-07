@@ -183,6 +183,17 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   (WKR/SCH/AUS/SPR, aus der ersten Position vorgeschlagen). Freigabe erst, wenn alle geantwortet
   haben oder die Abfrage geschlossen ist; danach stehen die Eingesetzten als KARIMELDUNG/
   KARIABSCHNITT in der Meldedatei (`OfficialRequests::reportable`), Änderungen nur nach Rücknahme.
+- **Bedarf → Besetzung**: Der Obmann legt je Abschnitt die gesuchten Positionen fest
+  (`competition_official_needs`, `saveNeeds`) und besetzt sie aus den Zusagen (`saveSlots`: eine Person
+  je Abschnitt einmal, nur an zugesagten Tagen). Offene Positionen: `vacancies()`/`openCount()`;
+  Freigabe mit offenen Positionen nur ausdrücklich („trotz offener Positionen“).
+- **Qualifikationen** (`official_qualifications`): Kampfrichter pflegen eigene (`/kampfrichter/meine-
+  qualifikationen`), Vorstand/Geschäftsstelle/Admin alle (`/kampfrichter`). Die Hauptlizenz
+  (`is_primary`) ist synchron mit `users.kampfrichter_license_*` – beide Richtungen schreiben quietly
+  (`OfficialQualification::syncToUser`, `User::booted`).
+- **Rollen**: `User::isClubManager()` = Admin, Geschäftsstelle, Vorstand (auch Vereinsrolle);
+  `managesAllGroups()` = Admin, Geschäftsstelle; `assignableRoles()` – Administrator vergibt nur ein
+  Administrator, Admin-Konten ändern nur Admins.
 - **Dashboard** (`<x-officials-panel />`, auf allen Dashboards; Vorstand/Kampfrichter-Rolle haben
   `/dashboard`): Kampfrichter – Erinnerungen (offene Anfragen, eigene Lizenz < 6 Monate), anstehende
   Einsätze, letzte Einsätze; Vorstand – Wettkämpfe (90 Tage) mit Meldestand, auslaufende Lizenzen

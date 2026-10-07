@@ -110,18 +110,55 @@
         </x-ui.table>
     @endif
 
-    {{-- Zuordnung durch den Kampfrichterobmann und Freigabe zur Meldung --}}
+    {{-- Bedarf → Besetzung → Freigabe (Kampfrichterobmann, Auftrag Martin 07.10.2026) --}}
     @if($req)
         @php
             $byDay     = $req->sessionsByDay();
             $sessions  = collect($byDay)->flatMap(fn($nrs, $day) => collect($nrs)->map(fn($nr) => ['nr' => $nr, 'day' => $day]))->sortBy('nr')->values();
-            $available = $invitees->filter(fn($i) => $i->availableAnyDay());
             $final     = (bool) $req->finalized_at;
+            $needs     = $req->needs;
+            $needGrid  = $needs->groupBy('session_number')->map(fn($g) => $g->pluck('count', 'position'));
             $assigned  = $invitees->flatMap(fn($i) => $i->assignments);
+            $vacancies = $req->vacancies();
+            $openTotal = collect($vacancies)->flatten()->sum();
+            $nameOf    = fn($i) => trim($i->user?->firstname . ' ' . $i->user?->lastname);
         @endphp
-        <x-ui.card title="Zuordnung und Meldung">
-            @error('assign') <x-ui.alert tone="error" class="mb-4">{{ $message }}</x-ui.alert> @enderror
 
+        @error('assign') <x-ui.alert tone="error">{{ $message }}</x-ui.alert> @enderror
+
+        {{-- 1. Bedarf --}}
+        <x-ui.card title="1. Gesuchte Positionen je Abschnitt" collapsible storage-key="officials-needs" :open="$needs->isEmpty()"
+                   :meta="$needs->sum('count') . ' gesucht'">
+            <p class="text-sm text-gray-600 mb-3">Wie viele Kampfrichter je Position und Abschnitt der Verein stellen muss (z. B. laut Ausschreibung). Daraus entstehen die offenen Positionen.</p>
+            <form method="POST" action="{{ route('admin.competitions.officials.needs', $competition) }}" class="space-y-4">
+                @csrf @method('PUT')
+                <x-ui.table :card="false" caption="Gesuchte Positionen je Abschnitt" dense>
+                    <x-slot:head>
+                        <x-ui.th dense>Position</x-ui.th>
+                        @foreach($sessions as $s)
+                            <x-ui.th dense align="center">Abschnitt {{ $s['nr'] }}<span class="block font-normal normal-case">{{ Carbon::parse($s['day'])->isoFormat('dd D.M.') }}</span></x-ui.th>
+                        @endforeach
+                    </x-slot:head>
+                    @foreach(CompetitionOfficialRequest::POSITIONS as $code => $label)
+                        <tr>
+                            <x-ui.td dense>{{ $label }} <span class="text-gray-600">({{ $code }})</span></x-ui.td>
+                            @foreach($sessions as $s)
+                                <x-ui.td dense align="center">
+                                    <input type="number" min="0" max="20" inputmode="numeric" @disabled($final)
+                                           aria-label="{{ $label }}, Abschnitt {{ $s['nr'] }}"
+                                           name="need[{{ $s['nr'] }}][{{ $code }}]" value="{{ $needGrid[$s['nr']][$code] ?? '' }}"
+                                           class="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                                </x-ui.td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+                @unless($final)<x-ui.button type="submit" variant="secondary">Bedarf speichern</x-ui.button>@endunless
+            </form>
+        </x-ui.card>
+
+        {{-- 2. Besetzung aus den Rückmeldungen --}}
+        <x-ui.card title="2. Gesuchte Positionen besetzen" :meta="$needs->isEmpty() ? null : ($openTotal ? $openTotal . ' offen' : 'komplett')">
             @if($final)
                 <x-ui.alert tone="success" class="mb-4">
                     Freigegeben am {{ $req->finalized_at->format('d.m.Y, H:i') }} Uhr{{ $req->finalizer ? ' von ' . $req->finalizer->firstname . ' ' . $req->finalizer->lastname : '' }}:
@@ -129,108 +166,108 @@
                     <a href="{{ route('admin.competitions.dsv7.meldedatei', $competition) }}" class="font-semibold underline">Meldedatei</a> (KARIMELDUNG).
                 </x-ui.alert>
             @elseif(!$req->readyToAssign())
-                <x-ui.alert tone="info" class="mb-4">
-                    Gemeldet werden kann, sobald alle geantwortet haben – oder du die Abfrage schließt.
-                    Die Zuordnung lässt sich schon jetzt vorbereiten.
-                </x-ui.alert>
+                <x-ui.alert tone="info" class="mb-4">Gemeldet werden kann, sobald alle geantwortet haben – oder du die Abfrage schließt. Die Besetzung lässt sich schon jetzt vorbereiten.</x-ui.alert>
             @endif
 
-            @if($available->isEmpty())
-                <p class="text-sm text-gray-600">Noch niemand hat für einen Tag zugesagt.</p>
+            @if($needs->isEmpty())
+                <p class="text-sm text-gray-600">Zuerst unter 1. die gesuchten Positionen festlegen.</p>
             @else
-                <form method="POST" action="{{ route('admin.competitions.officials.assign', $competition) }}" class="space-y-4">
+                <form method="POST" action="{{ route('admin.competitions.officials.assign', $competition) }}" class="space-y-5">
                     @csrf @method('PUT')
-                    <x-ui.table :card="false" caption="Zuordnung der Kampfrichter zu den Abschnitten" dense>
-                        <x-slot:head>
-                            <x-ui.th dense>Name</x-ui.th>
-                            @foreach($sessions as $s)
-                                <x-ui.th dense>Abschnitt {{ $s['nr'] }}<span class="block font-normal normal-case">{{ Carbon::parse($s['day'])->isoFormat('dd D.M.') }}</span></x-ui.th>
-                            @endforeach
-                            <x-ui.th dense>Gruppe</x-ui.th>
-                        </x-slot:head>
-                                @foreach($available as $inv)
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        @foreach($sessions as $s)
+                            @php
+                                $sNeeds = $needs->where('session_number', $s['nr']);
+                                $open   = array_sum($vacancies[$s['nr']] ?? []);
+                                $pool   = $invitees->filter(fn($i) => $i->availableOn($s['day']) === true);
+                            @endphp
+                            @continue($sNeeds->isEmpty())
+                            <fieldset class="rounded-lg border border-gray-200 p-4 space-y-3">
+                                <legend class="px-1 text-sm font-semibold text-gray-900">
+                                    Abschnitt {{ $s['nr'] }} · {{ Carbon::parse($s['day'])->isoFormat('dd D.M.') }}
+                                    <x-ui.badge :tone="$open ? 'warning' : 'success'" class="ml-1">{{ $open ? $open . ' offen' : 'komplett' }}</x-ui.badge>
+                                </legend>
+                                @if($pool->isEmpty())
+                                    <p class="text-sm text-amber-800">Für diesen Tag hat niemand zugesagt.</p>
+                                @endif
+                                @foreach($sNeeds as $need)
                                     @php
-                                        $name   = trim($inv->user?->firstname . ' ' . $inv->user?->lastname);
-                                        $wishes = $inv->positions ?? [];
-                                        $byNr   = $inv->assignments->keyBy('session_number');
+                                        $current = $invitees->filter(fn($i) => $i->assignments->contains(fn($a) => $a->session_number === $s['nr'] && $a->position === $need->position))->values();
+                                        $sorted  = $pool->sortBy(fn($i) => [in_array($need->position, $i->positions ?? [], true) ? 0 : 1, $i->user?->lastname]);
+                                        $label   = CompetitionOfficialRequest::POSITIONS[$need->position] ?? $need->position;
                                     @endphp
-                                    <tr>
-                                        <x-ui.td dense strong class="whitespace-nowrap">
-                                            {{ $name }}
-                                            @if($wishes)<span class="block text-xs font-normal text-gray-600">Wunsch: {{ implode(', ', $wishes) }}</span>@endif
-                                        </x-ui.td>
-                                        @foreach($sessions as $s)
-                                            <x-ui.td dense>
-                                                @if($inv->availableOn($s['day']) === true)
-                                                    <select aria-label="{{ $name }}, Abschnitt {{ $s['nr'] }}" name="rows[{{ $inv->id }}][sessions][{{ $s['nr'] }}]" @disabled($final)
-                                                            class="w-full min-w-[8rem] rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                                                        <option value="">– nicht eingesetzt –</option>
-                                                        @foreach($wishes as $code)
-                                                            <option value="{{ $code }}" @selected($byNr->get($s['nr'])?->position === $code)>★ {{ CompetitionOfficialRequest::POSITIONS[$code] ?? $code }}</option>
-                                                        @endforeach
-                                                        @foreach(CompetitionOfficialRequest::POSITIONS as $code => $label)
-                                                            @continue(in_array($code, $wishes, true))
-                                                            <option value="{{ $code }}" @selected($byNr->get($s['nr'])?->position === $code)>{{ $label }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @if($inv->commentOn($s['day']))<span class="block text-xs text-gray-600 mt-1">{{ $inv->commentOn($s['day']) }}</span>@endif
-                                                @else
-                                                    <span class="text-gray-600" aria-label="nicht verfügbar">–</span>
-                                                @endif
-                                            </x-ui.td>
-                                        @endforeach
-                                        <x-ui.td dense>
-                                            <select aria-label="Kampfrichtergruppe {{ $name }}" name="rows[{{ $inv->id }}][group]" @disabled($final)
-                                                    class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                                                @foreach(CompetitionOfficialRequest::KARI_GROUPS as $code => $label)
-                                                    <option value="{{ $code }}" @selected($inv->group === $code)>{{ $label }}</option>
+                                    @for($k = 0; $k < $need->count; $k++)
+                                        @php $sel = old("slots.{$s['nr']}.{$need->position}.{$k}", $current[$k]->id ?? ''); @endphp
+                                        <div>
+                                            <label for="slot-{{ $s['nr'] }}-{{ $need->position }}-{{ $k }}" class="block text-xs font-medium text-gray-700">{{ $label }}{{ $need->count > 1 ? ' ' . ($k + 1) : '' }}</label>
+                                            <select id="slot-{{ $s['nr'] }}-{{ $need->position }}-{{ $k }}" name="slots[{{ $s['nr'] }}][{{ $need->position }}][]" @disabled($final)
+                                                    class="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 {{ $sel ? 'border-gray-300' : 'border-amber-300 bg-amber-50' }}">
+                                                <option value="">– offen –</option>
+                                                @foreach($sorted as $i)
+                                                    @php $quals = $i->user?->officialQualifications?->pluck('title')->unique()->implode(', '); @endphp
+                                                    <option value="{{ $i->id }}" @selected((string) $sel === (string) $i->id)>
+                                                        {{ in_array($need->position, $i->positions ?? [], true) ? '★ ' : '' }}{{ $nameOf($i) }}{{ $quals ? ' – ' . $quals : '' }}{{ $i->commentOn($s['day']) ? ' (' . $i->commentOn($s['day']) . ')' : '' }}
+                                                    </option>
                                                 @endforeach
                                             </select>
-                                        </x-ui.td>
-                                    </tr>
+                                        </div>
+                                    @endfor
                                 @endforeach
-                    </x-ui.table>
-                    <p class="text-xs text-gray-600">★ = Wunschposition. Die Gruppe wird aus der ersten Position vorgeschlagen und steht so in der KARIMELDUNG.</p>
-                    @unless($final)
-                        <x-ui.button type="submit" variant="secondary">Zuordnung speichern</x-ui.button>
-                    @endunless
-                </form>
-
-                {{-- Besetzung je Abschnitt --}}
-                @if($assigned->isNotEmpty())
-                    <div class="mt-6 border-t border-gray-100 pt-4">
-                        <h3 class="text-sm font-semibold text-gray-800 mb-2">Besetzung je Abschnitt</h3>
-                        <ul class="space-y-1 text-sm text-gray-700">
-                            @foreach($sessions as $s)
-                                @php $inSession = $assigned->where('session_number', $s['nr']); @endphp
-                                <li>
-                                    <span class="font-medium text-gray-900">Abschnitt {{ $s['nr'] }}:</span>
-                                    @if($inSession->isEmpty()) <span class="text-amber-800">noch niemand</span>
-                                    @else {{ $inSession->countBy('position')->map(fn($n, $code) => $n . '× ' . (CompetitionOfficialRequest::POSITIONS[$code] ?? $code))->implode(', ') }}
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
+                            </fieldset>
+                        @endforeach
                     </div>
-                @endif
+                    <p class="text-xs text-gray-600">★ = hat sich diese Position gewünscht. Zur Auswahl stehen nur Personen, die für den Tag zugesagt haben; hinter dem Namen stehen ihre Qualifikationen.</p>
 
-                <div class="mt-6 flex flex-wrap gap-2">
-                    @if($final)
-                        <form method="POST" action="{{ route('admin.competitions.officials.unfinalize', $competition) }}"
-                              data-confirm="Freigabe zurücknehmen? Bis zur neuen Freigabe stehen keine Kampfrichter in der Meldedatei." data-confirm-label="Zurücknehmen">
-                            @csrf @method('DELETE')
-                            <x-ui.button type="submit" variant="secondary">Freigabe zurücknehmen</x-ui.button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('admin.competitions.officials.finalize', $competition) }}"
-                              data-confirm="Zuordnung als Kampfrichter-Meldung freigeben? Die Eingesetzten stehen dann in der Meldedatei." data-confirm-label="Freigeben">
-                            @csrf
-                            <x-ui.button type="submit" :disabled="!$req->readyToAssign() || $assigned->isEmpty()">Zur Meldung freigeben</x-ui.button>
-                        </form>
+                    {{-- Kampfrichtergruppe je eingesetzter Person (KARIMELDUNG) --}}
+                    @php $people = $invitees->filter(fn($i) => $i->assignments->isNotEmpty()); @endphp
+                    @if($people->isNotEmpty())
+                        <div class="border-t border-gray-100 pt-4">
+                            <h3 class="text-sm font-semibold text-gray-800 mb-2">Kampfrichtergruppe für die Meldung</h3>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                @foreach($people as $i)
+                                    <x-ui.field :label="$nameOf($i)" name="groups[{{ $i->id }}]" :id="'group-' . $i->id" as="select" :disabled="$final">
+                                        @foreach(CompetitionOfficialRequest::KARI_GROUPS as $code => $glabel)
+                                            <option value="{{ $code }}" @selected($i->group === $code)>{{ $glabel }}</option>
+                                        @endforeach
+                                    </x-ui.field>
+                                @endforeach
+                            </div>
+                        </div>
                     @endif
-                </div>
+
+                    @unless($final)<x-ui.button type="submit">Besetzung speichern</x-ui.button>@endunless
+                </form>
             @endif
         </x-ui.card>
+
+        {{-- 3. Freigabe zur Meldung --}}
+        @if($needs->isNotEmpty())
+            <x-ui.card title="3. Melden">
+                @if($final)
+                    <form method="POST" action="{{ route('admin.competitions.officials.unfinalize', $competition) }}"
+                          data-confirm="Freigabe zurücknehmen? Bis zur neuen Freigabe stehen keine Kampfrichter in der Meldedatei." data-confirm-label="Zurücknehmen">
+                        @csrf @method('DELETE')
+                        <x-ui.button type="submit" variant="secondary">Freigabe zurücknehmen</x-ui.button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('admin.competitions.officials.finalize', $competition) }}" class="space-y-3"
+                          data-confirm="Besetzung als Kampfrichter-Meldung freigeben? Die Eingesetzten stehen dann in der Meldedatei." data-confirm-label="Freigeben">
+                        @csrf
+                        <p class="text-sm text-gray-700">
+                            @if($openTotal) Noch <strong>{{ $openTotal }}</strong> gesuchte Position{{ $openTotal === 1 ? ' ist' : 'en sind' }} offen.
+                            @else Alle gesuchten Positionen sind besetzt. @endif
+                        </p>
+                        @if($openTotal)
+                            <label class="flex items-start gap-3 text-sm text-gray-800">
+                                <input type="checkbox" name="despite_vacancies" value="1" class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary/30">
+                                <span>Trotz offener Positionen melden</span>
+                            </label>
+                        @endif
+                        <x-ui.button type="submit" :disabled="!$req->readyToAssign() || $assigned->isEmpty()">Zur Meldung freigeben</x-ui.button>
+                    </form>
+                @endif
+            </x-ui.card>
+        @endif
     @endif
 
     {{-- Abfrage starten bzw. weitere anfragen --}}

@@ -24,11 +24,12 @@ class OfficialsPanel extends Component
     public const LICENSE_WARN_MONTHS = 6;
 
     public bool $isBoard;
+    public bool $managesLicenses;
+    public Collection $ownExpiring;
     public bool $isOfficial;
     public Collection $openRequests;
     public Collection $upcoming;
     public Collection $lastAssignments;
-    public ?\Illuminate\Support\Carbon $ownLicenseUntil = null;
     public Collection $boardCompetitions;
     public Collection $expiringLicenses;
 
@@ -37,8 +38,10 @@ class OfficialsPanel extends Component
         $user = auth()->user();
 
         $this->isBoard    = (bool) $user && CompetitionOfficialRequest::canManage($user);
+        // Lizenzen pflegen Vorstand, Geschäftsstelle und Admin
+        $this->managesLicenses = (bool) $user && $user->isClubManager();
         $mine             = $user ? $this->myInvites($user) : collect();
-        $this->isOfficial = $user && ($user->hasAnyRole('kampfrichter') || $mine->isNotEmpty() || $user->kampfrichter_license_valid_until);
+        $this->isOfficial = $user && ($user->hasAnyRole('kampfrichter') || $mine->isNotEmpty() || $user->officialQualifications()->exists());
 
         // Kampfrichter
         $future = $mine->filter(fn($i) => $this->lastDay($i->request->competition)->gte(today()));
@@ -47,17 +50,20 @@ class OfficialsPanel extends Component
         $this->lastAssignments = $mine
             ->filter(fn($i) => $i->request->finalized_at && $i->assignments->isNotEmpty() && $this->lastDay($i->request->competition)->lt(today()))
             ->sortByDesc(fn($i) => $i->request->competition->date->timestamp)->take(5)->values();
-        $until = $user?->kampfrichter_license_valid_until;
-        if ($until && $until->lte(today()->addMonths(self::LICENSE_WARN_MONTHS))) $this->ownLicenseUntil = $until;
+        // Eigene Qualifikationen, die in 6 Monaten auslaufen (oder abgelaufen sind)
+        $this->ownExpiring = $user
+            ? $user->officialQualifications()->whereNotNull('valid_until')
+                ->whereDate('valid_until', '<=', today()->addMonths(self::LICENSE_WARN_MONTHS))->get()
+            : collect();
 
         // Vorstand
         $this->boardCompetitions = $this->isBoard ? $this->boardCompetitions() : collect();
-        $this->expiringLicenses  = $this->isBoard ? self::expiringLicenses() : collect();
+        $this->expiringLicenses  = $this->managesLicenses ? self::expiringLicenses() : collect();
     }
 
     public function shouldRender(): bool
     {
-        return $this->isBoard || $this->isOfficial;
+        return $this->isBoard || $this->isOfficial || $this->managesLicenses;
     }
 
     public function render()
@@ -83,7 +89,7 @@ class OfficialsPanel extends Component
     {
         return Competition::where(fn($q) => $q->whereDate('date', '>=', today())->orWhereDate('date_end', '>=', today()))
             ->whereDate('date', '<=', today()->addDays(90))
-            ->with(['officialRequest.invitees.assignments'])
+            ->with(['officialRequest.invitees.assignments', 'officialRequest.needs'])
             ->orderBy('date')->limit(10)->get();
     }
 
@@ -93,11 +99,12 @@ class OfficialsPanel extends Component
      */
     public static function expiringLicenses(): Collection
     {
-        return User::where('active', true)
-            ->whereNotNull('kampfrichter_license_valid_until')
-            ->whereDate('kampfrichter_license_valid_until', '<=', today()->addMonths(self::LICENSE_WARN_MONTHS))
-            ->whereDate('kampfrichter_license_valid_until', '>=', today()->subYear())
-            ->orderBy('kampfrichter_license_valid_until')
-            ->get(['id', 'firstname', 'lastname', 'kampfrichter_license_nr', 'kampfrichter_license_valid_until']);
+        return \App\Models\OfficialQualification::whereNotNull('valid_until')
+            ->whereDate('valid_until', '<=', today()->addMonths(self::LICENSE_WARN_MONTHS))
+            ->whereDate('valid_until', '>=', today()->subYear())
+            ->whereHas('user', fn($q) => $q->where('active', true))
+            ->with('user:id,firstname,lastname')
+            ->orderBy('valid_until')
+            ->get();
     }
 }

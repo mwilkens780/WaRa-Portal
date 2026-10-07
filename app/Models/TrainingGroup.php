@@ -176,7 +176,7 @@ class TrainingGroup extends Model
 
     public function canEdit(User $user): bool
     {
-        if ($user->isAdmin()) return true;
+        if ($user->managesAllGroups()) return true;
         return $this->trainers()->where('users.id', $user->id)->exists();
     }
 

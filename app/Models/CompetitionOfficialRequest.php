@@ -54,6 +54,34 @@ class CompetitionOfficialRequest extends Model
         return ['deadline' => 'date', 'closed_at' => 'datetime', 'finalized_at' => 'datetime'];
     }
 
+    /** Gesuchte Positionen je Abschnitt */
+    public function needs()
+    {
+        return $this->hasMany(CompetitionOfficialNeed::class)->orderBy('session_number');
+    }
+
+    /**
+     * Offene Positionen: Bedarf minus Besetzung, je Abschnitt und Position.
+     *
+     * @return array<int, array<string, int>>  Abschnitt => [Position => offen]
+     */
+    public function vacancies(): array
+    {
+        $filled = CompetitionOfficialAssignment::whereIn('competition_official_invitee_id', $this->invitees()->pluck('id'))
+            ->get()->groupBy(fn($a) => $a->session_number . '|' . $a->position)->map->count();
+        $out = [];
+        foreach ($this->needs as $n) {
+            $open = $n->count - ($filled[$n->session_number . '|' . $n->position] ?? 0);
+            if ($open > 0) $out[$n->session_number][$n->position] = $open;
+        }
+        return $out;
+    }
+
+    public function openCount(): int
+    {
+        return collect($this->vacancies())->flatten()->sum();
+    }
+
     public function finalizer()
     {
         return $this->belongsTo(User::class, 'finalized_by_id');

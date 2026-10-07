@@ -52,35 +52,50 @@ class CompetitionOfficialController extends Controller
             ->with('success', $n ? "Erinnerung an {$n} Kampfrichter verschickt." : 'Niemand hatte eine offene Rückmeldung (oder hat Erinnerungen abgewählt).');
     }
 
-    /** Zuordnung des Kampfrichterobmanns speichern (je Person: Abschnitte, Positionen, Gruppe) */
+    /** Bedarf: gesuchte Positionen je Abschnitt (Kampfrichterobmann) */
+    public function needs(Request $request, Competition $competition)
+    {
+        abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);
+        $req = $competition->officialRequest()->firstOrFail()->setRelation('competition', $competition);
+        $data = $request->validate(['need' => ['nullable', 'array'], 'need.*' => ['array'], 'need.*.*' => ['nullable', 'integer', 'min:0', 'max:20']]);
+
+        try {
+            $n = $this->officials->saveNeeds($req, $data['need'] ?? []);
+        } catch (\DomainException $e) {
+            return $this->back($competition)->withErrors(['assign' => $e->getMessage()]);
+        }
+
+        return $this->back($competition)->with('success', "Bedarf gespeichert: {$n} gesuchte Positionen.");
+    }
+
+    /** Gesuchte Positionen aus den Rückmeldungen besetzen */
     public function assign(Request $request, Competition $competition)
     {
         abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);
         $req = $competition->officialRequest()->firstOrFail()->setRelation('competition', $competition);
 
         $data = $request->validate([
-            'rows'              => ['nullable', 'array'],
-            'rows.*.group'      => ['nullable', 'in:' . implode(',', array_keys(CompetitionOfficialRequest::KARI_GROUPS))],
-            'rows.*.sessions'   => ['nullable', 'array'],
-            'rows.*.sessions.*' => ['nullable', 'in:' . implode(',', array_keys(CompetitionOfficialRequest::POSITIONS))],
+            'slots'      => ['nullable', 'array'],
+            'groups'     => ['nullable', 'array'],
+            'groups.*'   => ['nullable', 'in:' . implode(',', array_keys(CompetitionOfficialRequest::KARI_GROUPS))],
         ]);
 
         try {
-            $n = $this->officials->saveAssignments($req, $data['rows'] ?? []);
+            $n = $this->officials->saveSlots($req, $data['slots'] ?? [], $data['groups'] ?? []);
         } catch (\DomainException $e) {
-            return $this->back($competition)->withErrors(['assign' => $e->getMessage()]);
+            return $this->back($competition)->withErrors(['assign' => $e->getMessage()])->withInput();
         }
 
-        return $this->back($competition)->with('success', "Zuordnung gespeichert: {$n} Einsätze.");
+        $open = $req->openCount();
+        return $this->back($competition)->with('success', "Besetzung gespeichert: {$n} Einsätze" . ($open ? ", noch {$open} offen." : ' – alle gesuchten Positionen sind besetzt.'));
     }
-
     public function finalize(Request $request, Competition $competition)
     {
         abort_unless(CompetitionOfficialRequest::canManage($request->user()), 403);
-        $req = $competition->officialRequest()->with('invitees')->firstOrFail()->setRelation('competition', $competition);
+        $req = $competition->officialRequest()->with(['invitees', 'needs'])->firstOrFail()->setRelation('competition', $competition);
 
         try {
-            $this->officials->finalize($req, $request->user());
+            $this->officials->finalize($req, $request->user(), $request->boolean('despite_vacancies'));
         } catch (\DomainException $e) {
             return $this->back($competition)->withErrors(['assign' => $e->getMessage()]);
         }

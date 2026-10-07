@@ -6,7 +6,7 @@
 
 <div class="space-y-4">
     {{-- Erinnerungen für Kampfrichter --}}
-    @if($openRequests->isNotEmpty() || $ownLicenseUntil)
+    @if($openRequests->isNotEmpty() || $ownExpiring->isNotEmpty())
         <x-ui.alert tone="warning">
             <ul class="space-y-1">
                 @foreach($openRequests as $inv)
@@ -16,18 +16,19 @@
                         <a href="{{ route('officials.respond', $inv->request) }}" class="font-semibold underline">Jetzt antworten</a>
                     </li>
                 @endforeach
-                @if($ownLicenseUntil)
+                @foreach($ownExpiring as $q)
                     <li>
-                        Deine Kampfrichter-Lizenz {{ $ownLicenseUntil->isPast() ? 'ist am' : 'läuft am' }}
-                        <strong>{{ $ownLicenseUntil->format('d.m.Y') }}</strong> {{ $ownLicenseUntil->isPast() ? 'abgelaufen' : 'ab' }}.
-                        Bitte rechtzeitig verlängern.
+                        Deine Qualifikation <strong>{{ $q->title }}</strong>{{ $q->license_nr ? ' (Lizenz ' . $q->license_nr . ')' : '' }}
+                        {{ $q->valid_until->isPast() ? 'ist am' : 'läuft am' }} <strong>{{ $q->valid_until->format('d.m.Y') }}</strong>
+                        {{ $q->valid_until->isPast() ? 'abgelaufen' : 'ab' }}. Bitte rechtzeitig verlängern –
+                        <a href="{{ route('officials.mine') }}" class="font-semibold underline">Qualifikationen pflegen</a>
                     </li>
-                @endif
+                @endforeach
             </ul>
         </x-ui.alert>
     @endif
 
-    <div class="grid gap-4 {{ $isBoard && $isOfficial ? 'lg:grid-cols-2' : '' }}">
+    <div class="grid gap-4 {{ ($isBoard || $managesLicenses) && $isOfficial ? 'lg:grid-cols-2' : '' }}">
         {{-- Kampfrichter: anstehend und letzte Einsätze --}}
         @if($isOfficial)
             <x-ui.card title="Meine Kampfrichter-Einsätze">
@@ -87,6 +88,7 @@
                                 [$label, $tone] = match (true) {
                                     !$r                         => ['keine Abfrage', 'neutral'],
                                     (bool) $r->finalized_at     => ['gemeldet (' . $inv->filter(fn($i) => $i->assignments->isNotEmpty())->count() . ')', 'success'],
+                                    $r->needs->isNotEmpty() && $r->readyToAssign() => ($o = $r->openCount()) ? [$o . ' Position' . ($o === 1 ? '' : 'en') . ' offen', 'warning'] : ['besetzt, Freigabe fehlt', 'info'],
                                     $inv->flatMap->assignments->isNotEmpty() => ['Zuordnung begonnen', 'info'],
                                     default                     => [$inv->whereNotNull('responded_at')->count() . '/' . $inv->count() . ' Rückmeldungen', 'warning'],
                                 };
@@ -102,21 +104,20 @@
                 @endif
             </x-ui.card>
 
+        @endif
+
+        @if($managesLicenses)
             <x-ui.card title="Auslaufende Kampfrichter-Lizenzen" :meta="'nächste ' . \App\View\Components\OfficialsPanel::LICENSE_WARN_MONTHS . ' Monate'">
                 @if($expiringLicenses->isEmpty())
                     <p class="text-sm text-gray-600">Keine Lizenz läuft in den nächsten {{ \App\View\Components\OfficialsPanel::LICENSE_WARN_MONTHS }} Monaten aus.</p>
                 @else
                     <ul class="divide-y divide-gray-100">
-                        @foreach($expiringLicenses as $u)
-                            @php $d = $u->kampfrichter_license_valid_until; @endphp
+                        @foreach($expiringLicenses as $q)
+                            @php $d = $q->valid_until; $u = $q->user; @endphp
                             <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                                 <span class="min-w-0">
-                                    @if($isAdmin)
-                                        <a href="{{ route('admin.users.edit', $u) }}" class="font-medium text-gray-900 hover:text-primary">{{ $u->lastname }}, {{ $u->firstname }}</a>
-                                    @else
-                                        <span class="font-medium text-gray-900">{{ $u->lastname }}, {{ $u->firstname }}</span>
-                                    @endif
-                                    @if($u->kampfrichter_license_nr)<span class="block text-gray-600">Lizenz {{ $u->kampfrichter_license_nr }}</span>@endif
+                                    <a href="{{ route('officials.index', ['auslaufend' => 1]) }}" class="font-medium text-gray-900 hover:text-primary">{{ $u->lastname }}, {{ $u->firstname }}</a>
+                                    <span class="block text-gray-600">{{ $q->title }}{{ $q->license_nr ? ' · Lizenz ' . $q->license_nr : '' }}</span>
                                 </span>
                                 <x-ui.badge :tone="$d->isPast() ? 'danger' : ($d->lte(today()->addMonths(2)) ? 'warning' : 'neutral')">
                                     {{ $d->isPast() ? 'abgelaufen' : 'bis' }} {{ $d->format('d.m.Y') }}

@@ -26,7 +26,7 @@ class Navigation
 
         $sections = [
             [null, [
-                self::item('Dashboard', $user->homeUrl(), 'dashboard', ['admin.dashboard', 'trainer.dashboard', 'swimmer.dashboard', 'parent.dashboard', 'dashboard.officials'], $is('admin', 'trainer', 'schwimmer', 'elternteil', 'vorstand', 'kampfrichter')),
+                self::item('Dashboard', $user->homeUrl(), 'dashboard', ['admin.dashboard', 'trainer.dashboard', 'swimmer.dashboard', 'parent.dashboard', 'dashboard.officials'], $is('admin', 'trainer', 'schwimmer', 'elternteil', 'vorstand', 'kampfrichter', 'geschaeftsstelle')),
                 self::item('Kalender', 'calendar.index', 'calendar', 'calendar.*', $can('calendar')),
                 // Termine mit Einladung (Sitzungen, Elternabende, Team-Events), eigene und der Kinder
                 self::item('Einladungen', 'invitations.index', 'inbox', 'invitations.*', $can('calendar')),
@@ -35,7 +35,7 @@ class Navigation
             ['Training', [
                 self::item('Trainingseinheiten', 'trainer.sessions.index', 'calendar', 'trainer.sessions.*', $is('trainer', 'admin') && $can('training')),
                 self::item('Hallenbelegung', 'trainer.hall.index', 'building', 'trainer.hall.*', $is('trainer', 'admin') && $can('hall')),
-                self::item('Trainingsgruppen', 'admin.training-groups.index', 'users', 'admin.training-groups.*', $is('trainer', 'admin') && $can('training_groups')),
+                self::item('Trainingsgruppen', 'admin.training-groups.index', 'users', 'admin.training-groups.*', $is('trainer', 'admin', 'geschaeftsstelle') && $can('training_groups')),
                 self::item('Ziele & Kriterien', 'trainer.goals.index', 'chart', 'trainer.goals.*', $is('trainer', 'admin') && $can('goals')),
                 self::item('Einschätzungen', 'trainer.diary.overview', 'pie', 'trainer.diary.*', $is('trainer', 'admin') && $can('diary')),
                 self::item('Motto der Woche', 'trainer.motto.index', 'bulb', 'trainer.motto.*', $is('trainer', 'admin') && $can('motto')),
@@ -75,6 +75,9 @@ class Navigation
             $is('admin')
                 ? self::item('Benutzer', 'admin.users.index', 'users', 'admin.users.*', true)
                 : self::item('Benutzer', 'users-lite.index', 'users', 'users-lite.*', $can('users_lite')),
+            // Kampfrichter: Vorstand/Geschäftsstelle pflegen alle, Kampfrichter die eigenen Qualifikationen
+            self::item('Kampfrichter & Lizenzen', 'officials.index', 'badge', 'officials.*', $user->isClubManager() && ($is('admin') || $can('officials') || $user->hasAnyRole('vorstand'))),
+            self::item('Meine Qualifikationen', 'officials.mine', 'badge', 'officials.mine', !$user->isClubManager() && $user->hasAnyRole('kampfrichter')),
             self::item('Ernährungsberatung', 'nutrition.index', 'document', 'nutrition.*', $is('ernaehrungsberater', 'admin')),
             self::item('Sportmedizin', 'teamdoctor.index', 'heart', 'teamdoctor.*', $is('teamarzt', 'admin')),
         ]];

@@ -300,7 +300,7 @@ class CompetitionController extends Controller
             : collect();
 
         // Kampfrichter-Abfrage: Vorstand/Admin verwalten, Angefragte sehen ihren Link
-        $officialRequest    = $competition->officialRequest()->with(['invitees.user:id,firstname,lastname', 'invitees.assignments'])->first()?->setRelation('competition', $competition);
+        $officialRequest    = $competition->officialRequest()->with(['invitees.user:id,firstname,lastname', 'invitees.user.officialQualifications', 'invitees.assignments', 'needs'])->first()?->setRelation('competition', $competition);
         $canManageOfficials = \App\Models\CompetitionOfficialRequest::canManage(auth()->user());
         $myOfficialInvite   = $officialRequest?->invitees->firstWhere('user_id', auth()->id());
         $officialCandidates = $canManageOfficials

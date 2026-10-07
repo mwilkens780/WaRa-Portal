@@ -22,16 +22,16 @@ class CalendarEvent extends Model
      * audience: Wer eingeladen wird (null = keine Einladungen).
      */
     const TYPES = [
-        'vereinstermin'    => ['label' => 'Vereinstermin',    'color' => 'emerald', 'creators' => ['trainer', 'admin'], 'audience' => null],
-        'ehrung'           => ['label' => 'Ehrung',           'color' => 'amber',   'creators' => ['trainer', 'admin'], 'audience' => null],
-        'meldefrist'       => ['label' => 'Meldefrist',       'color' => 'orange',  'creators' => ['trainer', 'admin'], 'audience' => null],
+        'vereinstermin'    => ['label' => 'Vereinstermin',    'color' => 'emerald', 'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
+        'ehrung'           => ['label' => 'Ehrung',           'color' => 'amber',   'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
+        'meldefrist'       => ['label' => 'Meldefrist',       'color' => 'orange',  'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
         // Vorstand lädt Vorstand ein (+ Gäste)
         'vorstandssitzung' => ['label' => 'Vorstandssitzung', 'color' => 'purple',  'creators' => ['vorstand', 'admin'], 'audience' => 'vorstand'],
         // Trainer laden Eltern minderjähriger und volljährige Gruppenmitglieder ein (+ Gäste)
-        'elternabend'      => ['label' => 'Elternabend',      'color' => 'teal',    'creators' => ['trainer', 'admin'], 'audience' => 'eltern'],
+        'elternabend'      => ['label' => 'Elternabend',      'color' => 'teal',    'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => 'eltern'],
         // Trainingslager und gemeinsame Events: einzelne Schwimmer oder Gruppen (+ Gäste)
-        'team_event'       => ['label' => 'Team-Event',       'color' => 'sky',     'creators' => ['vorstand', 'trainer', 'schwimmer', 'admin'], 'audience' => 'team'],
-        'sonstiges'        => ['label' => 'Sonstiges',        'color' => 'gray',    'creators' => ['trainer', 'admin'], 'audience' => null],
+        'team_event'       => ['label' => 'Team-Event',       'color' => 'sky',     'creators' => ['vorstand', 'trainer', 'schwimmer', 'geschaeftsstelle', 'admin'], 'audience' => 'team'],
+        'sonstiges'        => ['label' => 'Sonstiges',        'color' => 'gray',    'creators' => ['trainer', 'geschaeftsstelle', 'admin'], 'audience' => null],
     ];
 
     protected $fillable = [
@@ -116,6 +116,8 @@ class CalendarEvent extends Model
     {
         if (!$user) return false;
         if ($user->hasRole('admin') || $user->id === $this->created_by) return true;
+        // Geschäftsstelle: alle Termine außer Vorstandssitzungen (Zuweisungen zu Terminen)
+        if ($user->hasRole('geschaeftsstelle') && $this->type !== 'vorstandssitzung') return true;
         // Vorstandssitzungen pflegt der ganze Vorstand
         if ($this->type === 'vorstandssitzung') return $user->hasAnyRole('vorstand');
         // Einfache Termine wie bisher: Trainer

@@ -87,7 +87,8 @@ class UserLiteController extends Controller
             'firstname'  => ['required', 'string', 'max:100'],
             'lastname'   => ['required', 'string', 'max:100'],
             'email'      => ['nullable', 'email', 'unique:users'],
-            'role'       => ['required', 'in:' . implode(',', User::ROLES)],
+            // Administrator vergibt nur ein Administrator (vorher konnte jeder Trainer Admins anlegen)
+            'role'       => ['required', 'in:' . implode(',', $request->user()->assignableRoles())],
             'birth_date' => ['nullable', 'date'],
             'phone'      => ['nullable', 'string', 'max:30'],
             'group_id'   => ['nullable', 'integer', 'in:' . $gruppen->pluck('id')->join(',')],
@@ -170,7 +171,7 @@ class UserLiteController extends Controller
             'firstname'  => ['required', 'string', 'max:100'],
             'lastname'   => ['required', 'string', 'max:100'],
             'email'      => ['nullable', 'email', 'unique:users,email,' . $user->id],
-            'role'       => ['required', 'in:' . implode(',', User::ROLES)],
+            'role'       => ['required', 'in:' . implode(',', $request->user()->assignableRoles())],
             'birth_date' => ['nullable', 'date'],
             'phone'      => ['nullable', 'string', 'max:30'],
             'mobile'     => ['nullable', 'string', 'max:30'],
@@ -194,7 +195,8 @@ class UserLiteController extends Controller
 
     private function mayEditAll(User $me): bool
     {
-        return in_array($me->role, ['admin', 'vorstand'], true);
+        // Vorstand (auch als Vereinsrolle), Geschäftsstelle und Admin
+        return $me->isClubManager();
     }
 
     /**
@@ -203,6 +205,9 @@ class UserLiteController extends Controller
      */
     private function mayEdit(User $me, User $user): bool
     {
+        // Administrator-Konten ändern nur Administratoren
+        if ($user->isAdmin() && !$me->isAdmin()) return false;
+
         return $this->mayEditAll($me) || (int) $user->created_by === $me->id;
     }
 

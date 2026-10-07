@@ -39,13 +39,16 @@ class MenuPermission extends Model
         'parent_area'    => ['label' => 'Meine Kinder',           'section' => 'parent'],
         // Lesesicht fuer Mitglieder; Pflege bleibt unter "records" (Trainer-Bereich)
         'club_records'   => ['label' => 'Rekorde & Bestenlisten', 'section' => 'general'],
+        // Kampfrichter und Lizenzen pflegen (Vorstand, Geschäftsstelle)
+        'officials'      => ['label' => 'Kampfrichter & Lizenzen', 'section' => 'general'],
     ];
 
     const DEFAULT_PERMISSIONS = [
         'admin'        => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','parent_area','club_records'],
         'trainer'      => ['calendar','users_lite','training','training_groups','competitions','records','goals','diary','motto','hall'],
-        'vorstand'     => ['calendar','users_lite','competitions','records'],
+        'vorstand'     => ['calendar','users_lite','competitions','records','officials'],
         'kampfrichter' => ['calendar','competitions'],
+        'geschaeftsstelle' => ['calendar','users_lite','training_groups','officials'],
         'schwimmer'           => ['calendar','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','club_records'],
         'elternteil'          => ['calendar','parent_area','club_records'],
         'ernaehrungsberater'  => ['calendar'],

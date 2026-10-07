@@ -62,10 +62,12 @@ class E2eSeeder extends Seeder
         $board   = $user('vorstand', 'Vera', 'Vorstand');
         // Lizenz läuft in 3 Monaten aus (Erinnerung im Dashboard, Liste des Vorstands)
         $official = $user('kampfrichter', 'Kai', 'Kampfrichter', ['kampfrichter_license_nr' => 'KR-4711', 'kampfrichter_license_valid_until' => now()->addMonths(3)->format('Y-m-d')]);
+        // Geschäftsstelle: Benutzer, Gruppen, Termine, Lizenzen
+        $office  = $user('geschaeftsstelle', 'Gina', 'Geschäftsstelle');
         $parent  = $user('elternteil', 'Elke', 'Eltern', ['email' => 'eltern@e2e.test', 'mobile' => '0170 1234567', 'carpool_share_phone' => true]);
         $parent->children()->attach($swimmer->id);
 
-        foreach ([$admin, $trainer, $swimmer, $second, $diverse, $board, $official, $parent] as $u) {
+        foreach ([$admin, $trainer, $swimmer, $second, $diverse, $board, $official, $office, $parent] as $u) {
             $u->forceFill(['portal_activated_at' => now()])->saveQuietly();
         }
 
@@ -221,6 +223,11 @@ class E2eSeeder extends Seeder
             'positions' => ['ZN', 'WR'], 'comment' => 'Lizenz C',
         ]);
         $kr->invitees()->create(['user_id' => $board->id, 'invited_at' => now()]);
+        // Bedarf: zwei Zeitnehmer und ein Schiedsrichter im Abschnitt 1
+        $kr->needs()->create(['session_number' => 1, 'position' => 'ZN', 'count' => 2]);
+        $kr->needs()->create(['session_number' => 1, 'position' => 'SCH', 'count' => 1]);
+        // Weitere Qualifikation von Kai (Hauptlizenz entsteht aus den Lizenzfeldern)
+        \App\Models\OfficialQualification::create(['user_id' => $official->id, 'title' => 'Starter*in', 'acquired_on' => now()->subYears(2)->format('Y-m-d'), 'valid_until' => now()->addYears(2)->format('Y-m-d')]);
         // Vergangener Einsatz: gemeldet als Zeitnehmer ("Letzte Einsätze")
         $krAlt = \App\Models\CompetitionOfficialRequest::create([
             'competition_id' => $vergangen->id, 'created_by_id' => $board->id, 'closed_at' => now()->subDays(25), 'finalized_at' => now()->subDays(25), 'finalized_by_id' => $board->id,
@@ -231,7 +238,7 @@ class E2eSeeder extends Seeder
         ]);
         $krAltInv->assignments()->create(['session_number' => 1, 'position' => 'ZN']);
         // Abgelaufene Lizenz eines Elternteils (Liste des Vorstands)
-        $parent->forceFill(['kampfrichter_license_nr' => 'KR-0815', 'kampfrichter_license_valid_until' => now()->subMonths(2)->format('Y-m-d')])->saveQuietly();
+        $parent->forceFill(['kampfrichter_license_nr' => 'KR-0815', 'kampfrichter_license_valid_until' => now()->subMonths(2)->format('Y-m-d')])->save();
 
         // DMS-J: Mannschaftswertung aus fünf Staffeln je Mannschaft (Reiter "Mannschaftswertung")
         $dms = Competition::create([

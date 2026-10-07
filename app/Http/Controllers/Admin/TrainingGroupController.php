@@ -26,8 +26,8 @@ class TrainingGroupController extends Controller
             ->with('trainers:id,firstname,lastname')
             ->orderBy('name');
 
-        // Trainers only see their own groups
-        if (!auth()->user()->isAdmin()) {
+        // Trainer sehen nur ihre Gruppen; Admin und Geschäftsstelle alle
+        if (!auth()->user()->managesAllGroups()) {
             $query->whereHas('trainers', fn($q) => $q->where('users.id', auth()->id()));
         }
 
@@ -333,7 +333,7 @@ class TrainingGroupController extends Controller
         ]);
 
         // Admin-only: changing trainers/swimmers (trainers can change swimmers in their group)
-        $isAdmin = auth()->user()->isAdmin();
+        $isAdmin = auth()->user()->managesAllGroups();
 
         $data['active']     = $request->boolean('active');
         $data['webclub_id'] = $request->filled('webclub_id') ? (int) $request->input('webclub_id') : null;

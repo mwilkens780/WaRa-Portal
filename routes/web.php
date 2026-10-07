@@ -211,7 +211,7 @@ Route::get('/impressum', [LegalController::class, 'impressum'])->name('legal.imp
 Route::get('/datenschutz', [LegalController::class, 'datenschutz'])->name('legal.datenschutz');
 
 // Trainingsgruppen – Index, Show, Edit: Trainer + Admin
-Route::middleware(['auth', 'role:trainer,admin', 'menu:training_groups'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:trainer,geschaeftsstelle,admin', 'menu:training_groups'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/trainingsgruppen', [TrainingGroupController::class, 'index'])->name('training-groups.index');
     Route::get('/trainingsgruppen/{trainingGroup}', [TrainingGroupController::class, 'show'])->name('training-groups.show');
     Route::get('/trainingsgruppen/{trainingGroup}/bearbeiten', [TrainingGroupController::class, 'edit'])->name('training-groups.edit');
@@ -246,7 +246,8 @@ Route::middleware(['auth', 'role:trainer,vorstand,kampfrichter,admin', 'menu:com
     Route::post('/wettkaempfe/{competition}/kampfgericht', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'store'])->name('competitions.officials.store');
     Route::post('/wettkaempfe/{competition}/kampfgericht/erinnern', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'remind'])->name('competitions.officials.remind');
     Route::post('/wettkaempfe/{competition}/kampfgericht/status', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'toggle'])->name('competitions.officials.toggle');
-    Route::put('/wettkaempfe/{competition}/kampfgericht/zuordnung', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'assign'])->name('competitions.officials.assign');
+    Route::put('/wettkaempfe/{competition}/kampfgericht/bedarf', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'needs'])->name('competitions.officials.needs');
+    Route::put('/wettkaempfe/{competition}/kampfgericht/zuordnung',[\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'assign'])->name('competitions.officials.assign');
     Route::post('/wettkaempfe/{competition}/kampfgericht/freigabe', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'finalize'])->name('competitions.officials.finalize');
     Route::delete('/wettkaempfe/{competition}/kampfgericht/freigabe', [\App\Http\Controllers\Admin\CompetitionOfficialController::class, 'unfinalize'])->name('competitions.officials.unfinalize');
     Route::post('/wettkaempfe/{competition}/auswertung',[AdminCompetitionController::class, 'generateAnalysis'])->name('competitions.analysis');
@@ -454,6 +455,12 @@ Route::middleware(['auth', 'role', 'menu:calendar'])->group(function () {
     Route::get('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'downloadFile'])->name('calendar.events.files.download');
     Route::delete('/kalender/termin/{calendarEvent}/dateien/{file}', [CalendarEventController::class, 'destroyFile'])->name('calendar.events.files.destroy');
     Route::get('/einladungen', [\App\Http\Controllers\InvitationController::class, 'index'])->name('invitations.index');
+    // Kampfrichter-Qualifikationen: eigene (Kampfrichter) und alle (Vorstand, Geschäftsstelle) – Prüfung im Controller
+    Route::get('/kampfrichter', [\App\Http\Controllers\OfficialsController::class, 'index'])->name('officials.index');
+    Route::get('/kampfrichter/meine-qualifikationen', [\App\Http\Controllers\OfficialsController::class, 'mine'])->name('officials.mine');
+    Route::post('/kampfrichter/{user}/qualifikationen', [\App\Http\Controllers\OfficialsController::class, 'store'])->name('officials.qualifications.store');
+    Route::put('/kampfrichter/qualifikationen/{qualification}', [\App\Http\Controllers\OfficialsController::class, 'update'])->name('officials.qualifications.update');
+    Route::delete('/kampfrichter/qualifikationen/{qualification}', [\App\Http\Controllers\OfficialsController::class, 'destroy'])->name('officials.qualifications.destroy');
     // Startseite Vorstand/Kampfrichter (Kampfgericht, Lizenzen, Einladungen)
     Route::view('/dashboard', 'dashboard.officials')->name('dashboard.officials');
     // Rückmeldung angefragter Kampfrichter (beliebige Portal-Rolle, Kampfrichter oft als Vereinsrolle)
@@ -512,7 +519,7 @@ Route::post('/api/webclub-import', [\App\Http\Controllers\Api\WebClubImportContr
     ->name('api.webclub-import');
 
 // Benutzerverwaltung Lite (Trainer + Vorstand)
-Route::middleware(['auth', 'role:trainer,vorstand,admin', 'menu:users_lite'])->prefix('benutzer')->name('users-lite.')->group(function () {
+Route::middleware(['auth', 'role:trainer,vorstand,geschaeftsstelle,admin', 'menu:users_lite'])->prefix('benutzer')->name('users-lite.')->group(function () {
     Route::get('/',                    [UserLiteController::class, 'index'])->name('index');
     Route::get('/neu',                 [UserLiteController::class, 'create'])->name('create');
     Route::post('/',                   [UserLiteController::class, 'store'])->name('store');

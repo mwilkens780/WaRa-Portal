@@ -13,7 +13,7 @@ class User extends Authenticatable
 
     protected array $auditHidden = ['password', 'remember_token', 'initial_password'];
 
-    const ROLES = ['admin', 'trainer', 'schwimmer', 'elternteil', 'kampfrichter', 'vorstand', 'ernaehrungsberater', 'teamarzt'];
+    const ROLES = ['admin', 'trainer', 'schwimmer', 'elternteil', 'kampfrichter', 'vorstand', 'geschaeftsstelle', 'ernaehrungsberater', 'teamarzt'];
 
     const ROLE_LABELS = [
         'admin'               => 'Administrator',
@@ -22,6 +22,7 @@ class User extends Authenticatable
         'elternteil'          => 'Elternteil',
         'kampfrichter'        => 'Kampfrichter',
         'vorstand'            => 'Vorstand',
+        'geschaeftsstelle'    => 'Geschäftsstelle',
         'ernaehrungsberater'  => 'Ernährungsberater',
         'teamarzt'            => 'Teamarzt',
     ];
@@ -147,6 +148,28 @@ class User extends Authenticatable
 
     // Role checks — primary role
     public function isAdmin(): bool               { return $this->role === 'admin'; }
+
+    /**
+     * Verwaltung für den ganzen Verein: Admin, Geschäftsstelle (Portal-Rolle)
+     * und Vorstand (Portal- oder Vereinsrolle) – Benutzer, Gruppen-Zuweisungen,
+     * Kampfrichter-Lizenzen (Auftrag Martin, 07.10.2026).
+     */
+    public function isClubManager(): bool
+    {
+        return $this->isAdmin() || $this->role === 'geschaeftsstelle' || $this->hasAnyRole('vorstand');
+    }
+
+    /** Alle Trainingsgruppen und Kurse sehen und Mitglieder/Trainer zuweisen */
+    public function managesAllGroups(): bool
+    {
+        return $this->isAdmin() || $this->role === 'geschaeftsstelle';
+    }
+
+    /** Rollen, die dieser Benutzer anderen geben darf – Administrator nur durch Administratoren */
+    public function assignableRoles(): array
+    {
+        return $this->isAdmin() ? self::ROLES : array_values(array_diff(self::ROLES, ['admin']));
+    }
     public function isTrainer(): bool             { return $this->role === 'trainer'; }
     public function isSchwimmer(): bool           { return $this->role === 'schwimmer'; }
     public function isElternteil(): bool          { return $this->role === 'elternteil'; }
@@ -180,7 +203,7 @@ class User extends Authenticatable
             'elternteil'         => route('parent.dashboard'),
             'ernaehrungsberater' => route('nutrition.index'),
             'teamarzt'           => route('teamdoctor.index'),
-            'vorstand', 'kampfrichter' => route('dashboard.officials'),
+            'vorstand', 'kampfrichter', 'geschaeftsstelle' => route('dashboard.officials'),
             default              => MenuPermission::can((string) $this->role, 'calendar')
                                         ? route('calendar.index')
                                         : route('profile.index'),
@@ -238,6 +261,33 @@ class User extends Authenticatable
     public function competitionResults()
     {
         return $this->hasMany(CompetitionResult::class);
+    }
+
+    /**
+     * Lizenzfelder im Stamm (Admin-Formular, WebClub-Abgleich) → Hauptlizenz der
+     * Kampfrichter-Qualifikationen. Gegenrichtung: OfficialQualification::syncToUser().
+     * Beide Seiten schreiben "quietly", damit sie sich nicht gegenseitig auslösen.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $user) {
+            $fields = ['kampfrichter_license_nr', 'kampfrichter_license_issued', 'kampfrichter_license_valid_until'];
+            if (!$user->wasChanged($fields) && !($user->wasRecentlyCreated && $user->kampfrichter_license_nr)) return;
+
+            $q = OfficialQualification::firstOrNew(['user_id' => $user->id, 'is_primary' => true]);
+            if (!$q->exists && !$user->kampfrichter_license_nr && !$user->kampfrichter_license_valid_until) return;
+            $q->title ??= 'Kampfrichter-Lizenz';
+            $q->fill([
+                'license_nr'  => $user->kampfrichter_license_nr,
+                'acquired_on' => $user->kampfrichter_license_issued,
+                'valid_until' => $user->kampfrichter_license_valid_until,
+            ])->saveQuietly();
+        });
+    }
+
+    public function officialQualifications()
+    {
+        return $this->hasMany(OfficialQualification::class)->orderByDesc('is_primary')->orderBy('valid_until');
     }
 
     public function trainingGroups()

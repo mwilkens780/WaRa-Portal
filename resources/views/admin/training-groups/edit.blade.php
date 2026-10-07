@@ -113,8 +113,8 @@
             </div>
         </div>
 
-        {{-- Trainer (admin only) --}}
-        @if(auth()->user()->isAdmin())
+        {{-- Trainer (Admin und Geschäftsstelle) --}}
+        @if(auth()->user()->managesAllGroups())
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Trainer</h2>
             @if($trainers->isEmpty())
