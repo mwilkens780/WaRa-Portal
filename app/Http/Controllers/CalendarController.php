@@ -392,6 +392,26 @@ class CalendarController extends Controller
             }
         }
 
+        // Meldeschluss der Wettkämpfe als eigener Eintrag (Martin, 08.10.2026) – wie im Abo
+        $deadlines = $scope->competitions($user)->whereBetween('meldeschluss', [$from, $to])->get();
+        foreach ($deadlines as $c) {
+            $key = $c->meldeschluss->format('Y-m-d');
+            if (!isset($map[$key])) continue;
+            $map[$key][] = [
+                'type'      => 'deadline',
+                'color'     => 'orange',
+                'time'      => null,
+                'title'     => 'Meldeschluss: ' . $c->name,
+                'sub'       => 'Wettkampf am ' . $c->date->format('d.m.Y'),
+                'url'       => match (true) {
+                    $user->canAccess('competitions') => route('admin.competitions.show', $c),
+                    $swimmerComps => route('swimmer.competitions', ['wettkampf' => $c->id]) . '#wettkampf-' . $c->id,
+                    default       => null,
+                },
+                'url_label' => $swimmerComps ? 'Zum Wettkampf' : null,
+            ];
+        }
+
         $calEvents = $scope->visibleEvents($user, CalendarEvent::whereBetween('start_date', [$from, $to])
             ->orderBy('start_date')->orderBy('start_time')
             ->get());

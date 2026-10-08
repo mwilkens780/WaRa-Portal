@@ -39,6 +39,10 @@ class CalendarFeed
             ->orderBy('date')->get();
         foreach ($competitions as $c) $items[] = $this->competition($c, $user);
 
+        // Meldeschluss als eigener ganztägiger Eintrag (Martin, 08.10.2026)
+        $deadlines = $this->scope->competitions($user)->whereBetween('meldeschluss', [$from, $to])->get();
+        foreach ($deadlines as $c) $items[] = $this->deadline($c, $user);
+
         $events = CalendarEvent::where(fn($q) => $q->whereBetween('start_date', [$from, $to])->orWhereBetween('end_date', [$from, $to]))
             ->orderBy('start_date')->get();
         foreach ($this->scope->visibleEvents($user, $events) as $e) $items[] = $this->event($e);
@@ -97,6 +101,25 @@ class CalendarFeed
             'description' => implode("\n", array_filter([
                 $c->meldeschluss ? 'Meldeschluss: ' . $c->meldeschluss->format('d.m.Y') : null,
             ])),
+            'url'         => $viewer && $viewer->canAccess('competitions')
+                ? route('admin.competitions.show', $c)
+                : route('calendar.index', ['view' => 'list']),
+            'updated'     => $c->updated_at,
+        ];
+    }
+
+    public function deadline(Competition $c, ?User $viewer = null): array
+    {
+        $day = Carbon::parse($c->meldeschluss->format('Y-m-d'), Ics::TZ);
+
+        return [
+            'uid'         => "meldeschluss-{$c->id}@" . $this->host(),
+            'summary'     => 'Meldeschluss: ' . $c->name,
+            'start'       => $day,
+            'end'         => $day,
+            'all_day'     => true,
+            'location'    => null,
+            'description' => 'Wettkampf am ' . $c->date->format('d.m.Y') . ($c->location ? ' in ' . $c->location : ''),
             'url'         => $viewer && $viewer->canAccess('competitions')
                 ? route('admin.competitions.show', $c)
                 : route('calendar.index', ['view' => 'list']),

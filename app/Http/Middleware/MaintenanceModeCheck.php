@@ -27,13 +27,21 @@ class MaintenanceModeCheck
             return $next($request);
         }
 
-        if ($request->user()) {
+        // Kalender-Abo: Die Kalender-App ruft ohne Anmeldung ab – der Schlüssel im
+        // Link steht für den Benutzer, für ihn gelten dieselben Ausnahmen
+        $user = $request->user();
+        if (!$user && $request->routeIs('calendar.feed')) {
+            $token = (string) $request->route('token');
+            $user  = strlen($token) >= 32 ? \App\Models\User::where('calendar_token', $token)->first() : null;
+        }
+
+        if ($user) {
             // Admins bypassen immer
-            if ($request->user()->role === 'admin') {
+            if ($user->role === 'admin') {
                 return $next($request);
             }
             // Explizit freigegebene User
-            if (in_array($request->user()->id, Setting::getBypassUserIds())) {
+            if (in_array($user->id, Setting::getBypassUserIds())) {
                 return $next($request);
             }
         }

@@ -32,7 +32,7 @@
         <div class="space-y-4 text-sm text-gray-700">
             <div>
                 <h3 class="font-semibold text-gray-800">iPhone / iPad</h3>
-                <p>„Auf diesem Gerät abonnieren“ antippen und „Abonnieren“ bestätigen. Unter Einstellungen → Kalender → Accounts lässt sich einstellen, wie oft aktualisiert wird (z. B. stündlich).</p>
+                <p>„Auf diesem Gerät abonnieren“ antippen und „Abonnieren“ bestätigen. Klappt das nicht: Link kopieren, dann Einstellungen → Apps → Kalender → Kalender-Accounts → Account hinzufügen → Andere → „Kalenderabo hinzufügen“ und den Link einfügen. Dort lässt sich auch einstellen, wie oft aktualisiert wird (z. B. stündlich).</p>
             </div>
             <div>
                 <h3 class="font-semibold text-gray-800">Outlook (Windows, Mac, Web)</h3>

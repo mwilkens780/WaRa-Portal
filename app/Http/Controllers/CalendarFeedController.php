@@ -28,7 +28,8 @@ class CalendarFeedController extends Controller
 
         return view('calendar.subscribe', [
             'httpsUrl'  => $https,
-            'webcalUrl' => preg_replace('#^https?://#', 'webcal://', $https),
+            // webcals = verschlüsselt (https); webcal:// öffnet das iPhone über http, Port 80 ist beim Hoster zu
+            'webcalUrl' => preg_replace('#^https?://#', 'webcals://', $https),
             'seesAll'   => $this->scope->seesAll($user),
             'hasKids'   => $user->children()->where('active', true)->exists(),
         ]);
