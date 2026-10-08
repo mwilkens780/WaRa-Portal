@@ -26,10 +26,12 @@
         'danger'    => 'bg-accent text-white hover:bg-accent-dark',
     ];
     $sizes = [
-        'md' => 'min-h-[44px] sm:min-h-[40px] px-4 text-sm',
-        'sm' => 'min-h-[44px] sm:min-h-[34px] px-3 text-sm',
+        'md' => 'min-h-[44px] sm:min-h-[40px] px-4 py-2 text-sm',
+        'sm' => 'min-h-[44px] sm:min-h-[34px] px-3 py-1.5 text-sm',
     ];
-    $classes = 'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors '
+    // max-w-full + Text in eigener Hülle (min-w-0): lange Beschriftungen brechen um,
+    // statt über den Rand zu ragen – Safari bricht losen Text im Flex-Knopf sonst nicht um
+    $classes = 'inline-flex max-w-full items-center justify-center gap-2 rounded-lg font-semibold text-center leading-snug transition-colors '
         . 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 '
         . 'disabled:opacity-60 disabled:cursor-not-allowed '
         . ($variants[$variant] ?? $variants['primary']) . ' ' . ($sizes[$size] ?? $sizes['md']);
@@ -37,12 +39,12 @@
 
 @if($href)
     <a href="{{ $href }}" {{ $attributes->merge(['class' => $classes]) }}>
-        @if($icon)<x-ui.icon :name="$icon" class="w-4 h-4" />@endif
-        {{ $slot }}
+        @if($icon)<x-ui.icon :name="$icon" class="w-4 h-4 flex-shrink-0" />@endif
+        <span class="min-w-0 break-words">{{ $slot }}</span>
     </a>
 @else
     <button type="{{ $type }}" {{ $attributes->merge(['class' => $classes]) }}>
-        @if($icon)<x-ui.icon :name="$icon" class="w-4 h-4" />@endif
-        {{ $slot }}
+        @if($icon)<x-ui.icon :name="$icon" class="w-4 h-4 flex-shrink-0" />@endif
+        <span class="min-w-0 break-words">{{ $slot }}</span>
     </button>
 @endif
