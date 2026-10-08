@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Competition;
+use App\Models\CompetitionOfficialAssignment;
 use App\Models\CompetitionOfficialInvitee;
 use App\Models\CompetitionOfficialRequest;
 use App\Models\User;
