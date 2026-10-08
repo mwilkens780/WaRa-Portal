@@ -210,6 +210,9 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
   (`calendar_event_training_group`), Einladungstermine nur Eingeladene/Verwalter. Matrix `calendar_all`
   (Vorstand): alles. Abo: `/kalender/feed/{users.calendar_token}.ics` (ohne Login, `App\Support\Ics`,
   `CalendarFeed`), Einzel-Export `calendar.export`, Einladungs-Mails mit `.ics` (`NotificationMail::$calendar`).
+- **Hilfe & FAQ** (`App\Support\HelpCatalog`, `/hilfe`, öffentlich `/hilfe/anmeldung`): Anleitungen je
+  Zielgruppe und FAQ für die Einführung. Bei neuen oder geänderten Abläufen für Mitglieder den Text dort
+  mitpflegen (Menü- und Knopfnamen wie im Portal). Web-App: `public/manifest.json`, `partials/pwa-head`.
 - **Persönliche Ziele**: `swimmer_goals.shared_with_trainer` (Sportler entscheidet je Ziel); Trainer sehen
   nicht freigegebene nur als Anzahl, kommentieren nur freigegebene Ziele eigener Gruppen.
 - **Dashboard** (`<x-officials-panel />`, auf allen Dashboards; Vorstand/Kampfrichter-Rolle haben

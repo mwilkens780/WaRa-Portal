@@ -209,6 +209,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 // Rechtliche Pflichtseiten (öffentlich)
 Route::get('/impressum', [LegalController::class, 'impressum'])->name('legal.impressum');
 Route::get('/datenschutz', [LegalController::class, 'datenschutz'])->name('legal.datenschutz');
+// Hilfe zur Anmeldung (öffentlich: Passwort, App auf dem Startbildschirm, Kalender-Abo)
+Route::get('/hilfe/anmeldung', [\App\Http\Controllers\HelpController::class, 'public'])->name('help.public');
 
 // Trainingsgruppen – eigene oder alle (Berechtigungs-Matrix)
 Route::middleware(['auth', 'role', 'menu:training_groups,training_groups_all'])->prefix('admin')->name('admin.')->group(function () {
@@ -548,6 +550,8 @@ Route::get('/cron/run/{token}', [CronController::class, 'run'])->name('cron.run'
 // Support-Tickets (alle eingeloggten Rollen)
 Route::middleware('auth')->group(function () {
     Route::get('/support', [SupportTicketController::class, 'create'])->name('support.create');
+    // Hilfe & FAQ (Anleitungen je Rolle, häufige Fragen)
+    Route::get('/hilfe', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
     Route::post('/support', [SupportTicketController::class, 'store'])->name('support.store');
 });
 

@@ -1,0 +1,16 @@
+{
+  "name": "WaRa-Portal – SG Wasserratten Norderstedt",
+  "short_name": "WaRa",
+  "description": "Mitgliederportal der SG Wasserratten Norderstedt e.V.",
+  "lang": "de",
+  "start_url": "/?quelle=app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1B5EAB",
+  "icons": [
+    { "src": "/images/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/images/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

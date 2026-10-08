@@ -85,6 +85,12 @@
   "resources/views/components/ui/table.blade.php": {
     "roh-html": 2
   },
+  "resources/views/help/index.blade.php": {
+    "roh-html": 2
+  },
+  "resources/views/help/public.blade.php": {
+    "roh-html": 2
+  },
   "resources/views/layouts/app.blade.php": {
     "native-dialoge": 2,
     "text-transparent": 1,

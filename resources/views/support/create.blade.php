@@ -3,7 +3,11 @@
 @section('page-title', 'Support')
 
 @section('content')
-<div class="max-w-2xl mt-2">
+<div class="max-w-2xl mt-2 space-y-4">
+    <x-ui.alert tone="info">
+        Viele Fragen beantwortet schon <a href="{{ route('help.index') }}" class="font-semibold underline">Hilfe &amp; FAQ</a> –
+        z. B. zu Passwort, Absagen, Kalender-Abo oder dem Portal als App auf dem Handy.
+    </x-ui.alert>
 
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

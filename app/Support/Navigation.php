@@ -119,6 +119,7 @@ class Navigation
         return array_values(array_filter([
             self::item('Mein Profil', 'profile.index', 'user', 'profile.*', true),
             self::item('Gesundheitsdaten', 'health.index', 'document', 'health.*', true),
+            self::item('Hilfe & FAQ', 'help.index', 'info', 'help.*', true),
             self::item('Support', 'support.create', 'lifebuoy', 'support.*', true),
         ]));
     }

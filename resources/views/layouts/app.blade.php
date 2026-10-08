@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#1B5EAB">
     <link rel="icon" type="image/png" href="{{ asset('images/logo-96x96.png') }}">
+    @include('partials.pwa-head')
     <title>@yield('title', 'WaRa-Portal') – SG Wasserratten Norderstedt</title>
     {{--
         Absicherung fuer data-confirm, solange app.js noch nicht geladen ist

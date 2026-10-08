@@ -19,7 +19,7 @@ class MaintenanceModeCheck
         // Die Passwortstrecke gehört dazu, weil sich der Ablauf sonst während
         // der Wartung nicht testen lässt - und genau dafür ist sie gedacht.
         if ($request->routeIs(
-            'login', 'login.post', 'maintenance', 'cron.run', 'api.webclub-import',
+            'login', 'login.post', 'maintenance', 'cron.run', 'api.webclub-import', 'help.public',
             'password.request', 'password.email',
             'password.setup', 'password.setup.store',
             'password.reset', 'password.reset.store',

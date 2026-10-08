@@ -43,7 +43,7 @@
                 <p>Link kopieren, am Computer <span class="break-all">calendar.google.com</span> öffnen → links bei „Weitere Kalender“ auf „+“ → „Per URL“ → Link einfügen. Der Kalender erscheint danach auch auf dem Handy (in der App unter Einstellungen den Kalender einschalten).
                    Google aktualisiert nur etwa alle 8 bis 24 Stunden. Schneller geht es mit der kostenlosen App <strong>ICSx⁵</strong>: dort den Link einfügen und das Intervall wählen.</p>
             </div>
-            <p class="text-xs text-gray-500">Einzelne Termine kannst du auch direkt übernehmen: im Kalender beim Termin „In meinen Kalender“.</p>
+            <p class="text-xs text-gray-500">Einzelne Termine kannst du auch direkt übernehmen: im Kalender beim Termin „In meinen Kalender“. Mehr dazu unter <a href="{{ route('help.index') }}#kalender-abo" class="underline">Hilfe &amp; FAQ</a>.</p>
         </div>
     </x-ui.card>
 

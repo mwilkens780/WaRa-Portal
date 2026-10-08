@@ -55,6 +55,7 @@ window.addEventListener('pageshow', function(e) {
 </form>
 
 <p class="text-center text-sm text-gray-500 mt-6">
-    Bei Problemen wende dich an deinen Trainer oder Administrator.
+    <a href="{{ route('help.public') }}" class="font-medium text-primary hover:underline">Hilfe zur Anmeldung</a>
+    · Bei Problemen wende dich an deinen Trainer oder die Geschäftsstelle.
 </p>
 @endsection

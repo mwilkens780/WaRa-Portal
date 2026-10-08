@@ -130,6 +130,13 @@
     }
 
     /* Tiptap: Platzhalter im leeren Editor */
+    /* Hilfe & FAQ: Anleitungen (zusätzlich zu .rich-text) */
+    .help-article h4 { @apply font-semibold text-gray-900 mt-4 mb-1; }
+    .help-article li { @apply mb-1; }
+    .help-article a { @apply text-primary underline underline-offset-2 hover:no-underline; }
+    .help-article .tip { @apply rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-900 my-3; }
+    .help-article .warn { @apply rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 my-3; }
+    .help-article .ui { @apply font-semibold text-gray-900; }
     .rich-text p.is-editor-empty:first-child::before {
         content: attr(data-placeholder);
         @apply float-left h-0 pointer-events-none text-gray-400;
