@@ -34,6 +34,22 @@
 
 <x-ui.field label="Beschreibung" name="description" as="textarea" rows="3" :value="$e?->description" />
 
+{{-- Termine ohne Einladung: für alle oder nur für bestimmte Gruppen (Kalender und Abo filtern danach) --}}
+@php $chosen = collect(old('target_group_ids', $e?->trainingGroups?->pluck('id')->all() ?? []))->map(fn($v) => (int) $v)->all(); @endphp
+<fieldset class="rounded-lg border border-gray-200 p-4" x-show="!audience" x-cloak>
+    <legend class="px-1 text-sm font-medium text-gray-800">Für wen?</legend>
+    <p class="mb-3 text-xs text-gray-600">Ohne Auswahl sehen alle Mitglieder den Termin. Mit Auswahl nur die Gruppen (Sportler, Eltern, Trainer) – und der Vorstand.</p>
+    <div class="grid gap-2 sm:grid-cols-2">
+        @foreach($targetGroups as $g)
+            <label class="flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" name="target_group_ids[]" value="{{ $g->id }}" @checked(in_array($g->id, $chosen, true))
+                       class="rounded border-gray-300 text-primary focus:ring-primary/30">
+                {{ $g->name }}
+            </label>
+        @endforeach
+    </div>
+</fieldset>
+
 {{-- Nur Termine mit Einladung: Agenda und Anmeldung --}}
 <div class="space-y-4" x-show="audience" x-cloak>
     <x-ui.rich-text-editor name="agenda" :value="old('agenda', $e?->agenda)" label="Agenda"

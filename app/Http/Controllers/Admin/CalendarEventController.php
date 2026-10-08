@@ -39,6 +39,7 @@ class CalendarEventController extends Controller
             'types'       => $types,
             'defaultDate' => $request->get('date'),
             'defaultType' => array_key_exists($request->get('type'), $types) ? $request->get('type') : array_key_first($types),
+            'targetGroups' => $this->targetGroups(),
         ]);
     }
 
@@ -50,6 +51,7 @@ class CalendarEventController extends Controller
         $data = $this->validated($request, array_keys($types));
         $data['created_by'] = auth()->id();
         $event = CalendarEvent::create($data);
+        $this->syncTargetGroups($request, $event);
 
         if ($event->hasInvitations()) {
             $count = $this->inviteFromRequest($request, $event);
@@ -101,6 +103,7 @@ class CalendarEventController extends Controller
             'calendarEvent' => $calendarEvent,
             'seasons'       => Season::orderByDesc('start_date')->get(),
             'types'         => $types,
+            'targetGroups'  => $this->targetGroups(),
         ]);
     }
 
@@ -113,6 +116,7 @@ class CalendarEventController extends Controller
         // Termine mit Einladung behalten ihre Art – sonst passten die Eingeladenen nicht mehr
         if ($calendarEvent->hasInvitations()) unset($data['type']);
         $calendarEvent->update($data);
+        $this->syncTargetGroups($request, $calendarEvent);
 
         return $calendarEvent->hasInvitations()
             ? redirect()->route('calendar.events.show', $calendarEvent)->with('success', 'Termin gespeichert.')
@@ -270,6 +274,21 @@ class CalendarEventController extends Controller
     }
 
     // ── Hilfen ──────────────────────────────────────────────────────────────
+
+    /** Zielgruppen einfacher Termine; Termine mit Einladung richten sich nach den Eingeladenen */
+    private function syncTargetGroups(Request $request, CalendarEvent $event): void
+    {
+        $ids = $request->validate([
+            'target_group_ids'   => ['nullable', 'array'],
+            'target_group_ids.*' => ['integer', 'exists:training_groups,id'],
+        ])['target_group_ids'] ?? [];
+        $event->trainingGroups()->sync($event->hasInvitations() ? [] : $ids);
+    }
+
+    private function targetGroups()
+    {
+        return TrainingGroup::where('active', true)->orderBy('name')->get(['id', 'name']);
+    }
 
     private function validated(Request $request, array $allowedTypes): array
     {

@@ -96,6 +96,7 @@ class EventMailer
             actionUrl:   $this->linkFor($user, 'swimmer.competitions', [], $kid),
             actionLabel: 'Jetzt rückmelden',
             greetingName: $user->firstname,
+            calendar:    ['wettkampf', $competition->id],
         ));
     }
 
@@ -432,6 +433,8 @@ class EventMailer
                     $e->rsvp_enabled ? 'Bitte gib Bescheid, ob du kommst' . ($e->rsvp_deadline ? ' – bis ' . $e->rsvp_deadline->format('d.m.Y') : '') . '.' : null,
                 ])),
                 'label'      => $e->rsvp_enabled ? 'Zu- oder absagen' : 'Termin ansehen',
+                // Termin direkt in Outlook/Apple/Google übernehmen
+                'calendar'   => ['termin', $e->id],
             ];
         });
     }
@@ -484,6 +487,7 @@ class EventMailer
                 actionUrl: route('invitation.guest', $invitee->token), actionLabel: $c['label'],
                 greetingName: $invitee->guest_name,
                 footnote: 'Der Link ist persönlich und funktioniert ohne Anmeldung im Portal. Bitte nicht weitergeben.',
+                calendar: $c['calendar'] ?? null,
             );
             $log = $this->mailer->queueGuest($invitee->guest_email, $invitee->guest_name, 'event_invitations', $mail, $mail->defaultSubject());
             return $log->status === 'pending' ? 1 : 0;
@@ -505,6 +509,7 @@ class EventMailer
                 subjectText: $c['subject'], heading: $c['heading'], paragraphs: $c['paragraphs'], facts: $facts,
                 actionUrl: route('calendar.events.show', $e), actionLabel: $c['label'],
                 greetingName: $recipient->firstname,
+                calendar: $c['calendar'] ?? null,
             );
             $log = $this->mailer->queue($recipient, 'event_invitations', $mail, $mail->defaultSubject());
             if ($log->status === 'pending') $queued++;

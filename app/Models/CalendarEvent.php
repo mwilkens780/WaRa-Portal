@@ -73,6 +73,12 @@ class CalendarEvent extends Model
         return $this->hasMany(CalendarEventFile::class)->orderBy('created_at');
     }
 
+    /** Zielgruppen einfacher Termine (Vereinstermin, Ehrung, Meldefrist …); leer = für alle */
+    public function trainingGroups()
+    {
+        return $this->belongsToMany(TrainingGroup::class, 'calendar_event_training_group');
+    }
+
     // ── Art ─────────────────────────────────────────────────────────────────
 
     public function getTypeLabelAttribute(): string

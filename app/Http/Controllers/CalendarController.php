@@ -246,14 +246,6 @@ class CalendarController extends Controller
     }
 
     /**
-     * Schraenkt die Wettkaempfe auf die ein, die den Benutzer betreffen.
-     *
-     * Vorstand und Administratoren sehen alles - sie planen den Vereinsbetrieb.
-     * Trainer sehen die Wettkaempfe ihrer Gruppen, Sportler zusaetzlich die,
-     * zu denen sie eingeladen wurden oder bei denen sie ein Ergebnis haben
-     * (eine Einladung laeuft nicht immer ueber die Gruppe).
-     */
-    /**
      * Eltern: Wettkampf-ID -> erstes Kind, in dessen Wettkampfliste er steht
      * (dieselbe Regel wie SwimmerPages::competitions: Gruppe, Einladung oder
      * eigenes Ergebnis).
@@ -286,41 +278,6 @@ class CalendarController extends Controller
         return $map;
     }
 
-    private function limitCompetitions($query, $user, ?string $role): void
-    {
-        if (in_array($role, ['admin', 'vorstand'], true)) {
-            return;
-        }
-
-        if ($role === 'trainer') {
-            $gruppenIds = $user->trainerGroups()->pluck('training_groups.id');
-            $query->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds));
-            return;
-        }
-
-        if ($role === 'elternteil') {
-            $gruppenIds = collect();
-            foreach ($user->children()->where('active', true)->get() as $kind) {
-                $gruppenIds = $gruppenIds->merge($kind->trainingGroups()->pluck('training_groups.id'));
-            }
-            $kinderIds = $user->children()->pluck('users.id');
-
-            $query->where(fn($q) => $q
-                ->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds->unique()))
-                ->orWhereHas('results', fn($r) => $r->whereIn('user_id', $kinderIds))
-                ->orWhereHas('signupRequest.responses', fn($s) => $s->whereIn('user_id', $kinderIds)));
-            return;
-        }
-
-        // Sportler und Kampfrichter
-        $gruppenIds = $user->trainingGroups()->pluck('training_groups.id');
-
-        $query->where(fn($q) => $q
-            ->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $gruppenIds))
-            ->orWhereHas('results', fn($r) => $r->where('user_id', $user->id))
-            ->orWhereHas('signupRequest.responses', fn($s) => $s->where('user_id', $user->id)));
-    }
-
     // ── Build event map: date → [events] ─────────────────────────────────
 
     private function buildEventMap(Carbon $from, Carbon $to): array
@@ -332,51 +289,32 @@ class CalendarController extends Controller
             $cursor->addDay();
         }
 
-        $user      = auth()->user();
-        $role      = $user->role;
-        $isAdmin   = $user->isAdmin();
-        $isTrainer = in_array($role, ['trainer', 'admin']);
+        $user  = auth()->user();
+        $role  = $user->role;
+        $scope = app(\App\Services\CalendarScope::class);
+        // Ziel für "Öffnen": Verwaltung (Trainer/Vorstand), Sportler-Detail, Eltern die Trainingsliste des Kindes
+        $manages = $user->canAccess('training', 'training_all');
 
-        // Build role-specific training session query
-        $sessionQuery = TrainingSession::with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
+        // Nur zugewiesene Einheiten – dieselbe Regel wie Abo und Export (CalendarScope)
+        $sessionQuery = $scope->sessions($user)
+            ->with(['coTrainers:id,firstname,lastname', 'trainingGroups:id,name,color'])
             ->whereBetween('date', [$from, $to])
             ->orderBy('date')->orderBy('start_time');
 
-        $sessionDetailRoute = null;
+        $sessionDetailRoute = match (true) {
+            $role === 'schwimmer'  => 'swimmer',
+            $role === 'elternteil' => 'parent',
+            $manages               => 'trainer',
+            default                => null,
+        };
         // Eltern: Gruppe -> erstes Kind darin (Ziel fuer "Oeffnen" im Termin-Sheet)
         $childByGroup = [];
-
-        if ($isAdmin) {
-            // Admin: all sessions
-            $sessionDetailRoute = 'trainer';
-        } elseif ($isTrainer) {
-            // Trainer: eigene Einheiten und Einheiten der betreuten Gruppen
-            $sessionQuery->manageableBy($user);
-            $sessionDetailRoute = 'trainer';
-        } elseif ($role === 'schwimmer') {
-            // Dieselbe Regel wie im Dashboard und auf der Detailseite
-            $sessionQuery->visibleToSwimmer($user);
-            $sessionDetailRoute = 'swimmer';
-        } elseif ($role === 'elternteil') {
-            // Parent: sessions from all children's training groups
-            $childrenGroupIds = collect();
+        if ($role === 'elternteil') {
             foreach ($user->children()->where('active', true)->get() as $child) {
-                $ids = $child->trainingGroups()->pluck('training_groups.id');
-                $childrenGroupIds = $childrenGroupIds->merge($ids);
-                foreach ($ids as $gid) {
+                foreach ($child->trainingGroups()->pluck('training_groups.id') as $gid) {
                     $childByGroup[$gid] ??= $child;
                 }
             }
-            $childrenGroupIds = $childrenGroupIds->unique();
-
-            if ($childrenGroupIds->isNotEmpty()) {
-                $sessionQuery->whereHas('trainingGroups', fn($g) => $g->whereIn('training_groups.id', $childrenGroupIds));
-            } else {
-                $sessionQuery->whereRaw('0=1');
-            }
-            $sessionDetailRoute = 'parent';
-        } else {
-            $sessionQuery->whereRaw('0=1');
         }
 
         $sessions = $sessionQuery->get();
@@ -398,20 +336,20 @@ class CalendarController extends Controller
                 'sub'     => $groups,
                 'trainer' => $s->trainer ? $s->trainer->firstname . ' ' . $s->trainer->lastname : null,
                 'url'     => match ($sessionDetailRoute) {
-                    'trainer' => route('trainer.sessions.show', $s),
+                    'trainer' => $s->isManageableBy($user) ? route('trainer.sessions.show', $s) : null,
                     'swimmer' => route('swimmer.session.show', $s),
                     'parent'  => $parentChild ? route('parent.child.trainings', $parentChild->id) . '#training-' . $s->id : null,
                     default   => null,
                 },
                 'url_label' => $parentChild ? 'Zum Training von ' . $parentChild->firstname : null,
+                'ics'       => route('calendar.export', ['training', $s->id]),
             ];
         }
 
         // Wettkaempfe: Wer nicht die ganze Vereinsverwaltung macht, sieht nur
         // die eigenen. Vorher stand im Kalender jedes Meeting des Vereins -
         // bei voller Saison war der eigene Termin darin nicht mehr zu finden.
-        $competitions = Competition::whereBetween('date', [$from, $to])
-            ->tap(fn($q) => $this->limitCompetitions($q, $user, $role))
+        $competitions = $scope->competitions($user)->whereBetween('date', [$from, $to])
             ->orderBy('date')
             ->get();
 
@@ -424,7 +362,7 @@ class CalendarController extends Controller
         foreach ($competitions as $c) {
             $compChild = $compChildren[$c->id] ?? null;
             [$compUrl, $compLabel] = match (true) {
-                $isTrainer    => [route('admin.competitions.show', $c), null],
+                $user->canAccess('competitions') => [route('admin.competitions.show', $c), null],
                 $swimmerComps => [route('swimmer.competitions', ['wettkampf' => $c->id]) . '#wettkampf-' . $c->id, 'Zum Wettkampf'],
                 $compChild !== null => [route('parent.child.competitions', ['childId' => $compChild->id, 'wettkampf' => $c->id]) . '#wettkampf-' . $c->id,
                                         'Zum Wettkampf von ' . $compChild->firstname],
@@ -445,6 +383,7 @@ class CalendarController extends Controller
                         'sub'        => $c->location,
                         'url'        => $compUrl,
                         'url_label'  => $compLabel,
+                        'ics'        => route('calendar.export', ['wettkampf', $c->id]),
                         'span_start' => $c->date->format('Y-m-d'),
                         'span_end'   => ($c->date_end ?? $c->date)->format('Y-m-d'),
                     ];
@@ -453,9 +392,9 @@ class CalendarController extends Controller
             }
         }
 
-        $calEvents = CalendarEvent::whereBetween('start_date', [$from, $to])
+        $calEvents = $scope->visibleEvents($user, CalendarEvent::whereBetween('start_date', [$from, $to])
             ->orderBy('start_date')->orderBy('start_time')
-            ->get();
+            ->get());
 
         // Termine, zu denen ich oder ein minderjähriges Kind eingeladen bin
         $invitedTo = \App\Models\CalendarEventInvitee::whereIn('calendar_event_id', $calEvents->pluck('id'))
@@ -480,6 +419,7 @@ class CalendarController extends Controller
                         'url_label'  => isset($invitedTo[$e->id]) && $e->rsvpOpen() ? 'Details und Anmeldung' : 'Details',
                         'id'         => $e->id,
                         'can_edit'   => $e->canManage($user),
+                        'ics'        => route('calendar.export', ['termin', $e->id]),
                         'span_start' => $e->start_date->format('Y-m-d'),
                         'span_end'   => ($e->end_date ?? $e->start_date)->format('Y-m-d'),
                     ];

@@ -440,7 +440,15 @@ Route::middleware(['auth', 'menu:club_records'])
 // Kalender (alle eingeloggten Rollen können lesen; Trainer+Admin dürfen Termine anlegen/bearbeiten)
 Route::middleware(['auth', 'menu:calendar'])->group(function () {
     Route::get('/kalender', [CalendarController::class, 'index'])->name('calendar.index');
+    // Kalender-Abo (Outlook, Apple, Google) und Einzel-Export als .ics
+    Route::get('/kalender/abo', [\App\Http\Controllers\CalendarFeedController::class, 'show'])->name('calendar.subscribe');
+    Route::post('/kalender/abo/neu', [\App\Http\Controllers\CalendarFeedController::class, 'renew'])->name('calendar.subscribe.renew');
+    Route::get('/kalender/export/{type}/{id}.ics', [\App\Http\Controllers\CalendarFeedController::class, 'export'])
+        ->whereIn('type', ['training', 'wettkampf', 'termin'])->whereNumber('id')->name('calendar.export');
 });
+// Abo-Feed: ohne Anmeldung, der geheime Schlüssel im Link weist aus
+Route::get('/kalender/feed/{token}.ics', [\App\Http\Controllers\CalendarFeedController::class, 'feed'])
+    ->where('token', '[A-Za-z0-9]{32,64}')->middleware('throttle:60,1')->name('calendar.feed');
 // Termine: Anlegen je nach Art (Vorstand, Trainer, Schwimmer), Rechte am Modell (CalendarEvent)
 Route::middleware(['auth', 'role', 'menu:calendar'])->group(function () {
     Route::get('/kalender/termin/neu', [CalendarEventController::class, 'create'])->name('calendar.events.create');

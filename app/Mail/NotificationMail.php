@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
@@ -30,7 +31,25 @@ class NotificationMail extends Mailable
         public ?string $actionLabel = null,
         public ?string $greetingName = null,
         public ?string $footnote = null,
+        // Kalendereintrag als .ics-Anhang: ['termin'|'wettkampf', id] – beim Versand erzeugt, damit aktuell
+        public ?array $calendar = null,
     ) {}
+
+    public function attachments(): array
+    {
+        if (!$this->calendar) return [];
+        [$type, $id] = $this->calendar;
+        $feed = app(\App\Services\CalendarFeed::class);
+
+        $item = match ($type) {
+            'termin'    => ($e = \App\Models\CalendarEvent::find($id)) ? $feed->event($e) : null,
+            'wettkampf' => ($c = \App\Models\Competition::find($id)) ? $feed->competition($c) : null,
+            default     => null,
+        };
+        if (!$item) return [];
+
+        return [Attachment::fromData(fn() => $feed->single($item), 'termin.ics')->withMime('text/calendar; charset=utf-8; method=PUBLISH')];
+    }
 
     public function envelope(): Envelope
     {
@@ -72,6 +91,7 @@ class NotificationMail extends Mailable
             'label'     => $this->actionLabel,
             'greeting'  => $this->greetingName,
             'footnote'  => $this->footnote,
+            'calendar'  => $this->calendar,
         ];
     }
 
@@ -86,6 +106,7 @@ class NotificationMail extends Mailable
             actionLabel:  $payload['label'] ?? null,
             greetingName: $payload['greeting'] ?? $user?->firstname,
             footnote:     $payload['footnote'] ?? null,
+            calendar:     $payload['calendar'] ?? null,
         );
     }
 }

@@ -203,6 +203,13 @@ Pflicht, auch wenn bestehende Seiten es noch anders machen (die sind kein Vorbil
 - **Trainingspläne (Know-how-Schutz)**: Plan, Beschreibung, Anhänge, Teamplan nur über
   `TrainingSession::planVisibleTo()` – Trainer der Einheit/Gruppe, Admin, Matrix `training_plans_all`;
   Sportler ihre Einheit nach dem Training. Einheit verwalten (`isManageableBy`) reicht nicht.
+- **Kalender-Sichtbarkeit** (`App\Services\CalendarScope`, eine Regel für Kalenderansicht, Abo und
+  Export): nur zugewiesene Einheiten (Gruppe ohne abgemeldete Serie, Einzel-/Serienzuweisung, Anmeldung,
+  Anwesenheit; Eltern die der Kinder; Trainer eingetragen/Gruppentrainer), Wettkämpfe der Gruppen bzw.
+  mit Einladung/Ergebnis/Kampfrichter-Anfrage, einfache Termine für alle oder Zielgruppen
+  (`calendar_event_training_group`), Einladungstermine nur Eingeladene/Verwalter. Matrix `calendar_all`
+  (Vorstand): alles. Abo: `/kalender/feed/{users.calendar_token}.ics` (ohne Login, `App\Support\Ics`,
+  `CalendarFeed`), Einzel-Export `calendar.export`, Einladungs-Mails mit `.ics` (`NotificationMail::$calendar`).
 - **Persönliche Ziele**: `swimmer_goals.shared_with_trainer` (Sportler entscheidet je Ziel); Trainer sehen
   nicht freigegebene nur als Anzahl, kommentieren nur freigegebene Ziele eigener Gruppen.
 - **Dashboard** (`<x-officials-panel />`, auf allen Dashboards; Vorstand/Kampfrichter-Rolle haben

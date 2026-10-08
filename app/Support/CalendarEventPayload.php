@@ -36,6 +36,8 @@ final class CalendarEventPayload
             'category' => self::category($evt['color']),
             'url'      => $evt['url'] ?? null,
             'urlLabel' => $evt['url_label'] ?? 'Öffnen',
+            // Einzel-Export als .ics (Outlook, Apple, Google)
+            'icsUrl'   => $evt['ics'] ?? null,
             // Eigene Kalendertermine: Bearbeiten fuer Trainer/Admin (vorher nur per Maus-Hover)
             'editUrl'  => !empty($evt['id']) && ($evt['can_edit'] ?? $isTrainer) ? route('calendar.events.edit', $evt['id']) : null,
             'aria'     => $evt['title'] . ', ' . $day->isoFormat('dd D.M.') . ($time ? ', ' . $time : ''),

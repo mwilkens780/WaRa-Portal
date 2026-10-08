@@ -42,7 +42,7 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'remember_token',
+        'password', 'remember_token', 'calendar_token',
     ];
 
     protected function casts(): array
@@ -156,6 +156,15 @@ class User extends Authenticatable
     public function canAccess(string ...$keys): bool
     {
         return MenuPermission::allows($this, ...$keys);
+    }
+
+    /** Geheimer Schlüssel des persönlichen Kalender-Abos; wird beim ersten Abruf erzeugt */
+    public function calendarToken(bool $renew = false): string
+    {
+        if ($renew || !$this->calendar_token) {
+            $this->forceFill(['calendar_token' => \Illuminate\Support\Str::random(48)])->saveQuietly();
+        }
+        return $this->calendar_token;
     }
 
     /** Rollen, die dieser Benutzer anderen geben darf – Administrator nur durch Administratoren */

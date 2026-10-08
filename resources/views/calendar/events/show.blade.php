@@ -15,8 +15,11 @@
 
     <x-ui.page-header :back="route('calendar.index', ['date' => $event->start_date->format('Y-m-d')])" back-label="Kalender"
                       :subtitle="$event->type_label">
+        <x-slot:actions>
+            @if(app(\App\Services\CalendarScope::class)->eventVisible(auth()->user(), $event))
+                <x-ui.button variant="secondary" icon="calendar" :href="route('calendar.export', ['termin', $event->id])">In meinen Kalender</x-ui.button>
+            @endif
         @if($canManage)
-            <x-slot:actions>
                 <x-ui.button variant="secondary" icon="pencil" :href="route('calendar.events.edit', $event)">Bearbeiten</x-ui.button>
                 @if($event->rsvp_enabled && ($counts['offen'] ?? 0) > 0)
                     <form method="POST" action="{{ route('calendar.events.remind', $event) }}"
@@ -25,8 +28,8 @@
                         <x-ui.button type="submit" variant="secondary">Erinnerung senden</x-ui.button>
                     </form>
                 @endif
-            </x-slot:actions>
         @endif
+        </x-slot:actions>
     </x-ui.page-header>
 
     {{-- Eckdaten --}}

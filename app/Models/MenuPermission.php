@@ -54,6 +54,8 @@ class MenuPermission extends Model
         'training_groups_all' => ['label' => 'Alle Trainingsgruppen & Kurse: Mitglieder und Trainer zuweisen', 'section' => 'scope'],
         // Schutz der Trainingspläne: sonst nur Trainer der Einheit/Gruppe (Voreinstellung: niemand außer Admin)
         'training_plans_all'  => ['label' => 'Trainingspläne aller Einheiten einsehen', 'section' => 'scope'],
+        // Kalender und Abo: sonst nur Einträge der eigenen bzw. zugewiesenen Gruppen
+        'calendar_all'        => ['label' => 'Kalender & Abo: Einheiten, Wettkämpfe, Termine und Einladungen aller Gruppen', 'section' => 'scope'],
         // Termine (Arten aus CalendarEvent::TYPES)
         'events_vereinstermin'    => ['label' => 'Vereinstermin anlegen',     'section' => 'events'],
         'events_ehrung'           => ['label' => 'Ehrung anlegen',            'section' => 'events'],
@@ -81,7 +83,7 @@ class MenuPermission extends Model
         'trainer'      => ['calendar','users_lite','training','training_groups','competitions','competition_import','records','goals','diary','motto','hall',
                            'events_vereinstermin','events_ehrung','events_meldefrist','events_elternabend','events_team_event','events_sonstiges','events_all_groups'],
         // Vorstand: Trainingseinheiten aller Gruppen (Martin, 07.10.2026), Obmann, Lizenzen
-        'vorstand'     => ['calendar','users_lite','users_all','competitions','competition_import','records','training_all',
+        'vorstand'     => ['calendar','calendar_all','users_lite','users_all','competitions','competition_import','records','training_all',
                            'officials','official_requests','events_vorstandssitzung','events_team_event','events_all_groups'],
         'kampfrichter' => ['calendar','competitions','competition_import','officials_own'],
         // Geschäftsstelle: Benutzer, Gruppen-/Kurszuweisung, Termine, Lizenzen – keine Trainingseinheiten
