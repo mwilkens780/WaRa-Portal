@@ -695,6 +695,8 @@ class WebClubCrawler
             $key    = "{$discipline}_{$distance}_{$teamName}_{$timeMs}";
 
             $gender = $relay['gender'] ?? $def['gender'] ?? null;
+            // Mixed-Staffel: Startschwimmer-Zeit zählt nicht offiziell (Vorgabe DSV)
+            $isMixed = \App\Support\Gender::isMixed($gender);
             if ($gender === 'X') $gender = null;
 
             $event = $this->matchPortalEvent($portalByDiscDist, $discipline, $distance, $gender);
@@ -732,7 +734,7 @@ class WebClubCrawler
 
             $this->relayMemberCount += $this->persistRelayMembers($relayResult, $members, $gender);
 
-            $made      = $this->persistLeadoffResult(
+            $made      = $isMixed ? 0 : $this->persistLeadoffResult(
                 $competition, $relayResult, $members, $splits, $discipline, $distance, $event
             );
             $leadoffs += $made;

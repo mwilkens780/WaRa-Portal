@@ -28,6 +28,12 @@ final class Gender
     /** Kurzform für enge Tabellen */
     const SHORT = ['F' => 'w', 'M' => 'm', 'D' => 'd', 'X' => 'mix'];
 
+    /** Gemischte Wertung (Mixed) – auch in der alten Staffel-Schreibweise 'mixed' */
+    public static function isMixed(?string $code): bool
+    {
+        return self::normalize($code) === self::MIXED;
+    }
+
     public static function label(?string $code): ?string
     {
         return self::LABELS[self::normalize($code) ?? ''] ?? null;

@@ -920,6 +920,9 @@ class Dsv7Parser
      *
      * Nur aus gewerteten Staffeln (nicht disqualifiziert/abgemeldet) und nur
      * mit plausibler Zeit – lieber keine als eine falsche Einzelzeit.
+     *
+     * Ausnahme Mixed-Staffeln (Vorgabe DSV, Martin 09.10.2026): Dort zählt die
+     * Zeit des Startschwimmers nicht offiziell.
      */
     private function addLeadoffResults(array &$clubs): void
     {
@@ -929,6 +932,7 @@ class Dsv7Parser
                 if (empty($relay['is_relay'])) continue;
                 $r = $relay['results'][0] ?? null;
                 if (!$r || !empty($r['status']) || ($r['relay_legs'] ?? 1) < 2) continue;
+                if (\App\Support\Gender::isMixed($relay['gender'] ?? null)) continue;
 
                 $lead = collect($relay['relay_members'])->firstWhere('leg', 1);
                 $time = collect($relay['relay_splits'] ?? [])
