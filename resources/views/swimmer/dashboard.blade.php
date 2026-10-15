@@ -274,6 +274,25 @@
         </div>
     </div>
 
+    {{-- Meine Wertung: Saison-Kennzahlen mit Vorsaison (ohne Gesamtpunkte) --}}
+    @if($seasonStats && $seasonStats['season'])
+        @php $ssNow = $seasonStats['now']; $ssBefore = $seasonStats['before']; @endphp
+        <a href="{{ route('swimmer.stats') }}" class="block rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <p class="text-sm font-semibold text-gray-800">Meine Wertung · Saison {{ $seasonStats['season']->name }}</p>
+                <span class="text-xs font-medium text-primary">Details →</span>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                @foreach([['podiums', 'Podestplätze', 'text-amber-600'], ['finals', 'Finals', 'text-primary'], ['personal_bests', 'Bestzeiten', 'text-accent'], ['club_records', 'Vereinsrekorde', 'text-green-700']] as [$k, $label, $color])
+                    <div>
+                        <p class="text-2xl font-bold {{ $color }}">{{ $ssNow[$k] }}</p>
+                        <p class="text-xs text-gray-600">{{ $label }}@if($ssBefore) <span class="text-gray-500">· Vorsaison {{ $ssBefore[$k] }}</span>@endif</p>
+                    </div>
+                @endforeach
+            </div>
+        </a>
+    @endif
+
     {{-- Trainingsbeteiligung: Saison und laufender Monat, gerechnet ueber die
          angebotenen Einheiten der eigenen Gruppen (TrainingParticipation) --}}
     <div class="grid md:grid-cols-2 gap-4">

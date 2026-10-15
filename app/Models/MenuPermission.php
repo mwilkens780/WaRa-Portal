@@ -36,6 +36,8 @@ class MenuPermission extends Model
         'motto'          => ['label' => 'Motto der Woche',        'section' => 'trainer'],
         'hall'           => ['label' => 'Hallenbelegung',         'section' => 'trainer'],
         'swimmer_times'  => ['label' => 'Meine Bestzeiten',       'section' => 'swimmer'],
+        // Saison-Kennzahlen (Podest, Finals, Bestzeiten …) – Eltern sehen sie über "Meine Kinder"
+        'swimmer_stats'  => ['label' => 'Meine Wertung',          'section' => 'swimmer'],
         'swimmer_comps'  => ['label' => 'Meine Wettkämpfe',       'section' => 'swimmer'],
         'swimmer_goals'  => ['label' => 'Meine Ziele',            'section' => 'swimmer'],
         'swimmer_sessions'    => ['label' => 'Mein Training',     'section' => 'swimmer'],
@@ -90,7 +92,7 @@ class MenuPermission extends Model
         'geschaeftsstelle' => ['calendar','users_lite','users_all','training_groups','training_groups_all','officials',
                            'events_vereinstermin','events_ehrung','events_meldefrist','events_elternabend','events_team_event','events_sonstiges',
                            'events_manage','events_all_groups'],
-        'schwimmer'           => ['calendar','swimmer_times','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','club_records','events_team_event'],
+        'schwimmer'           => ['calendar','swimmer_times','swimmer_stats','swimmer_comps','swimmer_goals','swimmer_sessions','swimmer_group_goals','swimmer_motto','club_records','events_team_event'],
         'elternteil'          => ['calendar','parent_area','club_records'],
         'ernaehrungsberater'  => ['calendar'],
         'teamarzt'            => ['calendar'],

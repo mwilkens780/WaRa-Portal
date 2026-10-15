@@ -232,7 +232,12 @@ class DashboardController extends Controller
             ->with('group:id,name,color')
             ->first();
 
+        // Kachel "Meine Wertung": Saison-Kennzahlen (App\Services\SeasonStats)
+        $seasonStats = auth()->user()->canAccess('swimmer_stats')
+            ? app(\App\Services\SeasonStats::class)->summary(auth()->user()) : null;
+
         return view('swimmer.dashboard', compact(
+            'seasonStats',
             'stats', 'allBests', 'yearBests', 'seasonBests',
             'recent_sessions', 'recent_results',
             'next_competition', 'upcoming_sessions', 'my_pre_absences',
@@ -635,6 +640,17 @@ class DashboardController extends Controller
     public function myTimes(\App\Services\SwimmerPages $pages)
     {
         return view('swimmer.my-times', $pages->times(auth()->user()));
+    }
+
+    /** Meine Wertung: Saison-Kennzahlen ohne Gesamtpunkte (App\Services\SeasonStats) */
+    public function myStats(Request $request, \App\Services\SeasonStats $stats)
+    {
+        $season = \App\Models\Season::find($request->integer('saison')) ?? \App\Models\Season::current();
+
+        return view('swimmer.my-stats', $stats->forUser(auth()->user(), $season) + [
+            'seasons'    => \App\Models\Season::orderByDesc('start_date')->get(),
+            'statsRoute' => ['swimmer.stats', []],
+        ]);
     }
 
     public function myCompetitions(\App\Services\SwimmerPages $pages)

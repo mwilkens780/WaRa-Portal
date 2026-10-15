@@ -42,6 +42,8 @@ class DashboardController extends Controller
                         ->get()
                 )->take(3),
                 'pending_signups' => $pendingSignups,
+                // Zeile "Wertung": Saison-Kennzahlen (App\Services\SeasonStats)
+                'season_stats'    => app(\App\Services\SeasonStats::class)->summary($child),
             ];
         }
 
@@ -80,6 +82,20 @@ class DashboardController extends Controller
             'subject'    => $child,
             'asParent'   => true,
             'timesRoute' => ['parent.child.times', ['childId' => $child->id]],
+        ]);
+    }
+
+    /** Wertung des Kindes: Saison-Kennzahlen ohne Gesamtpunkte (App\Services\SeasonStats) */
+    public function childStats(\Illuminate\Http\Request $request, int $childId, \App\Services\SeasonStats $stats)
+    {
+        $child  = auth()->user()->children()->findOrFail($childId);
+        $season = \App\Models\Season::find($request->integer('saison')) ?? \App\Models\Season::current();
+
+        return view('swimmer.my-stats', $stats->forUser($child, $season) + [
+            'seasons'    => \App\Models\Season::orderByDesc('start_date')->get(),
+            'subject'    => $child,
+            'asParent'   => true,
+            'statsRoute' => ['parent.child.stats', ['childId' => $child->id]],
         ]);
     }
 

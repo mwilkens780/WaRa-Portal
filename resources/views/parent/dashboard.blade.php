@@ -62,7 +62,26 @@
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         Zeiten
                     </a>
+                    <a href="{{ route('parent.child.stats', $child->id) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <x-ui.icon name="chart" class="w-3.5 h-3.5" />
+                        Wertung
+                    </a>
                 </div>
+
+                {{-- Wertung der laufenden Saison (Kennzahlen ohne Gesamtpunkte) --}}
+                @php $ss = $data['season_stats']; @endphp
+                @if($ss['season'])
+                    <a href="{{ route('parent.child.stats', $child->id) }}" class="block border-b border-gray-100 px-5 py-3 hover:bg-gray-50">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-600">Saison {{ $ss['season']->name }}</p>
+                        <div class="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-700">
+                            <span><strong class="text-primary">{{ $ss['now']['competitions'] }}</strong> Wettkämpfe</span>
+                            <span><strong class="text-amber-600">{{ $ss['now']['podiums'] }}</strong> Podestplätze</span>
+                            <span><strong class="text-accent">{{ $ss['now']['personal_bests'] }}</strong> Bestzeiten</span>
+                            <span><strong class="text-green-700">{{ $ss['now']['club_records'] }}</strong> Vereinsrekorde</span>
+                        </div>
+                    </a>
+                @endif
 
                 <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
                     {{-- Persönliche Bestzeiten --}}

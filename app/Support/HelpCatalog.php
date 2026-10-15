@@ -255,6 +255,20 @@ HTML,
 HTML,
             ],
             [
+                'key' => 'wertung', 'title' => 'Meine Wertung: Podestplätze, Finals, Bestzeiten', 'category' => 'sportler',
+                'audience' => 'sportler',
+                'keywords' => 'wertung statistik podest medaillen gold silber bronze finale bestzeiten vereinsrekorde wa punkte vorsaison saison',
+                'html' => <<<'HTML'
+<p>Unter <span class="ui">Meine Wertung</span> siehst du deine Wettkampf-Saison in Zahlen: Wettkämpfe, Starts, Podestplätze (mit Gold, Silber, Bronze), Finals, Bestzeiten und Vereinsrekorde – jeweils mit dem Wert der Vorsaison. Dazu dein bestes Ergebnis nach World-Aquatics-Punkten und eine Liste deiner Höhepunkte.</p>
+<ul>
+  <li>Oben wählst du die Saison.</li>
+  <li>Podestplätze sind die Plätze 1 bis 3 der jeweiligen Wertung, meist deiner Altersklasse.</li>
+  <li>Es gibt keine Rangliste: Du siehst nur deine eigenen Zahlen. Eltern sehen die ihrer Kinder.</li>
+</ul>
+<p>Eine Kurzfassung steht auf deiner Startseite.</p>
+HTML,
+            ],
+            [
                 'key' => 'ziele', 'title' => 'Ziele setzen und für den Trainer freigeben', 'category' => 'sportler',
                 'audience' => 'sportler',
                 'keywords' => 'ziele zielzeit qualifikation freies ziel freigabe privat trainer kommentar fortschritt leistungskriterien',
@@ -284,7 +298,8 @@ HTML,
                 'audience' => 'eltern',
                 'keywords' => 'kind kinder eltern absagen anmeldung wettkampf zeiten mehrere kinder',
                 'html' => <<<'HTML'
-<p>Im Menü hat jedes Kind einen eigenen Abschnitt mit <span class="ui">Training</span>, <span class="ui">Wettkämpfe</span>, <span class="ui">Anmeldungen</span> und <span class="ui">Zeiten</span>. Auf dem Handy führt die untere Leiste direkt dorthin.</p>
+<p>Im Menü hat jedes Kind einen eigenen Abschnitt mit <span class="ui">Training</span>, <span class="ui">Wettkämpfe</span>, <span class="ui">Anmeldungen</span>, <span class="ui">Zeiten</span> und <span class="ui">Wertung</span> (Podestplätze, Finals, Bestzeiten der Saison).
+ Auf dem Handy führt die untere Leiste direkt dorthin.</p>
 <ul>
   <li><strong>Training absagen:</strong> beim Kind unter <span class="ui">Training</span> → <span class="ui">Absagen</span> (bis zum Ende der Trainingszeit).</li>
   <li><strong>Wettkampf-Einladungen:</strong> unter <span class="ui">Anmeldungen</span> für das Kind zu- oder absagen, ggf. mit Übernachtung, Essen, Bus.</li>

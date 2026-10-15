@@ -568,6 +568,7 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
     Route::post('/anmeldung/{signupRequest}/fahrgemeinschaft', [SwimmerSignupController::class, 'bookCarpool'])->name('signup.carpool');
     Route::delete('/anmeldung/{signupRequest}/fahrgemeinschaft', [SwimmerSignupController::class, 'cancelCarpool'])->name('signup.carpool.cancel');
     Route::get('/meine-zeiten', [SwimmerDashboard::class, 'myTimes'])->middleware('menu:swimmer_times')->name('times');
+    Route::get('/meine-wertung', [SwimmerDashboard::class, 'myStats'])->middleware('menu:swimmer_stats')->name('stats');
     Route::get('/wettkaempfe', [SwimmerDashboard::class, 'myCompetitions'])->middleware('menu:swimmer_comps')->name('competitions');
     Route::get('/meine-trainings', [SwimmerDashboard::class, 'myTrainings'])->middleware('menu:swimmer_sessions')->name('sessions');
     Route::get('/training/{session}', [SwimmerDashboard::class, 'sessionDetail'])->name('session.show');
@@ -612,6 +613,7 @@ Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimme
 Route::middleware(['auth', 'role:elternteil'])->prefix('eltern')->name('parent.')->group(function () {
     Route::get('/dashboard', [ParentDashboard::class, 'index'])->name('dashboard');
     Route::get('/kind/{childId}/zeiten', [ParentDashboard::class, 'childTimes'])->name('child.times');
+    Route::get('/kind/{childId}/wertung', [ParentDashboard::class, 'childStats'])->name('child.stats');
     Route::get('/kind/{childId}/wettkaempfe', [ParentDashboard::class, 'childCompetitions'])->name('child.competitions');
 
     // Training: view upcoming sessions + register/cancel for child

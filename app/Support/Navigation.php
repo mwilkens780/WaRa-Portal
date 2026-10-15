@@ -47,6 +47,7 @@ class Navigation
             ['Mein Bereich', [
                 self::item('Mein Training', 'swimmer.sessions', 'bolt', ['swimmer.sessions', 'swimmer.session.*'], $is('schwimmer') && $can('swimmer_sessions')),
                 self::item('Meine Bestzeiten', 'swimmer.times', 'clock', 'swimmer.times', $is('schwimmer') && $can('swimmer_times')),
+                self::item('Meine Wertung', 'swimmer.stats', 'chart', 'swimmer.stats', $is('schwimmer') && $can('swimmer_stats')),
                 self::item('Meine Wettkämpfe', 'swimmer.competitions', 'check-circle', 'swimmer.competitions', $is('schwimmer') && $can('swimmer_comps')),
                 self::item('Meine Ziele', 'swimmer.goals.index', 'chart', 'swimmer.goals.*', $is('schwimmer') && $can('swimmer_goals')),
                 self::item('Leistungskriterien', 'swimmer.group-goals.index', 'badge', 'swimmer.group-goals.*', $is('schwimmer') && $can('swimmer_group_goals')),
@@ -62,6 +63,7 @@ class Navigation
                     self::childItem('Wettkämpfe', 'parent.child.competitions', $child, 'check-circle'),
                     self::childItem('Anmeldungen', 'parent.child.signups', $child, 'inbox'),
                     self::childItem('Zeiten', 'parent.child.times', $child, 'clock'),
+                    self::childItem('Wertung', 'parent.child.stats', $child, 'chart'),
                 ]];
             }
         }
