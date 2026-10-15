@@ -100,13 +100,15 @@ class SaisonAuswertungService
                         ? self::PLACE_BONUS[$r->placement] * $weight / 10 : 0);
                     if ($r->is_final)          { $score += self::FINAL_BONUS; $finals++; }
                     if ($r->is_personal_best)  { $score += self::PB_BONUS;    $pbs++; }
-                    if ($r->placement <= 3)    $podiums++;
+                    // Nur echte Platzierungen – "null <= 3" wäre in PHP wahr
+                    if ($r->placement && $r->placement <= 3) $podiums++;
                     if ($r->breaks_vereinsrekord) $records++;
                 }
 
+                // Je Benutzer; der Athlet ist nur Zusatzinfo (viele haben keinen oder mehrere)
                 SeasonScore::create([
-                    'athlete_id'     => $userId,
                     'user_id'        => $userId,
+                    'athlete_id'     => \App\Models\Athlete::where('user_id', $userId)->orderBy('id')->value('id'),
                     'season_year'    => $seasonYear,
                     'total_score'    => (int) $score,
                     'podiums'        => $podiums,
