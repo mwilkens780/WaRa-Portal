@@ -39,11 +39,15 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}
+          # Version im Schlüssel: neuer Browser nur bei neuer Playwright-Version im Lockfile
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Playwright installieren
         run: |
-          npm install playwright
+          # Playwright-Version aus package-lock.json (wie die Browsertests). Vorher holte
+          # "npm install playwright" immer die neueste Version, der Browser kam aber aus
+          # der festgelegten – seit Playwright 1.64 (07.10.2026) passten beide nicht mehr.
+          npm ci --no-audit --no-fund
           npx playwright install chromium
           # System-Abhängigkeiten separat mit Timeout (apt-get kann bei Mirror-Ausfällen hängen)
           timeout 180 npx playwright install-deps chromium || echo "WARN: install-deps fehlgeschlagen (ggf. bereits vorhanden)"
