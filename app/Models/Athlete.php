@@ -28,11 +28,6 @@ class Athlete extends Model
         return $this->hasMany(RelayMember::class);
     }
 
-    public function seasonScores()
-    {
-        return $this->hasMany(SeasonScore::class);
-    }
-
     public function getFullNameAttribute(): string
     {
         return $this->firstname . ' ' . $this->lastname;

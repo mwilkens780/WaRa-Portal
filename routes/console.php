@@ -7,7 +7,6 @@ use App\Services\Crawler\NsvCrawler;
 use App\Services\Crawler\ShsvCrawler;
 use App\Services\Crawler\WebClubCrawler;
 use App\Services\GroupRoster;
-use App\Services\Ranking\SaisonAuswertungService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -151,12 +150,3 @@ Schedule::call(fn() => \App\Models\MailMessage::where('created_at', '<', now()->
     ->name('mail-log-purge')
     ->withoutOverlapping();
 
-// Saison-Score-Cache wöchentlich neu berechnen
-Schedule::call(function () {
-    $year    = now()->month >= 9 ? now()->year : now()->year - 1;
-    $service = app(SaisonAuswertungService::class);
-    $service->recalculate($year);
-    if (now()->month >= 1 && now()->month <= 8) {
-        $service->recalculate($year - 1);
-    }
-})->weekly()->name('season-scores-recalc');
