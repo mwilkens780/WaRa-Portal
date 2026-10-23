@@ -105,8 +105,22 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8766/login > /dev/null && exit 0; sleep 1; done
           echo "Server startet nicht"; cat storage/logs/serve.log; exit 1
 
+      # Hing mehrfach ohne Fehlermeldung (08./23.10.2026: apt bzw. Download), sonst ~1 Minute.
+      # Jeder Versuch höchstens 5 Minuten, bis zu 3 Versuche – kein Neustart von Hand mehr.
       - name: Browser installieren (Chromium, WebKit)
-        run: npx playwright install --with-deps chromium webkit
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2 3; do
+            echo "── Versuch $attempt ──"
+            if timeout 300 npx playwright install-deps chromium webkit \
+               && timeout 300 npx playwright install chromium webkit; then
+              exit 0
+            fi
+            echo "Versuch $attempt abgebrochen oder fehlgeschlagen – neuer Versuch"
+            sleep 10
+          done
+          echo "Browser-Installation nach 3 Versuchen gescheitert"
+          exit 1
 
       - name: Browsertests
         run: npx playwright test
