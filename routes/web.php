@@ -50,7 +50,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Health\HealthDataController;
 use App\Http\Controllers\Nutrition\NutritionController;
 use App\Http\Controllers\TeamDoctor\TeamDoctorController;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 
 // Startseite -> Login
 Route::get('/', fn() => auth()->check()
@@ -526,7 +526,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 // Webhook-Endpunkt für GitHub Actions WebClub-Crawler (kein CSRF, Bearer-Token-Auth)
 Route::post('/api/webclub-import', [\App\Http\Controllers\Api\WebClubImportController::class, 'store'])
-    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->withoutMiddleware([PreventRequestForgery::class])
     ->middleware([\App\Http\Middleware\VerifyWebClubToken::class])
     ->name('api.webclub-import');
 
@@ -558,7 +558,7 @@ Route::middleware('auth')->group(function () {
 // GitHub Webhook (kein Auth, kein CSRF)
 Route::post('/webhooks/github', [SupportTicketController::class, 'webhook'])
     ->name('webhooks.github')
-    ->withoutMiddleware([ValidateCsrfToken::class]);
+    ->withoutMiddleware([PreventRequestForgery::class]);
 
 // Schwimmer-Bereich
 Route::middleware(['auth', 'role:schwimmer'])->prefix('schwimmer')->name('swimmer.')->group(function () {

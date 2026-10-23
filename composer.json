@@ -1,21 +1,25 @@
 {
     "name": "sgwasserratten/wara-portal",
     "description": "Trainingsportal SG Wasserratten Norderstedt e.V.",
-    "keywords": ["laravel", "schwimmverein", "training"],
+    "keywords": [
+        "laravel",
+        "schwimmverein",
+        "training"
+    ],
     "license": "proprietary",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^11.0",
-        "laravel/tinker": "^2.9",
+        "laravel/framework": "^13.0",
+        "laravel/tinker": "^3.0",
         "smalot/pdfparser": "^2.0",
-        "symfony/html-sanitizer": "^7.4"
+        "symfony/html-sanitizer": "^7.4|^8.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pint": "^1.13",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.0",
-        "phpunit/phpunit": "^11.0.1"
+        "phpunit/phpunit": "^12.0"
     },
     "autoload": {
         "psr-4": {

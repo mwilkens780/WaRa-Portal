@@ -1,6 +1,14 @@
 # WaRa-Portal – Hinweise für Claude Code
 
-Laravel 11 Portal für SG Wasserratten Norderstedt e.V.
+Laravel 13 Portal für SG Wasserratten Norderstedt e.V. (Upgrade von 11 am 23.10.2026).
+
+**Lokal**: Laravel 13 / Symfony 8 brauchen PHP ≥ 8.4 – lokal `C:/laragon/bin/php/php-8.5.12-nts-Win32-vs17-x64/php.exe`
+(neben Laragons 8.3). Composer-Downloads scheitern lokal (TLS-Abfangen, curl 60): Lock auf dem Server mit `php85`
+in `storage/app/composer-update-tmp` auflösen, `vendor` bei Bedarf dort bauen und als tgz holen.
+
+**Upgrade-Fallen (erledigt)**: `config/filesystems.php` hält die lokale Ablage bei `storage/app` (Standard ab L12
+wäre `storage/app/private`). CSRF-Middleware heißt `PreventRequestForgery`. Prüfskripte mit `app()->handle()`
+brauchen bei POST den Header `Sec-Fetch-Site: same-origin`.
 
 ## Deployment-Umgebung
 
