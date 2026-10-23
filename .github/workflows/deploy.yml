@@ -46,6 +46,11 @@ jobs:
             set -e
             cd ${{ secrets.SSH_PATH }}
 
+            # Kommandozeile mit derselben PHP-Hauptversion wie die Webseiten (8.5,
+            # Martin 23.10.2026). "php" ist beim Hoster 8.3.
+            PHP=php85
+            echo "── PHP: $($PHP -r 'echo PHP_VERSION;') ──"
+
             # Build VOR dem Code tauschen: neue Views duerfen nie ohne ihr
             # Manifest dastehen (sonst Fehler 500). Der vorige Stand bleibt
             # als build-old fuer ein Zurueckrollen liegen.
@@ -69,25 +74,25 @@ jobs:
             git pull origin main
 
             echo "── Composer install ──"
-            php composer.phar install \
+            $PHP composer.phar install \
               --no-dev \
               --optimize-autoloader \
               --no-interaction \
               --no-progress
 
             echo "── Migrations ──"
-            php artisan migrate --force
+            $PHP artisan migrate --force
 
             echo "── Referenzdaten ──"
-            php artisan db:seed --class=WaScoringTableSeeder --force
+            $PHP artisan db:seed --class=WaScoringTableSeeder --force
 
             echo "── Cache leeren ──"
-            php artisan optimize:clear
+            $PHP artisan optimize:clear
 
             echo "── Cache neu aufbauen ──"
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan event:cache
+            $PHP artisan config:cache
+            $PHP artisan route:cache
+            $PHP artisan view:cache
+            $PHP artisan event:cache
 
             echo "── Deployment abgeschlossen ──"

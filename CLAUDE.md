@@ -5,18 +5,20 @@ Laravel 11 Portal für SG Wasserratten Norderstedt e.V.
 ## Deployment-Umgebung
 
 - **Produktionsserver**: Shared Hosting all-inkl.com
-- **PHP auf dem Server**: 8.3.29 (nicht 8.4!)
-- **Deployment**: GitHub Action auf Push nach `main` → SSH-Skript führt `git pull`, `composer install`, `php artisan migrate`, Cache-Rebuild aus
+- **PHP auf dem Server**: 8.5 (seit 23.10.2026, Martin: neuestes Release, letzter Patch). Webseiten laufen mit der
+  im KAS-Panel eingestellten Version (FPM), die Kommandozeile mit `php85` – `php` ist beim Hoster weiterhin 8.3!
+  Den Patchstand der CLI (`php85 -v`) bestimmt der Hoster.
+- **Deployment**: GitHub Action auf Push nach `main` → SSH-Skript führt mit `php85` `git pull`, `composer install`, `artisan migrate`, Cache-Rebuild aus
 
 ## Wichtige Einschränkungen
 
 ### PHP-Plattform (composer.json)
 
-`composer.json` enthält `"platform": { "php": "8.3.29" }`. Diese Einstellung ist bewusst gesetzt und darf **nicht entfernt werden**.
+`composer.json` enthält `"platform": { "php": "8.5.0" }`. Diese Einstellung ist bewusst gesetzt und darf **nicht entfernt werden**.
 
-**Grund**: Diese Cloud-Umgebung läuft auf PHP 8.4.x. Ohne die Platform-Einschränkung zieht `composer update` Pakete wie `symfony/* v8.1.x`, die PHP ≥ 8.4.1 voraussetzen — das bricht das Deployment, weil der Server nur PHP 8.3.29 hat.
+**Grund**: Pakete werden für die Server-Version aufgelöst, unabhängig davon, mit welcher PHP-Version lokal `composer update` läuft (lokal Laragon 8.3).
 
-**Regel**: Nach jedem `composer update` in dieser Session prüfen, ob das `composer.lock` noch PHP-8.3-kompatible Versionen enthält. Im Zweifel das `composer.lock` aus dem letzten funktionierenden Deployment wiederherstellen (`git show HEAD~N:composer.lock`).
+**Regel**: Nach jedem `composer update` prüfen, ob das `composer.lock` zu PHP 8.5 passt (`php85 composer.phar check-platform-reqs` auf dem Server). Im Zweifel das `composer.lock` aus dem letzten funktionierenden Deployment wiederherstellen (`git show HEAD~N:composer.lock`).
 
 ### composer.lock immer committen
 
