@@ -249,7 +249,7 @@
                                     {{ $day['isToday'] ? 'bg-primary text-white' : ($day['isWeekend'] ? 'text-blue-600' : 'text-gray-700') }}">
                                     {{ $day['date']->day }}
                                 </div>
-                                <div class="text-[10px] text-gray-400 mt-0.5">{{ $day['date']->format('d.m.') }}</div>
+                                <div class="text-[10px] {{ $hdrBg ? 'text-gray-600' : 'text-gray-400' }} mt-0.5">{{ $day['date']->format('d.m.') }}</div>
                                 @if($day['holiday'])
                                     <div x-show="categories.holiday"
                                          class="text-[10px] text-green-800 font-semibold mt-0.5 leading-tight px-1 truncate" title="{{ $day['holiday'] }}">{{ $day['holiday'] }}</div>
@@ -351,6 +351,8 @@
                             $isWknd  = in_array($day['date']->dayOfWeek, [6, 0]);
                             $evCount = count($day['events']);
                             $cellBg  = $cellBgFn($day['isToday'], $day['holiday'], $day['vacSH'], $day['vacHH']);
+                            // gray-400 hat auf den Ferien-/Feiertagsflaechen (blue/sky/violet-50) nur ~4,4:1
+                            $outText = $cellBg ? 'text-gray-600' : 'text-gray-400';
                             if (!$cellBg && !$day['inMonth']) $cellBg = 'bg-gray-50/50';
                         @endphp
                         {{-- Kein opacity mehr fuer Nachbarmonats-Tage: blendete auch Feiertags-
@@ -358,7 +360,7 @@
                         <div class="min-h-[90px] p-1.5 border-r border-gray-50 last:border-r-0 {{ $cellBg }}">
                             <div class="flex items-center justify-between mb-0.5">
                                 <span class="text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full
-                                    {{ $day['isToday'] ? 'bg-primary text-white' : ($day['inMonth'] ? ($isWknd ? 'text-blue-600' : 'text-gray-700') : 'text-gray-400') }}">
+                                    {{ $day['isToday'] ? 'bg-primary text-white' : ($day['inMonth'] ? ($isWknd ? 'text-blue-600' : 'text-gray-700') : $outText) }}">
                                     {{ $day['date']->day }}
                                 </span>
                                 @if($canCreate && $day['inMonth'])
